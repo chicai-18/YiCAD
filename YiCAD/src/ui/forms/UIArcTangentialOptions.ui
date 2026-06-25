@@ -1,0 +1,132 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Ui_ArcTangentialOptions</class>
+ <widget class="QWidget" name="Ui_ArcTangentialOptions">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>320</width>
+    <height>24</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>248</width>
+    <height>22</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Tangential Arc Options</string>
+  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <property name="topMargin">
+    <number>1</number>
+   </property>
+   <property name="bottomMargin">
+    <number>1</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="lRadius">
+     <property name="text">
+      <string>Radius</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="leRadius">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>Radius of the tangential arc</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="btnLockRadius">
+      <property name="text">
+        <string/>
+      </property>
+      <property name="icon">
+        <iconset>
+          <normaloff>:/ribbon/forms_dlg/unlock.svg</normaloff>
+          <normalon>:/ribbon/forms_dlg/lock.svg</normalon>
+        </iconset>
+      </property>
+      <property name="checkable">
+        <bool>true</bool>
+      </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="Line" name="sep1">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::VLine</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="lAngle">
+     <property name="text">
+      <string>Angle</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="leAngle">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>Total subtending angle of the tangential arc</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="btnLockAngle">
+      <property name="text">
+        <string/>
+      </property>
+      <property name="icon">
+        <iconset>
+          <normaloff>:/ribbon/forms_dlg/unlock.svg</normaloff>
+          <normalon>:/ribbon/forms_dlg/lock.svg</normalon>
+        </iconset>
+      </property>
+      <property name="checkable">
+        <bool>true</bool>
+      </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <tabstops>
+  <tabstop>leRadius</tabstop>
+  <tabstop>leAngle</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

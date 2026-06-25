@@ -1,0 +1,10 @@
+<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+ <g id="Layer_1">
+  <title>Layer 1</title>
+  <line filter="url(#svg_2_blur)" id="svg_2" y2="12" x2="12" y1="12" x1="20" stroke-width="2" stroke="#fff" fill="none"/>
+  <line filter="url(#svg_3_blur)" id="svg_3" y2="12" x2="20" y1="20" x1="20" stroke-width="2" stroke="#fff" fill="none"/>
+  <line filter="url(#svg_4_blur)" id="svg_4" y2="20" x2="20" y1="20" x1="12" stroke-width="2" stroke="#fff" fill="none"/>
+  <line filter="url(#svg_5_blur)" id="svg_5" y2="20" x2="12" y1="12" x1="12" stroke-width="2" stroke="#fff" fill="none"/>
+ </g>
+
+</svg>

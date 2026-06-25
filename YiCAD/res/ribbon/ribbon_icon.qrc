@@ -1,0 +1,270 @@
+<RCC>
+    <qresource prefix="/ribbon">
+    <file>logo.svg</file>
+	<file>logo.png</file>
+    <file>startup_image.svg</file>
+    <file>startup_image.png</file>
+		<file>undo.svg</file>									<!--撤销        		-->
+		<file>redo.svg</file>									<!--重做        		-->
+		
+		<!-- File -->
+		<file>file/new.svg</file>								<!--新建        		-->
+		<file>file/open.svg</file>								<!--打开        		-->
+		<file>file/save.svg</file>								<!--保存        		-->
+		<file>file/save_as.svg</file>							<!--另存为        		-->
+		<file>file/save_all.svg</file>							<!--保存全部        	-->
+		<file>file/import_image.svg</file>						<!--导入图片        	-->
+		<file>file/import_block.svg</file>						<!--导入图块        	-->
+		<file>file/export_svg.svg</file>						<!--导出svg        		-->
+		<file>file/export_image.svg</file>						<!--导出图片        	-->
+		<file>file/export_pdf.svg</file>						<!--导出PDF        		-->
+		<file>file/print.svg</file>								<!--打印 		       	-->
+		<file>file/print_preview.svg</file>						<!--打印预览        	-->
+		<file>file/close_all.svg</file>							<!--关闭所有        	-->
+		<file>file/quit.svg</file>								<!--退出        		-->
+		
+		<!-- Options -->
+		<file>options/settings.svg</file>						<!--应用程序设置        -->
+		<file>options/draw_settings.svg</file>					<!--图纸设置        	-->
+		<file>options/about.svg</file>							<!--关于        		-->
+		
+		<!-- Viewport -->
+		<file>viewport/save_viewport.svg</file>					<!--保存当前视口        -->
+		<file>viewport/new_viewport.svg</file>					<!--新建视口        	-->
+		<file>viewport/view_manager.svg</file>					<!--视图管理器        	-->
+		
+		<!-- ///Draw2d/// -->
+		<!-- line -->
+		<file>draw2d/line_2p.svg</file> 						<!--两点画线          	-->
+		<file>draw2d/line_square.svg</file> 					<!--矩形              	-->
+		<file>draw2d/line_bi_angle.svg</file>					<!--角平分线          	-->
+		<file>draw2d/line_tangent_pt_circle.svg</file>			<!--切线(点,圆)       	-->
+		<file>draw2d/line_tangent_c_c.svg</file>				<!--切线（圆、圆）		-->
+		<file>draw2d/line_tan_orthognal.svg</file>				<!--正交切线			-->
+		<file>draw2d/line_polygon_cen_cor.svg</file>			<!--多边形（中心、角点）-->
+		<file>draw2d/line_polygon_cen_tan.svg</file>			<!--多边形（中心、切点）-->
+		<file>draw2d/line_ray.svg</file>						<!--射线       			-->
+		<file>draw2d/line_xline.svg</file>						<!--构造线       		-->
+		<!-- curve -->
+		<file>draw2d/curve_arc_center_angle.svg</file>			<!--圆心角度画弧      	-->
+		<file>draw2d/curve_arc_3p.svg</file>	   				<!--三点画弧          	-->
+		<file>draw2d/curve_arc_tang.svg</file>					<!--相切弧            	-->
+		<file>draw2d/curve_spline.svg</file>  					<!--控制点样条线        -->
+		<file>draw2d/curve_spline_ft_pt.svg</file>				<!--拟合点样条曲线    	-->
+		<file>draw2d/curve_ellipse_arc.svg</file>				<!--椭圆弧				-->
+		<file>draw2d/curve_freehand_line.svg</file>				<!--徒手画线			-->
+		<!-- polyline -->
+		<file>draw2d/polyline.svg</file> 						<!--多段线            	-->
+		<file>draw2d/polyline_add_node.svg</file>  				<!--添加节点          	-->
+		<file>draw2d/polyline_append_node.svg</file>  			<!--追加节点          	-->
+		<file>draw2d/polyline_delete_node.svg</file> 			<!--删除节点          	-->
+		<file>draw2d/cloudline_free.svg</file> 					<!--自由绘制云线		-->
+		<file>draw2d/cloudline_polygon.svg</file> 				<!--绘制多边形云线      -->
+		<file>draw2d/cloudline_rectangle.svg</file> 			<!--绘制矩形云线		-->
+		<!-- circle -->
+		<file>draw2d/circle_center_pt.svg</file>				<!--圆心到点画圆    	-->
+		<file>draw2d/circle_2p.svg</file>  						<!--两点画圆        	-->
+		<file>draw2d/circle_3p.svg</file>  						<!--三点画圆        	-->
+		<file>draw2d/circle_tan_radius.svg</file>				<!--相切两圆半径画圆	-->
+		<file>draw2d/circle_tan_3c.svg</file>					<!--相切三圆			-->
+		<!-- ellipse -->
+		<file>draw2d/ellipe_2seg.svg</file>						<!--长短轴画椭圆      	-->
+		<file>draw2d/ellipse_incrib.svg</file>					<!--内切椭圆          	-->
+		<!-- dimension -->
+		<file>draw2d/dim_align.svg</file>						<!--对齐标注          	-->
+		<file>draw2d/dim_linear.svg</file>						<!--线性标注          	-->
+		<file>draw2d/dim_radius.svg</file>						<!--半径标注          	-->
+		<file>draw2d/dim_diam.svg</file>						<!--直径标注          	-->
+		<file>draw2d/dim_angle.svg</file>						<!--角度标注			-->
+		<file>draw2d/dim_leader.svg</file>						<!--引线标注			-->
+		<file>draw2d/dim_baseline.svg</file>					<!--基线标注			-->
+		<file>draw2d/dim_style.svg</file>						<!--标注样式          	-->
+		<!-- text -->
+		<file>draw2d/text.svg</file> 		 					<!--单行文字            -->
+		<file>draw2d/mtext.svg</file> 		 					<!--多行文字            -->
+		<file>draw2d/text_style.svg</file>						<!--文字样式            -->
+		<!-- table -->
+		<file>draw2d/table.svg</file>							<!--创建表格            -->
+		<file>draw2d/table_style.svg</file>						<!--表格样式            -->
+		<!-- other -->
+		<file>draw2d/hatch.svg</file> 		 					<!--填充              	-->
+		<file>draw2d/insert_image.svg</file> 		 			<!--插入图片            -->
+		<!-- modify -->
+		<file>draw2d/modify_copy.svg</file> 					<!--复制            	-->
+		<file>draw2d/modify_move.svg</file> 					<!--移动            	-->
+		<file>draw2d/modify_rotate.svg</file> 					<!--旋转              	-->
+		<file>draw2d/modify_zoom.svg</file> 					<!--放缩              	-->
+		<file>draw2d/modify_mirror.svg</file> 					<!--镜像              	-->
+		<file>draw2d/modify_trim.svg</file>						<!--修剪				-->
+		<file>draw2d/modify_lengthen.svg</file>					<!--延伸				-->
+		<file>draw2d/modify_offset.svg</file>					<!--偏移				-->
+		<file>draw2d/modify_bevel.svg</file>					<!--倒角				-->
+		<file>draw2d/modify_fillet.svg</file>					<!--圆角				-->
+		<file>draw2d/modify_divide.svg</file>					<!--打断				-->
+		<file>draw2d/modify_twopoints_break.svg</file> 			<!--两点打断            -->
+		<file>draw2d/modify_attributes.svg</file>				<!--特性				-->
+		<file>draw2d/modify_explode.svg</file>					<!--拆分实体			-->
+		<!-- info -->
+		<file>draw2d/info_dist_pt_pt.svg</file>  				<!--点到点距离        	-->
+		<file>draw2d/info_angle_2lines.svg</file>  				<!--两线夹角          	-->
+		<file>draw2d/info_length_entity.svg</file>				<!--实体总长度        	-->
+		<file>draw2d/info_area_polygon.svg</file>				<!--多边形面积        	-->
+		
+		<!-- point -->
+		<file>draw2d/point.svg</file> 							<!--点                	-->
+		
+		<!-- layer -->
+		<file>layer/layer_all_visible.svg</file> 		 		<!--显示所有图层        -->
+		<file>layer/layer_all_unlock.svg</file> 		 		<!--解锁所有图层        -->
+		<file>layer/add_layer.svg</file> 		 				<!--新增图层          	-->
+		<file>layer/copy_entity_to_layer.svg</file> 		 	<!--复制实体到图层      -->
+		<file>layer/rename_layer.svg</file> 		 			<!--编辑、重命名图层    -->
+		<file>layer/layer_visible.svg</file> 		 			<!--显示图层            -->
+		<file>layer/layer_invisible.svg</file> 		 			<!--隐藏图层            -->
+		<file>layer/layer_lock.svg</file> 		 				<!--锁定图层            -->
+		<file>layer/layer_unlock.svg</file> 		 			<!--解锁图层            -->
+		<file>layer/layer_print.svg</file> 		 				<!--打印图层            -->
+		<file>layer/layer_unprint.svg</file> 		 			<!--不打印图层          -->
+		<file>layer/delete_layer.svg</file> 		 			<!--删除图层          	-->
+		
+		<!-- block -->
+		<file>block/block_create.svg</file> 		 			<!--创建图块	        -->
+		<file>block/block_edit.svg</file> 		 			<!--创建图块	        -->
+		<file>block/block_insert.svg</file> 		 			<!--插入图块	        -->
+		<file>block/block_save.svg</file> 		 				<!--保存图块	        -->
+		<file>block/block_delete.svg</file> 		 			<!--删除图块	        -->
+		<file>block/define_attribute.svg</file> 		 		<!--定义属性	        -->
+		
+		<!-- array -->
+		<file>array/rect_array.svg</file> 		 				<!--矩形阵列          	-->
+		<file>array/polar_array.svg</file> 		 				<!--环形阵列          	-->
+		<file>array/path_array.svg</file> 		 				<!--路径阵列          	-->
+		<file>array/col.svg</file> 		 						<!--列数          	    -->
+		<file>array/row.svg</file> 		 						<!--行数          	    -->
+		<file>array/colspace.svg</file> 		 				<!--列间距          	-->
+		<file>array/rowspace.svg</file> 		 				<!--行间距          	-->
+		<file>array/allcolspace.svg</file> 		 				<!--列总长          	-->
+		<file>array/allrowspace.svg</file> 		 				<!--行总长          	-->
+		<file>array/edit_array.svg</file> 		 				<!--编辑          	-->
+		<file>array/save_array.svg</file> 		 				<!--保存          	-->
+		<file>array/replace_array.svg</file> 		 			<!--替换          	-->
+		<file>array/reset_array.svg</file> 		 				<!--重置          	-->
+		
+		<!-- tabBar -->
+		<file>tabbar/new.svg</file>								<!--图纸标签新建        -->
+		<file>tabbar/close.svg</file>							<!--图纸标签关闭        -->
+		<file>tabbar/close-red.svg</file>						<!--图纸标签关闭，红色-->
+		<file>tabbar/ai.svg</file>								<!--AI助手按钮          -->
+		
+		<!-- cmd -->
+		<file>cmd/cmd.svg</file>								<!--cmd输入栏图标       -->
+		<file>cmd/arrow_up.svg</file>							<!--cmd输入栏上拉       -->
+		
+		<!-- bottom -->
+		<file>bottom/grid.svg</file>							<!--底部状态栏网格      -->
+		<file>bottom/show_width.svg</file>						<!--底部状态栏线宽      -->
+		<file>bottom/snap.svg</file>							<!--底部状态栏捕捉方式  -->
+		<file>bottom/unit.svg</file>							<!--底部状态栏单位      -->
+		<file>bottom/check_mark.svg</file>						<!--底部栏捕捉选中的对勾-->
+		<file>bottom/orthogonal.svg</file>						<!--底部栏正交选项		-->
+		
+		<!-- snap point -->
+		<file>snap_point/snap_endpoint.svg</file>				<!--捕捉端点      		-->
+		<file>snap_point/snap_center.svg</file>					<!--捕捉圆心      		-->
+		<file>snap_point/snap_intersection.svg</file>			<!--捕捉交点      		-->
+		<file>snap_point/snap_middle.svg</file>					<!--捕捉中点      		-->
+		<file>snap_point/snap_on_entity.svg</file>				<!--捕捉最近点(捕捉实体)-->
+		
+		<!-- solver -->
+		<file>solver/solver_vertical_p.svg</file>				<!--垂直约束      		-->
+		<file>solver/solver_smooth.svg</file>					<!--平滑约束      		-->
+		<file>solver/solver_parallel.svg</file>					<!--平行约束      		-->
+		<file>solver/solver_vertical_v.svg</file>				<!--竖直约束      		-->
+		<file>solver/solver_horizontal.svg</file>				<!--水平约束      		-->
+		<file>solver/solver_concentric.svg</file>				<!--同心约束      		-->
+		<file>solver/solver_equal.svg</file>					<!--相等约束      		-->
+		<file>solver/solver_tangent.svg</file>					<!--相切约束      		-->
+		<file>solver/solver_right_angle.svg</file>				<!--直角约束      		-->
+		<file>solver/solver_coincide.svg</file>					<!--重合约束      		-->
+		
+		<!-- cursor style -->
+		<file>cursor_style/select_entity.svg</file>				<!--选择实体时鼠标样式	-->
+		<file>cursor_style/select_entity.png</file>				<!--选择实体时鼠标样式	-->
+		<file>cursor_style/text_match.svg</file>				<!--文本格式刷鼠标样式	-->
+		
+		<!-- ui/forms -->
+		<file>forms_dlg/dirneg.svg</file>
+		<file>forms_dlg/dirpos.svg</file>
+		<file>forms_dlg/modify.svg</file>
+		<file>forms_dlg/shx_font.svg</file>
+		<file>forms_dlg/system_font.svg</file>
+		<file>forms_dlg/warning.svg</file>
+		<file>forms_dlg/lock.svg</file>								<!--锁定	-->
+		<file>forms_dlg/unlock.svg</file>							<!--取消锁定	-->
+		<file>forms_dlg/bold.svg</file>								<!--粗体	-->
+		<file>forms_dlg/italic.svg</file>							<!--斜体	-->
+		<file>forms_dlg/paragraph_align.svg</file>					<!--对齐	-->
+		<file>forms_dlg/justification.svg</file>					<!--对正	-->
+		<file>forms_dlg/match_format.svg</file>						<!--格式刷	-->
+		<file>forms_dlg/oblique_angle.svg</file>					<!--倾斜角度	-->
+		<file>forms_dlg/overline.svg</file>							<!--上划线	-->
+		<file>forms_dlg/underline.svg</file>						<!--下划线	-->
+		<file>forms_dlg/redo.svg</file>								<!--重做	-->
+		<file>forms_dlg/undo.svg</file>								<!--撤销	-->
+		<file>forms_dlg/strikethrough.svg</file>					<!--删除线	-->
+		<file>forms_dlg/width_factor.svg</file>						<!--宽度系数	-->
+		
+		<!-- ui/color -->
+		<file>color/color_white.svg</file>
+		<file>color/color_custom.svg</file>
+		
+		<!-- ui/line_type -->
+		<file>line_type/linetype00.svg</file>
+		<file>line_type/linetype01.png</file>
+		<file>line_type/linetype02.png</file>
+		<file>line_type/linetype03.png</file>
+		<file>line_type/linetype04.png</file>
+		<file>line_type/linetype05.png</file>
+		<file>line_type/linetype06.png</file>
+		<file>line_type/linetype07.png</file>
+		
+		<!-- ui/line_width -->
+		<file>line_width/width00.svg</file>
+		<file>line_width/width01.svg</file>
+		<file>line_width/width02.svg</file>
+		<file>line_width/width03.svg</file>
+		<file>line_width/width04.svg</file>
+		<file>line_width/width05.svg</file>
+		<file>line_width/width06.svg</file>
+		<file>line_width/width07.svg</file>
+		<file>line_width/width08.svg</file>
+		<file>line_width/width09.svg</file>
+		<file>line_width/width10.svg</file>
+		<file>line_width/width11.svg</file>
+		<file>line_width/width12.svg</file>
+
+      <!-- ui/arrows -->
+      <file>arrows/architectural_tick.svg</file>				<!--建筑标记	-->
+      <file>arrows/box.svg</file>								<!--方框	-->
+      <file>arrows/box_filled.svg</file>						<!--实心方框	-->
+      <file>arrows/closed.svg</file>							<!--闭合	-->
+      <file>arrows/closed_blank.svg</file>						<!--空心闭合	-->
+      <file>arrows/closed_filled.svg</file>						<!--实心闭合	-->
+      <file>arrows/datum_triangle.svg</file>					<!--基准三角形	-->
+      <file>arrows/datum_triangle_filled.svg</file>				<!--实心基准三角形	-->
+      <file>arrows/dot.svg</file>								<!--点	-->
+      <file>arrows/dot_blank.svg</file>							<!--空心点	-->
+      <file>arrows/dot_small.svg</file>							<!--小点	-->
+      <file>arrows/dot_small_blank.svg</file>					<!--空心小点	-->
+      <file>arrows/integral.svg</file>							<!--积分	-->
+      <file>arrows/oblique.svg</file>							<!--倾斜	-->
+      <file>arrows/open.svg</file>								<!--打开	-->
+      <file>arrows/open30.svg</file>							<!--30度角	-->
+      <file>arrows/origin_indicator.svg</file>					<!--指示原点	-->
+      <file>arrows/origin_indicator2.svg</file>					<!--指示原点2	-->
+      <file>arrows/right_angle.svg</file>						<!--直角	-->
+    </qresource>
+    <qresource prefix="/styles">
+        <file alias="light.qss">../styles/light.qss</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,688 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>UIDlgDimensionStyle</class>
+ <widget class="QDialog" name="UIDlgDimensionStyle">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>520</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dimension Style</string>
+  </property>
+  <property name="sizeGripEnabled">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>3</number>
+     </property>
+     <widget class="QWidget" name="tabLine">
+      <attribute name="title">
+       <string>Line</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,1">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QGroupBox" name="groupBox">
+           <property name="title">
+            <string>Dimension line</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout">
+            <item row="0" column="0">
+             <widget class="QLabel" name="lColor">
+              <property name="text">
+               <string>Color:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="UIColorBox" name="cbColor" native="true"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="lLineType">
+              <property name="text">
+               <string>Line type:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="UILineTypeBox" name="cbLineType" native="true"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="lLineWidth">
+              <property name="text">
+               <string>Line width:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="UIWidthBox" name="cbLineWidth" native="true"/>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lHideDimLine">
+                <property name="text">
+                 <string>Hide:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkDimLine1">
+                <property name="text">
+                 <string>Dimmension line 1</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkDimLine2">
+                <property name="text">
+                 <string>Dimmension line 2</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_2">
+           <property name="title">
+            <string>Dimension boundary line</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_2">
+            <item row="6" column="0">
+             <widget class="QCheckBox" name="chkFixedLengthBoundryLine">
+              <property name="text">
+               <string>Fixed length of boundary line:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="UILineTypeBox" name="cbLineTypeBoundary" native="true"/>
+            </item>
+            <item row="5" column="0">
+             <widget class="QLabel" name="label_2">
+              <property name="text">
+               <string>Start pt offset:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_2">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lHideDimLine_2">
+                <property name="text">
+                 <string>Hide:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkDimBoundaryLine1">
+                <property name="text">
+                 <string>Dimmension boundary line 1</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkDimBoundaryLine2">
+                <property name="text">
+                 <string>Dimmension boundary line 2</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="lLineWidthBoundary">
+              <property name="text">
+               <string>Line width:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="UIColorBox" name="cbColorBoundary" native="true"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="lColorBoundary">
+              <property name="text">
+               <string>Color:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Extend dimension line:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="UIWidthBox" name="cbLineWidthBoundary" native="true"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="lLineTypeBoundary">
+              <property name="text">
+               <string>Line type:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="UIDoubleSpinBox" name="sbExtendDimLine" native="true"/>
+            </item>
+            <item row="6" column="1">
+             <widget class="UIDoubleSpinBox" name="sbFixedLengthBoundryLine" native="true"/>
+            </item>
+            <item row="5" column="1">
+             <widget class="UIDoubleSpinBox" name="sbStartPtOffset" native="true"/>
+            </item>
+           </layout>
+           <zorder>label</zorder>
+           <zorder>lColorBoundary</zorder>
+           <zorder>cbColorBoundary</zorder>
+           <zorder>lLineTypeBoundary</zorder>
+           <zorder>cbLineTypeBoundary</zorder>
+           <zorder>lLineWidthBoundary</zorder>
+           <zorder>cbLineWidthBoundary</zorder>
+           <zorder>sbExtendDimLine</zorder>
+           <zorder>label_2</zorder>
+           <zorder>sbStartPtOffset</zorder>
+           <zorder>chkFixedLengthBoundryLine</zorder>
+           <zorder>sbFixedLengthBoundryLine</zorder>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="GuiPreviewWidget" name="previewLine" native="true"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabArrow">
+      <attribute name="title">
+       <string>Arrow</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,1">
+       <item>
+        <widget class="QGroupBox" name="groupBox_3">
+         <property name="title">
+          <string>Arrow</string>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_4">
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>Arrow size:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>First:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="UIArrowBox" name="cbFirstArrow" native="true"/>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_5">
+            <property name="text">
+             <string>Leader line:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="UIArrowBox" name="cbSecondArrow" native="true"/>
+          </item>
+          <item row="2" column="1">
+           <widget class="UIArrowBox" name="cbLeaderLine" native="true"/>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>Second:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1">
+           <spacer name="verticalSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item row="3" column="1">
+           <widget class="UIDoubleSpinBox" name="sbArrowSize" native="true"/>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="GuiPreviewWidget" name="previewArrow" native="true"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabText">
+      <attribute name="title">
+       <string>Text</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,1">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <widget class="QGroupBox" name="groupBox_4">
+           <property name="title">
+            <string>Text appearance</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_3">
+            <item row="1" column="1">
+             <widget class="UIColorBox" name="cbTextColor" native="true"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_7">
+              <property name="text">
+               <string>Text style:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="UIColorBox" name="cbFillColor" native="true"/>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_10">
+              <property name="text">
+               <string>Text height:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_11">
+              <property name="text">
+               <string>Fraction height scale:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="UITextStyleBox" name="cbTextStyle" native="true"/>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_9">
+              <property name="text">
+               <string>Fill color:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_8">
+              <property name="text">
+               <string>Text color:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="0">
+             <widget class="QCheckBox" name="chkDrawTextBoundary">
+              <property name="text">
+               <string>Draw text boundary</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="UIDoubleSpinBox" name="sbTextHeight" native="true"/>
+            </item>
+            <item row="4" column="1">
+             <widget class="UIDoubleSpinBox" name="sbFractionScale" native="true"/>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_5">
+           <property name="title">
+            <string>Text position</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_5">
+            <item row="1" column="1">
+             <widget class="QComboBox" name="cbHorizontalPos"/>
+            </item>
+            <item row="2" column="1">
+             <widget class="QComboBox" name="cbViewDirection"/>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_13">
+              <property name="text">
+               <string>Offset from dimension line:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_15">
+              <property name="text">
+               <string>View direction:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="cbVerticalPos"/>
+            </item>
+            <item row="3" column="1">
+             <widget class="UIDoubleSpinBox" name="sbOffsetFromDimensionLine" native="true"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_12">
+              <property name="text">
+               <string>Vertical:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_16">
+              <property name="text">
+               <string>Horizontal:</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="GuiPreviewWidget" name="previewText" native="true"/>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabUnit">
+      <attribute name="title">
+       <string>Unit</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_8" stretch="1,1">
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <widget class="QGroupBox" name="groupBox_6">
+           <property name="title">
+            <string>Linear dimension</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_6">
+            <item row="1" column="1">
+             <widget class="QComboBox" name="cbLinearPrecison"/>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="label_19">
+              <property name="text">
+               <string>Decimal saparator:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="label_18">
+              <property name="text">
+               <string>Fraction format:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QComboBox" name="cbDecimalSaparator"/>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="label_20">
+              <property name="text">
+               <string>Round off:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QComboBox" name="cbFractionFormat"/>
+            </item>
+            <item row="6" column="1">
+             <widget class="QLineEdit" name="lePostfix"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_14">
+              <property name="text">
+               <string>Unit format:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="6" column="0">
+             <widget class="QLabel" name="label_22">
+              <property name="text">
+               <string>Postfix:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="cbLinearUnitFormat"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_17">
+              <property name="text">
+               <string>Precision:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="5" column="1">
+             <widget class="QLineEdit" name="lePrefix"/>
+            </item>
+            <item row="5" column="0">
+             <widget class="QLabel" name="label_21">
+              <property name="text">
+               <string>Prefix:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="0">
+             <widget class="QLabel" name="label_23">
+              <property name="text">
+               <string>Measure unit factor:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="7" column="1">
+             <widget class="QLineEdit" name="leMeasureFactor"/>
+            </item>
+            <item row="8" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_6">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lLinearReset">
+                <property name="text">
+                 <string>Reset:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkResetLinearPrefix">
+                <property name="text">
+                 <string>Prefix</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkResetLinearPostfix">
+                <property name="text">
+                 <string>Postfix</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="4" column="1">
+             <widget class="UIDoubleSpinBox" name="sbRoundoff" native="true"/>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="groupBox_7">
+           <property name="title">
+            <string>Angle dimension</string>
+           </property>
+           <layout class="QGridLayout" name="gridLayout_7">
+            <item row="0" column="1">
+             <widget class="QComboBox" name="cbAngleUnitFormat"/>
+            </item>
+            <item row="0" column="0">
+             <widget class="QLabel" name="label_24">
+              <property name="text">
+               <string>Unit format:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="cbAnglePrecision"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="label_25">
+              <property name="text">
+               <string>Precision:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="horizontalLayout_7">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lAngleReset">
+                <property name="text">
+                 <string>Reset:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkResetAnglePrefix">
+                <property name="text">
+                 <string>Prefix</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="chkResetAnglePostfix">
+                <property name="text">
+                 <string>Postfix</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="GuiPreviewWidget" name="previewUnit" native="true"/>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>UIColorBox</class>
+   <extends>QWidget</extends>
+   <header>UIColorBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UILineTypeBox</class>
+   <extends>QWidget</extends>
+   <header>UILineTypeBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UIWidthBox</class>
+   <extends>QWidget</extends>
+   <header>UIWidthBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UIArrowBox</class>
+   <extends>QWidget</extends>
+   <header>UIArrowBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UITextStyleBox</class>
+   <extends>QWidget</extends>
+   <header>UITextStyleBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>UIDoubleSpinBox</class>
+   <extends>QWidget</extends>
+   <header>UIDoubleSpinBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>GuiPreviewWidget</class>
+   <extends>QWidget</extends>
+   <header>GuiPreviewWidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>UIDlgDimensionStyle</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>555</x>
+     <y>304</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>331</x>
+     <y>165</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>UIDlgDimensionStyle</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>555</x>
+     <y>304</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>331</x>
+     <y>165</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

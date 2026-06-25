@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 22.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="图层_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 175 187" style="enable-background:new 0 0 175 187;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#ECECEC;stroke:#000000;stroke-width:2;stroke-miterlimit:10;}
+	.st1{stroke:#000000;stroke-width:2;stroke-miterlimit:10;}
+	.st2{fill:#FFFFFF;stroke:#000000;stroke-width:2;stroke-miterlimit:10;}
+	.st3{opacity:0.35;fill:none;stroke:#000000;stroke-width:2;stroke-miterlimit:10;}
+	.st4{fill:#30DDE5;stroke:#000000;stroke-width:2;stroke-miterlimit:10;}
+</style>
+<g>
+	<polygon class="st0" points="104.7,1 1,1 1,185 147,185 147,45 	"/>
+	<path class="st1" d="M105.1,45H146c0.4,0,0.5-0.4,0.3-0.7L105.4,1.7c-0.3-0.3-0.7-0.1-0.7,0.3v42.6C104.7,44.8,104.9,45,105.1,45z"
+		/>
+</g>
+<g>
+	<polygon class="st2" points="15.8,101.3 42.6,59.9 64.5,101.3 	"/>
+	<polygon class="st2" points="64.3,101.3 91.1,59.8 113,101.3 	"/>
+	<polygon class="st2" points="36.3,101.3 75.9,44.9 92.9,101.3 	"/>
+</g>
+<line class="st3" x1="9.6" y1="123.9" x2="128.8" y2="123.9"/>
+<line class="st3" x1="9.6" y1="137.4" x2="107" y2="137.4"/>
+<line class="st3" x1="9.6" y1="37.1" x2="128.8" y2="37.1"/>
+<line class="st3" x1="9.6" y1="24.6" x2="127" y2="24.6"/>
+<line class="st3" x1="9.6" y1="150.8" x2="116" y2="150.8"/>
+<line class="st3" x1="9.6" y1="163.8" x2="116" y2="163.8"/>
+<path class="st4" d="M174,148.4v-15.8h-16.9c-0.6-2.1-1.5-4.1-2.6-6l11.9-11.3l-11.8-11.2l-11.9,11.3c-2-1-4.1-1.9-6.3-2.5V97h-16.7
+	v15.9c-2.2,0.6-4.3,1.4-6.3,2.5l-11.9-11.3l-11.8,11.2l11.9,11.3c-1.1,1.9-2,3.9-2.6,6H82v15.8h16.9c0.6,2.1,1.5,4.1,2.6,6
+	l-11.9,11.3l11.8,11.2l11.9-11.3c2,1,4.1,1.9,6.3,2.5V184h16.7v-15.9c2.2-0.6,4.3-1.4,6.3-2.5l11.9,11.3l11.8-11.2l-11.9-11.3
+	c1.1-1.9,2-3.9,2.6-6H174z M128,155.8c-9,0-16.2-6.9-16.2-15.3c0-8.5,7.3-15.3,16.2-15.3s16.2,6.9,16.2,15.3
+	C144.2,149,136.9,155.8,128,155.8z"/>
+</svg>

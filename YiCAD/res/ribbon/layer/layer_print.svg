@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"
+	 viewBox="0 0 220 220" style="enable-background:new 0 0 220 220;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#30DDE5;stroke:#000000;stroke-width:10;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st1{fill:#FFFFFF;stroke:#000000;stroke-width:10;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st2{fill:none;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+</style>
+<g>
+	<rect x="44" y="84" class="st0" width="132" height="50" rx="10" ry="10"/>
+	<rect x="64" y="38" class="st1" width="92" height="54"/>
+	<rect x="64" y="124" class="st1" width="92" height="58"/>
+	<line class="st2" x1="80" y1="146" x2="140" y2="146"/>
+</g>
+</svg>

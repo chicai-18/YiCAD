@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>编组 13备份 3</title>
+    <g id="页面-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="浅色2" transform="translate(-362.000000, -239.000000)">
+            <g id="编组-18" transform="translate(0.000000, 221.000000)">
+                <g id="编组-12备份-2" transform="translate(362.000000, 16.000000)">
+                    <g id="编组-13备份-3" transform="translate(0.000000, 2.000000)">
+                        <rect id="矩形备份-24" fill="#E6E6E6" opacity="0" x="0" y="0" width="24" height="24"></rect>
+                        <path d="M7.6875,8.3125 L3.3125,8.3125 L3.3125,20.6875 L7.6875,20.6875 L7.6875,8.3125 Z M6.312,9.687 L6.312,19.312 L4.687,19.312 L4.687,9.687 L6.312,9.687 Z" id="矩形" fill="#6A6A6A" fill-rule="nonzero"></path>
+                        <polygon id="矩形备份-38" fill="#D0D0D0" fill-rule="nonzero" points="10 9 13 9 13 20 10 20"></polygon>
+                        <path d="M13.6875,8.3125 L9.3125,8.3125 L9.3125,20.6875 L13.6875,20.6875 L13.6875,8.3125 Z M12.312,9.687 L12.312,19.312 L10.687,19.312 L10.687,9.687 L12.312,9.687 Z" id="矩形备份-38" fill="#6A6A6A" fill-rule="nonzero"></path>
+                        <g id="编组-16" transform="translate(4.000000, 3.000000)">
+                            <polygon id="路径-5" fill="#6A6A6A" fill-rule="nonzero" points="12.9515189 1.19181656 12.9515189 2.19181656 1.5 2.19181656 1.5 1.19181656"></polygon>
+                            <polygon id="路径-3" fill="#007AFF" points="-1.93178806e-14 1.69181656 3 6.22825783e-17 3 3.37931643"></polygon>
+                            <polygon id="路径-3备份" fill="#007AFF" transform="translate(13.451519, 1.689658) rotate(-180.000000) translate(-13.451519, -1.689658) " points="11.9515189 1.69181656 14.9515189 6.22825783e-17 14.9515189 3.37931643"></polygon>
+                        </g>
+                        <polygon id="矩形备份-89" fill="#D0D0D0" fill-rule="nonzero" points="16 9 19 9 19 20 16 20"></polygon>
+                        <path d="M19.6875,8.3125 L15.3125,8.3125 L15.3125,20.6875 L19.6875,20.6875 L19.6875,8.3125 Z M18.312,9.687 L18.312,19.312 L16.687,19.312 L16.687,9.687 L18.312,9.687 Z" id="矩形备份-89" fill="#6A6A6A" fill-rule="nonzero"></path>
+                        <polygon id="路径-26" fill="#6A6A6A" fill-rule="nonzero" points="4 3 4 6.38 3 6.38 3 3"></polygon>
+                        <polygon id="路径-26备份" fill="#6A6A6A" fill-rule="nonzero" points="19.5 3 19.5 6.38 18.5 6.38 18.5 3"></polygon>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,55 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "windows-base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}"
+            }
+        },
+        {
+            "name": "Debug",
+            "displayName": "Debug",
+            "description": "Debug preset",
+            "inherits": "windows-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/conan-debug/build/generators/conan_toolchain.cmake",
+                "SARIBBON_DIR": "${sourceDir}/external/SARibbonBar/install-debug",
+                "CDT_DIR": "${sourceDir}/external/CDT/install-debug/cmake"
+            }
+        },
+        {
+            "name": "Release",
+            "displayName": "Release",
+            "description": "Release preset",
+            "inherits": "windows-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/conan-release/build/generators/conan_toolchain.cmake",
+                "SARIBBON_DIR": "${sourceDir}/external/SARibbonBar/install-release",
+                "CDT_DIR": "${sourceDir}/external/CDT/install-release/cmake"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "Debug",
+            "configurePreset": "Debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "Release",
+            "configurePreset": "Release",
+            "configuration": "Release"
+        }
+    ]
+}

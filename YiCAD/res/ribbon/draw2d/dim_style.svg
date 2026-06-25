@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 240 188" style="enable-background:new 0 0 240 188;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;stroke:#000000;stroke-width:6;stroke-miterlimit:10;}
+	.st1{fill:#30DDE5;stroke:#000000;stroke-width:6;stroke-miterlimit:10;}
+	.st2{font-family:'DFPHeiW7';}
+	.st3{font-size:82px;}
+</style>
+<g>
+	<text transform="matrix(1 0 0 1 93 72)" class="st2 st3">A</text>
+	<line class="st0" x1="20" y1="22" x2="20" y2="172"/>
+	<line class="st0" x1="184" y1="172" x2="184" y2="22"/>
+	<polygon class="st1" points="23.5,144 81,177 81,111"/>
+	<polygon class="st1" points="180.5,144 123,111 123,177"/>
+	<line class="st0" x1="81" y1="144" x2="123" y2="144"/>
+	<path class="st1" d="M138.8,88.5l22-22c4.6-4.6,12-4.6,16.6,0l18.1,18.1c4.6,4.6,4.6,12,0,16.6l-22,22L138.8,88.5z"/>
+	<polygon class="st1" points="130.8,96.5 146.4,112.1 123.3,119.6"/>
+	<line class="st0" x1="167.3" y1="73.1" x2="188.9" y2="94.7"/>
+</g>
+</svg>

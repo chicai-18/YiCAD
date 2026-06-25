@@ -1,0 +1,213 @@
+# Dependency Package Publishing Workflow
+#
+# This workflow builds and publishes Conan dependency packages to the YiCAX
+# Conan remote. It is the ONLY workflow authorized to use --build=missing
+# and to upload packages.
+#
+# Requirements:
+#   - Repository secrets: CONAN_REMOTE_URL, CONAN_LOGIN_USERNAME, CONAN_PASSWORD
+#   - Environment: "conan-publish" (with protection rules)
+#
+# This workflow must NOT be triggered by普通 PR. It is restricted to
+# manual dispatch and protected branch/tag pushes.
+
+name: Publish Dependency Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_saribbon:
+        description: 'Build and cache SARibbonBar'
+        type: boolean
+        default: true
+      build_cdt:
+        description: 'Build and cache CDT'
+        type: boolean
+        default: true
+      build_conan:
+        description: 'Build missing Conan packages'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build SARibbonBar from GitHub upstream
+  # ---------------------------------------------------------------------------
+  build-saribbon:
+    if: ${{ inputs.build_saribbon }}
+    runs-on: windows-2022
+    environment: conan-publish
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.x'
+
+      - name: Install Qt 5.15
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          dir: '${{ github.workspace }}/qt'
+          setup-python: false
+
+      - name: Clone SARibbonBar
+        run: |
+          git clone https://github.com/czyt1988/SARibbon.git external/SARibbonBar
+          git -C external/SARibbonBar checkout b5d3818
+
+      - name: Build SARibbonBar (Release)
+        run: |
+          cmake -G "Visual Studio 17 2022" -A x64 `
+            -S external/SARibbonBar -B external/SARibbonBar/build-release `
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/5.15.2/msvc2019_64"
+          cmake --build external/SARibbonBar/build-release --config Release
+          cmake --install external/SARibbonBar/build-release --config Release `
+            --prefix external/SARibbonBar/install
+
+      - name: Build SARibbonBar (Debug)
+        run: |
+          cmake -G "Visual Studio 17 2022" -A x64 `
+            -S external/SARibbonBar -B external/SARibbonBar/build-debug `
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/5.15.2/msvc2019_64"
+          cmake --build external/SARibbonBar/build-debug --config Debug
+          cmake --install external/SARibbonBar/build-debug --config Debug `
+            --prefix external/SARibbonBar/install
+
+      - name: Archive SARibbonBar
+        uses: actions/upload-artifact@v7
+        with:
+          name: saribbonbar-install
+          path: external/SARibbonBar/install/
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------
+  # Build CDT from GitHub upstream
+  # ---------------------------------------------------------------------------
+  build-cdt:
+    if: ${{ inputs.build_cdt }}
+    runs-on: windows-2022
+    environment: conan-publish
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Clone CDT
+        run: |
+          git clone --branch 1.4.4 --depth 1 `
+            https://github.com/artem-ogre/CDT.git external/CDT
+
+      - name: Build CDT (Release)
+        run: |
+          cmake -G "Visual Studio 17 2022" -A x64 `
+            -S external/CDT/CDT -B external/CDT/build-release `
+            -DCDT_USE_AS_COMPILED_LIBRARY=ON `
+            -DCDT_NO_DEMANGLE=ON
+          cmake --build external/CDT/build-release --config Release
+          cmake --install external/CDT/build-release --config Release `
+            --prefix external/CDT/install
+
+      - name: Build CDT (Debug)
+        run: |
+          cmake -G "Visual Studio 17 2022" -A x64 `
+            -S external/CDT/CDT -B external/CDT/build-debug `
+            -DCDT_USE_AS_COMPILED_LIBRARY=ON `
+            -DCDT_NO_DEMANGLE=ON
+          cmake --build external/CDT/build-debug --config Debug
+          cmake --install external/CDT/build-debug --config Debug `
+            --prefix external/CDT/install
+
+      - name: Archive CDT
+        uses: actions/upload-artifact@v7
+        with:
+          name: cdt-install
+          path: external/CDT/install/
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------
+  # Build missing Conan packages and publish to remote
+  # ---------------------------------------------------------------------------
+  build-conan-packages:
+    if: ${{ inputs.build_conan }}
+    runs-on: windows-2022
+    environment: conan-publish
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.x'
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Configure Conan remote
+        run: |
+          conan remote add yicax ${{ secrets.CONAN_REMOTE_URL }} --index 0
+          conan remote login yicax ${{ secrets.CONAN_LOGIN_USERNAME }} `
+            -p ${{ secrets.CONAN_PASSWORD }}
+
+      - name: Build missing packages (Release)
+        run: |
+          conan profile detect
+          conan install . `
+            --output-folder=build/conan-release `
+            --profile=profiles/windows-msvc-release `
+            --build=missing `
+            --lockfile=conan.lock `
+            2>&1 | Tee-Object -FilePath build/conan-release-build.log
+
+      - name: Build missing packages (Debug)
+        run: |
+          conan install . `
+            --output-folder=build/conan-debug `
+            --profile=profiles/windows-msvc-debug `
+            --build=missing `
+            --lockfile=conan.lock `
+            2>&1 | Tee-Object -FilePath build/conan-debug-build.log
+
+      - name: Upload packages to remote
+        run: |
+          # List what was built
+          conan list "*" --format=json > build/conan-packages.json
+          echo "Packages built:"
+          conan list "*"
+
+          # Upload all packages to the remote
+          conan upload "*" --remote=yicax --confirm
+
+      - name: Generate package metadata
+        run: |
+          $metadata = @{
+            timestamp = (Get-Date -Format "o")
+            lockfile = Get-Content conan.lock -Raw
+            profile_release = Get-Content profiles/windows-msvc-release -Raw
+            profile_debug = Get-Content profiles/windows-msvc-debug -Raw
+            packages = Get-Content build/conan-packages.json -Raw
+          }
+          $metadata | ConvertTo-Json -Depth 10 |
+            Set-Content build/conan-metadata.json -Encoding UTF8
+
+      - name: Archive build logs and metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: conan-build-logs
+          path: |
+            build/conan-release-build.log
+            build/conan-debug-build.log
+            build/conan-packages.json
+            build/conan-metadata.json
+          retention-days: 90

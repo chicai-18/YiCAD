@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"
+	 viewBox="25 25 175 175" style="enable-background:new 25 25 175 175;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#FFFFFF;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st1{fill:#30DDE5;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st2{fill:none;stroke:#000000;stroke-width:13;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st3{fill:#FFFFFF;stroke:#000000;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st4{fill:#30DDE5;stroke:#000000;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+</style>
+<g>
+	<path class="st0" d="M50,36h76l24,24v118c0,6.6-5.4,12-12,12H50c-6.6,0-12-5.4-12-12V48C38,41.4,43.4,36,50,36z"/>
+	<path class="st2" d="M126,36v24c0,5.5,4.5,10,10,10h14"/>
+	<line class="st2" x1="54" y1="112" x2="138" y2="112"/>
+	<polygon class="st1" points="118,74 174,112 118,150"/>
+	<polygon class="st3" points="135,136 159,123 184,136 160,150"/>
+	<polygon class="st4" points="135,136 160,150 160,179 135,165"/>
+	<polygon class="st3" points="160,150 184,136 184,165 160,179"/>
+</g>
+</svg>

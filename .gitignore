@@ -1,0 +1,40 @@
+.vs/
+.vscode/
+ThirdParty/
+out/
+build/
+build_release/
+build_debug/
+*.user
+*.qm
+*.tmp
+.idea
+# mac
+*.DS_Store
+docs/
+ThirdParty*
+
+# External dependencies (user clones manually)
+external/*
+!external/.gitkeep
+
+# User-provided CAD resource files (SHX fonts, PAT patterns, LIN linetypes)
+# These files are not redistributable and must be provided by the user.
+YiCAD/support/fonts/*
+!YiCAD/support/fonts/.gitkeep
+!YiCAD/support/fonts/README.md
+
+YiCAD/support/patterns/*
+!YiCAD/support/patterns/.gitkeep
+!YiCAD/support/patterns/README.md
+
+YiCAD/support/linetypes/*
+!YiCAD/support/linetypes/.gitkeep
+!YiCAD/support/linetypes/README.md
+
+# CMake presets
+CMakeUserPresets.json
+
+# Environment variables
+.env
+.env.*

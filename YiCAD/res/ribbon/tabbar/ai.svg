@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="12px" height="12px" viewBox="0 0 12 12" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>AI 助手</title>
+    <desc>AI Assistant Icon</desc>
+    <g id="ai-icon" stroke="#3A4453" stroke-width="0.8" fill="none" fill-rule="evenodd">
+        <rect x="1.5" y="1" width="9" height="7" rx="1.5" stroke="#3A4453"/>
+        <polyline points="3.5,8 5,10 8.5,8" stroke="#3A4453" fill="none"/>
+        <line x1="4" y1="3.5" x2="5.5" y2="3.5" stroke="#3A4453" stroke-width="0.6"/>
+        <line x1="4" y1="5" x2="8" y2="5" stroke="#3A4453" stroke-width="0.6"/>
+    </g>
+</svg>

@@ -1,0 +1,259 @@
+/* YiCAD light theme */
+
+SARibbonBar {
+  border: none;
+  background-color: #f8f9fb;
+}
+
+SARibbonStackedWidget {
+  border: none;
+  background-color: #f8f9fb;
+}
+
+SARibbonPannel {
+  border: none;
+  background-color: transparent;
+}
+
+SARibbonCategory {
+  border: none;
+  background-color: #f8f9fb;
+}
+
+SARibbonSeparatorWidget {
+  background-color: rgba(0, 0, 0, 0);
+  border: none;
+  min-width: 6px;
+  max-width: 6px;
+  margin: 0px;
+  padding: 0px;
+}
+
+SARibbonPannel > QFrame {
+  border: none;
+  background-color: transparent;
+}
+
+SARibbonPannel > SARibbonButtonGroupWidget {
+  border: none;
+  background-color: transparent;
+  min-height: 60px;
+  max-height: 60px;
+}
+
+SARibbonButtonGroupWidget {
+  border: none;
+  background-color: transparent;
+}
+
+SARibbonPannel SARibbonButtonGroupWidget,
+SARibbonPannel > SARibbonButtonGroupWidget {
+  border: none;
+  background-color: transparent;
+}
+
+QToolButton[yiCadStandaloneRibbonButton="true"] {
+  qproperty-autoRaise: true;
+  qproperty-iconSize: 32px 32px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  min-width: 40px;
+  min-height: 50px;
+  padding: 4px;
+}
+
+QToolButton[yiCadStandaloneRibbonButton="true"]:hover {
+  background-color: #e6f2ff;
+}
+
+QToolButton[yiCadStandaloneRibbonButton="true"]:pressed {
+  background-color: #cfe5fa;
+}
+
+SARibbonQuickAccessBar SARibbonButtonGroupWidget {
+  border: none;
+  background-color: transparent;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+SARibbonQuickAccessBar QToolButton {
+  qproperty-autoRaise: true;
+  qproperty-iconSize: 14px 14px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background-color: transparent;
+  min-width: 18px;
+  max-width: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  margin: 0px 2px;
+  padding: 0px;
+}
+
+SARibbonQuickAccessBar QToolButton:hover {
+  border: 1px solid #8bbce9;
+  background-color: #e6f2ff;
+}
+
+SARibbonQuickAccessBar QToolButton:pressed {
+  border: 1px solid #6aa1cf;
+  background-color: #cfe5fa;
+}
+
+QWidget#unitComboBoxWidget {
+  background-color: #f8f9fb;
+  border: 1px solid #aebfd0;
+}
+
+QWidget#unitComboBoxWidget QToolButton[yiCadUnitOptionButton="true"] {
+  qproperty-autoRaise: false;
+  border: 0px;
+  background-color: #f8f9fb;
+  color: #202020;
+  padding: 0px 10px;
+}
+
+QWidget#unitComboBoxWidget QToolButton[yiCadUnitOptionButton="true"]:hover {
+  background-color: #e6f2ff;
+}
+
+QWidget#unitComboBoxWidget QToolButton[yiCadUnitOptionButton="true"]:pressed {
+  background-color: #cfe5fa;
+}
+
+QWidget#unitComboBoxWidget QToolButton[yiCadUnitOptionButton="true"]:checked {
+  background-color: #dcecff;
+}
+
+QWidget#actionOptionsBackWidget,
+QWidget#mTextOptionBackWidget,
+QWidget#mTextModifyOptionBackWidget,
+QWidget#Ui_MTextOptions,
+QWidget#Ui_MTextModifyOptions {
+  background-color: #f4f6f8;
+  border: none;
+}
+
+QWidget#actionOptionsBackWidget > QWidget,
+QWidget#mTextOptionBackWidget > QWidget,
+QWidget#mTextModifyOptionBackWidget > QWidget,
+QWidget#Ui_MTextOptions > QWidget,
+QWidget#Ui_MTextModifyOptions > QWidget {
+  background-color: #f4f6f8;
+}
+
+QWidget#actionOptionsBackWidget QLabel,
+QWidget#mTextOptionBackWidget QLabel,
+QWidget#mTextModifyOptionBackWidget QLabel,
+QWidget#Ui_MTextOptions QLabel,
+QWidget#Ui_MTextModifyOptions QLabel,
+QWidget#actionOptionsBackWidget QCheckBox,
+QWidget#mTextOptionBackWidget QCheckBox,
+QWidget#mTextModifyOptionBackWidget QCheckBox,
+QWidget#Ui_MTextOptions QCheckBox,
+QWidget#Ui_MTextModifyOptions QCheckBox {
+  background-color: transparent;
+}
+
+QWidget#mTextOptionBackWidget QToolButton,
+QWidget#Ui_MTextOptions QToolButton,
+QToolButton#btnBold,
+QToolButton#btnItalic,
+QToolButton#btnStrikethrough,
+QToolButton#btnUnderLine,
+QToolButton#btnOverline,
+QToolButton#btnMatchFormat,
+QToolButton#btnUndo,
+QToolButton#btnRedo {
+  qproperty-autoRaise: true;
+  border: none;
+  border-radius: 2px;
+  background-color: transparent;
+  padding: 0px;
+}
+
+QWidget#mTextOptionBackWidget QToolButton:hover,
+QWidget#Ui_MTextOptions QToolButton:hover {
+  border: none;
+  background-color: #e6f2ff;
+}
+
+QWidget#mTextOptionBackWidget QToolButton:pressed,
+QWidget#Ui_MTextOptions QToolButton:pressed {
+  border: none;
+  background-color: #cfe5fa;
+}
+
+QWidget#mTextOptionBackWidget QToolButton:checked,
+QWidget#Ui_MTextOptions QToolButton:checked {
+  border: none;
+  background-color: #dcecff;
+}
+
+QWidget#mTextOptionBackWidget QToolButton:disabled,
+QWidget#Ui_MTextOptions QToolButton:disabled {
+  border: none;
+  background-color: transparent;
+}
+
+QWidget#drawingTabBarWidget {
+  background-color: #f4f6f8;
+}
+
+QWidget#drawingTabBarWidget QWidget[isDrawingTab="true"] {
+  background-color: #f8f9fb;
+  border: 1px solid #b8c8d8;
+  border-bottom: 0px;
+}
+
+QWidget#drawingTabBarWidget QWidget[isCurrentTab="true"] {
+  background-color: #ffffff;
+  border-color: #6aa1cf;
+}
+
+QWidget#drawingTabBarWidget QPushButton[isDrawingTabText="true"] {
+  border: 0px;
+  background-color: transparent;
+  color: #202020;
+  padding: 0px 4px 0px 8px;
+  text-align: left;
+}
+
+QWidget#drawingTabBarWidget QPushButton[isDrawingTabText="true"]:hover,
+QWidget#drawingTabBarWidget QPushButton[isDrawingTabText="true"]:pressed,
+QWidget#drawingTabBarWidget QPushButton[isDrawingTabText="true"]:checked {
+  border: 0px;
+  background-color: transparent;
+  color: #202020;
+}
+
+QWidget#drawingTabBarWidget QPushButton[isTabCloseButton="true"] {
+  border: 0px;
+  border-radius: 2px;
+  background-color: transparent;
+  padding: 0px;
+}
+
+QWidget#drawingTabBarWidget QPushButton[isTabCloseButton="true"]:hover {
+  border: 1px solid #e28a8a;
+  background-color: #ffe1e1;
+}
+
+QWidget#drawingTabBarWidget QPushButton[isTabCloseButton="true"]:pressed {
+  border: 1px solid #d35f5f;
+  background-color: #ffcaca;
+}
+
+QWidget#drawingTabBarWidget QToolButton[isDrawingTabNewButton="true"] {
+  border: 0px;
+  background-color: transparent;
+  padding: 0px;
+}
+
+QWidget#drawingTabBarWidget QToolButton[isDrawingTabNewButton="true"]:hover {
+  border: 1px solid #8bbce9;
+  border-radius: 2px;
+  background-color: #e6f2ff;
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"
+	 viewBox="0 0 220 220" style="enable-background:new 0 0 220 220;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#30DDE5;stroke:#000000;stroke-width:9;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st1{fill:none;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st2{fill:none;stroke:#000000;stroke-width:12;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+</style>
+<g>
+	<path class="st1" d="M24,110c21.5-31.3,50.2-47,86-47s64.5,15.7,86,47c-21.5,31.3-50.2,47-86,47S45.5,141.3,24,110z"/>
+	<circle class="st0" cx="110" cy="110" r="22"/>
+	<line class="st2" x1="40" y1="48" x2="180" y2="172"/>
+</g>
+</svg>

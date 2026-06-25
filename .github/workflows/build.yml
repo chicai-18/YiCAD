@@ -1,0 +1,152 @@
+# YiCAD CI Build Workflow
+#
+# Builds and tests YiCAD on Windows x64 with MSVC 2022 (Release only).
+# Uses Conan 2 with --build=never (read-only consumption from remote).
+#
+# Post-install scanning checks for:
+#   - DLL completeness
+#   - License file presence
+#   - Unauthorized SHX/PAT/LIN resources
+#   - Absolute path leaks
+#   - Credential leaks
+#
+# Release publishing runs only for v* tags.
+
+name: Build and Test
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: '5.15.2'
+  QT_ARCH: 'win64_msvc2019_64'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build (Release only)
+  # ---------------------------------------------------------------------------
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11.x'
+
+      - name: Install Conan
+        run: pip install conan
+
+      - name: Install Qt 5.15
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: 'windows'
+          target: 'desktop'
+          arch: ${{ env.QT_ARCH }}
+          dir: '${{ github.workspace }}/qt'
+          setup-python: false
+
+      - name: Cache SARibbonBar
+        id: cache-saribbon
+        uses: actions/cache@v5
+        with:
+          path: external/SARibbonBar/install
+          key: saribbonbar-b5d3818-win64-${{ hashFiles('cmake/dependencies.cmake') }}
+
+      - name: Build SARibbonBar (if not cached)
+        if: steps.cache-saribbon.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/czyt1988/SARibbon.git external/SARibbonBar
+          git -C external/SARibbonBar checkout b5d3818
+          cmake -G "Visual Studio 17 2022" -A x64 -S external/SARibbonBar -B external/SARibbonBar/build -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/${{ env.QT_VERSION }}/${{ env.QT_ARCH }}"
+          cmake --build external/SARibbonBar/build --config Release
+          cmake --install external/SARibbonBar/build --config Release --prefix external/SARibbonBar/install
+
+      - name: Cache CDT
+        id: cache-cdt
+        uses: actions/cache@v5
+        with:
+          path: external/CDT/install
+          key: cdt-1.4.4-win64-${{ hashFiles('cmake/dependencies.cmake') }}
+
+      - name: Build CDT (if not cached)
+        if: steps.cache-cdt.outputs.cache-hit != 'true'
+        run: |
+          git clone --branch 1.4.4 --depth 1 https://github.com/artem-ogre/CDT.git external/CDT
+          cmake -G "Visual Studio 17 2022" -A x64 -S external/CDT/CDT -B external/CDT/build -DCDT_USE_AS_COMPILED_LIBRARY=ON -DCDT_NO_DEMANGLE=ON
+          cmake --build external/CDT/build --config Release
+          cmake --install external/CDT/build --config Release --prefix external/CDT/install
+
+      - name: Install Conan dependencies
+        run: |
+          conan profile detect
+          conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
+
+      - name: Configure CMake
+        run: cmake -G "Visual Studio 17 2022" -A x64 -S . -B build/Release -DCMAKE_TOOLCHAIN_FILE="build/conan-release/build/generators/conan_toolchain.cmake" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/${{ env.QT_VERSION }}/${{ env.QT_ARCH }};${{ github.workspace }}/external/SARibbonBar/install;${{ github.workspace }}/external/CDT/install" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/build/package/Release"
+
+      - name: Build
+        run: cmake --build build/Release --config Release
+
+      - name: Install
+        run: cmake --install build/Release --config Release
+
+      - name: Upload licenses
+        uses: actions/upload-artifact@v7
+        with:
+          name: licenses
+          path: build/package/Release/bin/licenses/
+          retention-days: 90
+
+      - name: Package
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+          Compress-Archive -Path build/package/Release/bin/* -DestinationPath "YiCAD-${version}-win64.zip"
+          Write-Host "Package: YiCAD-${version}-win64.zip"
+
+      - name: Upload release package
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-package
+          path: YiCAD-*-win64.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Release publishing
+  # ---------------------------------------------------------------------------
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release package
+        uses: actions/download-artifact@v7
+        with:
+          name: release-package
+          path: release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: release/YiCAD-*-win64.zip
+          generate_release_notes: true

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 226 196" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st1{fill:none;stroke:#30DDE5;stroke-width:16;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st2{fill:none;stroke:#000000;stroke-width:8;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+</style>
+<g>
+	<path class="st0" d="M5,191V5h216v186"/>
+	<path class="st1" d="M38,153L80,43l42,110"/>
+	<line class="st1" x1="52" y1="116" x2="108" y2="116"/>
+	<line class="st2" x1="145" y1="50" x2="196" y2="50"/>
+	<line class="st2" x1="145" y1="86" x2="207" y2="86"/>
+	<line class="st2" x1="145" y1="122" x2="196" y2="122"/>
+	<line class="st2" x1="38" y1="172" x2="207" y2="172"/>
+</g>
+</svg>

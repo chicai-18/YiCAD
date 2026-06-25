@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" x="0px" y="0px"
+	 viewBox="10 52 182 128" style="enable-background:new 10 52 182 128;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;stroke:#000000;stroke-width:14;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st1{fill:#30DDE5;stroke:#000000;stroke-width:12;stroke-linejoin:round;stroke-miterlimit:10;}
+	.st2{fill:none;stroke:#000000;stroke-width:8;stroke-linecap:round;stroke-miterlimit:10;opacity:0.45;}
+</style>
+<g>
+	<line class="st2" x1="18" y1="170" x2="62" y2="148"/>
+	<line class="st2" x1="62" y1="148" x2="106" y2="170"/>
+	<line class="st2" x1="34" y1="136" x2="78" y2="114"/>
+	<line class="st2" x1="78" y1="114" x2="122" y2="136"/>
+	<path class="st0" d="M44,102c17-25.3,39.7-38,68-38s51,12.7,68,38c-17,25.3-39.7,38-68,38S61,127.3,44,102z"/>
+	<circle class="st1" cx="112" cy="102" r="21"/>
+</g>
+</svg>
