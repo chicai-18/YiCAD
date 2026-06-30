@@ -108,6 +108,24 @@ file(GLOB AI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.h)
 file(GLOB AI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.cpp)
 
 # #####################################################
+# =================plugin runtime======================
+file(GLOB PLUGIN_RUNTIME_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/*.h)
+file(GLOB PLUGIN_RUNTIME_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/*.cpp)
+set(PLUGIN_SDK_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginAbi.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginSdk.h)
+
+add_library(YiCadPluginSdk INTERFACE)
+add_library(YiCAD::PluginSdk ALIAS YiCadPluginSdk)
+target_include_directories(YiCadPluginSdk INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime)
+target_compile_features(YiCadPluginSdk INTERFACE cxx_std_23)
+target_compile_definitions(YiCadPluginSdk INTERFACE YICAD_PLUGIN_BUILD)
+target_sources(YiCadPluginSdk INTERFACE ${PLUGIN_SDK_HEADERS})
+
+# #####################################################
 # =======================UI============================
 file(GLOB UI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.h
 ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms/*.h)
@@ -145,6 +163,8 @@ set (ALL_RSC_FILES ${ACTIONS_SOURCES}
                     ${MAIN_HEADERS}
                     ${AI_SOURCES}
                     ${AI_HEADERS}
+                    ${PLUGIN_RUNTIME_SOURCES}
+                    ${PLUGIN_RUNTIME_HEADERS}
                     ${UI_SOURCES}
                     ${LIB_SOURCES}
                     ${LIB_HEADERS}
@@ -210,6 +230,7 @@ src/kernel/utility
 src/kernel/persistence
 src/kernel/persistence/Meta
 src/main
+src/plugin_runtime
 src/ai
 src/ui
 src/ui/forms)
