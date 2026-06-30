@@ -16,7 +16,7 @@
  */
 
 /// @file ApplicationWindow.cpp
-/// @brief 应用程序主窗口实现，管理Ribbon界面、绘图区域、图层面板、插件加载和事件分发
+/// @brief 应用程序主窗口实现，管理Ribbon界面、绘图区域、图层面板和事件分发
 
 #include "ApplicationWindow.h"
 #include <QFile>
@@ -67,7 +67,6 @@
 #include <QVBoxLayout>
 #include <QSettings>
 #include <QVariant>
-#include <QPluginLoader>
 
 #include "UITabDrawWidget.h"
 #include "UIBottomWidget.h"
@@ -97,9 +96,6 @@
 #include "UIDialogFactory.h"
 #include "Selection.h"
 #include "DmSystem.h"
-#include "PluginInterface.h"
-#include "DocPluginInterface.h"
-#include "DbPluginInterface.h"
 #include "Debug.h"
 #include "GuiDialogFactory.h"
 #include "GuiEventHandler.h"
@@ -298,8 +294,6 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 
 	GuiDocumentView* view = m_pCurrentMdiWin->getDocumentView();
 
-	// 加载插件
-
 	// ===========================AI 助手按钮=========================
 	SARibbonButtonGroupWidget* rightGroup = m_pRibbon->rightButtonGroup();
 	if (rightGroup)
@@ -318,7 +312,6 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 		});
 		rightGroup->addAction(m_pActAI);
 	}
-	loadPlugins();
 }
 
 
@@ -638,46 +631,6 @@ void ApplicationWindow::slotEnter()
 void ApplicationWindow::slotDelete()
 {
 	m_pActionHandler->slotModifyDeleteNoSelect();
-}
-
-void ApplicationWindow::execPlug()
-{
-	QAction* action = qobject_cast<QAction*>(sender());
-	PluginInterface* plugin = qobject_cast<PluginInterface*>(action->parent());
-	m_pCurrentMdiWin = m_pTabDrawWidget->getCurrentMdiWindow();
-	// 获取当前激活的文档
-	DmDocument* currdoc = m_pCurrentMdiWin->getDocument();
-	// 创建文档接口实例
-	Doc_plugin_interface pligundoc(currdoc, m_pCurrentMdiWin->getDocumentView(), this);
-	// 执行插件
-	// TODO undo: undo 重构标记
-	//DmUndoSection undo(currdoc);
-	plugin->execComm(&pligundoc, this, action->data().toString());
-	//TODO call update view
-	m_pCurrentMdiWin->getDocumentView()->redraw();
-}
-
-void ApplicationWindow::execPlug(const QObject* object, const QString& strTag)
-{
-	PluginInterface* plugin = qobject_cast<PluginInterface*>(object);
-	m_pCurrentMdiWin = m_pTabDrawWidget->getCurrentMdiWindow();
-
-	DmDocument* currdoc = nullptr;
-	GuiDocumentView* docView = nullptr;
-	if (m_pCurrentMdiWin)
-	{
-		// 获取当前激活的文档
-		currdoc = m_pCurrentMdiWin->getDocument();
-		docView = m_pCurrentMdiWin->getDocumentView();
-	}
-	// 创建文档接口实例
-	Doc_plugin_interface pligundoc(currdoc, docView, this);
-	// 执行插件
-	// TODO undo: undo 重构标记
-	//DmUndoSection undo(currdoc);
-	plugin->execComm(&pligundoc, this, strTag);
-	//TODO call update view
-	m_pCurrentMdiWin->getDocumentView()->redraw();
 }
 
 void ApplicationWindow::resizeEvent(QResizeEvent* event)
@@ -1955,103 +1908,6 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 void ApplicationWindow::setDrawingTabName(const QString& fileName)
 {
 	m_pTabDrawWidget->soltSetDrawingTabName(fileName);
-}
-
-void ApplicationWindow::loadPlugins()
-{
-	QStringList lst = DMSYSTEM->getDirectoryList("plugins"); // todo: 这里还需要获取子目录 否则只能记载进plugins文件夹下的插件
-	// 跟踪加载的插件文件名用于跳过重复的插件
-	QStringList loadedPluginFileNames;
-
-	for (int i = 0; i < lst.size(); ++i)
-	{
-		QDir pluginsDir(lst.at(i));
-		QStringList filters;	// 过滤只保留dll后缀的文件
-		#ifdef Q_OS_WIN32
-				filters << "*.dll";
-		#elif defined(Q_OS_LINUX)
-				filters << "*.so";
-		#elif defined(Q_OS_MAC)
-				filters << "*.dylib";
-		#endif 
-		for (const QString& fileName : pluginsDir.entryList(filters, QDir::Files))
-		{
-			// 如果已加载相同文件名的插件,则跳过加载插件
-			if (loadedPluginFileNames.contains(fileName))
-			{
-				continue;
-			}
-
-			QString fullFileName = pluginsDir.absoluteFilePath(fileName);
-			QPluginLoader pluginLoader(fullFileName);
-			//bool res = pluginLoader.load();
-			//QString err = pluginLoader.errorString();
-			QObject* plugin = pluginLoader.instance();
-			if (plugin)
-			{
-				PluginInterface* pluginInterface = qobject_cast<PluginInterface*>(plugin);
-				if (pluginInterface)
-				{
-					loadedPluginFileNames.push_back(fileName);
-					auto db = new Database_plugin_interface();
-					pluginInterface->setDatabase(db);
-					PluginCapabilities pluginCapabilities = pluginInterface->getCapabilities();
-					for (const PluginMenuLocation& loc : pluginCapabilities.menuEntryPoints)
-					{
-						if (loc.isLoad)
-						{
-							// 新增一个插件列表并添加一个按钮
-							//QString qss = "QToolButton{background: transparent;border: none;} QToolButton:hover{ color:white; border: 0px; background-color: rgb(206,231,252); }";
-
-							// 添加选项卡
-							SARibbonCategory* categoryPlugin = new SARibbonCategory();
-							categoryPlugin->setCategoryName(loc.menuEntryActionName);
-							categoryPlugin->setObjectName(loc.menuEntryActionName);
-							m_pRibbon->addCategoryPage(categoryPlugin);
-
-							for (auto group : loc.menuGroups)
-							{
-								// 在选下卡下添加分组
-								SARibbonPannel* pannel = new SARibbonPannel(group.groupName);
-								pannel->setObjectName(group.groupName);
-								categoryPlugin->addPannel(pannel);
-
-								SARibbonButtonGroupWidget* aboutGroup = createRibbonButtonGroup(pannel, 1);
-
-								for (auto item : group.menuItems)
-								{
-									// 在分组下添加按钮或QAction
-									if (item.itemType == EItemType::Button)
-									{
-										QToolButton* btn = new QToolButton();
-										btn->setIcon(item.itemIcon);
-										btn->setProperty("yiCadStandaloneRibbonButton", true);
-										btn->setToolTip(item.itemName);
-										connect(btn, &QToolButton::clicked, this, [plugin, item, this] {
-											execPlug(plugin, item.itemName);
-										});
-
-										aboutGroup->addWidget(btn);
-									}
-									else if (item.itemType == EItemType::Action)
-									{
-										QAction* actpl = new QAction(item.itemName, plugin);
-										actpl->setData(item.itemName);
-										actpl->setIcon(item.itemIcon);
-										actpl->setToolTip(item.itemName);
-										connect(actpl, SIGNAL(triggered()), this, SLOT(execPlug()));
-										aboutGroup->addAction(actpl);
-									}
-								}
-
-								pannel->addLargeWidget(aboutGroup);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 int ApplicationWindow::countRow(QPoint p, int row, int height) // 计算鼠标在哪一列和哪一行

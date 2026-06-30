@@ -16,7 +16,7 @@
  */
 
 /// @file ApplicationWindow.h
-/// @brief 应用程序主窗口类，管理Ribbon界面、绘图区域、图层面板和插件加载
+/// @brief 应用程序主窗口类，管理Ribbon界面、绘图区域和图层面板
 
 #ifndef APPLICATIONWINDOW_H
 #define APPLICATIONWINDOW_H
@@ -46,7 +46,6 @@ class QMdiArea;
 class MDIWindow;
 class GuiDocumentView;
 class UIDialogFactory;
-class PluginInterface;
 
 class UIActionHandler;
 class UIWindowSize;
@@ -59,7 +58,7 @@ class UIBlockSaveAs;
 class AIAssistant;
 struct SingleTabDraw;
 
-/// @brief 应用程序主窗口，继承自SARibbonMainWindow，管理Ribbon菜单、MDI绘图区域、图层面板和插件
+/// @brief 应用程序主窗口，继承自SARibbonMainWindow，管理Ribbon菜单、MDI绘图区域和图层面板
 class ApplicationWindow : public SARibbonMainWindow
 {
     Q_OBJECT
@@ -203,9 +202,6 @@ private:
     /// @brief 创建图层列表
     void createLayerTable(SARibbonPannel* layerPannel);
 
-    /// @brief 加载插件
-    void loadPlugins();
-
     /// @brief 计算鼠标所在行区域
     /// @param [in] p 鼠标位置
     /// @param [in] row 基准行号
@@ -249,10 +245,6 @@ private slots:
 
     /// @brief 键盘删除事件
     void slotDelete();
-
-    /// @brief 插件Plugins点击事件
-    void execPlug();
-    void execPlug(const QObject* object, const QString& strTag);
 
     /// @brief 主窗体放缩事件
     /// @param [in] event 放缩事件

@@ -27,7 +27,6 @@
 #include <QApplication>
 
 #include "FilterOcdIO.h"
-#include "filter/PluginIOInterface.h"
 #include "Debug.h"
 
 bool FileIO::fileImport(DmDocument& document, const QString& file)
@@ -93,7 +92,6 @@ std::vector<std::function<FilterInterface* ()>> FileIO::getFilters()
 {
     return
     {
-        PluginIOInterface::createFilter,
         FilterOcdIO::createFilter
     };
 }

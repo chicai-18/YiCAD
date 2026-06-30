@@ -103,16 +103,6 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/main/icon.ico DESTINATION ${CMAKE_RUNT
 file(GLOB MAIN_RES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/YiCAD.rc)
 
 # #####################################################
-# =====================plugins=========================
-file(GLOB PLUGINS_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/*.h
-${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/intern/*.h
-${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/filter/*.h)
-
-file(GLOB PLUGINS_SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/intern/*.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/*.cpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/plugins/filter/*.cpp)
-
-# #####################################################
 # =======================ai=============================
 file(GLOB AI_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.h)
 file(GLOB AI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/ai/*.cpp)
@@ -153,8 +143,6 @@ set (ALL_RSC_FILES ${ACTIONS_SOURCES}
                     ${CMD_HEADERS}
                     ${MAIN_SOURCES}
                     ${MAIN_HEADERS}
-                    ${PLUGINS_SOURCES}
-                    ${PLUGINS_HEADERS}
                     ${AI_SOURCES}
                     ${AI_HEADERS}
                     ${UI_SOURCES}
@@ -223,8 +211,6 @@ src/kernel/persistence
 src/kernel/persistence/Meta
 src/main
 src/ai
-src/plugins
-src/plugins/intern
 src/ui
 src/ui/forms)
 
@@ -244,9 +230,9 @@ use_visual_leak_detector(${PROJECT_NAME})
 # Link against Conan-generated imported targets.
 # GLEW, OpenGL, FreeType, ZLIB, pugixml, CDT come from find_package in dependencies.cmake.
 
-# nlohmann_json is header-only; PUBLIC because it appears in plugin interface headers
+# nlohmann_json is header-only and used by internal JSON serialization.
 if(TARGET nlohmann_json::nlohmann_json)
-    target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
+    target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 endif()
 
 # Eigen3 is header-only; INTERFACE propagation provides include directories.

@@ -73,7 +73,7 @@ int App_Run(int argc, char* argv[])
     QCoreApplication::setOrganizationDomain("YiCAD");
     QCoreApplication::setApplicationName("YiApp");
 
-    // 初始化相对路径/qm/插件等
+    // 初始化相对路径和翻译资源等
     QFileInfo prgInfo(QFile::decodeName(argv[0]));
     QString prgDir(prgInfo.absolutePath());
     DMSETTINGS->init(
