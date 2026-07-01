@@ -27,6 +27,8 @@
 #include "UITabDrawWidget.h"
 #include "UISnapWidget.h"
 
+#include <functional>
+
 class UISnapWidget;
 class DmLayer;
 
@@ -37,6 +39,9 @@ class UIActionHandler : public QObject
     Q_OBJECT
 
 public:
+    using ExternalCommandExecutor =
+        std::function<bool(const QString&, const QString&)>;
+
     UIActionHandler(QObject* parent);
     virtual ~UIActionHandler() = default;
 
@@ -58,6 +63,10 @@ public:
     // return true if handled
     bool commandLineActions(DM::ActionType id);
     bool command(const QString& cmd);
+
+    /// @brief 设置规范外部命令的执行入口。
+    /// @param executor 接收 pluginId 和 commandId 的执行器；空执行器表示禁用。
+    void setExternalCommandExecutor(ExternalCommandExecutor executor);
     QStringList getAvailableCommands();
     SnapMode getSnaps();
     DM::SnapRestriction getSnapRestriction();
@@ -205,12 +214,16 @@ public slots:
     void slotCmdStateChanged();
 
 private:
+    /// @brief 解析并执行 pluginId/commandId 形式的外部命令。
+    bool executeExternalCommand(const QString& command);
+
     UISnapWidget*       m_pSnapToolbar = nullptr;
     GuiDocumentView*    m_pView = nullptr;
     DmDocument*         m_pDocument = nullptr;
     MDIWindow*          m_pMdiWin = nullptr;
     QMdiArea*           m_pDrawingArea = nullptr;
     UITabDrawWidget*    m_pTabDrawWidget = nullptr;
+    ExternalCommandExecutor m_externalCommandExecutor;
 };
 
 #endif
