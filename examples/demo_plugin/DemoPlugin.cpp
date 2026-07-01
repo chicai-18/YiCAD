@@ -8,15 +8,19 @@
  */
 
 /// @file DemoPlugin.cpp
-/// @brief 演示通过公开 SDK 注册命令并向当前文档添加直线
+/// @brief 演示命令、Ribbon 和 .demo 文件导入导出
 
 #include "YiCadPluginSdk.h"
+
+#include <filesystem>
+#include <fstream>
 
 namespace
 {
 
 constexpr const char* PluginId = "com.yicad.demo";
 constexpr const char* CommandId = "demo.add-line";
+constexpr const char* FormatId = "demo";
 
 class DemoPlugin
 {
@@ -50,7 +54,22 @@ public:
             "Draw",
             CommandId,
             "");
-        return commandRegistered && ribbonRegistered;
+        const bool importRegistered = m_host.registerImportFilter(
+            PluginId,
+            FormatId,
+            "YiCAD Demo Drawing",
+            "demo",
+            &DemoPlugin::importFile,
+            this);
+        const bool exportRegistered = m_host.registerExportFilter(
+            PluginId,
+            FormatId,
+            "YiCAD Demo Drawing",
+            "demo",
+            &DemoPlugin::exportFile,
+            this);
+        return commandRegistered && ribbonRegistered && importRegistered &&
+               exportRegistered;
     }
 
     void shutdown() noexcept
@@ -65,6 +84,66 @@ private:
         if (plugin != nullptr)
         {
             plugin->addDemoLine();
+        }
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL importFile(
+        YiCadDocumentHandle handle,
+        const char* filePath,
+        void* userData) noexcept
+    {
+        try
+        {
+            auto* plugin = static_cast<DemoPlugin*>(userData);
+            if (plugin == nullptr || filePath == nullptr ||
+                *filePath == '\0')
+            {
+                return YICAD_FAILURE;
+            }
+
+            const auto document = plugin->m_host.document(handle);
+            if (!document ||
+                !document.addLine(0.0, 0.0, 100.0, 100.0))
+            {
+                return YICAD_FAILURE;
+            }
+            document.regen();
+            return YICAD_SUCCESS;
+        }
+        catch (...)
+        {
+            return YICAD_FAILURE;
+        }
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL exportFile(
+        YiCadDocumentHandle handle,
+        const char* filePath,
+        void* userData) noexcept
+    {
+        try
+        {
+            auto* plugin = static_cast<DemoPlugin*>(userData);
+            if (plugin == nullptr || filePath == nullptr ||
+                *filePath == '\0' || !plugin->m_host.document(handle))
+            {
+                return YICAD_FAILURE;
+            }
+
+            std::ofstream output(
+                std::filesystem::u8path(filePath),
+                std::ios::binary | std::ios::trunc);
+            if (!output)
+            {
+                return YICAD_FAILURE;
+            }
+            output << "YICAD_DEMO_V1\n";
+            output.flush();
+            return output ? YICAD_SUCCESS : YICAD_FAILURE;
+        }
+        catch (...)
+        {
+            return YICAD_FAILURE;
         }
     }
 

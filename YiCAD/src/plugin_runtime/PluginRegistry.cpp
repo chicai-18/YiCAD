@@ -50,6 +50,11 @@ bool containsImportExtension(
     return false;
 }
 
+bool isCanonicalComponent(const QString& value) noexcept
+{
+    return !value.isEmpty() && !value.contains(QLatin1Char('/'));
+}
+
 } // namespace
 
 bool PluginRegistryError::isError() const noexcept
@@ -140,12 +145,21 @@ bool PluginRegistry::stageImportFilter(
     }
 
     const auto normalizedExtension = normalizeExtension(extension);
-    if (formatId.isEmpty() || displayName.isEmpty() ||
+    if (!isCanonicalComponent(pluginId) ||
+        !isCanonicalComponent(formatId) || displayName.isEmpty() ||
         normalizedExtension.isEmpty() || callback == nullptr)
     {
         return fail(
             PluginRegistryErrorCode::InvalidImportFilter,
-            QStringLiteral("导入格式 ID、显示名称、扩展名和回调不能为空"));
+            QStringLiteral(
+                "导入插件 ID 和格式 ID 不能含 /，且显示名称、扩展名和回调不能为空"));
+    }
+    if (normalizedExtension == QStringLiteral("ycd"))
+    {
+        return fail(
+            PluginRegistryErrorCode::DuplicateImportExtension,
+            QStringLiteral("导入扩展名与内置格式重复：%1")
+                .arg(normalizedExtension));
     }
     if (containsFormat(m_importFilters, pluginId, formatId) ||
         containsFormat(m_stagedImportFilters, pluginId, formatId))
@@ -187,12 +201,14 @@ bool PluginRegistry::stageExportFilter(
     }
 
     const auto normalizedExtension = normalizeExtension(extension);
-    if (formatId.isEmpty() || displayName.isEmpty() ||
+    if (!isCanonicalComponent(pluginId) ||
+        !isCanonicalComponent(formatId) || displayName.isEmpty() ||
         normalizedExtension.isEmpty() || callback == nullptr)
     {
         return fail(
             PluginRegistryErrorCode::InvalidExportFilter,
-            QStringLiteral("导出格式 ID、显示名称、扩展名和回调不能为空"));
+            QStringLiteral(
+                "导出插件 ID 和格式 ID 不能含 /，且显示名称、扩展名和回调不能为空"));
     }
     if (containsFormat(m_exportFilters, pluginId, formatId) ||
         containsFormat(m_stagedExportFilters, pluginId, formatId))
@@ -388,6 +404,26 @@ const PluginExportFilterRecord* PluginRegistry::findExportFilter(
         }
     }
     return nullptr;
+}
+
+const PluginExportFilterRecord* PluginRegistry::findExportFilter(
+    const QString& canonicalFormat) const noexcept
+{
+    const auto separator = canonicalFormat.indexOf(QLatin1Char('/'));
+    if (separator <= 0 || separator == canonicalFormat.size() - 1 ||
+        canonicalFormat.indexOf(QLatin1Char('/'), separator + 1) >= 0)
+    {
+        return nullptr;
+    }
+    return findExportFilter(
+        canonicalFormat.left(separator),
+        canonicalFormat.mid(separator + 1));
+}
+
+QString PluginRegistry::canonicalExportFormat(
+    const PluginExportFilterRecord& filter)
+{
+    return QStringLiteral("%1/%2").arg(filter.pluginId, filter.formatId);
 }
 
 bool PluginRegistry::executeCommand(

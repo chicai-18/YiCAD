@@ -30,6 +30,27 @@
 #include "DmSettings.h"
 #include "DmSystem.h"
 #include "Debug.h"
+#include "Fileio.h"
+
+namespace
+{
+
+QString suffixFromNameFilter(const QString& nameFilter)
+{
+    const auto wildcard = nameFilter.lastIndexOf(QStringLiteral("*."));
+    if (wildcard < 0)
+    {
+        return {};
+    }
+
+    const auto end = nameFilter.indexOf(QLatin1Char(')'), wildcard);
+    const auto suffix = nameFilter.mid(
+        wildcard + 2,
+        end < 0 ? -1 : end - wildcard - 2);
+    return suffix.contains(QLatin1Char(' ')) ? QString() : suffix;
+}
+
+} // namespace
 
 const QString UIFileDialog::m_strDefaultFilter = "";
 
@@ -74,6 +95,7 @@ QString UIFileDialog::getOpenFile()
     QString fn = "";
 
     auto typeImportTypes = DMSYSTEM->getImportFormatTypes(open_filter);
+    typeImportTypes.append(FileIO::instance()->pluginImportNameFilters());
 
     setWindowTitle(tr("Open %1").arg(m_strName));
     setNameFilters(typeImportTypes);
@@ -120,6 +142,7 @@ QString UIFileDialog::getSaveFile(QString& formatType)
 
     auto type = DMSYSTEM->getCurrentFormatType();
     auto filters = DMSYSTEM->getExportFormatTypes(type);
+    filters.append(FileIO::instance()->pluginExportNameFilters());
     auto subStrs = filters.at(0).split("(*");
     auto suffix = (subStrs[subStrs.size() - 1]).split(")").at(0);
 
@@ -153,6 +176,17 @@ QString UIFileDialog::getSaveFile(QString& formatType)
         }
     }
     setDefaultSuffix(suffix);
+    connect(
+        this,
+        &QFileDialog::filterSelected,
+        this,
+        [this](const QString& nameFilter) {
+            const auto selectedSuffix = suffixFromNameFilter(nameFilter);
+            if (!selectedSuffix.isEmpty())
+            {
+                setDefaultSuffix(selectedSuffix);
+            }
+        });
 
     // only return non empty string when we have a complete, user approved, file m_strName.
     if (exec() != QDialog::Accepted)
@@ -169,7 +203,8 @@ QString UIFileDialog::getSaveFile(QString& formatType)
     QFileInfo fi = QFileInfo(fl[0]);
     fn = QDir::toNativeSeparators(fi.absoluteFilePath());
 
-    formatType = selectedNameFilter();
+    formatType =
+        FileIO::instance()->exportFormatType(selectedNameFilter());
 
     // store new default settings:
     DMSETTINGS->beginGroup("/Paths");

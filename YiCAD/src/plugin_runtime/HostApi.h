@@ -53,6 +53,12 @@ public:
     /// @brief 判断当前对象是否拥有本线程的 ABI 回调入口。
     bool isActive() const noexcept;
 
+    /// @brief 为仍处于打开状态的文档取得非拥有型 ABI 句柄。
+    YiCadDocumentHandle documentHandle(DmDocument* document) noexcept;
+
+    /// @brief 验证 ABI 文档句柄当前仍可解析到打开的文档。
+    bool isDocumentHandleValid(YiCadDocumentHandle handle) const noexcept;
+
 private:
     struct DocumentHandleRecord;
 

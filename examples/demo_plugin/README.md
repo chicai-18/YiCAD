@@ -1,6 +1,8 @@
 # YiCAD Demo 插件
 
-该插件只依赖 `YiCAD::PluginSdk` 公开接口目标，不链接 Qt 或 YiCAD 内部库。它注册命令 `com.yicad.demo/demo.add-line` 和 Ribbon 中的 **Demo > Draw > Add demo line** 按钮。执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。没有活动文档时，命令只显示提示消息。
+该插件只依赖 `YiCAD::PluginSdk` 公开接口目标，不链接 Qt 或 YiCAD 内部库。它注册命令 `com.yicad.demo/demo.add-line`、Ribbon 中的 **Demo > Draw > Add demo line** 按钮，以及 `.demo` 导入和 `com.yicad.demo/demo` 导出格式。
+
+执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。打开任意 `.demo` 文件会通过导入回调添加同样的演示直线；选择 **YiCAD Demo Drawing (*.demo)** 导出时会写入 `YICAD_DEMO_V1` 格式标记。ABI v1 尚不提供实体遍历，因此演示导出不会伪造实体内容。
 
 ## 构建
 

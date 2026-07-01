@@ -89,6 +89,29 @@ bool HostApi::isActive() const noexcept
     return m_active;
 }
 
+YiCadDocumentHandle HostApi::documentHandle(DmDocument* document) noexcept
+{
+    try
+    {
+        if (!m_active || document == nullptr ||
+            !m_context.isDocumentOpen(document))
+        {
+            return nullptr;
+        }
+        return handleForDocument(document);
+    }
+    catch (...)
+    {
+        return nullptr;
+    }
+}
+
+bool HostApi::isDocumentHandleValid(
+    YiCadDocumentHandle handle) const noexcept
+{
+    return m_active && resolveDocument(handle) != nullptr;
+}
+
 HostApi* HostApi::activeInstance() noexcept
 {
     return s_activeInstance;

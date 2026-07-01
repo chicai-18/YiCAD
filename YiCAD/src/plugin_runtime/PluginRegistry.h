@@ -152,6 +152,14 @@ public:
         const QString& pluginId,
         const QString& formatId) const noexcept;
 
+    /// @brief 按 pluginId/formatId 规范名查找导出过滤器。
+    const PluginExportFilterRecord* findExportFilter(
+        const QString& canonicalFormat) const noexcept;
+
+    /// @brief 返回导出过滤器的 pluginId/formatId 规范名。
+    static QString canonicalExportFormat(
+        const PluginExportFilterRecord& filter);
+
     /// @brief 按插件 ID 和命令 ID 执行已提交命令。
     /// @return 找到命令且回调正常返回时返回 true。
     bool executeCommand(

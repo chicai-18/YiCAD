@@ -218,6 +218,14 @@ public:
         return Document(m_api, m_api->currentDocument());
     }
 
+    /// @brief 将文件回调收到的文档句柄包装为 SDK 文档对象。
+    Document document(YiCadDocumentHandle handle) const noexcept
+    {
+        return isCompatible() && handle != nullptr
+            ? Document(m_api, handle)
+            : Document();
+    }
+
 private:
     bool isCompatible() const noexcept
     {

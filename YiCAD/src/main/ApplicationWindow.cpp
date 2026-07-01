@@ -106,6 +106,7 @@
 #include "PluginManager.h"
 #include "PluginRegistry.h"
 #include "PluginUiAdapter.h"
+#include "Fileio.h"
 
 #include "DmLine.h"
 #include "DmCircle.h"
@@ -375,6 +376,9 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
     m_pluginManager = std::make_unique<PluginManager>(
         *m_pluginHostApi, *m_pluginRegistry);
     m_pluginManager->loadAll();
+
+    FileIO::instance()->setPluginRuntime(
+        *m_pluginRegistry, *m_pluginManager, *m_pluginHostApi);
 
     m_pluginUiAdapter = std::make_unique<PluginUiAdapter>(
         *m_pRibbon, *m_pluginRegistry, *m_pActionHandler, *m_cmdWin);
@@ -1028,6 +1032,7 @@ std::vector<CustomComboboxItem*> ApplicationWindow::getLayerComboboxItems()
 ApplicationWindow::~ApplicationWindow()
 {
     /// @brief 必须在任何窗口、文档和全局宿主服务销毁前关闭并卸载插件。
+    FileIO::instance()->clearPluginRuntime();
     if (m_pluginManager)
     {
         m_pluginManager->shutdownAll();

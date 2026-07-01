@@ -101,6 +101,9 @@ public:
     bool hasLoaded() const noexcept;
     bool isShutdown() const noexcept;
 
+    /// @brief 判断插件是否仍处于 Active 状态。
+    bool isPluginActive(const QString& pluginId) const noexcept;
+
 private:
     struct ActivePlugin;
 

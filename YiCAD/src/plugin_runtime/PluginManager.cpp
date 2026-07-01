@@ -160,6 +160,23 @@ bool PluginManager::isShutdown() const noexcept
     return m_shutdown;
 }
 
+bool PluginManager::isPluginActive(const QString& pluginId) const noexcept
+{
+    if (m_shutdown || pluginId.isEmpty())
+    {
+        return false;
+    }
+    for (const auto& record : m_records)
+    {
+        if (record.pluginId == pluginId &&
+            record.state == PluginLifecycleState::Active)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void PluginManager::loadManifest(
     const PluginManifestReadResult& manifestResult,
     std::size_t recordIndex)
