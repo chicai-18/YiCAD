@@ -117,13 +117,28 @@ set(PLUGIN_SDK_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginAbi.h
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginSdk.h)
 
+# SDK 仅传播公开头文件、C++ 标准和插件导出宏，不链接 YiCAD 或 Qt 内部库。
 add_library(YiCadPluginSdk INTERFACE)
 add_library(YiCAD::PluginSdk ALIAS YiCadPluginSdk)
+# 安装导出时与 YiCAD:: 命名空间组合为 YiCAD::PluginSdk。
+set_target_properties(YiCadPluginSdk PROPERTIES EXPORT_NAME PluginSdk)
+# 构建树使用源码目录，安装后使用稳定的公开头文件目录。
 target_include_directories(YiCadPluginSdk INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime)
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/YiCAD/plugin-sdk>")
 target_compile_features(YiCadPluginSdk INTERFACE cxx_std_23)
 target_compile_definitions(YiCadPluginSdk INTERFACE YICAD_PLUGIN_BUILD)
-target_sources(YiCadPluginSdk INTERFACE ${PLUGIN_SDK_HEADERS})
+target_sources(YiCadPluginSdk INTERFACE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginAbi.h>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginSdk.h>")
+
+# PluginSDK 是安装组件名称，与 find_package 的 COMPONENTS 参数无关。
+install(TARGETS YiCadPluginSdk
+        EXPORT YiCADPluginSdkTargets
+        COMPONENT PluginSDK)
+install(FILES ${PLUGIN_SDK_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/YiCAD/plugin-sdk
+        COMPONENT PluginSDK)
 
 # #####################################################
 # =======================UI============================
@@ -378,29 +393,53 @@ if(NOT _yicad_install_bindir_cmp STREQUAL _yicad_runtime_output_dir_cmp)
 endif()
 ]=])
 string(CONFIGURE "${_yicad_install_guard_code}" _yicad_install_guard_code @ONLY)
-install(CODE "${_yicad_install_guard_code}")
+install(CODE "${_yicad_install_guard_code}"
+        COMPONENT Runtime)
 unset(_yicad_install_guard_code)
 
 #install all resources
-INSTALL(FILES ${QM_FILES} DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/qm)
+INSTALL(FILES ${QM_FILES}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/qm
+        COMPONENT Runtime)
 # User-provided resource directories: install matching files only (ignore .gitkeep, README.md).
 # These directories are empty by default; users place their own PAT/LIN/SHX files here.
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/patterns/ DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/patterns FILES_MATCHING PATTERN "*.pat")
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/linetypes/ DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/linetypes FILES_MATCHING PATTERN "*.lin")
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/fonts/ DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/fonts FILES_MATCHING PATTERN "*.shx")
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/ DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/shaders FILES_MATCHING PATTERN "*.*")
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/patterns/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/patterns
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.pat")
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/linetypes/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/linetypes
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.lin")
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/fonts/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/fonts
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.shx")
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/shaders
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.*")
 
 #install config file
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/config/ DESTINATION ${CMAKE_INSTALL_BINDIR}/ FILES_MATCHING PATTERN "*.*")
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/config/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.*")
 
 # ai
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../README.md DESTINATION ${CMAKE_INSTALL_BINDIR}/ai/)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/ai/ DESTINATION ${CMAKE_INSTALL_BINDIR}/ai/ FILES_MATCHING PATTERN "*.*")
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../README.md
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/ai/
+        COMPONENT Runtime)
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/ai/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/ai/
+        COMPONENT Runtime
+        FILES_MATCHING PATTERN "*.*")
 
 # Install the deployed runtime bundle produced by the build. On Windows this
 # includes the files copied by windeployqt.
 INSTALL(DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
         DESTINATION ${CMAKE_INSTALL_BINDIR}
+        COMPONENT Runtime
         PATTERN "test_*" EXCLUDE)
 
 #structure files

@@ -202,11 +202,11 @@ conan install . --output-folder=build/conan-release --profile=profiles/windows-m
 # 2. Configure with CMake preset (outputs to build/Release, toolchain/SARibbon/CDT paths are baked into the preset)
 cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
 
-# 3. Build Release
-cmake --build --preset Release
+# 3. Build and install the Release runtime (without plugin development files)
+cmake --build --preset Release-Runtime
 
-# 4. Install (outputs to build/Release/bin/ directory with all dependency DLLs)
-cmake --install build/Release
+# Optional: install the third-party plugin SDK
+cmake --build --preset Release-PluginSDK
 
 # Build output: build/Release/bin/YiCAD.exe
 # Install output: build/Release/bin/YiCAD.exe + all third-party DLLs
@@ -214,7 +214,14 @@ cmake --install build/Release
 
 **Install notes:**
 
-Running `cmake --install` automatically copies the following dependencies to `build/<config>/bin/`:
+Install components:
+
+- `Runtime`: YiCAD executable, runtime libraries, resources, translations, and runtime licenses.
+- `PluginSDK`: public headers, CMake package, SDK documentation, license, and standalone Demo sources.
+- The `Debug-Runtime`, `Debug-PluginSDK`, `Release-Runtime`, and `Release-PluginSDK` build presets install their corresponding components automatically.
+- Omitting `--component` installs both components.
+
+Installing `Runtime` automatically copies the following dependencies to `build/<config>/bin/`:
 - SARibbonBar.dll
 - CDT.dll (if present)
 - Conan-managed third-party DLLs (GLEW, FreeType, zlib, etc.)

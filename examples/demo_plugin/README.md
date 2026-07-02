@@ -19,15 +19,24 @@ CIRCLE 50 50 25
 - 空行会被忽略；未知类型、缺少参数、多余参数或无效几何会使整个导入失败并回滚。
 - 当前只读 ABI 仅定义直线和圆数据，导出时其他实体类型不会写入 `.demo` 文件。
 
-## 构建
+## 独立构建
 
-按仓库根目录的常规流程配置后，可以单独构建 Demo 目标：
+该目录是仓库外插件工程的完整示例。它不作为 YiCAD 主工程的子目录参与构建，也不读取 `YiCAD/src`。先安装 YiCAD 的 `PluginSDK` 组件，再把 `CMAKE_PREFIX_PATH` 指向 YiCAD 的安装前缀：
 
 ```powershell
-cmake --build --preset Release --target YiCadDemoPlugin
+cmake --build --preset Release-PluginSDK
 ```
 
-在当前预设下，DLL 位于 `build/Release/bin/YiCadDemoPlugin.dll`。Debug 预设对应 `build/Debug/bin/YiCadDemoPlugin.dll`。
+然后在本示例目录中配置和构建：
+
+```powershell
+cmake -S . -B build -DCMAKE_PREFIX_PATH="C:\path\to\YiCAD"
+cmake --build build --config Release
+```
+
+也可以把 `YiCADPluginSdk_DIR` 直接设为安装后的 `lib/cmake/YiCADPluginSdk` 目录。Visual Studio 生成器通常把 DLL 写到 `build/Release/YiCadDemoPlugin.dll`；实际位置以 CMake 构建输出为准。Debug 构建使用 `--config Debug`。
+
+安装 YiCAD 后，示例源码副本位于 `share/YiCAD/examples/demo_plugin`。复制该目录到任意仓库外位置后，仍只需已安装的 SDK 即可配置和构建。
 
 ## 绝对路径部署
 
@@ -48,7 +57,7 @@ cmake --build --preset Release --target YiCadDemoPlugin
 
 清单中的相对 DLL 路径以 XML 所在目录为基准。YiCAD 只扫描 `C:\ProgramData\YiCAD\plugins` 第一层的 `*.xml`；其他目录中的相同清单不会被发现。
 
-相对路径和绝对路径都是受支持的部署方式。只要最终解析到同一个 DLL，加载效果相同。开发时可让清单直接指向仓库 `build/<config>/bin` 下的绝对路径；固定部署建议使用 `demo/YiCadDemoPlugin.dll`，避免依赖本机构建目录。不要同时部署两个指向不同 Demo DLL 的清单，否则相同插件 ID 和格式注册会发生冲突。
+相对路径和绝对路径都是受支持的部署方式。只要最终解析到同一个 DLL，加载效果相同。开发时可让清单直接指向外部插件工程构建目录下的绝对路径；固定部署建议使用 `demo/YiCadDemoPlugin.dll`，避免依赖本机构建目录。不要同时部署两个指向不同 Demo DLL 的清单，否则相同插件 ID 和格式注册会发生冲突。
 
 ## 手工验收
 

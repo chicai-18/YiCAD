@@ -204,11 +204,11 @@ conan install . --output-folder=build/conan-release --profile=profiles/windows-m
 # 2. 使用 CMake 预设配置（输出到 build/Release，toolchain/SARibbon/CDT 路径已内置于预设）
 cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
 
-# 3. 编译 Release
-cmake --build --preset Release
+# 3. 编译并安装 Release 运行时（不安装插件开发文件）
+cmake --build --preset Release-Runtime
 
-# 4. 安装（输出到 build/Release/bin/ 目录，包含所有依赖 DLL）
-cmake --install build/Release
+# 可选：安装第三方插件开发 SDK
+cmake --build --preset Release-PluginSDK
 
 # 构建输出: build/Release/bin/YiCAD.exe
 # 安装输出: build/Release/bin/YiCAD.exe + 所有第三方 DLL
@@ -216,7 +216,14 @@ cmake --install build/Release
 
 **安装说明：**
 
-执行 `cmake --install` 时，会自动复制以下依赖到 `build/<config>/bin/` 目录：
+安装组件说明：
+
+- `Runtime`：YiCAD 可执行程序、运行库、资源、翻译和运行许可证。
+- `PluginSDK`：公开头文件、CMake package、SDK 文档、许可证和独立 Demo 源码。
+- `Debug-Runtime`、`Debug-PluginSDK`、`Release-Runtime` 和 `Release-PluginSDK` 构建预设会自动安装对应组件。
+- 不指定 `--component` 时会安装两个组件。
+
+安装 `Runtime` 时，会自动复制以下依赖到 `build/<config>/bin/` 目录：
 - SARibbonBar.dll
 - CDT.dll（如果存在）
 - Conan 管理的第三方库 DLL（GLEW、FreeType、zlib 等）
