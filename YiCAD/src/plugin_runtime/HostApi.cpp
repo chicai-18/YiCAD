@@ -3,6 +3,7 @@
 #include "DmCircle.h"
 #include "DmDocument.h"
 #include "DmLine.h"
+#include "CmdManager.h"
 #include "EntityTable.h"
 #include "GuiDocumentView.h"
 #include "PluginRegistry.h"
@@ -12,7 +13,9 @@
 
 #include <cmath>
 #include <algorithm>
+#include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace
@@ -67,6 +70,17 @@ struct HostApi::EntityIteratorRecord
     bool hasCurrent = false;
 };
 
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+struct HostApi::ImportSessionRecord
+{
+    DmDocument* document = nullptr;
+    std::unique_ptr<Transaction> transaction;
+    MacroCmd* command = nullptr;
+    std::size_t initialUndoCount = 0;
+    bool active = false;
+};
+#endif
+
 thread_local HostApi* HostApi::s_activeInstance = nullptr;
 
 HostApi::HostApi(
@@ -74,9 +88,22 @@ HostApi::HostApi(
     PluginRegistry& registry) noexcept
     : m_context(context)
     , m_registry(registry)
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    , m_importApi{
+          YICAD_IMPORT_API_V3_DRAFT_SIZE,
+          YICAD_PLUGIN_ABI_V3_DRAFT,
+          &HostApi::beginImport,
+          &HostApi::commitImport,
+          &HostApi::rollbackImport,
+          &HostApi::importGetLastError}
+#endif
     , m_api{
           static_cast<uint32_t>(sizeof(YiCadHostApi)),
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+          YICAD_PLUGIN_ABI_V3_DRAFT,
+#else
           YICAD_PLUGIN_ABI_MAX_VERSION,
+#endif
           &HostApi::message,
           &HostApi::registerCommand,
           &HostApi::registerRibbonButton,
@@ -94,7 +121,11 @@ HostApi::HostApi(
           &HostApi::entityIteratorNext,
           &HostApi::entityIteratorGetLine,
           &HostApi::entityIteratorGetCircle,
-          &HostApi::entityIteratorDestroy}
+          &HostApi::entityIteratorDestroy
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+          , &m_importApi
+#endif
+      }
 {
     if (s_activeInstance == nullptr)
     {
@@ -105,6 +136,27 @@ HostApi::HostApi(
 
 HostApi::~HostApi()
 {
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    for (auto& record : m_importSessions)
+    {
+        if (!record->active)
+        {
+            continue;
+        }
+        try
+        {
+            if (m_context.isDocumentOpen(record->document))
+            {
+                record->transaction->rollback();
+            }
+        }
+        catch (...)
+        {
+        }
+        releaseImportSession(record.get());
+    }
+    m_importSessions.clear();
+#endif
     for (auto& record : m_transactions)
     {
         try
@@ -719,6 +771,228 @@ void YICAD_PLUGIN_CALL HostApi::entityIteratorDestroy(
     }
 }
 
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
+    YiCadDocumentHandle documentHandle,
+    YiCadImportSessionHandle* session) noexcept
+{
+    if (session != nullptr)
+    {
+        *session = nullptr;
+    }
+
+    try
+    {
+        auto* instance = activeInstance();
+        if (instance == nullptr || session == nullptr)
+        {
+            return instance == nullptr
+                ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
+                : instance->setImportError(
+                      YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                      "导入会话输出参数无效");
+        }
+
+        instance->invalidateClosedImportSessions();
+        auto* document = instance->resolveDocument(documentHandle);
+        auto* manager = document == nullptr
+            ? nullptr
+            : document->getCmdManager();
+        if (document == nullptr || manager == nullptr)
+        {
+            return instance->setImportError(
+                YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                "文档句柄无效或已过期");
+        }
+        if (instance->hasActiveTransaction(document) ||
+            manager->getCurrentCmd() != nullptr ||
+            manager->getCurrentGroupCmd() != nullptr)
+        {
+            return instance->setImportError(
+                YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+                "文档已存在活动事务或导入会话");
+        }
+
+        auto record = std::make_unique<ImportSessionRecord>();
+        record->document = document;
+        record->initialUndoCount = manager->getUndoCount();
+        record->transaction = std::make_unique<Transaction>(
+            "Plugin: Import", document);
+        instance->m_importSessions.reserve(
+            instance->m_importSessions.size() + 1);
+        record->transaction->start();
+        record->command = manager->getCurrentCmd();
+        if (record->command == nullptr)
+        {
+            return instance->setImportError(
+                YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+                "宿主无法启动导入事务");
+        }
+
+        record->active = true;
+        auto* handle = record.get();
+        instance->m_importSessions.push_back(std::move(record));
+        *session = static_cast<void*>(handle);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        auto* instance = activeInstance();
+        return instance == nullptr
+            ? YICAD_IMPORT_ERROR_OUT_OF_MEMORY
+            : instance->setImportError(
+                  YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+                  "创建导入会话时内存不足");
+    }
+    catch (...)
+    {
+        auto* instance = activeInstance();
+        return instance == nullptr
+            ? YICAD_IMPORT_ERROR_TRANSACTION_FAILED
+            : instance->setImportError(
+                  YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+                  "启动导入事务失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::commitImport(
+    YiCadImportSessionHandle sessionHandle) noexcept
+{
+    auto* instance = activeInstance();
+    auto* record = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    if (record == nullptr)
+    {
+        return instance == nullptr
+            ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(
+                  YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (!instance->m_context.isDocumentOpen(record->document))
+    {
+        instance->releaseImportSession(record);
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入会话所属文档已关闭");
+    }
+
+    auto* manager = record->document->getCmdManager();
+    try
+    {
+        if (manager == nullptr || manager->getCurrentCmd() != record->command ||
+            manager->getCurrentGroupCmd() != nullptr)
+        {
+            throw std::runtime_error("导入事务状态不一致");
+        }
+
+        if (record->command->size() == 0)
+        {
+            record->transaction->rollback();
+        }
+        else
+        {
+            record->transaction->commit();
+        }
+        instance->releaseImportSession(record);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (...)
+    {
+        try
+        {
+            if (manager != nullptr &&
+                manager->getCurrentCmd() == record->command)
+            {
+                record->transaction->rollback();
+            }
+            else if (manager != nullptr &&
+                     manager->getUndoCount() > record->initialUndoCount)
+            {
+                manager->rollbackAndRemoveAfter(record->initialUndoCount);
+            }
+        }
+        catch (...)
+        {
+        }
+        instance->releaseImportSession(record);
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "提交导入事务失败，宿主已执行回滚");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::rollbackImport(
+    YiCadImportSessionHandle sessionHandle) noexcept
+{
+    auto* instance = activeInstance();
+    auto* record = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    if (record == nullptr)
+    {
+        return instance == nullptr
+            ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(
+                  YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (!instance->m_context.isDocumentOpen(record->document))
+    {
+        instance->releaseImportSession(record);
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入会话所属文档已关闭");
+    }
+
+    try
+    {
+        record->transaction->rollback();
+        instance->releaseImportSession(record);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (...)
+    {
+        instance->releaseImportSession(record);
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "回滚导入事务失败");
+    }
+}
+
+uint32_t YICAD_PLUGIN_CALL HostApi::importGetLastError(
+    char* buffer,
+    uint32_t bufferSize) noexcept
+{
+    auto* instance = activeInstance();
+    if (instance == nullptr)
+    {
+        if (buffer != nullptr && bufferSize > 0)
+        {
+            buffer[0] = '\0';
+        }
+        return 1;
+    }
+
+    const auto& message = instance->m_importLastError;
+    const auto required = message.size() + 1;
+    if (buffer != nullptr && bufferSize > 0)
+    {
+        const auto copySize = std::min<std::size_t>(
+            message.size(), static_cast<std::size_t>(bufferSize - 1));
+        std::memcpy(buffer, message.data(), copySize);
+        buffer[copySize] = '\0';
+    }
+    return required > UINT32_MAX
+        ? UINT32_MAX
+        : static_cast<uint32_t>(required);
+}
+#endif
+
 YiCadDocumentHandle HostApi::handleForDocument(DmDocument* document)
 {
     for (const auto& record : m_documentHandles)
@@ -821,5 +1095,86 @@ bool HostApi::hasActiveTransaction(
             return true;
         }
     }
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    if (hasActiveImportSession(document))
+    {
+        return true;
+    }
+#endif
     return false;
 }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+HostApi::ImportSessionRecord* HostApi::resolveImportSession(
+    YiCadImportSessionHandle handle) const noexcept
+{
+    if (handle == nullptr)
+    {
+        return nullptr;
+    }
+    for (const auto& record : m_importSessions)
+    {
+        if (record->active && static_cast<const void*>(record.get()) == handle)
+        {
+            return record.get();
+        }
+    }
+    return nullptr;
+}
+
+bool HostApi::hasActiveImportSession(
+    const DmDocument* document) const noexcept
+{
+    for (const auto& record : m_importSessions)
+    {
+        if (record->active && record->document == document)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void HostApi::invalidateClosedImportSessions() noexcept
+{
+    for (auto& record : m_importSessions)
+    {
+        if (record->active && !m_context.isDocumentOpen(record->document))
+        {
+            releaseImportSession(record.get());
+        }
+    }
+}
+
+void HostApi::releaseImportSession(ImportSessionRecord* record) noexcept
+{
+    if (record == nullptr)
+    {
+        return;
+    }
+    record->active = false;
+    record->transaction.reset();
+    record->command = nullptr;
+    record->document = nullptr;
+}
+
+YiCadImportResult HostApi::setImportError(
+    YiCadImportResult result,
+    const char* message) noexcept
+{
+    try
+    {
+        m_importLastError = message == nullptr ? "" : message;
+    }
+    catch (...)
+    {
+        m_importLastError.clear();
+    }
+    return result;
+}
+
+void HostApi::clearImportError() noexcept
+{
+    m_importLastError.clear();
+}
+#endif

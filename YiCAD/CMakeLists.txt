@@ -128,6 +128,11 @@ target_include_directories(YiCadPluginSdk INTERFACE
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/YiCAD/plugin-sdk>")
 target_compile_features(YiCadPluginSdk INTERFACE cxx_std_23)
 target_compile_definitions(YiCadPluginSdk INTERFACE YICAD_PLUGIN_BUILD)
+if(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    # 草案宏只在构建树中传播，安装后的正式 SDK 仍仅公开 v1/v2。
+    target_compile_definitions(YiCadPluginSdk INTERFACE
+        "$<BUILD_INTERFACE:YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT>")
+endif()
 target_sources(YiCadPluginSdk INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginAbi.h>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime/YiCadPluginSdk.h>")
@@ -203,6 +208,11 @@ add_executable(${PROJECT_NAME} ${ALL_RSC_FILES}
                                  ${qrc_DIRS}
                                  ${qrc_FILES}
                                  ${QM_FILES})
+
+if(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+endif()
 
 # 支持linux相对路径库加载，参考：https://stackoverflow.com/questions/43330165/how-to-link-a-shared-library-with-cmake-with-relative-path/69707790#69707790
 # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling

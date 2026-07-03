@@ -4,6 +4,7 @@
 #include "YiCadPluginAbi.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 class DmDocument;
@@ -63,6 +64,9 @@ private:
     struct DocumentHandleRecord;
     struct TransactionRecord;
     struct EntityIteratorRecord;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    struct ImportSessionRecord;
+#endif
 
     static HostApi* activeInstance() noexcept;
 
@@ -129,6 +133,18 @@ private:
         YiCadCircleData* circle) noexcept;
     static void YICAD_PLUGIN_CALL entityIteratorDestroy(
         YiCadEntityIteratorHandle iterator) noexcept;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    static YiCadImportResult YICAD_PLUGIN_CALL beginImport(
+        YiCadDocumentHandle document,
+        YiCadImportSessionHandle* session) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL commitImport(
+        YiCadImportSessionHandle session) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL rollbackImport(
+        YiCadImportSessionHandle session) noexcept;
+    static uint32_t YICAD_PLUGIN_CALL importGetLastError(
+        char* buffer,
+        uint32_t bufferSize) noexcept;
+#endif
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);
     DmDocument* resolveDocument(
@@ -139,13 +155,31 @@ private:
     EntityIteratorRecord* resolveEntityIterator(
         YiCadEntityIteratorHandle handle) const noexcept;
     bool hasActiveTransaction(const DmDocument* document) const noexcept;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    ImportSessionRecord* resolveImportSession(
+        YiCadImportSessionHandle handle) const noexcept;
+    bool hasActiveImportSession(const DmDocument* document) const noexcept;
+    void invalidateClosedImportSessions() noexcept;
+    void releaseImportSession(ImportSessionRecord* record) noexcept;
+    YiCadImportResult setImportError(
+        YiCadImportResult result,
+        const char* message) noexcept;
+    void clearImportError() noexcept;
+#endif
 
     PluginHostContext& m_context;
     PluginRegistry& m_registry;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    YiCadImportApi m_importApi;
+#endif
     YiCadHostApi m_api;
     std::vector<std::unique_ptr<DocumentHandleRecord>> m_documentHandles;
     std::vector<std::unique_ptr<TransactionRecord>> m_transactions;
     std::vector<std::unique_ptr<EntityIteratorRecord>> m_entityIterators;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    std::vector<std::unique_ptr<ImportSessionRecord>> m_importSessions;
+    std::string m_importLastError;
+#endif
     bool m_active = false;
 
     static thread_local HostApi* s_activeInstance;

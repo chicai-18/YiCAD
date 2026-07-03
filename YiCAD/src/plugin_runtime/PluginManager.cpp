@@ -16,6 +16,13 @@ constexpr std::uint32_t AbiHeaderSize =
     static_cast<std::uint32_t>(
         offsetof(YiCadHostApi, abiVersion) +
         sizeof(std::uint32_t));
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+constexpr std::uint32_t HostMaximumAbiVersion =
+    YICAD_PLUGIN_ABI_V3_DRAFT;
+#else
+constexpr std::uint32_t HostMaximumAbiVersion =
+    YICAD_PLUGIN_ABI_MAX_VERSION;
+#endif
 
 void setError(
     PluginManagerRecord& record,
@@ -205,7 +212,7 @@ void PluginManager::loadManifest(
         }
         if (host->structSize < AbiHeaderSize ||
             host->abiVersion < YICAD_PLUGIN_ABI_MIN_VERSION ||
-            host->abiVersion > YICAD_PLUGIN_ABI_MAX_VERSION)
+            host->abiVersion > HostMaximumAbiVersion)
         {
             setError(
                 record,
@@ -258,10 +265,19 @@ void PluginManager::loadManifest(
 
         plugin->negotiatedHostApi = *host;
         plugin->negotiatedHostApi.abiVersion = record.negotiatedAbiVersion;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+        plugin->negotiatedHostApi.structSize =
+            record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V3_DRAFT
+            ? YICAD_HOST_API_V3_DRAFT_SIZE
+            : record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V2
+                ? YICAD_HOST_API_V2_SIZE
+                : YICAD_HOST_API_V1_SIZE;
+#else
         plugin->negotiatedHostApi.structSize =
             record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V2
             ? YICAD_HOST_API_V2_SIZE
             : YICAD_HOST_API_V1_SIZE;
+#endif
 
         if (!m_registry.beginRegistration())
         {

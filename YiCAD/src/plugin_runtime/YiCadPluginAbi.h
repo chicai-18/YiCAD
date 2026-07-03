@@ -13,6 +13,10 @@
 #define YICAD_PLUGIN_ABI_V1 UINT32_C(1)
 /** @brief 文档事务与只读实体枚举 C ABI 版本号。 */
 #define YICAD_PLUGIN_ABI_V2 UINT32_C(2)
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+/** @brief 未发布的导入会话 C ABI v3 草案版本号。 */
+#define YICAD_PLUGIN_ABI_V3_DRAFT UINT32_C(3)
+#endif
 /** @brief 当前 SDK 支持的最低 C ABI 版本。 */
 #define YICAD_PLUGIN_ABI_MIN_VERSION YICAD_PLUGIN_ABI_V1
 /** @brief 当前 SDK 支持的最高 C ABI 版本。 */
@@ -63,6 +67,28 @@ typedef void* YiCadTransactionHandle;
  * @note 插件必须调用 entityIteratorDestroy；销毁前快照保持有效。
  */
 typedef void* YiCadEntityIteratorHandle;
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+/** @brief 宿主持有的导入会话句柄，提交或回滚后立即失效。 */
+typedef void* YiCadImportSessionHandle;
+/** @brief 所属导入会话内有效的容器句柄。 */
+typedef void* YiCadImportContainerHandle;
+/** @brief 所属导入会话内有效的资源句柄。 */
+typedef void* YiCadImportResourceHandle;
+
+/** @brief 导入子接口使用的固定宽度结果码。 */
+typedef int32_t YiCadImportResult;
+
+#define YICAD_IMPORT_SUCCESS ((YiCadImportResult)0)
+#define YICAD_IMPORT_ERROR_INVALID_ARGUMENT ((YiCadImportResult)-1)
+#define YICAD_IMPORT_ERROR_INVALID_HANDLE ((YiCadImportResult)-2)
+#define YICAD_IMPORT_ERROR_NAME_CONFLICT ((YiCadImportResult)-3)
+#define YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND ((YiCadImportResult)-4)
+#define YICAD_IMPORT_ERROR_UNSUPPORTED ((YiCadImportResult)-5)
+#define YICAD_IMPORT_ERROR_OUT_OF_RANGE ((YiCadImportResult)-6)
+#define YICAD_IMPORT_ERROR_OUT_OF_MEMORY ((YiCadImportResult)-7)
+#define YICAD_IMPORT_ERROR_TRANSACTION_FAILED ((YiCadImportResult)-8)
+#endif
 
 typedef int32_t YiCadEntityType;
 
@@ -164,6 +190,51 @@ typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadEntityIteratorGetCircleFn)(
 typedef void (YICAD_PLUGIN_CALL *YiCadEntityIteratorDestroyFn)(
     YiCadEntityIteratorHandle iterator);
 
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+typedef struct YiCadImportApi YiCadImportApi;
+
+/**
+ * @brief 为打开的文档开始一个非嵌套导入会话。
+ * @param document 非拥有型文档句柄。
+ * @param[out] session 成功时接收宿主持有的会话句柄。
+ * @return 导入结果码；失败时不创建会话。
+ * @note 仅允许在 YiCAD UI 主线程调用。
+ */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportBeginFn)(
+    YiCadDocumentHandle document,
+    YiCadImportSessionHandle* session);
+/**
+ * @brief 原子提交导入会话并消费句柄。
+ * @note 提交失败时宿主自动回滚；空会话不创建撤销项。
+ */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCommitFn)(
+    YiCadImportSessionHandle session);
+/** @brief 回滚导入会话并消费句柄。 */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportRollbackFn)(
+    YiCadImportSessionHandle session);
+/**
+ * @brief 读取当前线程最后一条导入错误的 UTF-8 文本。
+ * @param buffer 调用方提供的缓冲区；可为 nullptr 以查询长度。
+ * @param bufferSize 缓冲区字节数。
+ * @return 完整文本所需的字节数，包含末尾 NUL。
+ * @note 有效缓冲区始终会被 NUL 终止；宿主不保存缓冲区。
+ */
+typedef uint32_t (YICAD_PLUGIN_CALL *YiCadImportGetLastErrorFn)(
+    char* buffer,
+    uint32_t bufferSize);
+
+/** @brief 未发布的 ABI v3 导入子函数表草案。 */
+struct YiCadImportApi
+{
+    uint32_t structSize;
+    uint32_t abiVersion;
+    YiCadImportBeginFn beginImport;
+    YiCadImportCommitFn commitImport;
+    YiCadImportRollbackFn rollbackImport;
+    YiCadImportGetLastErrorFn getLastError;
+};
+#endif
+
 typedef struct YiCadHostApi
 {
     uint32_t structSize;
@@ -186,6 +257,10 @@ typedef struct YiCadHostApi
     YiCadEntityIteratorGetLineFn entityIteratorGetLine;
     YiCadEntityIteratorGetCircleFn entityIteratorGetCircle;
     YiCadEntityIteratorDestroyFn entityIteratorDestroy;
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    /** @brief ABI v3 草案导入子表；其生命周期与宿主表相同。 */
+    const YiCadImportApi* importApi;
+#endif
 } YiCadHostApi;
 
 typedef struct YiCadPluginApi
@@ -209,6 +284,16 @@ typedef struct YiCadPluginApi
 #define YICAD_HOST_API_V2_SIZE                                            \
     ((uint32_t)(offsetof(YiCadHostApi, entityIteratorDestroy) +           \
                 sizeof(((YiCadHostApi*)0)->entityIteratorDestroy)))
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+/** @brief ABI v3 草案宿主表的当前可访问字节数。 */
+#define YICAD_HOST_API_V3_DRAFT_SIZE                                      \
+    ((uint32_t)(offsetof(YiCadHostApi, importApi) +                        \
+                sizeof(((YiCadHostApi*)0)->importApi)))
+/** @brief ABI v3 草案导入子表的当前可访问字节数。 */
+#define YICAD_IMPORT_API_V3_DRAFT_SIZE                                    \
+    ((uint32_t)(offsetof(YiCadImportApi, getLastError) +                   \
+                sizeof(((YiCadImportApi*)0)->getLastError)))
+#endif
 
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadPluginInitFn)(
@@ -263,6 +348,24 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_V2 == UINT32_C(2),
     "ABI v2 version snapshot changed");
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_PLUGIN_ABI_V3_DRAFT == UINT32_C(3),
+    "ABI v3 draft version snapshot changed");
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadImportResult) == 4,
+    "YiCadImportResult must be 32-bit");
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadImportApi, structSize) == 0,
+    "YiCadImportApi.structSize must be first");
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadImportApi, abiVersion) == sizeof(uint32_t),
+    "YiCadImportApi.abiVersion must be second");
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, beginImport, abiVersion);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, commitImport, beginImport);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, rollbackImport, commitImport);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, getLastError, rollbackImport);
+#endif
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,
     "invalid supported ABI version range");
@@ -318,6 +421,16 @@ YICAD_ABI_FIELD_FOLLOWS(
     YiCadHostApi,
     entityIteratorDestroy,
     entityIteratorGetCircle);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, importApi, entityIteratorDestroy);
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadHostApi, importApi) == YICAD_HOST_API_V2_SIZE,
+    "ABI v3 draft must append only one aligned host-table pointer");
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_HOST_API_V3_DRAFT_SIZE ==
+        YICAD_HOST_API_V2_SIZE + sizeof(void*),
+    "unexpected ABI v3 draft host-table growth");
+#endif
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadHostApi) >=
         offsetof(YiCadHostApi, entityIteratorDestroy) +
@@ -441,6 +554,11 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     __is_standard_layout(YiCadPluginApi),
     "YiCadPluginApi must have standard layout");
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_STATIC_ASSERT(
+    __is_standard_layout(YiCadImportApi),
+    "YiCadImportApi must have standard layout");
+#endif
 YICAD_ABI_STATIC_ASSERT(
     (yicad_plugin_abi_detail::IsSame<
         decltype(&yicad_plugin_get_abi_version),

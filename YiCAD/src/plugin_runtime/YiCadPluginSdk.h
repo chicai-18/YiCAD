@@ -9,6 +9,106 @@ namespace yicad::plugin
 class Host;
 class Document;
 
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+/// @brief 不可复制、可移动的导入会话；析构时自动回滚未结束会话。
+class ImportSession
+{
+public:
+    ImportSession() noexcept = default;
+    ImportSession(const ImportSession&) = delete;
+    ImportSession& operator=(const ImportSession&) = delete;
+
+    ImportSession(ImportSession&& other) noexcept
+        : m_api(other.m_api),
+          m_handle(other.m_handle)
+    {
+        other.m_api = nullptr;
+        other.m_handle = nullptr;
+    }
+
+    ImportSession& operator=(ImportSession&& other) noexcept
+    {
+        if (this != &other)
+        {
+            rollback();
+            m_api = other.m_api;
+            m_handle = other.m_handle;
+            other.m_api = nullptr;
+            other.m_handle = nullptr;
+        }
+        return *this;
+    }
+
+    ~ImportSession()
+    {
+        rollback();
+    }
+
+    explicit operator bool() const noexcept
+    {
+        return m_api != nullptr && m_handle != nullptr;
+    }
+
+    /// @brief 提交并消费会话句柄；失败时宿主自动回滚。
+    YiCadImportResult commit() noexcept
+    {
+        if (m_api == nullptr || m_handle == nullptr ||
+            m_api->commitImport == nullptr)
+        {
+            return YICAD_IMPORT_ERROR_INVALID_HANDLE;
+        }
+        const auto handle = m_handle;
+        m_handle = nullptr;
+        return m_api->commitImport(handle);
+    }
+
+    /// @brief 回滚并消费会话句柄。
+    YiCadImportResult rollback() noexcept
+    {
+        if (m_handle == nullptr)
+        {
+            return YICAD_IMPORT_SUCCESS;
+        }
+        if (m_api == nullptr || m_api->rollbackImport == nullptr)
+        {
+            m_handle = nullptr;
+            return YICAD_IMPORT_ERROR_INVALID_HANDLE;
+        }
+        const auto handle = m_handle;
+        m_handle = nullptr;
+        return m_api->rollbackImport(handle);
+    }
+
+    /// @brief 读取最后一条导入错误，返回包含 NUL 的所需字节数。
+    uint32_t lastError(char* buffer, uint32_t bufferSize) const noexcept
+    {
+        if (m_api == nullptr || m_api->getLastError == nullptr)
+        {
+            if (buffer != nullptr && bufferSize > 0)
+            {
+                buffer[0] = '\0';
+            }
+            return 1;
+        }
+        return m_api->getLastError(buffer, bufferSize);
+    }
+
+private:
+    friend class Document;
+
+    ImportSession(
+        const YiCadImportApi* api,
+        YiCadImportSessionHandle handle) noexcept
+        : m_api(api),
+          m_handle(handle)
+    {
+    }
+
+    const YiCadImportApi* m_api = nullptr;
+    YiCadImportSessionHandle m_handle = nullptr;
+};
+#endif
+
 /// @brief 宿主持有的不透明文档事务；析构时自动回滚未提交事务。
 class DocumentTransaction
 {
@@ -264,6 +364,43 @@ public:
             m_api, m_api->documentCreateEntityIterator(m_handle));
     }
 
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    /// @brief 开始一个 ABI v3 草案导入会话。
+    ImportSession beginImport() const noexcept
+    {
+        const auto* importApi = importApiForSession();
+        if (importApi == nullptr)
+        {
+            return {};
+        }
+
+        YiCadImportSessionHandle session = nullptr;
+        if (importApi->beginImport(m_handle, &session) !=
+            YICAD_IMPORT_SUCCESS)
+        {
+            return {};
+        }
+        return ImportSession(importApi, session);
+    }
+
+    /// @brief 读取最后一条导入错误，返回包含 NUL 的所需字节数。
+    uint32_t importLastError(
+        char* buffer,
+        uint32_t bufferSize) const noexcept
+    {
+        const auto* importApi = importApiForSession();
+        if (importApi == nullptr || importApi->getLastError == nullptr)
+        {
+            if (buffer != nullptr && bufferSize > 0)
+            {
+                buffer[0] = '\0';
+            }
+            return 1;
+        }
+        return importApi->getLastError(buffer, bufferSize);
+    }
+#endif
+
 private:
     friend class Host;
 
@@ -277,12 +414,17 @@ private:
 
     bool hasField(size_t offset, size_t size) const noexcept
     {
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+        constexpr auto maximumVersion = YICAD_PLUGIN_ABI_V3_DRAFT;
+#else
+        constexpr auto maximumVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
+#endif
         return m_api != nullptr && m_handle != nullptr &&
                m_api->structSize >=
                    offsetof(YiCadHostApi, abiVersion) +
                        sizeof(m_api->abiVersion) &&
                m_api->abiVersion >= YICAD_PLUGIN_ABI_MIN_VERSION &&
-               m_api->abiVersion <= YICAD_PLUGIN_ABI_MAX_VERSION &&
+               m_api->abiVersion <= maximumVersion &&
                m_api->structSize >= offset + size;
     }
 
@@ -291,6 +433,36 @@ private:
         return hasField(offset, size) &&
                m_api->abiVersion >= YICAD_PLUGIN_ABI_V2;
     }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    const YiCadImportApi* importApiForSession() const noexcept
+    {
+        if (!hasField(
+                offsetof(YiCadHostApi, importApi),
+                sizeof(m_api->importApi)) ||
+            m_api->abiVersion < YICAD_PLUGIN_ABI_V3_DRAFT ||
+            m_api->importApi == nullptr)
+        {
+            return nullptr;
+        }
+
+        const auto* importApi = m_api->importApi;
+        const auto headerSize =
+            offsetof(YiCadImportApi, abiVersion) +
+            sizeof(importApi->abiVersion);
+        const auto requiredSize =
+            offsetof(YiCadImportApi, getLastError) +
+            sizeof(importApi->getLastError);
+        return importApi->structSize >= headerSize &&
+               importApi->abiVersion >= YICAD_PLUGIN_ABI_V3_DRAFT &&
+               importApi->structSize >= requiredSize &&
+               importApi->beginImport != nullptr &&
+               importApi->commitImport != nullptr &&
+               importApi->rollbackImport != nullptr
+            ? importApi
+            : nullptr;
+    }
+#endif
 
     const YiCadHostApi* m_api = nullptr;
     YiCadDocumentHandle m_handle = nullptr;
@@ -435,12 +607,17 @@ public:
 private:
     bool isCompatible() const noexcept
     {
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+        constexpr auto maximumVersion = YICAD_PLUGIN_ABI_V3_DRAFT;
+#else
+        constexpr auto maximumVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
+#endif
         return m_api != nullptr &&
                m_api->structSize >=
                    offsetof(YiCadHostApi, abiVersion) +
                        sizeof(m_api->abiVersion) &&
                m_api->abiVersion >= YICAD_PLUGIN_ABI_MIN_VERSION &&
-               m_api->abiVersion <= YICAD_PLUGIN_ABI_MAX_VERSION;
+               m_api->abiVersion <= maximumVersion;
     }
 
     bool hasField(size_t offset, size_t size) const noexcept

@@ -74,6 +74,10 @@ endif()
 OPTION(UPDATE_TRANSLATIONS "Update translations on compile" OFF)
 MESSAGE(STATUS "UPDATE TRANSLATIONS: ${UPDATE_TRANSLATIONS}")
 option(USE_VISUAL_LEAK_DETECTOR "Use visual leak detector to detect memory leakage" OFF)
+option(
+    YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT
+    "Enable the unpublished plugin ABI v3 import-session draft"
+    OFF)
 
 # 设置子项目
 add_subdirectory("YiCAD")
