@@ -146,9 +146,155 @@ beginImport(document)
 详细文本通过调用方提供的缓冲区读取，或通过现有消息接口输出；不得返回要求插件
 释放的宿主字符串。
 
+## 阶段 0 冻结结果
+
+本节是阶段 0 的代码审计结论，审计基线为 `develop` 分支提交
+`883634fdb250822923af6f725fda6da5eb380cec`。后续阶段只能在这里记录的 v1/v2
+前缀之后追加能力，不能重新解释已发布字段。
+
+### 已发布 ABI 前缀
+
+`YiCadHostApi` 和 `YiCadPluginApi` 都是标准布局 C 结构。Windows 上所有函数指针、
+插件导出入口和回调均使用 `YICAD_PLUGIN_CALL`，其值为 `__cdecl`；导出入口使用
+`extern "C"`。非 Windows 编译器上的 `YICAD_PLUGIN_CALL` 为空。`structSize` 表示调用方
+实际提供且可访问的字节数，读取字段前必须同时检查协商版本、字段末端偏移和函数指针。
+
+v1 宿主前缀固定到 `registerExportFilter`，大小为 Win32 48 字节、Win64 88 字节：
+
+| 顺序 | 字段 | 精确类型 | Win32/Win64 偏移 | 已发布语义 |
+| ---: | --- | --- | --- | --- |
+| 1 | `structSize` | `uint32_t` | 0 / 0 | 当前协商表的可访问字节数。 |
+| 2 | `abiVersion` | `uint32_t` | 4 / 4 | 宿主与插件协商后的 ABI 版本。 |
+| 3 | `message` | `YiCadMessageFn` | 8 / 8 | 显示 UTF-8 消息；宿主在返回前复制文本。 |
+| 4 | `registerCommand` | `YiCadRegisterCommandFn` | 12 / 16 | 注册命令及插件回调。 |
+| 5 | `registerRibbonButton` | `YiCadRegisterRibbonButtonFn` | 16 / 24 | 注册指向同插件命令的 Ribbon 按钮。 |
+| 6 | `currentDocument` | `YiCadCurrentDocumentFn` | 20 / 32 | 返回当前打开文档的非拥有句柄，无当前文档时为空。 |
+| 7 | `documentAddLine` | `YiCadDocumentAddLineFn` | 24 / 40 | 向文档添加二维直线。 |
+| 8 | `documentAddCircle` | `YiCadDocumentAddCircleFn` | 28 / 48 | 向文档添加二维圆。 |
+| 9 | `documentRegen` | `YiCadDocumentRegenFn` | 32 / 56 | 重生成文档。 |
+| 10 | `documentZoomAuto` | `YiCadDocumentZoomAutoFn` | 36 / 64 | 对文档当前视图执行自动缩放。 |
+| 11 | `registerImportFilter` | `YiCadRegisterImportFilterFn` | 40 / 72 | 注册扩展名、导入回调和插件上下文。 |
+| 12 | `registerExportFilter` | `YiCadRegisterExportFilterFn` | 44 / 80 | 注册格式、导出回调和插件上下文。 |
+
+v2 不修改上述字段，只在尾部追加以下字段，完整宿主前缀大小为 Win32 80 字节、
+Win64 152 字节：
+
+| 顺序 | 字段 | 精确类型 | Win32/Win64 偏移 | 已发布语义 |
+| ---: | --- | --- | --- | --- |
+| 13 | `documentBeginTransaction` | `YiCadDocumentBeginTransactionFn` | 48 / 88 | 为文档开始一个非嵌套事务。 |
+| 14 | `documentCommitTransaction` | `YiCadDocumentCommitTransactionFn` | 52 / 96 | 提交并消费事务句柄。 |
+| 15 | `documentRollbackTransaction` | `YiCadDocumentRollbackTransactionFn` | 56 / 104 | 回滚并消费事务句柄。 |
+| 16 | `documentCreateEntityIterator` | `YiCadDocumentCreateEntityIteratorFn` | 60 / 112 | 创建宿主持有的只读实体快照迭代器。 |
+| 17 | `entityIteratorNext` | `YiCadEntityIteratorNextFn` | 64 / 120 | 前进到下一个快照，并复制实体类型。 |
+| 18 | `entityIteratorGetLine` | `YiCadEntityIteratorGetLineFn` | 68 / 128 | 把当前直线复制到插件提供的 POD。 |
+| 19 | `entityIteratorGetCircle` | `YiCadEntityIteratorGetCircleFn` | 72 / 136 | 把当前圆复制到插件提供的 POD。 |
+| 20 | `entityIteratorDestroy` | `YiCadEntityIteratorDestroyFn` | 76 / 144 | 释放宿主持有的迭代器。 |
+
+`YiCadPluginApi` 在 v2 没有扩展，v1/v2 均使用同一前缀：
+
+| 顺序 | 字段 | 精确类型 | Win32/Win64 偏移 | 所有权 |
+| ---: | --- | --- | --- | --- |
+| 1 | `structSize` | `uint32_t` | 0 / 0 | 宿主设置容量，插件确认实际使用的大小。 |
+| 2 | `abiVersion` | `uint32_t` | 4 / 4 | 宿主设置协商版本，插件必须原值确认。 |
+| 3 | `pluginId` | `const char*` | 8 / 8 | 插件持有的 UTF-8 NUL 结尾字符串。 |
+| 4 | `pluginName` | `const char*` | 12 / 16 | 插件持有的 UTF-8 NUL 结尾字符串。 |
+| 5 | `pluginVersion` | `const char*` | 16 / 24 | 插件持有的 UTF-8 NUL 结尾字符串。 |
+
+该前缀大小为 Win32 20 字节、Win64 32 字节。`YiCadResult` 和 `YiCadEntityType` 均为
+`int32_t`；结果值只冻结 `YICAD_FAILURE == 0` 和 `YICAD_SUCCESS == 1`。三个不透明句柄
+均为 `void*`。`YiCadLineData` 是依次排列的四个 `double`，大小 32 字节；
+`YiCadCircleData` 是依次排列的三个 `double`，大小 24 字节。插件入口顺序和签名固定为
+`YiCadPluginGetAbiVersionFn`、`YiCadPluginInitFn` 和 `YiCadPluginShutdownFn` 所声明的形式。
+
+### v1/v2 调用和所有权规则
+
+- 宿主选择 `min(插件最高版本, 宿主最高版本)`，并按 v1 或 v2 裁剪
+  `YiCadHostApi::structSize`。插件必须在 `YiCadPluginApi::abiVersion` 中确认协商值。
+- `YiCadHostApi` 及其函数指针由宿主持有，从 `yicad_plugin_init` 开始到
+  `yicad_plugin_shutdown` 返回前有效；插件不得修改或释放函数表。
+- `YiCadPluginApi` 的存储由宿主提供。插件持有三个元数据字符串并保证它们至少到
+  `shutdown` 返回前有效；宿主复制字符串，不跨 DLL 释放插件内存。
+- 所有跨 ABI 字符串都是 UTF-8 NUL 结尾字符串。宿主函数输入字符串只借用到该次调用
+  返回，并在需要保留时于返回前复制。导入/导出回调收到的 `filePath` 只在该次回调内有效。
+- 命令、导入和导出回调以及相应 `userData` 由插件持有，注册后保持有效到
+  `shutdown`；宿主只保存地址，不释放 `userData`。
+- `YiCadDocumentHandle` 非拥有，只在对应文档保持打开期间有效，插件不得释放，也不得
+  假定关闭文档后地址仍可使用。
+- `YiCadTransactionHandle` 由宿主持有。成功开始后插件必须且只能调用一次 commit 或
+  rollback；成功结束后句柄立即失效。同一文档只允许一个插件事务，且不能与宿主事务嵌套。
+- `YiCadEntityIteratorHandle` 由宿主持有，插件必须调用 `entityIteratorDestroy`。迭代器
+  保存创建时的 POD 快照；getter 写入插件提供的结构，返回后结构内容归插件所有。
+- 注册、宿主函数和插件回调只允许在 YiCAD UI 主线程调用。异常不得穿过 C ABI；任何一侧
+  都不得要求另一侧释放自己分配的内存，也不得跨边界传递 Qt、STL 或 YiCAD C++ 对象。
+
+### v3 能力策略
+
+矩阵中的策略含义如下：
+
+- **支持**：v3 发布前必须能保留该项的语义和本文列出的字段；缺字段属于发布阻断问题。
+- **降级**：只允许调用方显式启用，必须产生可查询诊断；未启用时按“拒绝”处理，禁止静默降级。
+- **拒绝**：返回确定的“不支持”结果，且本次调用不得修改文档。
+
+资源、文档设置和公共属性矩阵：
+
+| 能力 | 策略 | v3 边界 |
+| --- | --- | --- |
+| 插入单位、测量制式、全局线型比例、源代码页 | 支持 | 代码页只作为源文件元数据保留；跨 ABI 文本始终为 UTF-8。 |
+| 图层名称、独立开关/冻结、锁定、打印、颜色、线型、线宽 | 支持 | 当前 `DmLayer` 未区分开关与冻结，阶段 2 必须补齐保真存储，否则阻止 v3 发布。 |
+| 简单线型（线段/间隔序列） | 支持 | 保留名称、说明、总长度和序列。 |
+| 含文字或形文件的复杂线型 | 拒绝 | v3 不把它转换为连续线，留待后续 ABI。 |
+| 文字样式 | 支持 | 保留字体/大字体原名、固定高度、宽度、倾斜和生成标志。 |
+| 缺失字体的显示 | 降级 | 保留原始字体引用，以替代字体显示并报告诊断。 |
+| YiCAD 可表达的标注样式字段 | 支持 | 逐字段映射，不能只保存样式名。 |
+| YiCAD 暂时不可表达的标注样式字段 | 降级 | 显式允许时忽略该字段并逐项诊断；默认拒绝对应资源。 |
+| 实体图层、线型、颜色、线宽和可见性 | 支持 | ByLayer、ByBlock、ACI 和 RGB 必须保持区别。 |
+| 实体线型比例和法向量/OCS | 支持 | 阶段 2/3 必须补齐公共存储和统一转换；不能表示的非平面数据拒绝。 |
+| 透明度、材质、打印样式和其他未列公共属性 | 拒绝 | 不在 v3 候选范围内。 |
+
+实体矩阵：
+
+| 实体或能力 | 策略 | v3 边界 |
+| --- | --- | --- |
+| POINT、LINE、RAY、XLINE | 支持 | 使用明确的 WCS/OCS 或块局部坐标。 |
+| ARC、CIRCLE、ELLIPSE | 支持 | 保留中心、半径/轴、参数范围和法向量。 |
+| LWPOLYLINE、二维 POLYLINE | 支持 | 保留闭合、顶点、凸度和每段起止宽度，并校验数组数量一致。 |
+| 三维 POLYLINE、POLYFACE、网格 | 拒绝 | v3 只承诺二维绘图实体。 |
+| 非有理、非周期 SPLINE | 支持 | 保留次数、节点、控制点/拟合点和闭合语义。 |
+| 当前模型不能精确表示的有理或周期 SPLINE | 降级 | 仅可显式选择按公差近似，并报告误差；默认拒绝。 |
+| TEXT | 支持 | 保留内容、位置、对齐、样式和文字变换。 |
+| MTEXT | 支持 | 保留原始 UTF-8 格式串和可表达的排版语义；背景填充等现有模型缺口必须在阶段 4 补齐。 |
+| 不可表达的 MTEXT 控制码 | 降级 | 保留原始内容并逐项诊断，禁止炸成线段。 |
+| BLOCK、INSERT | 支持 | 块定义保持共享，INSERT 不自动炸开；阶段 4 补齐块说明/标志，并在提交前检测递归和悬空引用。 |
+| ATTDEF、ATTRIB | 支持 | 按 tag 关联并保留文字与标志语义。 |
+| 线性、对齐、角度、半径、直径标注 | 支持 | 保留语义实体、定义点、文字覆盖和样式引用。 |
+| 坐标标注 | 降级 | 当前没有对应 `Dm*` 语义实体；仅可显式转为可编辑图形和文字并诊断，默认拒绝。 |
+| LEADER | 支持 | 保留顶点、箭头、文字和标注样式引用。 |
+| HATCH | 支持 | 支持实体填充、图案及由折线/线/圆弧/椭圆弧/样条组成的多环边界。 |
+| IMAGE 基本引用 | 支持 | 保留路径、插入点、U/V 方向和尺寸；文件缺失保留引用并诊断。 |
+| IMAGE 裁剪边界 | 拒绝 | 当前模型只有图像包围矩形，不能保真表达裁剪语义，延期到模型具备对应能力后。 |
+
+“支持”项只描述 v3 的发布目标，不表示当前公开 ABI 已经提供该能力。上表指出的模型缺口
+必须在对应后续阶段关闭；不能关闭时，必须在发布前把该项明确改为“降级”或“拒绝”并重新评审。
+
+### 容器和延期边界
+
+- 每个文档只有一个模型空间根容器，由 `beginImport` 返回或通过会话取得；插件不能创建、
+  删除或缓存第二个模型空间根。
+- 块定义是 v3 唯一允许新增的容器类型。块容器属于创建它的导入会话，结束块定义、提交、
+  回滚或关闭文档后失效。实体添加函数只接受模型空间或活动块定义容器。
+- `DmEntityContainer`、块引用展开结果、标注内部图形、填充边界临时对象和选择集均不作为
+  ABI 容器暴露。
+- 图纸空间、布局、视口和页面设置明确延期；v3 不预留枚举值、空句柄或占位函数。
+- 完整导出、任意实体只读枚举、动态块、约束、MLEADER、TABLE、MLINE、代理对象、
+  自定义实体、3D 面/实体/曲面、后台线程修改和跨 DLL 对象继承均延期到后续独立设计。
+- CTest、单元测试、模糊/压力测试、专用测试插件和测试数据不属于本轮；它们的延期不降低
+  阶段 7 的构建、静态布局审计、兼容性审查和人工验证要求。
+
 ## 分阶段实施
 
-### 阶段 0：冻结设计边界
+### 阶段 0：冻结设计边界（已完成）
+
+状态：已按上述审计基线完成文档冻结；未修改公开头文件、代码或测试结构。
 
 目标：在修改 ABI 前明确现有 v1/v2 前缀、v3 能力范围和延期项。
 
