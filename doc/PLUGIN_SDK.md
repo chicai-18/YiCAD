@@ -17,6 +17,7 @@ lib/cmake/YiCADPluginSdk/
 share/YiCAD/sdk/
   PLUGIN_SDK.md
   PLUGIN_ABI_EVOLUTION.md
+  PLUGIN_ABI_V3_PLAN.md
   licenses/LICENSE
 share/YiCAD/examples/demo_plugin/
 ```
@@ -170,6 +171,9 @@ sdkHost.registerExportFilter(
 插件从 `yicad_plugin_get_abi_version()` 返回自身支持的最高版本，宿主选择双方支持的最高共同版本。插件必须同时检查 `abiVersion` 和 `structSize`；官方 SDK 封装会在读取函数指针前检查字段边界。缺失的尾部能力返回失败或空对象，不应越界访问。
 
 ABI v1 包含命令、Ribbon、当前文档、基础几何、刷新、缩放和导入导出注册。ABI v2 只在 v1 尾部追加事务与只读实体枚举。详细规则和兼容矩阵见 [PLUGIN_ABI_EVOLUTION.md](PLUGIN_ABI_EVOLUTION.md)。
+
+ABI v3 尚处于设计阶段，不是当前 SDK 的可用能力。分阶段实施范围和验收要求见
+[PLUGIN_ABI_V3_PLAN.md](PLUGIN_ABI_V3_PLAN.md)。
 
 ## 线程、异常、字符串与所有权
 

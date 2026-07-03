@@ -159,10 +159,19 @@ cmake --install external/CDT/build --config Debug --prefix external/CDT/install-
 pip install conan
 
 # 安装 Release 依赖
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never
+conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
 
 # 安装 Debug 依赖
-conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never
+conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never --lockfile=conan.lock
+```
+
+ConanCenter 当前没有与仓库 MSVC 194 Release 和 Debug 配置匹配的
+`libdxfrw` 二进制包。如果 `--build=never` 仅报告缺少 `libdxfrw`，
+可针对对应配置从源码构建一次，其他依赖仍只使用二进制包：
+
+```powershell
+conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="missing:libdxfrw/*" --lockfile=conan.lock
+conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build="missing:libdxfrw/*" --lockfile=conan.lock
 ```
 
 Conan 2 使用 `cmake_layout()` 时，CMake toolchain 会生成在 `build/conan-<config>/build/generators/conan_toolchain.cmake`。
@@ -180,6 +189,7 @@ Conan 2 使用 `cmake_layout()` 时，CMake toolchain 会生成在 `build/conan-
 | [zlib 1.3](https://www.zlib.net/) | 压缩 | Conan |
 | [minizip-ng 4.0](https://github.com/nmoinvaz/minizip) | ZIP 归档 | Conan |
 | [muparser 2.3](https://beltoforion.de/en/muparser/) | 数学表达式解析 | Conan |
+| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | 供后续文件格式插件解析 DXF | Conan |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON 序列化 | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML 解析 | Conan |
 
@@ -199,7 +209,7 @@ Conan 2 使用 `cmake_layout()` 时，CMake toolchain 会生成在 `build/conan-
 $env:Qt5_DIR = "C:/Qt/5.15.2/msvc2019_64"
 
 # 1. 安装 Conan 依赖（以 Release 为例）
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never
+conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
 
 # 2. 使用 CMake 预设配置（输出到 build/Release，toolchain/SARibbon/CDT 路径已内置于预设）
 cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
@@ -213,6 +223,21 @@ cmake --build --preset Release-PluginSDK
 # 构建输出: build/Release/bin/YiCAD.exe
 # 安装输出: build/Release/bin/YiCAD.exe + 所有第三方 DLL
 ```
+
+上述 Release 流程已在 Windows 11、Visual Studio 2022/v143、Qt 5.15.2、
+CMake 3.26.3 和 Conan 2.29.1 环境中验证，依赖解析、CMake 配置、编译、
+Runtime 安装及程序启动冒烟测试均成功。
+
+项目预设有意不固定 CMake 生成器。CMake 会复用构建目录中记录的生成器、
+平台和工具集。如果 `build/Release` 曾由其他 IDE 或不同生成器参数配置，
+请在重新配置前仅刷新 CMake 生成状态：
+
+```powershell
+cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
+```
+
+仅在切换生成器或处理生成器、平台、工具集缓存冲突时使用 `--fresh`；
+普通增量构建不需要使用。
 
 **安装说明：**
 
@@ -245,6 +270,17 @@ cmake --build --preset Release-PluginSDK
 - 重启 CLion 使环境变量生效
 
 PowerShell 下请保留上面 `"-D...=..."` 参数的引号，尤其是 `conan_toolchain.cmake` 这类以 `.cmake` 结尾的路径。测试程序会构建在 build 目录中用于验证，但 `cmake --install` 不会把 `test_*` 程序安装到 `bin/`。
+
+如果 MSBuild 报告 `MSB6001`，并提示存在重复的 `PATH`/`Path` 键，请重新打开
+Visual Studio 2022 Developer PowerShell。可用以下命令诊断当前进程：
+
+```powershell
+[System.Environment]::GetEnvironmentVariables().Keys |
+  Where-Object { $_ -ieq "path" }
+```
+
+如果同时列出两种拼写，请先规范化环境变量再重新运行 CMake；不要创建仅大小写
+不同的第二个 PATH 变量。
 
 > **注意：** Linux 后续支持。
 

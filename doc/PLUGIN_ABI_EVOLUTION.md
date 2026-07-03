@@ -1,5 +1,8 @@
 # YiCAD 插件 C ABI 演进规则
 
+ABI v3 尚未发布。详细设计、实施顺序和逐阶段验收条件见
+[PLUGIN_ABI_V3_PLAN.md](PLUGIN_ABI_V3_PLAN.md)。
+
 ## 版本协商
 
 - `YICAD_PLUGIN_ABI_V1` 固定为 `1`。`YICAD_PLUGIN_ABI_MIN_VERSION` 和 `YICAD_PLUGIN_ABI_MAX_VERSION` 定义当前 SDK/宿主支持范围；`YICAD_PLUGIN_ABI_VERSION` 保持为最高支持版本。

@@ -264,7 +264,9 @@ endif()
 use_visual_leak_detector(${PROJECT_NAME})
 
 # Link against Conan-generated imported targets.
-# GLEW, OpenGL, FreeType, ZLIB, pugixml, CDT come from find_package in dependencies.cmake.
+# GLEW、OpenGL、FreeType、ZLIB、pugixml、libdxfrw 和 CDT 由
+# dependencies.cmake 调用 find_package 导入。libdxfrw 暂不链接应用目标，
+# 后续 DXF 插件直接使用其导入目标。
 
 # nlohmann_json is header-only and used by internal JSON serialization.
 if(TARGET nlohmann_json::nlohmann_json)
@@ -300,7 +302,7 @@ if(TARGET ZLIB::ZLIB)
     target_link_libraries(${PROJECT_NAME} PRIVATE ZLIB::ZLIB)
 endif()
 
-# pugixml: replaces Xerces-C (MIT license, GPLv2-compatible)
+# pugixml：替代 Xerces-C，MIT 许可证与 GPLv3 兼容
 if(TARGET pugixml::pugixml)
     target_link_libraries(${PROJECT_NAME} PRIVATE pugixml::pugixml)
 endif()
