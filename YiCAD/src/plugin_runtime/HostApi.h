@@ -207,6 +207,35 @@ private:
         YiCadImportSessionHandle session,
         YiCadImportContainerHandle container,
         const YiCadSplineDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createText(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadTextDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createMText(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadMTextDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL beginBlock(
+        YiCadImportSessionHandle session,
+        const YiCadBlockDataV3* data,
+        YiCadImportResourceHandle* block,
+        YiCadImportContainerHandle* container) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL endBlock(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createInsert(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadInsertDataV3* data,
+        YiCadImportResourceHandle* insert) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createAttributeDefinition(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadAttributeDefinitionDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createAttribute(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadAttributeDataV3* data) noexcept;
 #endif
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);
@@ -232,9 +261,20 @@ private:
         ImportSessionRecord* session,
         void* object,
         int kind);
-    bool resolveImportContainer(
+    void* resolveImportContainer(
         ImportSessionRecord* session,
         YiCadImportContainerHandle handle) const noexcept;
+    YiCadImportResult buildImportTextData(
+        ImportSessionRecord* session,
+        const YiCadTextDataV3& input,
+        const QString& value,
+        class TextData& output) noexcept;
+    YiCadImportResult applyImportEntityAttributes(
+        ImportSessionRecord* session,
+        const YiCadEntityAttributes& attributes,
+        DmEntity* entity) noexcept;
+    YiCadImportResult validateImportBlocks(
+        ImportSessionRecord* session) noexcept;
     YiCadImportResult addImportEntity(
         ImportSessionRecord* session,
         YiCadImportContainerHandle container,

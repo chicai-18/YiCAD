@@ -73,7 +73,7 @@ typedef void* YiCadEntityIteratorHandle;
 typedef void* YiCadImportSessionHandle;
 /** @brief 所属导入会话内有效的容器句柄。 */
 typedef void* YiCadImportContainerHandle;
-/** @brief 所属导入会话内有效的资源句柄。 */
+/** @brief 所属导入会话内有效的资源、块定义或块引用句柄。 */
 typedef void* YiCadImportResourceHandle;
 
 /** @brief 导入子接口使用的固定宽度结果码。 */
@@ -381,6 +381,143 @@ typedef struct YiCadSplineDataV3
     YiCadDoubleArrayView weights;
     YiCadPoint2dArrayView fitPoints;
 } YiCadSplineDataV3;
+
+typedef int32_t YiCadTextHorizontalAlignment;
+#define YICAD_TEXT_ALIGN_LEFT ((YiCadTextHorizontalAlignment)0)
+#define YICAD_TEXT_ALIGN_CENTER ((YiCadTextHorizontalAlignment)1)
+#define YICAD_TEXT_ALIGN_RIGHT ((YiCadTextHorizontalAlignment)2)
+#define YICAD_TEXT_ALIGN_ALIGNED ((YiCadTextHorizontalAlignment)3)
+#define YICAD_TEXT_ALIGN_MIDDLE ((YiCadTextHorizontalAlignment)4)
+#define YICAD_TEXT_ALIGN_FIT ((YiCadTextHorizontalAlignment)5)
+
+typedef int32_t YiCadTextVerticalAlignment;
+#define YICAD_TEXT_ALIGN_BASELINE ((YiCadTextVerticalAlignment)0)
+#define YICAD_TEXT_ALIGN_BOTTOM ((YiCadTextVerticalAlignment)1)
+#define YICAD_TEXT_ALIGN_VERTICAL_MIDDLE ((YiCadTextVerticalAlignment)2)
+#define YICAD_TEXT_ALIGN_TOP ((YiCadTextVerticalAlignment)3)
+
+/** @brief 单行文字；坐标使用当前容器的二维坐标系，角度为弧度。 */
+typedef struct YiCadTextDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadStringView text;
+    YiCadPoint2d insertionPoint;
+    YiCadPoint2d alignmentPoint;
+    double height;
+    double rotation;
+    double widthFactor;
+    double obliqueAngle;
+    YiCadTextHorizontalAlignment horizontalAlignment;
+    YiCadTextVerticalAlignment verticalAlignment;
+    YiCadImportResourceHandle textStyle;
+} YiCadTextDataV3;
+
+typedef int32_t YiCadMTextAttachment;
+#define YICAD_MTEXT_TOP_LEFT ((YiCadMTextAttachment)1)
+#define YICAD_MTEXT_TOP_CENTER ((YiCadMTextAttachment)2)
+#define YICAD_MTEXT_TOP_RIGHT ((YiCadMTextAttachment)3)
+#define YICAD_MTEXT_MIDDLE_LEFT ((YiCadMTextAttachment)4)
+#define YICAD_MTEXT_MIDDLE_CENTER ((YiCadMTextAttachment)5)
+#define YICAD_MTEXT_MIDDLE_RIGHT ((YiCadMTextAttachment)6)
+#define YICAD_MTEXT_BOTTOM_LEFT ((YiCadMTextAttachment)7)
+#define YICAD_MTEXT_BOTTOM_CENTER ((YiCadMTextAttachment)8)
+#define YICAD_MTEXT_BOTTOM_RIGHT ((YiCadMTextAttachment)9)
+
+/** @brief 多行文字背景填充；比例是文字边界外扩系数。 */
+typedef struct YiCadMTextBackgroundData
+{
+    uint32_t structSize;
+    uint32_t enabled;
+    uint32_t useDrawingBackgroundColor;
+    YiCadColorData color;
+    double borderScaleFactor;
+} YiCadMTextBackgroundData;
+
+/** @brief 多行文字；原始 UTF-8 格式串由宿主完整复制并保留。 */
+typedef struct YiCadMTextDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadStringView contents;
+    YiCadPoint2d insertionPoint;
+    YiCadVector2d direction;
+    double characterHeight;
+    double rectangleWidth;
+    double lineSpacingFactor;
+    YiCadMTextAttachment attachment;
+    YiCadImportResourceHandle textStyle;
+    YiCadMTextBackgroundData background;
+} YiCadMTextDataV3;
+
+#define YICAD_BLOCK_ANONYMOUS UINT32_C(1)
+#define YICAD_BLOCK_HAS_ATTRIBUTES UINT32_C(2)
+#define YICAD_BLOCK_EXTERNAL_REFERENCE UINT32_C(4)
+#define YICAD_BLOCK_EXTERNAL_OVERLAY UINT32_C(8)
+#define YICAD_BLOCK_EXTERNALLY_DEPENDENT UINT32_C(16)
+#define YICAD_BLOCK_RESOLVED_EXTERNAL_REFERENCE UINT32_C(32)
+#define YICAD_BLOCK_REFERENCED_EXTERNAL_REFERENCE UINT32_C(64)
+
+/** @brief 块定义；创建成功后必须调用 endBlock 结束块容器。 */
+typedef struct YiCadBlockDataV3
+{
+    uint32_t structSize;
+    YiCadStringView name;
+    YiCadPoint2d basePoint;
+    uint32_t flags;
+    YiCadStringView description;
+    YiCadStringView externalReferencePath;
+} YiCadBlockDataV3;
+
+/**
+ * @brief 块引用；只允许引用本会话中已经完成定义的块。
+ * @note Z 轴比例必须为 1；宿主不自动炸开块引用。
+ */
+typedef struct YiCadInsertDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadImportResourceHandle block;
+    YiCadPoint2d insertionPoint;
+    YiCadVector3d scale;
+    double rotation;
+    uint32_t columnCount;
+    uint32_t rowCount;
+    double columnSpacing;
+    double rowSpacing;
+} YiCadInsertDataV3;
+
+#define YICAD_ATTRIBUTE_INVISIBLE UINT32_C(1)
+#define YICAD_ATTRIBUTE_CONSTANT UINT32_C(2)
+#define YICAD_ATTRIBUTE_VERIFY UINT32_C(4)
+#define YICAD_ATTRIBUTE_PRESET UINT32_C(8)
+#define YICAD_ATTRIBUTE_LOCK_POSITION UINT32_C(16)
+#define YICAD_ATTRIBUTE_MULTILINE UINT32_C(32)
+
+/** @brief 属性定义；只能添加到活动块定义容器。 */
+typedef struct YiCadAttributeDefinitionDataV3
+{
+    uint32_t structSize;
+    YiCadTextDataV3 text;
+    YiCadStringView tag;
+    YiCadStringView prompt;
+    YiCadStringView defaultValue;
+    uint32_t flags;
+} YiCadAttributeDefinitionDataV3;
+
+/**
+ * @brief 块引用属性值；tag 与块内属性定义关联，不依赖数组顺序。
+ * @note insert 必须是 createInsert 返回的句柄，且与 container 属于同一容器。
+ */
+typedef struct YiCadAttributeDataV3
+{
+    uint32_t structSize;
+    YiCadTextDataV3 text;
+    YiCadImportResourceHandle insert;
+    YiCadStringView tag;
+    YiCadStringView value;
+    uint32_t flags;
+} YiCadAttributeDataV3;
 #endif
 
 typedef int32_t YiCadEntityType;
@@ -577,6 +714,35 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateSplineFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadSplineDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateTextFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadTextDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateMTextFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadMTextDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportBeginBlockFn)(
+    YiCadImportSessionHandle session,
+    const YiCadBlockDataV3* data,
+    YiCadImportResourceHandle* block,
+    YiCadImportContainerHandle* container);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportEndBlockFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateInsertFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadInsertDataV3* data,
+    YiCadImportResourceHandle* insert);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateAttributeDefinitionFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadAttributeDefinitionDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateAttributeFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadAttributeDataV3* data);
 
 /** @brief 未发布的 ABI v3 导入子函数表草案。 */
 struct YiCadImportApi
@@ -602,6 +768,13 @@ struct YiCadImportApi
     YiCadImportCreateEllipseFn createEllipse;
     YiCadImportCreatePolylineFn createPolyline;
     YiCadImportCreateSplineFn createSpline;
+    YiCadImportCreateTextFn createText;
+    YiCadImportCreateMTextFn createMText;
+    YiCadImportBeginBlockFn beginBlock;
+    YiCadImportEndBlockFn endBlock;
+    YiCadImportCreateInsertFn createInsert;
+    YiCadImportCreateAttributeDefinitionFn createAttributeDefinition;
+    YiCadImportCreateAttributeFn createAttribute;
 };
 #endif
 
@@ -661,8 +834,8 @@ typedef struct YiCadPluginApi
                 sizeof(((YiCadHostApi*)0)->importApi)))
 /** @brief ABI v3 草案导入子表的当前可访问字节数。 */
 #define YICAD_IMPORT_API_V3_DRAFT_SIZE                                    \
-    ((uint32_t)(offsetof(YiCadImportApi, createSpline) +                   \
-                sizeof(((YiCadImportApi*)0)->createSpline)))
+    ((uint32_t)(offsetof(YiCadImportApi, createAttribute) +                \
+                sizeof(((YiCadImportApi*)0)->createAttribute)))
 #endif
 
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
@@ -753,6 +926,19 @@ YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createCircle, createArc);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createEllipse, createCircle);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createPolyline, createEllipse);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createSpline, createPolyline);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createText, createSpline);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createMText, createText);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, beginBlock, createMText);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, endBlock, beginBlock);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createInsert, endBlock);
+YICAD_ABI_FIELD_FOLLOWS(
+    YiCadImportApi,
+    createAttributeDefinition,
+    createInsert);
+YICAD_ABI_FIELD_FOLLOWS(
+    YiCadImportApi,
+    createAttribute,
+    createAttributeDefinition);
 #endif
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,

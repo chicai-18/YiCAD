@@ -1,6 +1,11 @@
 ﻿#include "HostApi.h"
 
 #include "DmArc.h"
+#include "DmAttribute.h"
+#include "DmAttributeDefinition.h"
+#include "DmBlock.h"
+#include "DmBlockReference.h"
+#include "DmBlockTable.h"
 #include "DmCircle.h"
 #include "DmColor.h"
 #include "DmDimensionStyle.h"
@@ -18,8 +23,11 @@
 #include "DmPolyline.h"
 #include "DmRay.h"
 #include "DmSpline.h"
+#include "DmMText.h"
+#include "DmText.h"
 #include "DmTextStyle.h"
 #include "DmTextStyleTable.h"
+#include "TextConsts.h"
 #include "DmXline.h"
 #include "CmdManager.h"
 #include "DocumentCmd.h"
@@ -38,6 +46,9 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace
 {
@@ -69,7 +80,9 @@ enum ImportResourceKind
     ImportResourceLineType = 1,
     ImportResourceLayer = 2,
     ImportResourceTextStyle = 3,
-    ImportResourceDimensionStyle = 4
+    ImportResourceDimensionStyle = 4,
+    ImportResourceBlock = 5,
+    ImportResourceInsert = 6
 };
 
 bool validStructSize(uint32_t actual, std::size_t required) noexcept
@@ -264,6 +277,7 @@ struct HostApi::ImportSessionRecord
     struct ContainerRecord
     {
         DmDocument* document = nullptr;
+        DmBlock* block = nullptr;
         bool modelSpace = false;
         bool active = false;
     };
@@ -271,8 +285,10 @@ struct HostApi::ImportSessionRecord
     struct ResourceRecord
     {
         void* object = nullptr;
+        ContainerRecord* container = nullptr;
         int kind = 0;
         bool active = false;
+        bool finalized = false;
     };
 
     DmDocument* document = nullptr;
@@ -281,6 +297,7 @@ struct HostApi::ImportSessionRecord
     std::size_t initialUndoCount = 0;
     bool active = false;
     ContainerRecord modelSpace;
+    std::vector<std::unique_ptr<ContainerRecord>> containers;
     std::vector<std::unique_ptr<ResourceRecord>> resources;
 };
 #endif
@@ -314,7 +331,14 @@ HostApi::HostApi(
           &HostApi::createCircle,
           &HostApi::createEllipse,
           &HostApi::createPolyline,
-          &HostApi::createSpline}
+          &HostApi::createSpline,
+          &HostApi::createText,
+          &HostApi::createMText,
+          &HostApi::beginBlock,
+          &HostApi::endBlock,
+          &HostApi::createInsert,
+          &HostApi::createAttributeDefinition,
+          &HostApi::createAttribute}
 #endif
     , m_api{
           static_cast<uint32_t>(sizeof(YiCadHostApi)),
@@ -1104,6 +1128,13 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::commitImport(
     auto* manager = record->document->getCmdManager();
     try
     {
+        const auto validationResult = instance->validateImportBlocks(record);
+        if (validationResult != YICAD_IMPORT_SUCCESS)
+        {
+            record->transaction->rollback();
+            instance->releaseImportSession(record);
+            return validationResult;
+        }
         if (manager == nullptr || manager->getCurrentCmd() != record->command ||
             manager->getCurrentGroupCmd() != nullptr)
         {
@@ -2462,6 +2493,619 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createSpline(
             "创建样条实体失败");
     }
 }
+
+YiCadImportResult HostApi::buildImportTextData(
+    ImportSessionRecord* session,
+    const YiCadTextDataV3& input,
+    const QString& value,
+    TextData& output) noexcept
+{
+    constexpr auto requiredSize = offsetof(YiCadTextDataV3, textStyle) +
+        sizeof(((YiCadTextDataV3*)0)->textStyle);
+    if (session == nullptr ||
+        !validStructSize(input.structSize, requiredSize) ||
+        !finitePoint(input.insertionPoint) ||
+        !finitePoint(input.alignmentPoint) ||
+        !std::isfinite(input.height) || input.height <= DM_TOLERANCE ||
+        input.height > 1.0e150 || !std::isfinite(input.rotation) ||
+        !std::isfinite(input.widthFactor) || input.widthFactor <= 0.0 ||
+        input.widthFactor > 1.0e12 || !std::isfinite(input.obliqueAngle) ||
+        input.horizontalAlignment < YICAD_TEXT_ALIGN_LEFT ||
+        input.horizontalAlignment > YICAD_TEXT_ALIGN_FIT ||
+        input.verticalAlignment < YICAD_TEXT_ALIGN_BASELINE ||
+        input.verticalAlignment > YICAD_TEXT_ALIGN_TOP)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "文字位置、尺寸、角度或对齐方式无效");
+    }
+
+    auto* style = input.textStyle == nullptr
+        ? session->document->getTextStyleTable()->getActive()
+        : static_cast<DmTextStyle*>(resolveImportResource(
+              session, input.textStyle, ImportResourceTextStyle));
+    if (style == nullptr)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "文字引用的文字样式句柄无效");
+    }
+
+    output = TextData(toDmVector(input.insertionPoint), input.height,
+        static_cast<ETextVertMode>(input.verticalAlignment),
+        static_cast<ETextHorzMode>(input.horizontalAlignment), value, style,
+        input.rotation, EUpdateMode::NoUpdate);
+    output.setAlignment(toDmVector(input.alignmentPoint));
+    output.setWidthFactor(input.widthFactor);
+    output.setSlashAngle(input.obliqueAngle);
+    return YICAD_IMPORT_SUCCESS;
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createText(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle container,
+    const YiCadTextDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    QString value;
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr || !copyStringView(input->text, value) ||
+        value.isEmpty())
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "单行文字内容无效");
+    }
+    try
+    {
+        TextData textData;
+        const auto result = instance->buildImportTextData(
+            session, *input, value, textData);
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        return instance->addImportEntity(session, container, input->attributes,
+            new DmText(nullptr, textData));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建单行文字时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建单行文字失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle container,
+    const YiCadMTextDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadMTextDataV3, background) +
+        sizeof(((YiCadMTextDataV3*)0)->background);
+    constexpr auto backgroundSize =
+        offsetof(YiCadMTextBackgroundData, borderScaleFactor) +
+        sizeof(((YiCadMTextBackgroundData*)0)->borderScaleFactor);
+    QString contents;
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !validStructSize(input->background.structSize, backgroundSize) ||
+        !copyStringView(input->contents, contents) || contents.isEmpty() ||
+        !finitePoint(input->insertionPoint) ||
+        !finitePoint(input->direction) ||
+        toDmVector(input->direction).magnitude() <= DM_TOLERANCE ||
+        !std::isfinite(input->characterHeight) ||
+        input->characterHeight <= DM_TOLERANCE ||
+        !std::isfinite(input->rectangleWidth) ||
+        input->rectangleWidth <= DM_TOLERANCE ||
+        !std::isfinite(input->lineSpacingFactor) ||
+        input->lineSpacingFactor < 0.25 || input->lineSpacingFactor > 4.0 ||
+        input->attachment < YICAD_MTEXT_TOP_LEFT ||
+        input->attachment > YICAD_MTEXT_BOTTOM_RIGHT ||
+        input->background.enabled > 1 ||
+        input->background.useDrawingBackgroundColor > 1)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "多行文字内容、尺寸、方向或排版参数无效");
+    }
+    if (input->background.enabled != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 当前多行文字模型不支持背景填充");
+    }
+
+    auto* style = input->textStyle == nullptr
+        ? session->document->getTextStyleTable()->getActive()
+        : static_cast<DmTextStyle*>(instance->resolveImportResource(
+              session, input->textStyle, ImportResourceTextStyle));
+    if (style == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "多行文字引用的文字样式句柄无效");
+    }
+
+    try
+    {
+        const auto angle = std::atan2(
+            input->direction.y, input->direction.x);
+        const auto attachment = input->attachment - 1;
+        const auto horizontal = attachment % 3;
+        const auto vertical = attachment / 3;
+        const auto lineSpace = input->lineSpacingFactor *
+            input->characterHeight * LINE_HEIGHT_PER_CHAR_HEIGHT;
+        MTextData textData(toDmVector(input->insertionPoint),
+            input->characterHeight,
+            static_cast<EMTextVertMode>(vertical == 0 ? 3 :
+                (vertical == 1 ? 2 : 1)),
+            static_cast<EMTextHorzMode>(horizontal), lineSpace,
+            input->rectangleWidth, contents, style, angle,
+            EUpdateMode::NoUpdate);
+        textData.setLineSpacingFactor(input->lineSpacingFactor);
+        textData.setJustification(static_cast<EMTextMode>(attachment));
+        return instance->addImportEntity(session, container, input->attributes,
+            new DmMText(nullptr, textData));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建多行文字时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建多行文字失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginBlock(
+    YiCadImportSessionHandle sessionHandle,
+    const YiCadBlockDataV3* input,
+    YiCadImportResourceHandle* blockHandle,
+    YiCadImportContainerHandle* containerHandle) noexcept
+{
+    if (blockHandle != nullptr) *blockHandle = nullptr;
+    if (containerHandle != nullptr) *containerHandle = nullptr;
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(
+        YiCadBlockDataV3, externalReferencePath) +
+        sizeof(((YiCadBlockDataV3*)0)->externalReferencePath);
+    QString name;
+    QString description;
+    QString path;
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr || blockHandle == nullptr ||
+        containerHandle == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !copyStringView(input->name, name) || name.isEmpty() ||
+        !finitePoint(input->basePoint) ||
+        !copyStringView(input->description, description) ||
+        !copyStringView(input->externalReferencePath, path))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "块名称、基点或字符串参数无效");
+    }
+    constexpr uint32_t supportedFlags = YICAD_BLOCK_HAS_ATTRIBUTES;
+    if (!description.isEmpty() || !path.isEmpty() ||
+        (input->flags & ~supportedFlags) != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 当前块模型不支持块说明、外部参照或相应块标志");
+    }
+    auto* table = session->document->getBlockTable();
+    if (table == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "文档块表不可用");
+    }
+    if (table->find(name) != nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+            "块名称已经存在");
+    }
+
+    try
+    {
+        session->containers.reserve(session->containers.size() + 1);
+        session->resources.reserve(session->resources.size() + 1);
+        auto block = std::make_unique<DmBlock>(session->document,
+            DmBlockData(name, toDmVector(input->basePoint), false));
+        auto container = std::make_unique<ImportSessionRecord::ContainerRecord>();
+        auto resource = std::make_unique<ImportSessionRecord::ResourceRecord>();
+        container->document = session->document;
+        container->block = block.get();
+        container->active = true;
+        resource->object = block.get();
+        resource->kind = ImportResourceBlock;
+        resource->active = true;
+        resource->finalized = false;
+        if (!table->add(block.get()))
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                "块定义无法加入文档块表");
+        }
+        block.release();
+        auto* containerPtr = container.get();
+        auto* resourcePtr = resource.get();
+        session->containers.push_back(std::move(container));
+        session->resources.push_back(std::move(resource));
+        *blockHandle = static_cast<void*>(resourcePtr);
+        *containerHandle = static_cast<void*>(containerPtr);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建块定义时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建块定义失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::endBlock(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    auto* container = static_cast<ImportSessionRecord::ContainerRecord*>(
+        instance->resolveImportContainer(session, containerHandle));
+    if (container == nullptr || container->modelSpace || container->block == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "块容器句柄无效、已结束或不是块定义");
+    }
+    for (auto& resource : session->resources)
+    {
+        if (resource->active && resource->kind == ImportResourceBlock &&
+            resource->object == container->block)
+        {
+            resource->finalized = true;
+            container->active = false;
+            instance->clearImportError();
+            return YICAD_IMPORT_SUCCESS;
+        }
+    }
+    return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+        "块定义资源句柄已失效");
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createInsert(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle,
+    const YiCadInsertDataV3* input,
+    YiCadImportResourceHandle* insertHandle) noexcept
+{
+    if (insertHandle != nullptr) *insertHandle = nullptr;
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadInsertDataV3, rowSpacing) +
+        sizeof(((YiCadInsertDataV3*)0)->rowSpacing);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr || insertHandle == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !finitePoint(input->insertionPoint) || !finitePoint(input->scale) ||
+        !std::isfinite(input->rotation) ||
+        !std::isfinite(input->columnSpacing) ||
+        !std::isfinite(input->rowSpacing) ||
+        std::abs(input->scale.x) <= 1.0e-6 ||
+        std::abs(input->scale.y) <= 1.0e-6 ||
+        input->columnCount == 0 || input->rowCount == 0 ||
+        input->columnCount > 100000 || input->rowCount > 100000)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "块引用位置、比例、旋转或阵列参数无效");
+    }
+    if (std::abs(input->scale.z - 1.0) > DM_TOLERANCE)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 二维块引用不支持非 1 的 Z 轴比例");
+    }
+    auto* targetContainer = static_cast<ImportSessionRecord::ContainerRecord*>(
+        instance->resolveImportContainer(session, containerHandle));
+    auto* block = static_cast<DmBlock*>(instance->resolveImportResource(
+        session, input->block, ImportResourceBlock));
+    bool finalized = false;
+    for (const auto& resource : session->resources)
+    {
+        if (resource->active && resource->kind == ImportResourceBlock &&
+            resource->object == block)
+        {
+            finalized = resource->finalized;
+            break;
+        }
+    }
+    if (targetContainer == nullptr || block == nullptr || !finalized)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "块引用只能使用本会话中已经完成定义的块，前向引用不受支持");
+    }
+
+    try
+    {
+        session->resources.reserve(session->resources.size() + 1);
+        auto entity = std::make_unique<DmBlockReference>(nullptr,
+            DmBlockReferenceData(block->getName(),
+                toDmVector(input->insertionPoint),
+                DmVector(input->scale.x, input->scale.y), input->rotation,
+                static_cast<int>(input->columnCount),
+                static_cast<int>(input->rowCount),
+                DmVector(input->columnSpacing, input->rowSpacing),
+                session->document->getBlockTable(), DM::NoUpdate));
+        entity->setBlock(block);
+        auto resource = std::make_unique<ImportSessionRecord::ResourceRecord>();
+        auto* rawEntity = entity.release();
+        resource->object = rawEntity;
+        resource->container = targetContainer;
+        resource->kind = ImportResourceInsert;
+        resource->active = true;
+        const auto result = instance->addImportEntity(
+            session, containerHandle, input->attributes, rawEntity);
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        auto* resourcePtr = resource.get();
+        session->resources.push_back(std::move(resource));
+        *insertHandle = static_cast<void*>(resourcePtr);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建块引用时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建块引用失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttributeDefinition(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle,
+    const YiCadAttributeDefinitionDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(
+        YiCadAttributeDefinitionDataV3, flags) +
+        sizeof(((YiCadAttributeDefinitionDataV3*)0)->flags);
+    QString tag;
+    QString prompt;
+    QString defaultValue;
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !copyStringView(input->tag, tag) || tag.trimmed().isEmpty() ||
+        !copyStringView(input->prompt, prompt) ||
+        !copyStringView(input->defaultValue, defaultValue))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "属性定义的 tag、提示或默认值无效");
+    }
+    if (input->flags != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 当前属性定义模型不支持 DXF 属性标志");
+    }
+    auto* container = static_cast<ImportSessionRecord::ContainerRecord*>(
+        instance->resolveImportContainer(session, containerHandle));
+    if (container == nullptr || container->modelSpace || container->block == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "属性定义只能添加到活动块定义容器");
+    }
+    for (auto* definition : container->block->getAttributeDefinitions())
+    {
+        if (QString::compare(definition->getTag(), tag,
+                Qt::CaseInsensitive) == 0)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                "同一块中存在重复的属性定义 tag");
+        }
+    }
+
+    try
+    {
+        TextData textData;
+        const auto result = instance->buildImportTextData(
+            session, input->text, defaultValue, textData);
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        return instance->addImportEntity(session, containerHandle,
+            input->text.attributes,
+            new DmAttributeDefinition(nullptr, textData,
+                AttributeDefinitionData(tag, prompt)));
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建属性定义时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建属性定义失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle,
+    const YiCadAttributeDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadAttributeDataV3, flags) +
+        sizeof(((YiCadAttributeDataV3*)0)->flags);
+    QString tag;
+    QString value;
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !copyStringView(input->tag, tag) || tag.trimmed().isEmpty() ||
+        !copyStringView(input->value, value))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "属性值的 tag 或内容无效");
+    }
+    if (input->flags != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 当前属性值模型不支持 DXF 属性标志");
+    }
+    auto* container = static_cast<ImportSessionRecord::ContainerRecord*>(
+        instance->resolveImportContainer(session, containerHandle));
+    ImportSessionRecord::ResourceRecord* insertResource = nullptr;
+    for (const auto& resource : session->resources)
+    {
+        if (resource->active && resource->kind == ImportResourceInsert &&
+            static_cast<const void*>(resource.get()) == input->insert)
+        {
+            insertResource = resource.get();
+            break;
+        }
+    }
+    if (container == nullptr || insertResource == nullptr ||
+        insertResource->container != container)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "属性值引用的块引用句柄或所属容器无效");
+    }
+    auto* insert = static_cast<DmBlockReference*>(insertResource->object);
+    auto* block = insert == nullptr ? nullptr : insert->getBlockForInsert();
+    if (block == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "属性值所属块定义不存在");
+    }
+    bool definitionFound = false;
+    for (auto* definition : block->getAttributeDefinitions())
+    {
+        if (QString::compare(definition->getTag(), tag,
+                Qt::CaseInsensitive) == 0)
+        {
+            definitionFound = true;
+            break;
+        }
+    }
+    if (!definitionFound)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "属性值 tag 在块定义中不存在");
+    }
+    for (auto* attribute : insert->getAttributes())
+    {
+        if (QString::compare(attribute->getTag(), tag,
+                Qt::CaseInsensitive) == 0)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                "同一块引用中存在重复的属性值 tag");
+        }
+    }
+
+    try
+    {
+        TextData textData;
+        auto result = instance->buildImportTextData(
+            session, input->text, value, textData);
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        auto attribute = std::make_unique<DmAttribute>(nullptr, textData,
+            AttributeData(tag));
+        result = instance->applyImportEntityAttributes(
+            session, input->text.attributes, attribute.get());
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        attribute->update();
+        insert->addAttributes({attribute.get()});
+        attribute.release();
+        auto* table = container->modelSpace
+            ? session->document->getEntityTable()
+            : &container->block->getEntityTable();
+        table->notifyEntityModified(insert);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建属性值时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建属性值失败");
+    }
+}
 #endif
 
 YiCadDocumentHandle HostApi::handleForDocument(DmDocument* document)
@@ -2626,6 +3270,12 @@ void HostApi::releaseImportSession(ImportSessionRecord* record) noexcept
     record->active = false;
     record->modelSpace.active = false;
     record->modelSpace.document = nullptr;
+    for (auto& container : record->containers)
+    {
+        container->active = false;
+        container->document = nullptr;
+        container->block = nullptr;
+    }
     for (auto& resource : record->resources)
     {
         resource->active = false;
@@ -2674,30 +3324,40 @@ YiCadImportResourceHandle HostApi::registerImportResource(
     return static_cast<void*>(handle);
 }
 
-bool HostApi::resolveImportContainer(
+void* HostApi::resolveImportContainer(
     ImportSessionRecord* session,
     YiCadImportContainerHandle handle) const noexcept
 {
-    return session != nullptr && session->active && handle != nullptr &&
-        session->modelSpace.active && session->modelSpace.modelSpace &&
+    if (session == nullptr || !session->active || handle == nullptr)
+    {
+        return nullptr;
+    }
+    if (session->modelSpace.active && session->modelSpace.modelSpace &&
         session->modelSpace.document == session->document &&
-        static_cast<const void*>(&session->modelSpace) == handle;
+        static_cast<const void*>(&session->modelSpace) == handle)
+    {
+        return &session->modelSpace;
+    }
+    for (const auto& container : session->containers)
+    {
+        if (container->active && !container->modelSpace &&
+            container->document == session->document &&
+            container->block != nullptr &&
+            static_cast<const void*>(container.get()) == handle)
+        {
+            return container.get();
+        }
+    }
+    return nullptr;
 }
 
-YiCadImportResult HostApi::addImportEntity(
+YiCadImportResult HostApi::applyImportEntityAttributes(
     ImportSessionRecord* session,
-    YiCadImportContainerHandle container,
     const YiCadEntityAttributes& attributes,
-    DmEntity* rawEntity) noexcept
+    DmEntity* entity) noexcept
 {
-    std::unique_ptr<DmEntity> entity(rawEntity);
     if (session == nullptr || entity == nullptr ||
-        !resolveImportContainer(session, container))
-    {
-        return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
-            "导入容器句柄无效或已过期");
-    }
-    if (!validStructSize(attributes.structSize, sizeof(YiCadEntityAttributes)) ||
+        !validStructSize(attributes.structSize, sizeof(YiCadEntityAttributes)) ||
         !validLineWidth(attributes.lineWidth) ||
         !std::isfinite(attributes.lineTypeScale) || attributes.visible > 1 ||
         !finitePoint(attributes.normal))
@@ -2736,15 +3396,41 @@ YiCadImportResult HostApi::addImportEntity(
             "实体引用的图层或线型句柄无效");
     }
 
+    entity->setDocument(session->document);
+    entity->setLayer(layer);
+    entity->setPen(DmPen(color,
+        static_cast<DM::LineWidth>(attributes.lineWidth), lineType));
+    entity->setVisible(attributes.visible != 0);
+    return YICAD_IMPORT_SUCCESS;
+}
+
+YiCadImportResult HostApi::addImportEntity(
+    ImportSessionRecord* session,
+    YiCadImportContainerHandle container,
+    const YiCadEntityAttributes& attributes,
+    DmEntity* rawEntity) noexcept
+{
+    std::unique_ptr<DmEntity> entity(rawEntity);
+    auto* containerRecord = static_cast<ImportSessionRecord::ContainerRecord*>(
+        resolveImportContainer(session, container));
+    if (session == nullptr || entity == nullptr || containerRecord == nullptr)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入容器句柄无效或已过期");
+    }
     try
     {
-        entity->setDocument(session->document);
-        entity->setLayer(layer);
-        entity->setPen(DmPen(color,
-            static_cast<DM::LineWidth>(attributes.lineWidth), lineType));
-        entity->setVisible(attributes.visible != 0);
+        const auto attributeResult = applyImportEntityAttributes(
+            session, attributes, entity.get());
+        if (attributeResult != YICAD_IMPORT_SUCCESS)
+        {
+            return attributeResult;
+        }
         entity->update();
-        session->document->getEntityTable()->add(entity.get());
+        auto* table = containerRecord->modelSpace
+            ? session->document->getEntityTable()
+            : &containerRecord->block->getEntityTable();
+        table->add(entity.get());
         entity.release();
         clearImportError();
         return YICAD_IMPORT_SUCCESS;
@@ -2758,6 +3444,94 @@ YiCadImportResult HostApi::addImportEntity(
     {
         return setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
             "添加几何实体到导入事务失败");
+    }
+}
+
+YiCadImportResult HostApi::validateImportBlocks(
+    ImportSessionRecord* session) noexcept
+{
+    if (session == nullptr || !session->active)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入会话句柄无效或已过期");
+    }
+    for (const auto& container : session->containers)
+    {
+        if (container->active)
+        {
+            return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                "提交导入前必须结束所有块定义容器");
+        }
+    }
+
+    try
+    {
+        std::unordered_map<const DmBlock*, int> states;
+        std::function<YiCadImportResult(const DmBlock*)> visit =
+            [&](const DmBlock* block) -> YiCadImportResult {
+            const auto state = states[block];
+            if (state == 1)
+            {
+                return setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "块定义存在递归引用");
+            }
+            if (state == 2)
+            {
+                return YICAD_IMPORT_SUCCESS;
+            }
+            states[block] = 1;
+            for (auto* entity : block->getEntityTable())
+            {
+                if (entity->getEntityType() != DM::EntityBlockReference)
+                {
+                    continue;
+                }
+                auto* reference = static_cast<DmBlockReference*>(entity);
+                auto* target = reference->getBlockForInsert();
+                if (target == nullptr)
+                {
+                    return setImportError(
+                        YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+                        "块定义包含悬空块引用");
+                }
+                const auto result = visit(target);
+                if (result != YICAD_IMPORT_SUCCESS)
+                {
+                    return result;
+                }
+            }
+            states[block] = 2;
+            return YICAD_IMPORT_SUCCESS;
+        };
+
+        for (const auto& resource : session->resources)
+        {
+            if (!resource->active || resource->kind != ImportResourceBlock)
+            {
+                continue;
+            }
+            if (!resource->finalized)
+            {
+                return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                    "提交导入前必须完成所有块定义");
+            }
+            const auto result = visit(static_cast<DmBlock*>(resource->object));
+            if (result != YICAD_IMPORT_SUCCESS)
+            {
+                return result;
+            }
+        }
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "校验块引用关系时内存不足");
+    }
+    catch (...)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "校验块引用关系失败");
     }
 }
 
