@@ -518,6 +518,159 @@ typedef struct YiCadAttributeDataV3
     YiCadStringView value;
     uint32_t flags;
 } YiCadAttributeDataV3;
+
+typedef int32_t YiCadDimensionKind;
+#define YICAD_DIMENSION_LINEAR ((YiCadDimensionKind)0)
+#define YICAD_DIMENSION_ALIGNED ((YiCadDimensionKind)1)
+#define YICAD_DIMENSION_ANGULAR ((YiCadDimensionKind)2)
+#define YICAD_DIMENSION_RADIAL ((YiCadDimensionKind)3)
+#define YICAD_DIMENSION_DIAMETRIC ((YiCadDimensionKind)4)
+#define YICAD_DIMENSION_ORDINATE ((YiCadDimensionKind)5)
+
+/**
+ * @brief 二维语义标注；所有点使用当前容器坐标，角度为弧度。
+ * @note 线性/对齐标注使用 extensionPoint1、extensionPoint2 和
+ * definitionPoint；角度标注使用两组 line 点和 arcPoint；半径标注使用
+ * definitionPoint 作为圆心、featurePoint 作为箭头点；直径标注使用这两点
+ * 作为两个箭头点。坐标标注当前明确返回不支持。
+ */
+typedef struct YiCadDimensionDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadDimensionKind kind;
+    YiCadImportResourceHandle dimensionStyle;
+    YiCadStringView textOverride;
+    YiCadPoint2d definitionPoint;
+    YiCadPoint2d textPosition;
+    double textRotation;
+    double lineSpacingFactor;
+    YiCadPoint2d extensionPoint1;
+    YiCadPoint2d extensionPoint2;
+    YiCadPoint2d line1Start;
+    YiCadPoint2d line1End;
+    YiCadPoint2d line2Start;
+    YiCadPoint2d line2End;
+    YiCadPoint2d arcPoint;
+    YiCadPoint2d featurePoint;
+    double leaderLength;
+} YiCadDimensionDataV3;
+
+/**
+ * @brief 引线；顶点使用当前容器坐标。
+ * @note hasText 非零时，宿主在同一导入事务中创建原生文字实体；插件负责
+ * 提供文字的完整属性。YiCAD 当前以两个关联的原生实体表达引线及其文字。
+ */
+typedef struct YiCadLeaderDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2dArrayView vertices;
+    uint32_t hasArrow;
+    YiCadImportResourceHandle dimensionStyle;
+    uint32_t hasText;
+    YiCadTextDataV3 text;
+} YiCadLeaderDataV3;
+
+typedef int32_t YiCadHatchEdgeType;
+#define YICAD_HATCH_EDGE_LINE ((YiCadHatchEdgeType)0)
+#define YICAD_HATCH_EDGE_CIRCULAR_ARC ((YiCadHatchEdgeType)1)
+#define YICAD_HATCH_EDGE_ELLIPTIC_ARC ((YiCadHatchEdgeType)2)
+#define YICAD_HATCH_EDGE_SPLINE ((YiCadHatchEdgeType)3)
+
+/**
+ * @brief 填充边界边；按 type 读取对应字段，未使用字段必须置零。
+ * @note 圆弧和椭圆弧角度为弧度；样条仅支持非有理、非周期控制点定义。
+ */
+typedef struct YiCadHatchEdgeDataV3
+{
+    uint32_t structSize;
+    YiCadHatchEdgeType type;
+    YiCadPoint2d startPoint;
+    YiCadPoint2d endPoint;
+    YiCadPoint2d center;
+    YiCadVector2d majorAxis;
+    double radius;
+    double minorToMajorRatio;
+    double startParameter;
+    double endParameter;
+    uint32_t counterClockwise;
+    uint32_t degree;
+    uint32_t rational;
+    uint32_t periodic;
+    YiCadPoint2dArrayView controlPoints;
+    YiCadDoubleArrayView knots;
+    YiCadDoubleArrayView weights;
+} YiCadHatchEdgeDataV3;
+
+/** @brief 只读填充边界边数组；宿主在调用返回前复制数据。 */
+typedef struct YiCadHatchEdgeArrayView
+{
+    const YiCadHatchEdgeDataV3* data;
+    uint32_t count;
+} YiCadHatchEdgeArrayView;
+
+typedef int32_t YiCadHatchLoopKind;
+#define YICAD_HATCH_LOOP_POLYLINE ((YiCadHatchLoopKind)0)
+#define YICAD_HATCH_LOOP_EDGES ((YiCadHatchLoopKind)1)
+
+typedef int32_t YiCadHatchLoopRole;
+#define YICAD_HATCH_LOOP_OUTER ((YiCadHatchLoopRole)0)
+#define YICAD_HATCH_LOOP_HOLE ((YiCadHatchLoopRole)1)
+
+/**
+ * @brief 闭合填充环。
+ * @note 孔环的 outerLoopIndex 必须引用同一数组中更早的外环；外环的该字段
+ * 必须为 UINT32_MAX。折线环必须至少三个顶点并且由 closed 隐式闭合。
+ */
+typedef struct YiCadHatchLoopDataV3
+{
+    uint32_t structSize;
+    YiCadHatchLoopKind kind;
+    YiCadHatchLoopRole role;
+    uint32_t outerLoopIndex;
+    YiCadVertex2dArrayView polylineVertices;
+    YiCadHatchEdgeArrayView edges;
+} YiCadHatchLoopDataV3;
+
+/** @brief 只读填充环数组；宿主在调用返回前复制数据。 */
+typedef struct YiCadHatchLoopArrayView
+{
+    const YiCadHatchLoopDataV3* data;
+    uint32_t count;
+} YiCadHatchLoopArrayView;
+
+/** @brief 实体填充或图案填充；支持多外环及各自孔环。 */
+typedef struct YiCadHatchDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    uint32_t solid;
+    YiCadStringView patternName;
+    double patternScale;
+    double patternAngle;
+    YiCadHatchLoopArrayView loops;
+} YiCadHatchDataV3;
+
+/**
+ * @brief 外部光栅图像引用；U/V 是每像素对应的当前容器坐标向量。
+ * @note size 是像素宽高。clipBoundary 非空时明确返回不支持；文件缺失仍保留
+ * 原始 UTF-8 路径，并通过 getLastError 提供诊断。
+ */
+typedef struct YiCadImageDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadStringView path;
+    YiCadPoint2d insertionPoint;
+    YiCadVector2d uVector;
+    YiCadVector2d vVector;
+    YiCadVector2d size;
+    int32_t brightness;
+    int32_t contrast;
+    int32_t fade;
+    YiCadPoint2dArrayView clipBoundary;
+} YiCadImageDataV3;
 #endif
 
 typedef int32_t YiCadEntityType;
@@ -743,6 +896,22 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateAttributeFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadAttributeDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateDimensionFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadDimensionDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLeaderFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadLeaderDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateHatchFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadHatchDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateImageFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadImageDataV3* data);
 
 /** @brief 未发布的 ABI v3 导入子函数表草案。 */
 struct YiCadImportApi
@@ -775,6 +944,10 @@ struct YiCadImportApi
     YiCadImportCreateInsertFn createInsert;
     YiCadImportCreateAttributeDefinitionFn createAttributeDefinition;
     YiCadImportCreateAttributeFn createAttribute;
+    YiCadImportCreateDimensionFn createDimension;
+    YiCadImportCreateLeaderFn createLeader;
+    YiCadImportCreateHatchFn createHatch;
+    YiCadImportCreateImageFn createImage;
 };
 #endif
 
@@ -834,8 +1007,8 @@ typedef struct YiCadPluginApi
                 sizeof(((YiCadHostApi*)0)->importApi)))
 /** @brief ABI v3 草案导入子表的当前可访问字节数。 */
 #define YICAD_IMPORT_API_V3_DRAFT_SIZE                                    \
-    ((uint32_t)(offsetof(YiCadImportApi, createAttribute) +                \
-                sizeof(((YiCadImportApi*)0)->createAttribute)))
+    ((uint32_t)(offsetof(YiCadImportApi, createImage) +                    \
+                sizeof(((YiCadImportApi*)0)->createImage)))
 #endif
 
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
@@ -939,6 +1112,10 @@ YICAD_ABI_FIELD_FOLLOWS(
     YiCadImportApi,
     createAttribute,
     createAttributeDefinition);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createDimension, createAttribute);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createLeader, createDimension);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createHatch, createLeader);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createImage, createHatch);
 #endif
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,

@@ -236,6 +236,22 @@ private:
         YiCadImportSessionHandle session,
         YiCadImportContainerHandle container,
         const YiCadAttributeDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createDimension(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadDimensionDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createLeader(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadLeaderDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createHatch(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadHatchDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createImage(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadImageDataV3* data) noexcept;
 #endif
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);

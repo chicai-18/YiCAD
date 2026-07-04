@@ -9,20 +9,30 @@
 #include "DmCircle.h"
 #include "DmColor.h"
 #include "DmDimensionStyle.h"
+#include "DmDimAligned.h"
+#include "DmDimAngular.h"
+#include "DmDimDiametric.h"
+#include "DmDimLinear.h"
+#include "DmDimRadial.h"
 #include "DmDocument.h"
 #include "DmEllipse.h"
 #include "DmEntity.h"
 #include "DmFont.h"
 #include "DmFontList.h"
 #include "DmLayer.h"
+#include "DmLeader.h"
 #include "DmLayerTable.h"
 #include "DmLine.h"
 #include "DmLineType.h"
 #include "DmLineTypeTable.h"
 #include "DmPoint.h"
 #include "DmPolyline.h"
+#include "DmPatternList.h"
 #include "DmRay.h"
+#include "DmRegion.h"
 #include "DmSpline.h"
+#include "DmHatch.h"
+#include "DmImage.h"
 #include "DmMText.h"
 #include "DmText.h"
 #include "DmTextStyle.h"
@@ -38,6 +48,7 @@
 
 #include <QString>
 #include <QByteArray>
+#include <QFileInfo>
 
 #include <cmath>
 #include <algorithm>
@@ -338,7 +349,11 @@ HostApi::HostApi(
           &HostApi::endBlock,
           &HostApi::createInsert,
           &HostApi::createAttributeDefinition,
-          &HostApi::createAttribute}
+          &HostApi::createAttribute,
+          &HostApi::createDimension,
+          &HostApi::createLeader,
+          &HostApi::createHatch,
+          &HostApi::createImage}
 #endif
     , m_api{
           static_cast<uint32_t>(sizeof(YiCadHostApi)),
@@ -3104,6 +3119,756 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
             "创建属性值失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimension(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle container,
+    const YiCadDimensionDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadDimensionDataV3, leaderLength) +
+        sizeof(((YiCadDimensionDataV3*)0)->leaderLength);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "标注结构为空或被截短");
+    }
+    if (input->kind == YICAD_DIMENSION_ORDINATE)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 当前没有坐标标注语义实体，插件应显式选择是否降级");
+    }
+    if (input->kind < YICAD_DIMENSION_LINEAR ||
+        input->kind > YICAD_DIMENSION_DIAMETRIC)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "标注类型无效");
+    }
+
+    QString textOverride;
+    const YiCadPoint2d points[] = {
+        input->definitionPoint, input->textPosition,
+        input->extensionPoint1, input->extensionPoint2,
+        input->line1Start, input->line1End,
+        input->line2Start, input->line2End,
+        input->arcPoint, input->featurePoint};
+    if (!copyStringView(input->textOverride, textOverride) ||
+        !std::all_of(std::begin(points), std::end(points),
+            [](const YiCadPoint2d& point) { return finitePoint(point); }) ||
+        !std::isfinite(input->textRotation) ||
+        !std::isfinite(input->lineSpacingFactor) ||
+        input->lineSpacingFactor <= 0.0 ||
+        !std::isfinite(input->leaderLength))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "标注点、文字参数或引线长度无效");
+    }
+
+    auto* style = input->dimensionStyle == nullptr
+        ? session->document->getDimStyleTable()->getActive()
+        : static_cast<DmDimensionStyle*>(instance->resolveImportResource(
+              session, input->dimensionStyle, ImportResourceDimensionStyle));
+    if (style == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "标注引用的标注样式句柄无效");
+    }
+
+    auto nonZeroSegment = [](const YiCadPoint2d& first,
+                             const YiCadPoint2d& second) {
+        return toDmVector(first).distanceTo(toDmVector(second)) > DM_TOLERANCE;
+    };
+    try
+    {
+        DmDimensionData common(toDmVector(input->definitionPoint),
+            toDmVector(input->textPosition), EMTextVertMode::kTextVertMid,
+            EMTextHorzMode::kTextCenter, input->lineSpacingFactor,
+            textOverride, input->textRotation, style);
+        std::unique_ptr<DmEntity> entity;
+        switch (input->kind)
+        {
+        case YICAD_DIMENSION_LINEAR:
+            if (!nonZeroSegment(input->extensionPoint1,
+                                input->extensionPoint2))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "线性标注的两个尺寸界线起点不能重合");
+            }
+            entity = std::make_unique<DmDimLinear>(nullptr, common,
+                DmDimLinearData(toDmVector(input->extensionPoint1),
+                    toDmVector(input->extensionPoint2)));
+            break;
+        case YICAD_DIMENSION_ALIGNED:
+            if (!nonZeroSegment(input->extensionPoint1,
+                                input->extensionPoint2))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "对齐标注的两个尺寸界线起点不能重合");
+            }
+            entity = std::make_unique<DmDimAligned>(nullptr, common,
+                DmDimAlignedData(toDmVector(input->extensionPoint1),
+                    toDmVector(input->extensionPoint2)));
+            break;
+        case YICAD_DIMENSION_ANGULAR:
+            if (!nonZeroSegment(input->line1Start, input->line1End) ||
+                !nonZeroSegment(input->line2Start, input->line2End))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "角度标注的定义直线不能为零长度");
+            }
+            entity = std::make_unique<DmDimAngular>(nullptr, common,
+                DmDimAngularData(toDmVector(input->line1Start),
+                    toDmVector(input->line1End),
+                    toDmVector(input->line2Start),
+                    toDmVector(input->line2End),
+                    toDmVector(input->arcPoint)));
+            break;
+        case YICAD_DIMENSION_RADIAL:
+            if (!nonZeroSegment(input->definitionPoint, input->featurePoint))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "半径标注的圆心与箭头点不能重合");
+            }
+            entity = std::make_unique<DmDimRadial>(nullptr, common,
+                DmDimRadialData(toDmVector(input->featurePoint),
+                    input->leaderLength));
+            break;
+        case YICAD_DIMENSION_DIAMETRIC:
+            if (!nonZeroSegment(input->definitionPoint, input->featurePoint))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "直径标注的两个箭头点不能重合");
+            }
+            entity = std::make_unique<DmDimDiametric>(nullptr, common,
+                DmDimDiametricData(toDmVector(input->featurePoint),
+                    input->leaderLength));
+            break;
+        default:
+            break;
+        }
+        return instance->addImportEntity(session, container,
+            input->attributes, entity.release());
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建标注实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建标注实体失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle,
+    const YiCadLeaderDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadLeaderDataV3, text) +
+        sizeof(((YiCadLeaderDataV3*)0)->text);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !validPointArray(input->vertices) || input->vertices.count < 2 ||
+        input->hasArrow > 1 || input->hasText > 1)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "引线顶点数组或标志无效");
+    }
+    for (uint32_t index = 1; index < input->vertices.count; ++index)
+    {
+        if (toDmVector(input->vertices.data[index - 1]).distanceTo(
+                toDmVector(input->vertices.data[index])) <= DM_TOLERANCE)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                "引线包含零长度线段");
+        }
+    }
+    auto* style = input->dimensionStyle == nullptr
+        ? session->document->getDimStyleTable()->getActive()
+        : static_cast<DmDimensionStyle*>(instance->resolveImportResource(
+              session, input->dimensionStyle, ImportResourceDimensionStyle));
+    auto* container = static_cast<ImportSessionRecord::ContainerRecord*>(
+        instance->resolveImportContainer(session, containerHandle));
+    if (style == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "引线引用的标注样式句柄无效");
+    }
+    if (container == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入容器句柄无效或已过期");
+    }
+
+    try
+    {
+        std::vector<DmVector> vertices;
+        vertices.reserve(input->vertices.count);
+        for (uint32_t index = 0; index < input->vertices.count; ++index)
+        {
+            vertices.push_back(toDmVector(input->vertices.data[index]));
+        }
+        DmLeaderData leaderData(style, vertices);
+        if (input->hasArrow == 0)
+        {
+            leaderData.setLeaderArrow(DM::ArrowType::None);
+        }
+        auto leader = std::make_unique<DmLeader>(nullptr, leaderData);
+        auto result = instance->applyImportEntityAttributes(
+            session, input->attributes, leader.get());
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+
+        std::unique_ptr<DmText> textEntity;
+        if (input->hasText != 0)
+        {
+            QString value;
+            if (!copyStringView(input->text.text, value))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                    "引线文字不是有效的 UTF-8 字符串");
+            }
+            TextData textData;
+            result = instance->buildImportTextData(
+                session, input->text, value, textData);
+            if (result != YICAD_IMPORT_SUCCESS)
+            {
+                return result;
+            }
+            textEntity = std::make_unique<DmText>(nullptr, textData);
+            result = instance->applyImportEntityAttributes(
+                session, input->text.attributes, textEntity.get());
+            if (result != YICAD_IMPORT_SUCCESS)
+            {
+                return result;
+            }
+        }
+
+        leader->update();
+        if (textEntity != nullptr)
+        {
+            textEntity->update();
+        }
+        auto* table = container->modelSpace
+            ? session->document->getEntityTable()
+            : &container->block->getEntityTable();
+        table->add(leader.get());
+        leader.release();
+        if (textEntity != nullptr)
+        {
+            table->add(textEntity.get());
+            textEntity.release();
+        }
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建引线实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建引线实体失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle,
+    const YiCadHatchDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadHatchDataV3, loops) +
+        sizeof(((YiCadHatchDataV3*)0)->loops);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    QString patternName;
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        input->solid > 1 ||
+        !copyStringView(input->patternName, patternName) ||
+        !std::isfinite(input->patternScale) || input->patternScale <= 0.0 ||
+        !std::isfinite(input->patternAngle) ||
+        input->loops.data == nullptr || input->loops.count == 0 ||
+        input->loops.count > 100000)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "填充图案参数或边界环数组无效");
+    }
+    if (input->solid == 0 &&
+        (patternName.isEmpty() || !DMPATTERNLIST->contains(patternName)))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "填充引用的图案名称在 YiCAD 中不存在，插件应先映射为可用图案");
+    }
+    auto* targetContainer =
+        static_cast<ImportSessionRecord::ContainerRecord*>(
+            instance->resolveImportContainer(session, containerHandle));
+    if (targetContainer == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入容器句柄无效或已过期");
+    }
+
+    struct BuiltLoop
+    {
+        DmEntityContainerPtr boundary;
+        YiCadHatchLoopRole role = YICAD_HATCH_LOOP_OUTER;
+        uint32_t outerLoopIndex = UINT32_MAX;
+    };
+    try
+    {
+        std::vector<BuiltLoop> builtLoops;
+        builtLoops.reserve(input->loops.count);
+        std::vector<uint32_t> outerIndexes;
+
+        for (uint32_t loopIndex = 0;
+             loopIndex < input->loops.count; ++loopIndex)
+        {
+            const auto& loop = input->loops.data[loopIndex];
+            constexpr auto loopSize = offsetof(YiCadHatchLoopDataV3, edges) +
+                sizeof(((YiCadHatchLoopDataV3*)0)->edges);
+            if (!validStructSize(loop.structSize, loopSize) ||
+                (loop.role != YICAD_HATCH_LOOP_OUTER &&
+                 loop.role != YICAD_HATCH_LOOP_HOLE) ||
+                (loop.kind != YICAD_HATCH_LOOP_POLYLINE &&
+                 loop.kind != YICAD_HATCH_LOOP_EDGES))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                    "填充边界环类型、角色或结构大小无效");
+            }
+            if (loop.role == YICAD_HATCH_LOOP_OUTER)
+            {
+                if (loop.outerLoopIndex != UINT32_MAX)
+                {
+                    return instance->setImportError(
+                        YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                        "填充外环不能引用其他外环");
+                }
+                outerIndexes.push_back(loopIndex);
+            }
+            else if (loop.outerLoopIndex >= loopIndex ||
+                     input->loops.data[loop.outerLoopIndex].role !=
+                         YICAD_HATCH_LOOP_OUTER)
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "填充孔环引用的外环索引无效");
+            }
+
+            auto boundary = std::make_shared<DmEntityContainer>(nullptr);
+            if (loop.kind == YICAD_HATCH_LOOP_POLYLINE)
+            {
+                if (loop.edges.count != 0 ||
+                    loop.polylineVertices.data == nullptr ||
+                    loop.polylineVertices.count < 3 ||
+                    loop.polylineVertices.count > 1000000)
+                {
+                    return instance->setImportError(
+                        YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                        "填充折线环的顶点或边数组无效");
+                }
+                std::vector<DmVector> vertices;
+                std::vector<double> bulges;
+                std::vector<double> widths;
+                vertices.reserve(loop.polylineVertices.count);
+                bulges.reserve(loop.polylineVertices.count);
+                widths.reserve(static_cast<std::size_t>(
+                    loop.polylineVertices.count) * 2);
+                for (uint32_t index = 0;
+                     index < loop.polylineVertices.count; ++index)
+                {
+                    const auto& vertex = loop.polylineVertices.data[index];
+                    if (!finitePoint(vertex.position) ||
+                        !std::isfinite(vertex.startWidth) ||
+                        !std::isfinite(vertex.endWidth) ||
+                        !std::isfinite(vertex.bulge) ||
+                        vertex.startWidth < 0.0 || vertex.endWidth < 0.0 ||
+                        std::abs(vertex.bulge) > 1.0e12)
+                    {
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                            "填充折线环包含无效顶点");
+                    }
+                    const auto next = (index + 1) %
+                        loop.polylineVertices.count;
+                    if (toDmVector(vertex.position).distanceTo(toDmVector(
+                            loop.polylineVertices.data[next].position)) <=
+                        DM_TOLERANCE)
+                    {
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                            "填充折线环包含零长度边");
+                    }
+                    vertices.push_back(toDmVector(vertex.position));
+                    bulges.push_back(vertex.bulge);
+                    widths.push_back(vertex.startWidth);
+                    widths.push_back(vertex.endWidth);
+                }
+                auto edge = std::make_unique<DmPolyline>(boundary.get(),
+                    PolylineData(vertices, bulges, widths, true));
+                if (!edge->isValid())
+                {
+                    return instance->setImportError(
+                        YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                        "填充折线环无法形成有效闭合边界");
+                }
+                boundary->addEntity(edge.get());
+                edge.release();
+            }
+            else
+            {
+                if (loop.polylineVertices.count != 0 ||
+                    loop.edges.data == nullptr || loop.edges.count == 0 ||
+                    loop.edges.count > 1000000)
+                {
+                    return instance->setImportError(
+                        YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                        "填充边环的边或折线数组无效");
+                }
+                std::vector<std::pair<DmVector, DmVector>> endpoints;
+                endpoints.reserve(loop.edges.count);
+                for (uint32_t edgeIndex = 0;
+                     edgeIndex < loop.edges.count; ++edgeIndex)
+                {
+                    const auto& source = loop.edges.data[edgeIndex];
+                    constexpr auto edgeSize = offsetof(
+                        YiCadHatchEdgeDataV3, weights) +
+                        sizeof(((YiCadHatchEdgeDataV3*)0)->weights);
+                    if (!validStructSize(source.structSize, edgeSize))
+                    {
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                            "填充边结构被截短");
+                    }
+                    std::unique_ptr<DmEntity> edge;
+                    DmVector start(false);
+                    DmVector end(false);
+                    switch (source.type)
+                    {
+                    case YICAD_HATCH_EDGE_LINE:
+                        if (!finitePoint(source.startPoint) ||
+                            !finitePoint(source.endPoint) ||
+                            toDmVector(source.startPoint).distanceTo(
+                                toDmVector(source.endPoint)) <= DM_TOLERANCE)
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                                "填充直线边坐标无效");
+                        }
+                        start = toDmVector(source.startPoint);
+                        end = toDmVector(source.endPoint);
+                        edge = std::make_unique<DmLine>(boundary.get(),
+                            LineData(start, end));
+                        break;
+                    case YICAD_HATCH_EDGE_CIRCULAR_ARC:
+                        if (!finitePoint(source.center) ||
+                            !std::isfinite(source.radius) ||
+                            source.radius <= DM_TOLERANCE ||
+                            !std::isfinite(source.startParameter) ||
+                            !std::isfinite(source.endParameter) ||
+                            source.counterClockwise > 1 ||
+                            std::abs(source.endParameter -
+                                source.startParameter) <= DM_TOLERANCE)
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                                "填充圆弧边参数无效");
+                        }
+                        start = toDmVector(source.center) + DmVector(
+                            std::cos(source.startParameter),
+                            std::sin(source.startParameter)) * source.radius;
+                        end = toDmVector(source.center) + DmVector(
+                            std::cos(source.endParameter),
+                            std::sin(source.endParameter)) * source.radius;
+                        edge = std::make_unique<DmArc>(boundary.get(),
+                            ArcData(toDmVector(source.center),
+                                DmVector(0.0, 0.0,
+                                    source.counterClockwise != 0 ? 1.0 : -1.0),
+                                source.radius, source.startParameter,
+                                source.endParameter));
+                        break;
+                    case YICAD_HATCH_EDGE_ELLIPTIC_ARC:
+                    {
+                        const auto major = toDmVector(source.majorAxis);
+                        if (!finitePoint(source.center) ||
+                            !finitePoint(source.majorAxis) ||
+                            major.magnitude() <= DM_TOLERANCE ||
+                            !std::isfinite(source.minorToMajorRatio) ||
+                            source.minorToMajorRatio <= 0.0 ||
+                            source.minorToMajorRatio > 1.0 ||
+                            !std::isfinite(source.startParameter) ||
+                            !std::isfinite(source.endParameter) ||
+                            source.counterClockwise > 1 ||
+                            std::abs(source.endParameter -
+                                source.startParameter) <= DM_TOLERANCE)
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                                "填充椭圆弧边参数无效");
+                        }
+                        const DmVector minor(-major.y *
+                            source.minorToMajorRatio,
+                            major.x * source.minorToMajorRatio);
+                        start = toDmVector(source.center) +
+                            major * std::cos(source.startParameter) +
+                            minor * std::sin(source.startParameter);
+                        end = toDmVector(source.center) +
+                            major * std::cos(source.endParameter) +
+                            minor * std::sin(source.endParameter);
+                        edge = std::make_unique<DmEllipse>(boundary.get(),
+                            EllipseData(toDmVector(source.center), major,
+                                DmVector(0.0, 0.0,
+                                    source.counterClockwise != 0 ? 1.0 : -1.0),
+                                source.minorToMajorRatio, false,
+                                source.startParameter, source.endParameter));
+                        break;
+                    }
+                    case YICAD_HATCH_EDGE_SPLINE:
+                    {
+                        if (source.rational != 0 || source.periodic != 0 ||
+                            source.weights.count != 0)
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_UNSUPPORTED,
+                                "YiCAD 当前不支持有理或周期填充样条边");
+                        }
+                        if (source.degree < 1 || source.degree > 25 ||
+                            !validPointArray(source.controlPoints) ||
+                            !validDoubleArray(source.knots) ||
+                            source.controlPoints.count < source.degree + 1 ||
+                            source.knots.count !=
+                                source.controlPoints.count + source.degree + 1 ||
+                            !std::is_sorted(source.knots.data,
+                                source.knots.data + source.knots.count))
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                                "填充样条边的次数、控制点或节点无效");
+                        }
+                        std::vector<DmVector> controlPoints;
+                        controlPoints.reserve(source.controlPoints.count);
+                        for (uint32_t index = 0;
+                             index < source.controlPoints.count; ++index)
+                        {
+                            controlPoints.push_back(toDmVector(
+                                source.controlPoints.data[index]));
+                        }
+                        start = controlPoints.front();
+                        end = controlPoints.back();
+                        SplineData data(static_cast<int>(source.degree), false,
+                            ESplineType::eControlPoints);
+                        data.setControlPoints(controlPoints);
+                        data.setKnots(std::vector<double>(source.knots.data,
+                            source.knots.data + source.knots.count));
+                        auto spline = std::make_unique<DmSpline>(
+                            boundary.get(), data);
+                        if (!spline->isValid())
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                                "填充样条边无效");
+                        }
+                        edge = std::move(spline);
+                        break;
+                    }
+                    default:
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                            "填充边类型无效");
+                    }
+                    endpoints.emplace_back(start, end);
+                    boundary->addEntity(edge.get());
+                    edge.release();
+                }
+                for (uint32_t index = 0; index < endpoints.size(); ++index)
+                {
+                    const auto next = (index + 1) % endpoints.size();
+                    if (endpoints[index].second.distanceTo(
+                            endpoints[next].first) > 1.0e-5)
+                    {
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                            "填充边界环未闭合或边顺序不连续");
+                    }
+                }
+            }
+            builtLoops.push_back(
+                {boundary, loop.role, loop.outerLoopIndex});
+        }
+
+        if (outerIndexes.empty())
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                "填充至少需要一个外环");
+        }
+
+        std::vector<std::unique_ptr<DmHatch>> hatches;
+        hatches.reserve(outerIndexes.size());
+        const auto effectivePattern = patternName.isEmpty() && input->solid != 0
+            ? QStringLiteral("SOLID") : patternName;
+        for (const auto outerIndex : outerIndexes)
+        {
+            std::vector<DmEntityContainerPtr> holes;
+            for (const auto& loop : builtLoops)
+            {
+                if (loop.role == YICAD_HATCH_LOOP_HOLE &&
+                    loop.outerLoopIndex == outerIndex)
+                {
+                    holes.push_back(loop.boundary);
+                }
+            }
+            auto region = std::make_shared<DmRegion>(nullptr,
+                RegionData(builtLoops[outerIndex].boundary, holes));
+            HatchData hatchData(input->solid != 0, input->patternScale,
+                input->patternAngle, effectivePattern.toStdWString());
+            hatchData.setBoundary(region);
+            auto hatch = std::make_unique<DmHatch>(nullptr, hatchData);
+            auto result = instance->applyImportEntityAttributes(
+                session, input->attributes, hatch.get());
+            if (result != YICAD_IMPORT_SUCCESS)
+            {
+                return result;
+            }
+            hatch->update();
+            hatches.push_back(std::move(hatch));
+        }
+
+        auto* table = targetContainer->modelSpace
+            ? session->document->getEntityTable()
+            : &targetContainer->block->getEntityTable();
+        for (auto& hatch : hatches)
+        {
+            table->add(hatch.get());
+            hatch.release();
+        }
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建填充实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建填充实体失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createImage(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle container,
+    const YiCadImageDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadImageDataV3, clipBoundary) +
+        sizeof(((YiCadImageDataV3*)0)->clipBoundary);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    QString path;
+    if (input == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !copyStringView(input->path, path) || path.isEmpty() ||
+        !finitePoint(input->insertionPoint) ||
+        !finitePoint(input->uVector) || !finitePoint(input->vVector) ||
+        !finitePoint(input->size) || input->size.x <= 0.0 ||
+        input->size.y <= 0.0 ||
+        toDmVector(input->uVector).magnitude() <= DM_TOLERANCE ||
+        toDmVector(input->vVector).magnitude() <= DM_TOLERANCE ||
+        std::abs(input->uVector.x * input->vVector.y -
+            input->uVector.y * input->vVector.x) <= DM_TOLERANCE ||
+        input->brightness < 0 || input->brightness > 100 ||
+        input->contrast < 0 || input->contrast > 100 ||
+        input->fade < 0 || input->fade > 100 ||
+        (input->clipBoundary.data == nullptr &&
+         input->clipBoundary.count != 0) ||
+        input->clipBoundary.count > 1000000)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "图像路径、方向、尺寸或显示参数无效");
+    }
+    if (input->clipBoundary.count != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "YiCAD 当前图像模型不支持裁剪边界");
+    }
+    try
+    {
+        const bool missing = !QFileInfo(path).isFile();
+        auto result = instance->addImportEntity(session, container,
+            input->attributes,
+            new DmImage(nullptr, ImageData(0,
+                toDmVector(input->insertionPoint),
+                toDmVector(input->uVector), toDmVector(input->vVector),
+                toDmVector(input->size), path.toStdString(),
+                input->brightness, input->contrast, input->fade)));
+        if (result == YICAD_IMPORT_SUCCESS && missing)
+        {
+            instance->setImportError(YICAD_IMPORT_SUCCESS,
+                "外部图片文件不存在，已保留原始引用路径");
+        }
+        return result;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建图像实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建图像实体失败");
     }
 }
 #endif
