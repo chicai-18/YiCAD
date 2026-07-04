@@ -1,19 +1,32 @@
 ﻿#include "HostApi.h"
 
 #include "DmCircle.h"
+#include "DmColor.h"
+#include "DmDimensionStyle.h"
 #include "DmDocument.h"
+#include "DmFont.h"
+#include "DmFontList.h"
+#include "DmLayer.h"
+#include "DmLayerTable.h"
 #include "DmLine.h"
+#include "DmLineType.h"
+#include "DmLineTypeTable.h"
+#include "DmTextStyle.h"
+#include "DmTextStyleTable.h"
 #include "CmdManager.h"
+#include "DocumentCmd.h"
 #include "EntityTable.h"
 #include "GuiDocumentView.h"
 #include "PluginRegistry.h"
 #include "Transaction.h"
 
 #include <QString>
+#include <QByteArray>
 
 #include <cmath>
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -41,6 +54,113 @@ bool copyUtf8(const char* source, QString& target)
     target = QString::fromUtf8(source);
     return true;
 }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+enum ImportResourceKind
+{
+    ImportResourceLineType = 1,
+    ImportResourceLayer = 2,
+    ImportResourceTextStyle = 3,
+    ImportResourceDimensionStyle = 4
+};
+
+bool validStructSize(uint32_t actual, std::size_t required) noexcept
+{
+    return actual >= required;
+}
+
+bool copyStringView(const YiCadStringView& source, QString& target) noexcept
+{
+    try
+    {
+        if ((source.data == nullptr && source.size != 0) ||
+            source.size > static_cast<uint32_t>(std::numeric_limits<int>::max()))
+        {
+            return false;
+        }
+        if (source.size == 0)
+        {
+            target.clear();
+            return true;
+        }
+        if (std::memchr(source.data, '\0', source.size) != nullptr)
+        {
+            return false;
+        }
+        const QByteArray bytes(source.data, static_cast<int>(source.size));
+        target = QString::fromUtf8(bytes.constData(), bytes.size());
+        return target.toUtf8() == bytes;
+    }
+    catch (...)
+    {
+        target.clear();
+        return false;
+    }
+}
+
+bool validConflictPolicy(YiCadResourceConflictPolicy policy) noexcept
+{
+    return policy == YICAD_RESOURCE_CONFLICT_FAIL ||
+           policy == YICAD_RESOURCE_CONFLICT_REPLACE ||
+           policy == YICAD_RESOURCE_CONFLICT_RENAME;
+}
+
+QString uniqueResourceName(const QString& base, const auto& find)
+{
+    for (uint32_t index = 1; index != UINT32_MAX; ++index)
+    {
+        const auto candidate = QString("%1 (%2)").arg(base).arg(index);
+        if (find(candidate) == nullptr)
+        {
+            return candidate;
+        }
+    }
+    return {};
+}
+
+bool validLineWidth(int32_t width) noexcept
+{
+    switch (width)
+    {
+    case -3: case -2: case -1: case 0: case 5: case 9: case 13:
+    case 15: case 18: case 20: case 25: case 30: case 35: case 40:
+    case 50: case 53: case 60: case 70: case 80: case 90: case 100:
+    case 106: case 120: case 140: case 158: case 200: case 211:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool toDmColor(const YiCadColorData& source, DmColor& color)
+{
+    if (!validStructSize(source.structSize, sizeof(YiCadColorData)))
+    {
+        return false;
+    }
+    switch (source.method)
+    {
+    case YICAD_COLOR_BY_LAYER:
+        color = DmColor(DM::FlagByLayer);
+        return true;
+    case YICAD_COLOR_BY_BLOCK:
+        color = DmColor(DM::FlagByBlock);
+        return true;
+    case YICAD_COLOR_ACI:
+        if (source.aci < 1 || source.aci > 255)
+        {
+            return false;
+        }
+        color = DM::indexColors[source.aci];
+        return true;
+    case YICAD_COLOR_RGB:
+        color = DmColor(source.red, source.green, source.blue);
+        return true;
+    default:
+        return false;
+    }
+}
+#endif
 
 } // namespace
 
@@ -73,11 +193,19 @@ struct HostApi::EntityIteratorRecord
 #if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 struct HostApi::ImportSessionRecord
 {
+    struct ResourceRecord
+    {
+        void* object = nullptr;
+        int kind = 0;
+        bool active = false;
+    };
+
     DmDocument* document = nullptr;
     std::unique_ptr<Transaction> transaction;
     MacroCmd* command = nullptr;
     std::size_t initialUndoCount = 0;
     bool active = false;
+    std::vector<std::unique_ptr<ResourceRecord>> resources;
 };
 #endif
 
@@ -95,7 +223,12 @@ HostApi::HostApi(
           &HostApi::beginImport,
           &HostApi::commitImport,
           &HostApi::rollbackImport,
-          &HostApi::importGetLastError}
+          &HostApi::importGetLastError,
+          &HostApi::setDocumentSettings,
+          &HostApi::createLineType,
+          &HostApi::createLayer,
+          &HostApi::createTextStyle,
+          &HostApi::createDimensionStyle}
 #endif
     , m_api{
           static_cast<uint32_t>(sizeof(YiCadHostApi)),
@@ -991,6 +1124,678 @@ uint32_t YICAD_PLUGIN_CALL HostApi::importGetLastError(
         ? UINT32_MAX
         : static_cast<uint32_t>(required);
 }
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::setDocumentSettings(
+    YiCadImportSessionHandle sessionHandle,
+    const YiCadDocumentSettings* settings) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    constexpr auto requiredSize = offsetof(YiCadDocumentSettings, sourceCodePage) +
+        sizeof(((YiCadDocumentSettings*)0)->sourceCodePage);
+    QString codePage;
+    if (settings == nullptr ||
+        !validStructSize(settings->structSize, requiredSize) ||
+        settings->insertionUnits < 0 || settings->insertionUnits > 20 ||
+        (settings->measurement != 0 && settings->measurement != 1) ||
+        !std::isfinite(settings->globalLineTypeScale) ||
+        settings->globalLineTypeScale <= 0.0 ||
+        !copyStringView(settings->sourceCodePage, codePage))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "文档设置包含无效字段");
+    }
+
+    try
+    {
+        QHash<QString, DmVariable> variables;
+        variables.insert("$INSUNITS", DmVariable(settings->insertionUnits, 70));
+        variables.insert("$MEASUREMENT", DmVariable(settings->measurement, 70));
+        variables.insert("$LTSCALE", DmVariable(settings->globalLineTypeScale, 40));
+        variables.insert("$DWGCODEPAGE", DmVariable(codePage, 3));
+        auto* command = new ModifyDocVariablesCmd(session->document, variables);
+        session->document->getCmdManager()->addAndExecuteCmd(command);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "保存文档设置时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "保存文档设置失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
+    YiCadImportSessionHandle sessionHandle,
+    const YiCadLineTypeDataV3* input,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource) noexcept
+{
+    if (resource != nullptr)
+    {
+        *resource = nullptr;
+    }
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadLineTypeDataV3, complex) +
+        sizeof(((YiCadLineTypeDataV3*)0)->complex);
+    QString name;
+    QString description;
+    if (session == nullptr || input == nullptr || resource == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !validConflictPolicy(conflictPolicy) ||
+        !copyStringView(input->name, name) || name.isEmpty() ||
+        !copyStringView(input->description, description))
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                  "线型参数无效");
+    }
+    if (input->complex != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "ABI v3 不支持含文字或形文件的复杂线型");
+    }
+    if ((input->elements.data == nullptr && input->elements.count != 0) ||
+        input->elements.count > 1000000)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "线型元素数组无效");
+    }
+
+    try
+    {
+        std::vector<double> elements;
+        elements.reserve(input->elements.count);
+        double calculatedLength = 0.0;
+        for (uint32_t index = 0; index < input->elements.count; ++index)
+        {
+            const auto value = input->elements.data[index];
+            if (!std::isfinite(value))
+            {
+                return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "线型元素包含 NaN 或无穷大");
+            }
+            elements.push_back(value);
+            calculatedLength += std::abs(value);
+        }
+        if (!std::isfinite(calculatedLength))
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                "线型元素总长度超出可表示范围");
+        }
+
+        auto* table = session->document->getLineTypeTable();
+        auto* existing = table->find(name);
+        const auto identical = existing != nullptr &&
+            existing->getLineTypeDesp() == description &&
+            existing->getLineTypeData() == elements;
+        if (identical)
+        {
+            *resource = instance->registerImportResource(
+                session, existing, ImportResourceLineType);
+            instance->clearImportError();
+            return YICAD_IMPORT_SUCCESS;
+        }
+        if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_FAIL)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                "同名线型的内容不同");
+        }
+        if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_RENAME)
+        {
+            name = uniqueResourceName(name,
+                [table](const QString& value) { return table->find(value); });
+            existing = nullptr;
+        }
+
+        DmLineType* lineType = existing;
+        if (lineType == nullptr)
+        {
+            lineType = new DmLineType(name);
+            lineType->setDocument(session->document);
+            lineType->setLineTypeDesp(description);
+            lineType->setLineTypeData(elements);
+            table->add(lineType);
+        }
+        else
+        {
+            table->startModify(lineType);
+            lineType->setLineTypeDesp(description);
+            lineType->setLineTypeData(elements);
+        }
+        *resource = instance->registerImportResource(
+            session, lineType, ImportResourceLineType);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建线型时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建线型失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
+    YiCadImportSessionHandle sessionHandle,
+    const YiCadLayerDataV3* input,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource) noexcept
+{
+    if (resource != nullptr)
+    {
+        *resource = nullptr;
+    }
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadLayerDataV3, lineWidth) +
+        sizeof(((YiCadLayerDataV3*)0)->lineWidth);
+    QString name;
+    DmColor color;
+    if (session == nullptr || input == nullptr || resource == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !validConflictPolicy(conflictPolicy) ||
+        !copyStringView(input->name, name) || name.isEmpty() ||
+        !toDmColor(input->color, color) ||
+        !validLineWidth(input->lineWidth))
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                  "图层参数无效");
+    }
+
+    auto* lineType = input->lineType == nullptr
+        ? session->document->getLineTypeTable()->find(LineType::Continuous)
+        : static_cast<DmLineType*>(instance->resolveImportResource(
+              session, input->lineType, ImportResourceLineType));
+    if (lineType == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "图层引用的线型句柄无效");
+    }
+
+    try
+    {
+        auto* table = session->document->getLayerTable();
+        auto* existing = table->find(name);
+        DmLayerData desired(name,
+            DmPen(color, static_cast<DM::LineWidth>(input->lineWidth), lineType),
+            input->frozen != 0, input->locked != 0);
+        desired.print = input->plottable != 0;
+        const auto identical = existing != nullptr &&
+            existing->getData().name == desired.name &&
+            existing->getData().pen == desired.pen &&
+            existing->getData().frozen == desired.frozen &&
+            existing->getData().locked == desired.locked &&
+            existing->getData().print == desired.print;
+        if (identical)
+        {
+            *resource = instance->registerImportResource(
+                session, existing, ImportResourceLayer);
+            instance->clearImportError();
+            return YICAD_IMPORT_SUCCESS;
+        }
+        if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_FAIL)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                "同名图层的内容不同");
+        }
+        if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_RENAME)
+        {
+            name = uniqueResourceName(name,
+                [table](const QString& value) { return table->find(value); });
+            desired.name = name;
+            existing = nullptr;
+        }
+
+        DmLayer* layer = existing;
+        if (layer == nullptr)
+        {
+            layer = new DmLayer();
+            layer->setDocument(session->document);
+            layer->setData(desired);
+            table->add(layer);
+        }
+        else
+        {
+            table->startModify(layer);
+            layer->setData(desired);
+        }
+        *resource = instance->registerImportResource(
+            session, layer, ImportResourceLayer);
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建图层时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建图层失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
+    YiCadImportSessionHandle sessionHandle,
+    const YiCadTextStyleDataV3* input,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource) noexcept
+{
+    if (resource != nullptr)
+    {
+        *resource = nullptr;
+    }
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(YiCadTextStyleDataV3, generationFlags) +
+        sizeof(((YiCadTextStyleDataV3*)0)->generationFlags);
+    QString name;
+    QString fontFile;
+    QString bigFontFile;
+    constexpr uint32_t validGenerationFlags =
+        YICAD_TEXT_GENERATION_BACKWARD |
+        YICAD_TEXT_GENERATION_UPSIDE_DOWN |
+        YICAD_TEXT_GENERATION_VERTICAL;
+    if (session == nullptr || input == nullptr || resource == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !validConflictPolicy(conflictPolicy) ||
+        !copyStringView(input->name, name) || name.isEmpty() ||
+        !copyStringView(input->fontFile, fontFile) || fontFile.isEmpty() ||
+        !copyStringView(input->bigFontFile, bigFontFile) ||
+        !std::isfinite(input->fixedHeight) || input->fixedHeight < 0.0 ||
+        !std::isfinite(input->widthFactor) || input->widthFactor <= 0.0 ||
+        !std::isfinite(input->obliqueAngle) ||
+        (input->generationFlags & ~validGenerationFlags) != 0)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                  "文字样式参数无效");
+    }
+
+    try
+    {
+        DmTextStyleData desired;
+        desired.name = name;
+        desired.defaultHeight = input->fixedHeight;
+        desired.widhFactor = input->widthFactor;
+        desired.slashAngle = input->obliqueAngle;
+        desired.isReverseDirection =
+            (input->generationFlags & YICAD_TEXT_GENERATION_BACKWARD) != 0;
+        desired.isUpsideDown =
+            (input->generationFlags & YICAD_TEXT_GENERATION_UPSIDE_DOWN) != 0;
+        desired.isVertical =
+            (input->generationFlags & YICAD_TEXT_GENERATION_VERTICAL) != 0;
+
+        auto* font = DMFONTLIST->requestFont(fontFile, false);
+        if (font != nullptr && font->getFontType() == FontType::System)
+        {
+            desired.isSystemFont = true;
+            desired.pSysFont = font;
+            desired.sysFontFamily = DMFONTLIST->getFontFamilyName(
+                font, desired.isSysFontBold, desired.isSysFontItalic);
+        }
+        else
+        {
+            desired.isSystemFont = false;
+            desired.pAsciiFont = font;
+            if (font == nullptr)
+            {
+                desired.invalidAsciiFont = fontFile;
+            }
+        }
+        if (!bigFontFile.isEmpty())
+        {
+            desired.isSystemFont = false;
+            desired.isUseBigfont = true;
+            desired.pBigFont = DMFONTLIST->requestFont(bigFontFile, false);
+            if (desired.pBigFont == nullptr)
+            {
+                desired.invalidBigFont = bigFontFile;
+            }
+        }
+
+        auto fontName = [](const DmTextStyleData& data) {
+            if (!data.invalidSysFontFamily.isEmpty()) return data.invalidSysFontFamily;
+            if (!data.invalidAsciiFont.isEmpty()) return data.invalidAsciiFont;
+            if (data.pSysFont != nullptr) return data.pSysFont->getFileName();
+            if (data.pAsciiFont != nullptr) return data.pAsciiFont->getFileName();
+            return QString();
+        };
+        auto bigFontName = [](const DmTextStyleData& data) {
+            if (!data.invalidBigFont.isEmpty()) return data.invalidBigFont;
+            return data.pBigFont == nullptr ? QString() : data.pBigFont->getFileName();
+        };
+
+        auto* table = session->document->getTextStyleTable();
+        auto* existing = table->find(name);
+        const auto identical = existing != nullptr && [&] {
+            const auto current = existing->getData();
+            return fontName(current) == fontName(desired) &&
+                bigFontName(current) == bigFontName(desired) &&
+                current.defaultHeight == desired.defaultHeight &&
+                current.widhFactor == desired.widhFactor &&
+                current.slashAngle == desired.slashAngle &&
+                current.isReverseDirection == desired.isReverseDirection &&
+                current.isUpsideDown == desired.isUpsideDown &&
+                current.isVertical == desired.isVertical;
+        }();
+        if (identical)
+        {
+            *resource = instance->registerImportResource(
+                session, existing, ImportResourceTextStyle);
+            if (!existing->isValid())
+            {
+                instance->setImportError(YICAD_IMPORT_SUCCESS,
+                    "文字样式引用的字体缺失，已保留原始字体文件名");
+            }
+            else
+            {
+                instance->clearImportError();
+            }
+            return YICAD_IMPORT_SUCCESS;
+        }
+        if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_FAIL)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                "同名文字样式的内容不同");
+        }
+        if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_RENAME)
+        {
+            name = uniqueResourceName(name,
+                [table](const QString& value) { return table->find(value); });
+            desired.name = name;
+            existing = nullptr;
+        }
+
+        DmTextStyle* textStyle = existing;
+        if (textStyle == nullptr)
+        {
+            textStyle = new DmTextStyle(desired);
+            textStyle->setDocument(session->document);
+            table->add(textStyle);
+        }
+        else
+        {
+            table->startModify(textStyle);
+            textStyle->setData(desired);
+        }
+        *resource = instance->registerImportResource(
+            session, textStyle, ImportResourceTextStyle);
+        if (!textStyle->isValid())
+        {
+            instance->setImportError(YICAD_IMPORT_SUCCESS,
+                "文字样式引用的字体缺失，已保留原始字体文件名");
+        }
+        else
+        {
+            instance->clearImportError();
+        }
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建文字样式时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建文字样式失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
+    YiCadImportSessionHandle sessionHandle,
+    const YiCadDimensionStyleDataV3* input,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource) noexcept
+{
+    if (resource != nullptr)
+    {
+        *resource = nullptr;
+    }
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    constexpr auto requiredSize = offsetof(
+        YiCadDimensionStyleDataV3, allowUnsupportedFields) +
+        sizeof(((YiCadDimensionStyleDataV3*)0)->allowUnsupportedFields);
+    QString name;
+    QString prefix;
+    QString suffix;
+    DmColor dimLineColor;
+    DmColor extensionLineColor;
+    DmColor textColor;
+    DmColor textFillColor;
+    if (session == nullptr || input == nullptr || resource == nullptr ||
+        !validStructSize(input->structSize, requiredSize) ||
+        !validConflictPolicy(conflictPolicy) ||
+        !copyStringView(input->name, name) || name.isEmpty() ||
+        !copyStringView(input->prefix, prefix) ||
+        !copyStringView(input->suffix, suffix) ||
+        !toDmColor(input->dimLineColor, dimLineColor) ||
+        !toDmColor(input->extensionLineColor, extensionLineColor) ||
+        !toDmColor(input->textColor, textColor) ||
+        !toDmColor(input->textFillColor, textFillColor) ||
+        !validLineWidth(input->dimLineWidth) ||
+        !validLineWidth(input->extensionLineWidth))
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                  "标注样式参数无效");
+    }
+    if (input->unsupportedFieldMask != 0 && !input->allowUnsupportedFields)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "标注样式包含 YiCAD 当前无法表达的字段");
+    }
+
+    auto* textStyle = static_cast<DmTextStyle*>(instance->resolveImportResource(
+        session, input->textStyle, ImportResourceTextStyle));
+    auto* dimLineType = static_cast<DmLineType*>(instance->resolveImportResource(
+        session, input->dimLineType, ImportResourceLineType));
+    auto* extensionLineType = static_cast<DmLineType*>(instance->resolveImportResource(
+        session, input->extensionLineType, ImportResourceLineType));
+    if (textStyle == nullptr || dimLineType == nullptr || extensionLineType == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+            "标注样式引用的文字样式或线型句柄无效");
+    }
+
+    const double finiteValues[] = {
+        input->extensionBeyondDimLine, input->extensionOriginOffset,
+        input->fixedExtensionLineLength, input->arrowSize, input->textHeight,
+        input->fractionHeightScale, input->textOffset, input->roundOff,
+        input->measurementScale};
+    if (!std::all_of(std::begin(finiteValues), std::end(finiteValues),
+            [](double value) { return std::isfinite(value); }) ||
+        input->extensionBeyondDimLine < 0.0 || input->extensionOriginOffset < 0.0 ||
+        input->fixedExtensionLineLength < 0.0 || input->arrowSize < 0.0 ||
+        input->textHeight < 0.0 || input->fractionHeightScale <= 0.0 ||
+        input->textOffset < 0.0 || input->roundOff < 0.0 ||
+        input->measurementScale <= 0.0 ||
+        input->firstArrow < 0 || input->firstArrow > 20 ||
+        input->secondArrow < 0 || input->secondArrow > 20 ||
+        input->leaderArrow < 0 || input->leaderArrow > 20 ||
+        input->textVerticalPosition < 0 || input->textVerticalPosition > 4 ||
+        input->textHorizontalPosition < 0 || input->textHorizontalPosition > 4 ||
+        input->textDirection < 0 || input->textDirection > 1 ||
+        input->linearUnitFormat < 0 || input->linearUnitFormat > 5 ||
+        input->linearPrecision < 0 || input->linearPrecision > 8 ||
+        input->fractionFormat < 0 || input->fractionFormat > 2 ||
+        input->decimalSeparator < 0 || input->decimalSeparator > 2 ||
+        input->angularUnitFormat < 0 || input->angularUnitFormat > 3 ||
+        input->angularPrecision < 0 || input->angularPrecision > 8)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+            "标注样式字段超出 YiCAD 可表达范围");
+    }
+
+    try
+    {
+        DmDimensionStyleData desired;
+        desired.name = name;
+        desired.setDimLineColor(dimLineColor);
+        desired.setDimLineWidth(static_cast<DM::LineWidth>(input->dimLineWidth));
+        desired.setDimLineType(dimLineType);
+        desired.setHideDimLine1(input->hideDimLine1 != 0);
+        desired.setHideDimLine2(input->hideDimLine2 != 0);
+        desired.setBoundLineColor(extensionLineColor);
+        desired.setBoundLineWidth(static_cast<DM::LineWidth>(input->extensionLineWidth));
+        desired.setBoundLineType(extensionLineType);
+        desired.setHideBoundLine1(input->hideExtensionLine1 != 0);
+        desired.setHideBoundLine2(input->hideExtensionLine2 != 0);
+        desired.setExtendDimLine(input->extensionBeyondDimLine);
+        desired.setStartPtOffset(input->extensionOriginOffset);
+        desired.setIsFixedBoundLineLength(input->fixedExtensionLineLengthEnabled != 0);
+        desired.setFixedBoundLineLength(input->fixedExtensionLineLength);
+        desired.setFirstArrow(static_cast<DM::ArrowType>(input->firstArrow));
+        desired.setSecondArrow(static_cast<DM::ArrowType>(input->secondArrow));
+        desired.setLeaderArrow(static_cast<DM::ArrowType>(input->leaderArrow));
+        desired.setArrowSize(input->arrowSize);
+        desired.setTextStyle(textStyle);
+        desired.setTextColor(textColor);
+        desired.setTextFillColor(textFillColor);
+        desired.setTextHeight(input->textHeight);
+        desired.setFractionHeightScale(input->fractionHeightScale);
+        desired.setIsDrawTextBoundary(input->drawTextBoundary != 0);
+        desired.setTextVerticalPos(static_cast<DmDimensionStyleTextData::TextVerticalPos>(input->textVerticalPosition));
+        desired.setTextHorizontalPos(static_cast<DmDimensionStyleTextData::TextHorizontalPos>(input->textHorizontalPosition));
+        desired.setViewDirection(static_cast<DmDimensionStyleTextData::ViewDirection>(input->textDirection));
+        desired.setOffsetFromDimLine(input->textOffset);
+        desired.setUnitFormat(static_cast<DmDimensionStyleUnitData::UnitFormat>(input->linearUnitFormat));
+        desired.setPrecision(static_cast<DmDimensionStyleUnitData::Precision>(input->linearPrecision));
+        desired.setFractionFormat(static_cast<DmDimensionStyleUnitData::FractionFormat>(input->fractionFormat));
+        desired.setDecimalSaparator(static_cast<DmDimensionStyleUnitData::DecimalSaparator>(input->decimalSeparator));
+        desired.setRoundOff(input->roundOff);
+        desired.setPrefix(prefix);
+        desired.setPostfix(suffix);
+        desired.setMesureUnitFactor(input->measurementScale);
+        desired.setResetPrefix(input->suppressLeadingZeros != 0);
+        desired.setResetPostfix(input->suppressTrailingZeros != 0);
+        desired.setAngleUnitFormat(static_cast<DmDimensionStyleUnitData::AngleUnitFormat>(input->angularUnitFormat));
+        desired.setAnglePrecision(static_cast<DmDimensionStyleUnitData::Precision>(input->angularPrecision));
+        desired.setResetAnglePrefix(input->suppressAngularLeadingZeros != 0);
+        desired.setResetAnglePostfix(input->suppressAngularTrailingZeros != 0);
+
+        auto same = [](const DmDimensionStyleData& a,
+                       const DmDimensionStyleData& b) {
+            return a.dimLineColor() == b.dimLineColor() &&
+                a.dimLineWidth() == b.dimLineWidth() && a.dimLineType() == b.dimLineType() &&
+                a.hideDimLine1() == b.hideDimLine1() && a.hideDimLine2() == b.hideDimLine2() &&
+                a.boundLineColor() == b.boundLineColor() &&
+                a.boundLineWidth() == b.boundLineWidth() && a.boundLineType() == b.boundLineType() &&
+                a.hideBoundLine1() == b.hideBoundLine1() && a.hideBoundLine2() == b.hideBoundLine2() &&
+                a.extendDimLine() == b.extendDimLine() && a.startPtOffset() == b.startPtOffset() &&
+                a.isFixedBoundLineLength() == b.isFixedBoundLineLength() &&
+                a.fixedBoundLineLength() == b.fixedBoundLineLength() &&
+                a.firstArrow() == b.firstArrow() && a.secondArrow() == b.secondArrow() &&
+                a.leaderArrow() == b.leaderArrow() && a.arrowSize() == b.arrowSize() &&
+                a.textStyle() == b.textStyle() && a.textColor() == b.textColor() &&
+                a.textFillColor() == b.textFillColor() && a.textHeight() == b.textHeight() &&
+                a.fractionHeightScale() == b.fractionHeightScale() &&
+                a.isDrawTextBoundary() == b.isDrawTextBoundary() &&
+                a.textVerticalPos() == b.textVerticalPos() &&
+                a.textHorizontalPos() == b.textHorizontalPos() && a.viewDirection() == b.viewDirection() &&
+                a.offsetFromDimLine() == b.offsetFromDimLine() && a.unitFormat() == b.unitFormat() &&
+                a.precision() == b.precision() && a.fractionFormat() == b.fractionFormat() &&
+                a.decimalSaparator() == b.decimalSaparator() && a.roundOff() == b.roundOff() &&
+                a.prefix() == b.prefix() && a.postfix() == b.postfix() &&
+                a.mesureUnitFactor() == b.mesureUnitFactor() &&
+                a.resetPrefix() == b.resetPrefix() && a.resetPostfix() == b.resetPostfix() &&
+                a.angleUnitFormat() == b.angleUnitFormat() &&
+                a.anglePrecision() == b.anglePrecision() &&
+                a.resetAnglePrefix() == b.resetAnglePrefix() &&
+                a.resetAnglePostfix() == b.resetAnglePostfix();
+        };
+
+        auto* table = session->document->getDimStyleTable();
+        auto* existing = table->find(name);
+        if (existing != nullptr && same(existing->getDataConstRef(), desired))
+        {
+            *resource = instance->registerImportResource(
+                session, existing, ImportResourceDimensionStyle);
+        }
+        else
+        {
+            if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_FAIL)
+            {
+                return instance->setImportError(YICAD_IMPORT_ERROR_NAME_CONFLICT,
+                    "同名标注样式的内容不同");
+            }
+            if (existing != nullptr && conflictPolicy == YICAD_RESOURCE_CONFLICT_RENAME)
+            {
+                name = uniqueResourceName(name,
+                    [table](const QString& value) { return table->find(value); });
+                desired.name = name;
+                existing = nullptr;
+            }
+            DmDimensionStyle* style = existing;
+            if (style == nullptr)
+            {
+                style = new DmDimensionStyle(desired);
+                style->setDocument(session->document);
+                table->add(style);
+            }
+            else
+            {
+                table->startModify(style);
+                style->updateData(desired);
+            }
+            *resource = instance->registerImportResource(
+                session, style, ImportResourceDimensionStyle);
+        }
+
+        if (input->unsupportedFieldMask != 0)
+        {
+            instance->setImportError(YICAD_IMPORT_SUCCESS,
+                "标注样式中显式允许降级的字段已忽略");
+        }
+        else
+        {
+            instance->clearImportError();
+        }
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建标注样式时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建标注样式失败");
+    }
+}
 #endif
 
 YiCadDocumentHandle HostApi::handleForDocument(DmDocument* document)
@@ -1153,9 +1958,52 @@ void HostApi::releaseImportSession(ImportSessionRecord* record) noexcept
         return;
     }
     record->active = false;
+    for (auto& resource : record->resources)
+    {
+        resource->active = false;
+        resource->object = nullptr;
+    }
     record->transaction.reset();
     record->command = nullptr;
     record->document = nullptr;
+}
+
+void* HostApi::resolveImportResource(
+    ImportSessionRecord* session,
+    YiCadImportResourceHandle handle,
+    int expectedKind) const noexcept
+{
+    if (session == nullptr || !session->active || handle == nullptr)
+    {
+        return nullptr;
+    }
+    for (const auto& resource : session->resources)
+    {
+        if (resource->active && resource->kind == expectedKind &&
+            static_cast<const void*>(resource.get()) == handle)
+        {
+            return resource->object;
+        }
+    }
+    return nullptr;
+}
+
+YiCadImportResourceHandle HostApi::registerImportResource(
+    ImportSessionRecord* session,
+    void* object,
+    int kind)
+{
+    if (session == nullptr || !session->active || object == nullptr)
+    {
+        return nullptr;
+    }
+    auto resource = std::make_unique<ImportSessionRecord::ResourceRecord>();
+    resource->object = object;
+    resource->kind = kind;
+    resource->active = true;
+    auto* handle = resource.get();
+    session->resources.push_back(std::move(resource));
+    return static_cast<void*>(handle);
 }
 
 YiCadImportResult HostApi::setImportError(

@@ -144,6 +144,29 @@ private:
     static uint32_t YICAD_PLUGIN_CALL importGetLastError(
         char* buffer,
         uint32_t bufferSize) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL setDocumentSettings(
+        YiCadImportSessionHandle session,
+        const YiCadDocumentSettings* settings) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createLineType(
+        YiCadImportSessionHandle session,
+        const YiCadLineTypeDataV3* data,
+        YiCadResourceConflictPolicy conflictPolicy,
+        YiCadImportResourceHandle* resource) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createLayer(
+        YiCadImportSessionHandle session,
+        const YiCadLayerDataV3* data,
+        YiCadResourceConflictPolicy conflictPolicy,
+        YiCadImportResourceHandle* resource) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createTextStyle(
+        YiCadImportSessionHandle session,
+        const YiCadTextStyleDataV3* data,
+        YiCadResourceConflictPolicy conflictPolicy,
+        YiCadImportResourceHandle* resource) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createDimensionStyle(
+        YiCadImportSessionHandle session,
+        const YiCadDimensionStyleDataV3* data,
+        YiCadResourceConflictPolicy conflictPolicy,
+        YiCadImportResourceHandle* resource) noexcept;
 #endif
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);
@@ -161,6 +184,14 @@ private:
     bool hasActiveImportSession(const DmDocument* document) const noexcept;
     void invalidateClosedImportSessions() noexcept;
     void releaseImportSession(ImportSessionRecord* record) noexcept;
+    void* resolveImportResource(
+        ImportSessionRecord* session,
+        YiCadImportResourceHandle handle,
+        int expectedKind) const noexcept;
+    YiCadImportResourceHandle registerImportResource(
+        ImportSessionRecord* session,
+        void* object,
+        int kind);
     YiCadImportResult setImportError(
         YiCadImportResult result,
         const char* message) noexcept;

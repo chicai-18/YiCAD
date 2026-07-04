@@ -88,6 +88,173 @@ typedef int32_t YiCadImportResult;
 #define YICAD_IMPORT_ERROR_OUT_OF_RANGE ((YiCadImportResult)-6)
 #define YICAD_IMPORT_ERROR_OUT_OF_MEMORY ((YiCadImportResult)-7)
 #define YICAD_IMPORT_ERROR_TRANSACTION_FAILED ((YiCadImportResult)-8)
+
+/** @brief UTF-8 字符串视图；宿主在调用返回前复制内容。 */
+typedef struct YiCadStringView
+{
+    const char* data;
+    uint32_t size;
+} YiCadStringView;
+
+/** @brief 只读 double 数组视图；宿主在调用返回前复制内容。 */
+typedef struct YiCadDoubleArrayView
+{
+    const double* data;
+    uint32_t count;
+} YiCadDoubleArrayView;
+
+typedef struct YiCadPoint2d
+{
+    double x;
+    double y;
+} YiCadPoint2d;
+
+typedef struct YiCadPoint3d
+{
+    double x;
+    double y;
+    double z;
+} YiCadPoint3d;
+
+typedef YiCadPoint2d YiCadVector2d;
+typedef YiCadPoint3d YiCadVector3d;
+
+typedef int32_t YiCadColorMethod;
+#define YICAD_COLOR_BY_LAYER ((YiCadColorMethod)0)
+#define YICAD_COLOR_BY_BLOCK ((YiCadColorMethod)1)
+#define YICAD_COLOR_ACI ((YiCadColorMethod)2)
+#define YICAD_COLOR_RGB ((YiCadColorMethod)3)
+
+/** @brief 支持随层、随块和 RGB；ACI 输入由宿主转换为 RGB。 */
+typedef struct YiCadColorData
+{
+    uint32_t structSize;
+    YiCadColorMethod method;
+    uint32_t aci;
+    uint8_t red;
+    uint8_t green;
+    uint8_t blue;
+    uint8_t reserved;
+} YiCadColorData;
+
+typedef int32_t YiCadResourceConflictPolicy;
+#define YICAD_RESOURCE_CONFLICT_FAIL ((YiCadResourceConflictPolicy)0)
+#define YICAD_RESOURCE_CONFLICT_REPLACE ((YiCadResourceConflictPolicy)1)
+#define YICAD_RESOURCE_CONFLICT_RENAME ((YiCadResourceConflictPolicy)2)
+
+/** @brief 文档设置；代码页仅作为源文件元数据保存。 */
+typedef struct YiCadDocumentSettings
+{
+    uint32_t structSize;
+    int32_t insertionUnits;
+    int32_t measurement;
+    double globalLineTypeScale;
+    YiCadStringView sourceCodePage;
+} YiCadDocumentSettings;
+
+/** @brief 简单线型定义；complex 非零时宿主必须明确拒绝。 */
+typedef struct YiCadLineTypeDataV3
+{
+    uint32_t structSize;
+    YiCadStringView name;
+    YiCadStringView description;
+    YiCadDoubleArrayView elements;
+    uint32_t complex;
+} YiCadLineTypeDataV3;
+
+/** @brief 图层定义。frozen 非零表示不可见，lineType 为空时使用 Continuous。 */
+typedef struct YiCadLayerDataV3
+{
+    uint32_t structSize;
+    YiCadStringView name;
+    uint32_t frozen;
+    uint32_t locked;
+    uint32_t plottable;
+    YiCadColorData color;
+    YiCadImportResourceHandle lineType;
+    int32_t lineWidth;
+} YiCadLayerDataV3;
+
+#define YICAD_TEXT_GENERATION_BACKWARD UINT32_C(1)
+#define YICAD_TEXT_GENERATION_UPSIDE_DOWN UINT32_C(2)
+#define YICAD_TEXT_GENERATION_VERTICAL UINT32_C(4)
+
+/** @brief 文字样式定义；字体文件原名在字体缺失时仍会保存。 */
+typedef struct YiCadTextStyleDataV3
+{
+    uint32_t structSize;
+    YiCadStringView name;
+    YiCadStringView fontFile;
+    YiCadStringView bigFontFile;
+    double fixedHeight;
+    double widthFactor;
+    double obliqueAngle;
+    uint32_t generationFlags;
+} YiCadTextStyleDataV3;
+
+/** @brief YiCAD 当前可表达的标注样式字段。 */
+typedef struct YiCadDimensionStyleDataV3
+{
+    uint32_t structSize;
+    YiCadStringView name;
+    YiCadImportResourceHandle textStyle;
+    YiCadImportResourceHandle dimLineType;
+    YiCadImportResourceHandle extensionLineType;
+    YiCadColorData dimLineColor;
+    YiCadColorData extensionLineColor;
+    YiCadColorData textColor;
+    YiCadColorData textFillColor;
+    int32_t dimLineWidth;
+    int32_t extensionLineWidth;
+    uint32_t hideDimLine1;
+    uint32_t hideDimLine2;
+    uint32_t hideExtensionLine1;
+    uint32_t hideExtensionLine2;
+    double extensionBeyondDimLine;
+    double extensionOriginOffset;
+    uint32_t fixedExtensionLineLengthEnabled;
+    double fixedExtensionLineLength;
+    int32_t firstArrow;
+    int32_t secondArrow;
+    int32_t leaderArrow;
+    double arrowSize;
+    double textHeight;
+    double fractionHeightScale;
+    uint32_t drawTextBoundary;
+    int32_t textVerticalPosition;
+    int32_t textHorizontalPosition;
+    int32_t textDirection;
+    double textOffset;
+    int32_t linearUnitFormat;
+    int32_t linearPrecision;
+    int32_t fractionFormat;
+    int32_t decimalSeparator;
+    double roundOff;
+    YiCadStringView prefix;
+    YiCadStringView suffix;
+    double measurementScale;
+    uint32_t suppressLeadingZeros;
+    uint32_t suppressTrailingZeros;
+    int32_t angularUnitFormat;
+    int32_t angularPrecision;
+    uint32_t suppressAngularLeadingZeros;
+    uint32_t suppressAngularTrailingZeros;
+    uint64_t unsupportedFieldMask;
+    uint32_t allowUnsupportedFields;
+} YiCadDimensionStyleDataV3;
+
+/** @brief 后续实体创建接口共用的公共属性。 */
+typedef struct YiCadEntityAttributes
+{
+    uint32_t structSize;
+    YiCadImportResourceHandle layer;
+    YiCadImportResourceHandle lineType;
+    YiCadColorData color;
+    int32_t lineWidth;
+    double lineTypeScale;
+    uint32_t visible;
+    YiCadVector3d normal;
+} YiCadEntityAttributes;
 #endif
 
 typedef int32_t YiCadEntityType;
@@ -222,6 +389,29 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportRollbackFn)(
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadImportGetLastErrorFn)(
     char* buffer,
     uint32_t bufferSize);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportSetDocumentSettingsFn)(
+    YiCadImportSessionHandle session,
+    const YiCadDocumentSettings* settings);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLineTypeFn)(
+    YiCadImportSessionHandle session,
+    const YiCadLineTypeDataV3* data,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLayerFn)(
+    YiCadImportSessionHandle session,
+    const YiCadLayerDataV3* data,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateTextStyleFn)(
+    YiCadImportSessionHandle session,
+    const YiCadTextStyleDataV3* data,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateDimensionStyleFn)(
+    YiCadImportSessionHandle session,
+    const YiCadDimensionStyleDataV3* data,
+    YiCadResourceConflictPolicy conflictPolicy,
+    YiCadImportResourceHandle* resource);
 
 /** @brief 未发布的 ABI v3 导入子函数表草案。 */
 struct YiCadImportApi
@@ -232,6 +422,11 @@ struct YiCadImportApi
     YiCadImportCommitFn commitImport;
     YiCadImportRollbackFn rollbackImport;
     YiCadImportGetLastErrorFn getLastError;
+    YiCadImportSetDocumentSettingsFn setDocumentSettings;
+    YiCadImportCreateLineTypeFn createLineType;
+    YiCadImportCreateLayerFn createLayer;
+    YiCadImportCreateTextStyleFn createTextStyle;
+    YiCadImportCreateDimensionStyleFn createDimensionStyle;
 };
 #endif
 
@@ -291,8 +486,8 @@ typedef struct YiCadPluginApi
                 sizeof(((YiCadHostApi*)0)->importApi)))
 /** @brief ABI v3 草案导入子表的当前可访问字节数。 */
 #define YICAD_IMPORT_API_V3_DRAFT_SIZE                                    \
-    ((uint32_t)(offsetof(YiCadImportApi, getLastError) +                   \
-                sizeof(((YiCadImportApi*)0)->getLastError)))
+    ((uint32_t)(offsetof(YiCadImportApi, createDimensionStyle) +           \
+                sizeof(((YiCadImportApi*)0)->createDimensionStyle)))
 #endif
 
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
@@ -365,6 +560,14 @@ YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, beginImport, abiVersion);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, commitImport, beginImport);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, rollbackImport, commitImport);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, getLastError, rollbackImport);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, setDocumentSettings, getLastError);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createLineType, setDocumentSettings);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createLayer, createLineType);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createTextStyle, createLayer);
+YICAD_ABI_FIELD_FOLLOWS(
+    YiCadImportApi,
+    createDimensionStyle,
+    createTextStyle);
 #endif
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,
