@@ -89,6 +89,17 @@ typedef int32_t YiCadImportResult;
 #define YICAD_IMPORT_ERROR_OUT_OF_MEMORY ((YiCadImportResult)-7)
 #define YICAD_IMPORT_ERROR_TRANSACTION_FAILED ((YiCadImportResult)-8)
 
+/**
+ * @brief ABI v3 草案输入结构的共同约定。
+ * @note 调用方应先将完整结构清零，再把 structSize 设为 sizeof(结构) 并填写字段。
+ * 所有浮点数必须有限且绝对值不超过宿主可表示范围；角度使用弧度。布尔型
+ * uint32_t 字段只接受 0 或 1。未明确声明可为空的字符串、数组和句柄不得为空。
+ * @note 所有结构和数组只在函数调用期间借用，宿主会在返回前复制需要保留的
+ * UTF-8 字符串和数组。插件不得把宿主句柄跨导入回调缓存或自行释放。
+ * @note 所有导入函数只允许在 YiCAD UI 主线程调用。失败返回 YiCadImportResult，
+ * 且不得留下本次函数调用的部分修改；详细 UTF-8 文本由 getLastError 读取。
+ */
+
 /** @brief UTF-8 字符串视图；宿主在调用返回前复制内容。 */
 typedef struct YiCadStringView
 {
@@ -103,12 +114,14 @@ typedef struct YiCadDoubleArrayView
     uint32_t count;
 } YiCadDoubleArrayView;
 
+/** @brief 二维点；坐标必须是有限值，具体坐标系由包含它的结构说明。 */
 typedef struct YiCadPoint2d
 {
     double x;
     double y;
 } YiCadPoint2d;
 
+/** @brief 三维点；坐标必须是有限值，具体坐标系由包含它的结构说明。 */
 typedef struct YiCadPoint3d
 {
     double x;
@@ -116,7 +129,9 @@ typedef struct YiCadPoint3d
     double z;
 } YiCadPoint3d;
 
+/** @brief 二维向量；非零和归一化要求由包含它的结构说明。 */
 typedef YiCadPoint2d YiCadVector2d;
+/** @brief 三维向量；非零和归一化要求由包含它的结构说明。 */
 typedef YiCadPoint3d YiCadVector3d;
 
 /** @brief 只读二维点数组视图；宿主在调用返回前复制内容。 */
@@ -149,7 +164,11 @@ typedef int32_t YiCadResourceConflictPolicy;
 #define YICAD_RESOURCE_CONFLICT_REPLACE ((YiCadResourceConflictPolicy)1)
 #define YICAD_RESOURCE_CONFLICT_RENAME ((YiCadResourceConflictPolicy)2)
 
-/** @brief 文档设置；代码页仅作为源文件元数据保存。 */
+/**
+ * @brief 文档设置；代码页仅作为源文件元数据保存。
+ * @note insertionUnits 范围为 0..20；measurement 为 0 或 1；
+ * globalLineTypeScale 必须大于 0；sourceCodePage 可为空。
+ */
 typedef struct YiCadDocumentSettings
 {
     uint32_t structSize;
@@ -159,7 +178,10 @@ typedef struct YiCadDocumentSettings
     YiCadStringView sourceCodePage;
 } YiCadDocumentSettings;
 
-/** @brief 简单线型定义；complex 非零时宿主必须明确拒绝。 */
+/**
+ * @brief 简单线型定义；名称非空，elements 至少包含一个有限值。
+ * @note complex 必须为 0；非零时返回 YICAD_IMPORT_ERROR_UNSUPPORTED，禁止降级。
+ */
 typedef struct YiCadLineTypeDataV3
 {
     uint32_t structSize;
@@ -169,7 +191,11 @@ typedef struct YiCadLineTypeDataV3
     uint32_t complex;
 } YiCadLineTypeDataV3;
 
-/** @brief 图层定义。frozen 非零表示不可见，lineType 为空时使用 Continuous。 */
+/**
+ * @brief 图层定义。
+ * @note frozen、locked、plottable 为 0 或 1；lineType 为空时使用 Continuous；
+ * lineWidth 只接受 YiCAD 已定义的标准线宽以及 -3、-2、-1。
+ */
 typedef struct YiCadLayerDataV3
 {
     uint32_t structSize;
@@ -186,7 +212,11 @@ typedef struct YiCadLayerDataV3
 #define YICAD_TEXT_GENERATION_UPSIDE_DOWN UINT32_C(2)
 #define YICAD_TEXT_GENERATION_VERTICAL UINT32_C(4)
 
-/** @brief 文字样式定义；字体文件原名在字体缺失时仍会保存。 */
+/**
+ * @brief 文字样式定义；字体文件原名在字体缺失时仍会保存。
+ * @note fixedHeight 不得小于 0，widthFactor 必须大于 0，obliqueAngle 使用弧度；
+ * generationFlags 只能组合 YICAD_TEXT_GENERATION_* 标志。
+ */
 typedef struct YiCadTextStyleDataV3
 {
     uint32_t structSize;
@@ -199,7 +229,11 @@ typedef struct YiCadTextStyleDataV3
     uint32_t generationFlags;
 } YiCadTextStyleDataV3;
 
-/** @brief YiCAD 当前可表达的标注样式字段。 */
+/**
+ * @brief YiCAD 当前可表达的标注样式字段。
+ * @note 所有长度和比例字段必须有限，正值字段不得为零；unsupportedFieldMask
+ * 非零且 allowUnsupportedFields 为 0 时返回 YICAD_IMPORT_ERROR_UNSUPPORTED。
+ */
 typedef struct YiCadDimensionStyleDataV3
 {
     uint32_t structSize;
@@ -252,7 +286,9 @@ typedef struct YiCadDimensionStyleDataV3
 
 /**
  * @brief 实体公共属性。
- * @note 当前二维模型要求 lineTypeScale 为 1，normal 为正 Z 轴。
+ * @note layer 为空时使用活动图层，lineType 为空时使用 ByLayer；visible 为 0 或 1；
+ * 当前二维模型要求 lineTypeScale 为 1，normal 为正 Z 轴。推荐默认值为
+ * ByLayer 颜色、标准线宽 -1、可见、线型比例 1 和法向量 (0,0,1)。
  */
 typedef struct YiCadEntityAttributes
 {
@@ -805,115 +841,157 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportRollbackFn)(
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadImportGetLastErrorFn)(
     char* buffer,
     uint32_t bufferSize);
+/**
+ * @brief 设置会话所属文档的导入元数据。
+ * @param session 活动会话句柄。
+ * @param settings 调用期间借用的完整设置结构。
+ * @return 成功或确定的导入错误码；失败时不修改文档设置。
+ */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportSetDocumentSettingsFn)(
     YiCadImportSessionHandle session,
     const YiCadDocumentSettings* settings);
+/** @brief 创建线型资源；输出句柄仅在当前会话内有效。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLineTypeFn)(
     YiCadImportSessionHandle session,
     const YiCadLineTypeDataV3* data,
     YiCadResourceConflictPolicy conflictPolicy,
     YiCadImportResourceHandle* resource);
+/** @brief 创建图层资源；引用的线型必须属于同一活动会话。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLayerFn)(
     YiCadImportSessionHandle session,
     const YiCadLayerDataV3* data,
     YiCadResourceConflictPolicy conflictPolicy,
     YiCadImportResourceHandle* resource);
+/** @brief 创建文字样式资源；缺失字体名由宿主保留并产生诊断。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateTextStyleFn)(
     YiCadImportSessionHandle session,
     const YiCadTextStyleDataV3* data,
     YiCadResourceConflictPolicy conflictPolicy,
     YiCadImportResourceHandle* resource);
+/** @brief 创建标注样式资源；未支持字段只有显式允许时才能降级。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateDimensionStyleFn)(
     YiCadImportSessionHandle session,
     const YiCadDimensionStyleDataV3* data,
     YiCadResourceConflictPolicy conflictPolicy,
     YiCadImportResourceHandle* resource);
+/**
+ * @brief 获取文档唯一的模型空间容器。
+ * @note 输出容器由宿主持有，只在当前会话内有效，插件不得释放。
+ */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportGetModelSpaceFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle* container);
+/** @brief 在模型空间或活动块容器中创建点；输入在返回前复制。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreatePointFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadPointDataV3* data);
+/** @brief 在模型空间或活动块容器中创建线段；输入在返回前复制。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLineFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadLineDataV3* data);
+/** @brief 在模型空间或活动块容器中创建射线；输入在返回前复制。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateRayFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadRayDataV3* data);
+/** @brief 在模型空间或活动块容器中创建无限长线；输入在返回前复制。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateXLineFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadXLineDataV3* data);
+/** @brief 在模型空间或活动块容器中创建圆弧；输入在返回前复制。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateArcFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadArcDataV3* data);
+/** @brief 在模型空间或活动块容器中创建圆；半径必须大于零。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateCircleFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadCircleDataV3* data);
+/** @brief 在模型空间或活动块容器中创建椭圆或椭圆弧。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateEllipseFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadEllipseDataV3* data);
+/** @brief 创建二维多段线；宿主在返回前复制全部顶点。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreatePolylineFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadPolylineDataV3* data);
+/** @brief 创建样条曲线；宿主在返回前复制节点、控制点和拟合点数组。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateSplineFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadSplineDataV3* data);
+/** @brief 创建语义单行文字；宿主在返回前复制 UTF-8 内容。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateTextFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadTextDataV3* data);
+/** @brief 创建语义多行文字；宿主在返回前复制原始 UTF-8 格式串。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateMTextFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadMTextDataV3* data);
+/**
+ * @brief 开始块定义并返回块资源和活动块容器。
+ * @note 成功后必须调用 endBlock；两个输出句柄均由宿主持有。
+ */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportBeginBlockFn)(
     YiCadImportSessionHandle session,
     const YiCadBlockDataV3* data,
     YiCadImportResourceHandle* block,
     YiCadImportContainerHandle* container);
+/** @brief 结束块定义并消费块容器句柄；模型空间容器不接受此操作。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportEndBlockFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container);
+/** @brief 创建共享块引用；输出句柄供同一容器内的属性值引用。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateInsertFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadInsertDataV3* data,
     YiCadImportResourceHandle* insert);
+/** @brief 在活动块定义中创建属性定义，tag 在块内必须唯一。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateAttributeDefinitionFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadAttributeDefinitionDataV3* data);
+/** @brief 为同一容器中的块引用创建按 tag 关联的属性值。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateAttributeFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadAttributeDataV3* data);
+/** @brief 创建语义标注；坐标标注当前明确返回不支持。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateDimensionFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadDimensionDataV3* data);
+/** @brief 创建引线及可选关联文字；顶点数组在返回前复制。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLeaderFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadLeaderDataV3* data);
+/** @brief 创建填充；所有环和边会先完整验证，再修改文档。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateHatchFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadHatchDataV3* data);
+/** @brief 创建图像引用；缺失文件保留路径并产生可查询诊断。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateImageFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadImageDataV3* data);
 
-/** @brief 未发布的 ABI v3 导入子函数表草案。 */
+/**
+ * @brief 未发布的 ABI v3 导入子函数表草案。
+ * @note 宿主持有本表，其生命周期与 YiCadHostApi 相同。插件读取任何函数指针前
+ * 必须同时检查 abiVersion、structSize 和指针；缺失尾字段表示该能力不支持。
+ * 字段顺序是当前候选顺序，只能在尾部追加。
+ */
 struct YiCadImportApi
 {
     uint32_t structSize;

@@ -4,6 +4,11 @@
 
 执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。ABI v2 的 `.demo` 导入会在一个文档事务中批量添加直线和圆：全部解析成功后一次提交，任意记录失败则整体回滚。选择 **YiCAD Demo Drawing (*.demo)** 导出时，插件通过只读实体迭代 API 输出当前文档中的真实直线和圆数据。
 
+显式启用未发布的 `YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT` 时，demo 声明支持草案 v3，
+并只通过 `ImportSession`、`ImportContainer` 和 `ImportResource` SDK 包装创建导入图层、
+直线和圆；面对只支持 v2 的宿主仍回退到上述 v2 事务流程。示例文件解析不依赖具体库。
+真实格式插件应自行链接 `libdxfrw` 等解析库，PluginSDK 不包含或传播这些依赖。
+
 ## Demo 文件格式
 
 文件使用无 BOM 的 UTF-8 文本。首行固定为 `YICAD_DEMO_V2`，后续每行是一条实体记录：
@@ -33,6 +38,16 @@ cmake --build --preset Release-PluginSDK
 cmake -S . -B build -DCMAKE_PREFIX_PATH="C:\path\to\YiCAD"
 cmake --build build --config Release
 ```
+
+仅用于与草案宿主联调时，在 YiCAD 仓库根目录启用开发开关并构建 demo 目标：
+
+```powershell
+cmake --preset Debug -DYICAD_ENABLE_PLUGIN_ABI_V3_DRAFT=ON
+cmake --build build/Debug --config Debug --target YiCadDemoPlugin
+```
+
+草案 demo 只加入该开发构建，不作为 ABI v3 二进制交付物安装。该开关不会提升
+`YICAD_PLUGIN_ABI_MAX_VERSION`，也不表示正式 SDK 已发布 ABI v3。
 
 也可以把 `YiCADPluginSdk_DIR` 直接设为安装后的 `lib/cmake/YiCADPluginSdk` 目录。Visual Studio 生成器通常把 DLL 写到 `build/Release/YiCadDemoPlugin.dll`；实际位置以 CMake 构建输出为准。Debug 构建使用 `--config Debug`。
 

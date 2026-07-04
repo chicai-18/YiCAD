@@ -81,6 +81,10 @@ option(
 
 # 设置子项目
 add_subdirectory("YiCAD")
+if(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    # 草案 demo 仅参与开发构建，不安装为正式 ABI v3 二进制 SDK 交付物。
+    add_subdirectory("examples/demo_plugin" "examples/demo_plugin")
+endif()
 
 # YiCADPluginSdk CMake package 的生成、安装和消费流程：
 # 1. 配置阶段：

@@ -24,12 +24,39 @@ namespace
 constexpr const char* PluginId = "com.yicad.demo";
 constexpr const char* CommandId = "demo.add-line";
 constexpr const char* FormatId = "demo";
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+constexpr uint32_t SupportedAbiVersion = YICAD_PLUGIN_ABI_V3_DRAFT;
+#else
+constexpr uint32_t SupportedAbiVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
+#endif
 
 std::filesystem::path utf8Path(const char* path)
 {
     return std::filesystem::path(
         std::u8string(reinterpret_cast<const char8_t*>(path)));
 }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YiCadStringView stringView(const char* text)
+{
+    return {text, static_cast<uint32_t>(std::char_traits<char>::length(text))};
+}
+
+YiCadEntityAttributes demoAttributes(
+    const yicad::plugin::ImportResource& layer)
+{
+    YiCadEntityAttributes attributes{};
+    attributes.structSize = sizeof(attributes);
+    attributes.layer = layer.nativeHandle();
+    attributes.color.structSize = sizeof(attributes.color);
+    attributes.color.method = YICAD_COLOR_BY_LAYER;
+    attributes.lineWidth = -1;
+    attributes.lineTypeScale = 1.0;
+    attributes.visible = 1;
+    attributes.normal.z = 1.0;
+    return attributes;
+}
+#endif
 
 class DemoPlugin
 {
@@ -42,7 +69,7 @@ public:
         if (!host || plugin == nullptr ||
             plugin->structSize < YICAD_PLUGIN_API_V1_SIZE ||
             plugin->abiVersion < YICAD_PLUGIN_ABI_MIN_VERSION ||
-            plugin->abiVersion > YICAD_PLUGIN_ABI_MAX_VERSION)
+            plugin->abiVersion > SupportedAbiVersion)
         {
             return false;
         }
@@ -90,11 +117,13 @@ public:
 private:
     static void YICAD_PLUGIN_CALL executeCommand(void* userData) noexcept
     {
-        auto* plugin = static_cast<DemoPlugin*>(userData);
-        if (plugin != nullptr)
-        {
-            plugin->addDemoLine();
-        }
+        yicad::plugin::invokeNoexcept([&]() {
+            auto* plugin = static_cast<DemoPlugin*>(userData);
+            if (plugin != nullptr)
+            {
+                plugin->addDemoLine();
+            }
+        });
     }
 
     static YiCadResult YICAD_PLUGIN_CALL importFile(
@@ -102,8 +131,7 @@ private:
         const char* filePath,
         void* userData) noexcept
     {
-        try
-        {
+        return yicad::plugin::invokeNoexcept<YiCadResult>([&]() {
             auto* plugin = static_cast<DemoPlugin*>(userData);
             if (plugin == nullptr || filePath == nullptr ||
                 *filePath == '\0')
@@ -121,68 +149,148 @@ private:
                 return YICAD_FAILURE;
             }
 
-            auto transaction = document.beginTransaction("Import demo drawing");
-            if (!transaction)
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+            if (document.supportsImport())
             {
-                return YICAD_FAILURE;
+                return plugin->importV3(document, input);
+            }
+#endif
+            return plugin->importV2(document, input);
+        }, YICAD_FAILURE);
+    }
+
+    template<typename AddLine, typename AddCircle>
+    static bool readEntities(
+        std::ifstream& input,
+        AddLine&& addLine,
+        AddCircle&& addCircle)
+    {
+        std::string line;
+        while (std::getline(input, line))
+        {
+            if (line.empty())
+            {
+                continue;
             }
 
-            while (std::getline(input, line))
+            std::istringstream fields(line);
+            std::string type;
+            fields >> type;
+            bool added = false;
+            if (type == "LINE")
             {
-                if (line.empty())
-                {
-                    continue;
-                }
-
-                std::istringstream fields(line);
-                std::string type;
-                fields >> type;
-                bool added = false;
-                if (type == "LINE")
-                {
-                    double x1 = 0.0;
-                    double y1 = 0.0;
-                    double x2 = 0.0;
-                    double y2 = 0.0;
-                    added = static_cast<bool>(
-                        fields >> x1 >> y1 >> x2 >> y2) &&
-                        document.addLine(x1, y1, x2, y2);
-                }
-                else if (type == "CIRCLE")
-                {
-                    double centerX = 0.0;
-                    double centerY = 0.0;
-                    double radius = 0.0;
-                    added = static_cast<bool>(
-                        fields >> centerX >> centerY >> radius) &&
-                        document.addCircle(centerX, centerY, radius);
-                }
-
-                std::string trailing;
-                if (!added || (fields >> trailing))
-                {
-                    return YICAD_FAILURE;
-                }
+                double x1 = 0.0;
+                double y1 = 0.0;
+                double x2 = 0.0;
+                double y2 = 0.0;
+                added = static_cast<bool>(
+                    fields >> x1 >> y1 >> x2 >> y2) &&
+                    addLine(x1, y1, x2, y2);
             }
-            if (!input.eof() || !transaction.commit())
+            else if (type == "CIRCLE")
             {
-                return YICAD_FAILURE;
+                double centerX = 0.0;
+                double centerY = 0.0;
+                double radius = 0.0;
+                added = static_cast<bool>(
+                    fields >> centerX >> centerY >> radius) &&
+                    addCircle(centerX, centerY, radius);
             }
-            return YICAD_SUCCESS;
+
+            std::string trailing;
+            if (!added || (fields >> trailing))
+            {
+                return false;
+            }
         }
-        catch (...)
+        return input.eof();
+    }
+
+    static YiCadResult importV2(
+        const yicad::plugin::Document& document,
+        std::ifstream& input)
+    {
+        auto transaction = document.beginTransaction("Import demo drawing");
+        if (!transaction)
         {
             return YICAD_FAILURE;
         }
+
+        const auto imported = readEntities(input,
+            [&](double x1, double y1, double x2, double y2) {
+                return document.addLine(x1, y1, x2, y2);
+            },
+            [&](double centerX, double centerY, double radius) {
+                return document.addCircle(centerX, centerY, radius);
+            });
+        if (!imported || !transaction.commit())
+        {
+            return YICAD_FAILURE;
+        }
+        return YICAD_SUCCESS;
     }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    static YiCadResult importV3(
+        const yicad::plugin::Document& document,
+        std::ifstream& input)
+    {
+        auto session = document.beginImport();
+        if (!session)
+        {
+            return YICAD_FAILURE;
+        }
+
+        YiCadLayerDataV3 layerData{};
+        layerData.structSize = sizeof(layerData);
+        layerData.name = stringView("Demo Import");
+        layerData.plottable = 1;
+        layerData.color.structSize = sizeof(layerData.color);
+        layerData.color.method = YICAD_COLOR_RGB;
+        layerData.color.red = 80;
+        layerData.color.green = 160;
+        layerData.color.blue = 240;
+        layerData.lineWidth = -1;
+
+        yicad::plugin::ImportResource layer;
+        yicad::plugin::ImportContainer modelSpace;
+        if (session.createLayer(layerData, YICAD_RESOURCE_CONFLICT_FAIL,
+                layer) != YICAD_IMPORT_SUCCESS ||
+            session.modelSpace(modelSpace) != YICAD_IMPORT_SUCCESS)
+        {
+            return YICAD_FAILURE;
+        }
+
+        const auto attributes = demoAttributes(layer);
+        const auto imported = readEntities(input,
+            [&](double x1, double y1, double x2, double y2) {
+                YiCadLineDataV3 data{};
+                data.structSize = sizeof(data);
+                data.attributes = attributes;
+                data.startPoint = {x1, y1};
+                data.endPoint = {x2, y2};
+                return modelSpace.createLine(data) == YICAD_IMPORT_SUCCESS;
+            },
+            [&](double centerX, double centerY, double radius) {
+                YiCadCircleDataV3 data{};
+                data.structSize = sizeof(data);
+                data.attributes = attributes;
+                data.center = {centerX, centerY};
+                data.radius = radius;
+                return modelSpace.createCircle(data) == YICAD_IMPORT_SUCCESS;
+            });
+        return imported && session.commit() == YICAD_IMPORT_SUCCESS
+            ? YICAD_SUCCESS
+            : YICAD_FAILURE;
+    }
+#endif
 
     static YiCadResult YICAD_PLUGIN_CALL exportFile(
         YiCadDocumentHandle handle,
         const char* filePath,
         void* userData) noexcept
     {
-        try
-        {
+        return yicad::plugin::invokeNoexcept<YiCadResult>([&]() {
             auto* plugin = static_cast<DemoPlugin*>(userData);
             if (plugin == nullptr || filePath == nullptr ||
                 *filePath == '\0')
@@ -231,11 +339,7 @@ private:
             }
             output.flush();
             return output ? YICAD_SUCCESS : YICAD_FAILURE;
-        }
-        catch (...)
-        {
-            return YICAD_FAILURE;
-        }
+        }, YICAD_FAILURE);
     }
 
     void addDemoLine() noexcept
@@ -267,32 +371,21 @@ DemoPlugin g_plugin;
 YICAD_PLUGIN_EXPORT uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void)
 {
-    return YICAD_PLUGIN_ABI_MAX_VERSION;
+    return SupportedAbiVersion;
 }
 
 YICAD_PLUGIN_EXPORT YiCadResult YICAD_PLUGIN_CALL
 yicad_plugin_init(const YiCadHostApi* host, YiCadPluginApi* plugin)
 {
-    try
-    {
+    return yicad::plugin::invokeNoexcept<YiCadResult>([&]() {
         return g_plugin.initialize(host, plugin)
             ? YICAD_SUCCESS
             : YICAD_FAILURE;
-    }
-    catch (...)
-    {
-        return YICAD_FAILURE;
-    }
+    }, YICAD_FAILURE);
 }
 
 YICAD_PLUGIN_EXPORT void YICAD_PLUGIN_CALL
 yicad_plugin_shutdown(void)
 {
-    try
-    {
-        g_plugin.shutdown();
-    }
-    catch (...)
-    {
-    }
+    yicad::plugin::invokeNoexcept([&]() { g_plugin.shutdown(); });
 }

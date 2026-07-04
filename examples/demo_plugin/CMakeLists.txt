@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.21)
 
 project(YiCadDemoPlugin VERSION 1.0.0 LANGUAGES CXX)
 
-find_package(YiCADPluginSdk CONFIG REQUIRED)
+if(NOT TARGET YiCAD::PluginSdk)
+    find_package(YiCADPluginSdk CONFIG REQUIRED)
+endif()
 
 add_library(YiCadDemoPlugin MODULE
     DemoPlugin.cpp)

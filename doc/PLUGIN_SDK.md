@@ -71,27 +71,18 @@ yicad_plugin_get_abi_version(void)
 YICAD_PLUGIN_EXPORT YiCadResult YICAD_PLUGIN_CALL
 yicad_plugin_init(const YiCadHostApi* host, YiCadPluginApi* plugin)
 {
-    try
-    {
+    return yicad::plugin::invokeNoexcept<YiCadResult>([&]() {
         // 校验函数表、填写元数据并完成所有注册。
         return YICAD_SUCCESS;
-    }
-    catch (...)
-    {
-        return YICAD_FAILURE;
-    }
+    }, YICAD_FAILURE);
 }
 
 YICAD_PLUGIN_EXPORT void YICAD_PLUGIN_CALL
 yicad_plugin_shutdown(void)
 {
-    try
-    {
+    yicad::plugin::invokeNoexcept([&]() {
         // 停止线程并释放所有宿主回调引用。
-    }
-    catch (...)
-    {
-    }
+    });
 }
 ```
 
@@ -172,13 +163,47 @@ sdkHost.registerExportFilter(
 
 ABI v1 包含命令、Ribbon、当前文档、基础几何、刷新、缩放和导入导出注册。ABI v2 只在 v1 尾部追加事务与只读实体枚举。详细规则和兼容矩阵见 [PLUGIN_ABI_EVOLUTION.md](PLUGIN_ABI_EVOLUTION.md)。
 
-ABI v3 尚处于设计阶段，不是当前 SDK 的可用能力。分阶段实施范围和验收要求见
-[PLUGIN_ABI_V3_PLAN.md](PLUGIN_ABI_V3_PLAN.md)。
+ABI v3 仍是未发布草案，`YICAD_PLUGIN_ABI_MAX_VERSION` 和正式安装 SDK 均保持在
+v2。开发构建只有显式启用 `YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT` 才会装配导入子表。
+草案 C++ 封装提供 `ImportSession`、`ImportContainer` 和 `ImportResource`：会话析构
+自动回滚，容器负责创建实体，资源包装通过 `nativeHandle()` 填入关联资源的 POD 字段。
+每个包装方法都会分别检查协商版本、子表 `structSize` 和函数指针；截短子表只让对应
+尾部能力返回 `YICAD_IMPORT_ERROR_UNSUPPORTED`，不会影响已有前缀能力。完整实施范围和
+验收要求见 [PLUGIN_ABI_V3_PLAN.md](PLUGIN_ABI_V3_PLAN.md)。
+
+草案最小流程如下；所有结构先清零，再设置自身以及嵌套结构的 `structSize`：
+
+```cpp
+auto session = document.beginImport();
+yicad::plugin::ImportContainer modelSpace;
+if (!session || session.modelSpace(modelSpace) != YICAD_IMPORT_SUCCESS)
+    return YICAD_FAILURE;
+
+YiCadLineDataV3 line{};
+line.structSize = sizeof(line);
+line.attributes.structSize = sizeof(line.attributes);
+line.attributes.color.structSize = sizeof(line.attributes.color);
+line.attributes.color.method = YICAD_COLOR_BY_LAYER;
+line.attributes.lineWidth = -1;
+line.attributes.lineTypeScale = 1.0;
+line.attributes.visible = 1;
+line.attributes.normal.z = 1.0;
+line.endPoint = {100.0, 100.0};
+if (modelSpace.createLine(line) != YICAD_IMPORT_SUCCESS)
+    return YICAD_FAILURE;
+return session.commit() == YICAD_IMPORT_SUCCESS
+    ? YICAD_SUCCESS : YICAD_FAILURE;
+```
+
+文件解析器属于插件实现依赖。插件应自行链接 `libdxfrw` 或其他 DXF、SVG、DGN 解析库，
+并把解析结果转换为 ABI POD；`YiCAD::PluginSdk` 不链接、不传播，也不跨 ABI 传递
+`libdxfrw` 类型或运行库。
 
 ## 线程、异常、字符串与所有权
 
 - 注册和宿主回调只允许在 YiCAD UI 主线程调用；当前 ABI 不承诺线程安全。
-- 异常不得穿过任何 C ABI 入口或回调。入口与回调应为 `noexcept`，或在内部捕获全部异常并返回失败。
+- 异常不得穿过任何 C ABI 入口或回调。入口与回调应为 `noexcept`，并可用
+  `yicad::plugin::invokeNoexcept` 把全部异常转换为失败值或安全吞掉无返回值异常。
 - 所有跨 ABI 字符串均为 UTF-8。宿主在注册函数返回前复制注册参数；插件元数据字符串保持有效到 `shutdown` 返回。
 - 宿主函数表保持有效到 `shutdown` 返回。插件不得在此之后调用函数表。
 - 文档 handle 非拥有且不可长期保存。事务和迭代器由宿主创建，由插件显式提交、回滚或销毁；官方 SDK 的 RAII 类型负责失败路径清理。
