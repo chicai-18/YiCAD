@@ -8,6 +8,7 @@
 #include <vector>
 
 class DmDocument;
+class DmEntity;
 class GuiDocumentView;
 class PluginRegistry;
 class QString;
@@ -167,6 +168,45 @@ private:
         const YiCadDimensionStyleDataV3* data,
         YiCadResourceConflictPolicy conflictPolicy,
         YiCadImportResourceHandle* resource) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL getModelSpace(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle* container) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createPoint(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadPointDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createLine(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadLineDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createRay(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadRayDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createXLine(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadXLineDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createArc(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadArcDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createCircle(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadCircleDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createEllipse(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadEllipseDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createPolyline(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadPolylineDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createSpline(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadSplineDataV3* data) noexcept;
 #endif
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);
@@ -192,6 +232,14 @@ private:
         ImportSessionRecord* session,
         void* object,
         int kind);
+    bool resolveImportContainer(
+        ImportSessionRecord* session,
+        YiCadImportContainerHandle handle) const noexcept;
+    YiCadImportResult addImportEntity(
+        ImportSessionRecord* session,
+        YiCadImportContainerHandle container,
+        const YiCadEntityAttributes& attributes,
+        DmEntity* entity) noexcept;
     YiCadImportResult setImportError(
         YiCadImportResult result,
         const char* message) noexcept;

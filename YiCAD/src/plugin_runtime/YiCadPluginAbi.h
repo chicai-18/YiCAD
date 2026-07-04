@@ -119,6 +119,13 @@ typedef struct YiCadPoint3d
 typedef YiCadPoint2d YiCadVector2d;
 typedef YiCadPoint3d YiCadVector3d;
 
+/** @brief 只读二维点数组视图；宿主在调用返回前复制内容。 */
+typedef struct YiCadPoint2dArrayView
+{
+    const YiCadPoint2d* data;
+    uint32_t count;
+} YiCadPoint2dArrayView;
+
 typedef int32_t YiCadColorMethod;
 #define YICAD_COLOR_BY_LAYER ((YiCadColorMethod)0)
 #define YICAD_COLOR_BY_BLOCK ((YiCadColorMethod)1)
@@ -243,7 +250,10 @@ typedef struct YiCadDimensionStyleDataV3
     uint32_t allowUnsupportedFields;
 } YiCadDimensionStyleDataV3;
 
-/** @brief 后续实体创建接口共用的公共属性。 */
+/**
+ * @brief 实体公共属性。
+ * @note 当前二维模型要求 lineTypeScale 为 1，normal 为正 Z 轴。
+ */
 typedef struct YiCadEntityAttributes
 {
     uint32_t structSize;
@@ -255,6 +265,122 @@ typedef struct YiCadEntityAttributes
     uint32_t visible;
     YiCadVector3d normal;
 } YiCadEntityAttributes;
+
+/** @brief 点实体；position 使用 WCS。 */
+typedef struct YiCadPointDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d position;
+} YiCadPointDataV3;
+
+/** @brief 线段实体；startPoint 和 endPoint 使用 WCS。 */
+typedef struct YiCadLineDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d startPoint;
+    YiCadPoint2d endPoint;
+} YiCadLineDataV3;
+
+/** @brief 射线实体；basePoint 使用 WCS，direction 为非零 WCS 向量。 */
+typedef struct YiCadRayDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d basePoint;
+    YiCadVector2d direction;
+} YiCadRayDataV3;
+
+/** @brief 无限长线实体；basePoint 使用 WCS，direction 为非零 WCS 向量。 */
+typedef struct YiCadXLineDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d basePoint;
+    YiCadVector2d direction;
+} YiCadXLineDataV3;
+
+/** @brief 圆弧实体；center 使用 WCS，角度为弧度。 */
+typedef struct YiCadArcDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d center;
+    double radius;
+    double startAngle;
+    double endAngle;
+} YiCadArcDataV3;
+
+/** @brief 圆实体；center 使用 WCS。 */
+typedef struct YiCadCircleDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d center;
+    double radius;
+} YiCadCircleDataV3;
+
+/** @brief 椭圆或椭圆弧；center 和 majorAxis 使用 WCS，参数为弧度。 */
+typedef struct YiCadEllipseDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadPoint2d center;
+    YiCadVector2d majorAxis;
+    double minorToMajorRatio;
+    double startParameter;
+    double endParameter;
+    uint32_t closed;
+} YiCadEllipseDataV3;
+
+/** @brief 二维多段线顶点；位置使用 WCS，宽度必须非负。 */
+typedef struct YiCadVertex2d
+{
+    YiCadPoint2d position;
+    double startWidth;
+    double endWidth;
+    double bulge;
+} YiCadVertex2d;
+
+/** @brief 只读二维多段线顶点数组视图。 */
+typedef struct YiCadVertex2dArrayView
+{
+    const YiCadVertex2d* data;
+    uint32_t count;
+} YiCadVertex2dArrayView;
+
+/** @brief 二维多段线；顶点位置使用 WCS。 */
+typedef struct YiCadPolylineDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadVertex2dArrayView vertices;
+    uint32_t closed;
+} YiCadPolylineDataV3;
+
+typedef int32_t YiCadSplineDefinition;
+#define YICAD_SPLINE_CONTROL_POINTS ((YiCadSplineDefinition)0)
+#define YICAD_SPLINE_FIT_POINTS ((YiCadSplineDefinition)1)
+
+/**
+ * @brief 非有理、非周期 B 样条；点使用 WCS。
+ * @note 控制点定义要求节点数等于控制点数加 degree 加一。
+ */
+typedef struct YiCadSplineDataV3
+{
+    uint32_t structSize;
+    YiCadEntityAttributes attributes;
+    YiCadSplineDefinition definition;
+    uint32_t degree;
+    uint32_t closed;
+    uint32_t rational;
+    uint32_t periodic;
+    YiCadPoint2dArrayView controlPoints;
+    YiCadDoubleArrayView knots;
+    YiCadDoubleArrayView weights;
+    YiCadPoint2dArrayView fitPoints;
+} YiCadSplineDataV3;
 #endif
 
 typedef int32_t YiCadEntityType;
@@ -412,6 +538,45 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateDimensionStyleFn)
     const YiCadDimensionStyleDataV3* data,
     YiCadResourceConflictPolicy conflictPolicy,
     YiCadImportResourceHandle* resource);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportGetModelSpaceFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle* container);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreatePointFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadPointDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateLineFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadLineDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateRayFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadRayDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateXLineFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadXLineDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateArcFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadArcDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateCircleFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadCircleDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateEllipseFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadEllipseDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreatePolylineFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadPolylineDataV3* data);
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateSplineFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadSplineDataV3* data);
 
 /** @brief 未发布的 ABI v3 导入子函数表草案。 */
 struct YiCadImportApi
@@ -427,6 +592,16 @@ struct YiCadImportApi
     YiCadImportCreateLayerFn createLayer;
     YiCadImportCreateTextStyleFn createTextStyle;
     YiCadImportCreateDimensionStyleFn createDimensionStyle;
+    YiCadImportGetModelSpaceFn getModelSpace;
+    YiCadImportCreatePointFn createPoint;
+    YiCadImportCreateLineFn createLine;
+    YiCadImportCreateRayFn createRay;
+    YiCadImportCreateXLineFn createXLine;
+    YiCadImportCreateArcFn createArc;
+    YiCadImportCreateCircleFn createCircle;
+    YiCadImportCreateEllipseFn createEllipse;
+    YiCadImportCreatePolylineFn createPolyline;
+    YiCadImportCreateSplineFn createSpline;
 };
 #endif
 
@@ -486,8 +661,8 @@ typedef struct YiCadPluginApi
                 sizeof(((YiCadHostApi*)0)->importApi)))
 /** @brief ABI v3 草案导入子表的当前可访问字节数。 */
 #define YICAD_IMPORT_API_V3_DRAFT_SIZE                                    \
-    ((uint32_t)(offsetof(YiCadImportApi, createDimensionStyle) +           \
-                sizeof(((YiCadImportApi*)0)->createDimensionStyle)))
+    ((uint32_t)(offsetof(YiCadImportApi, createSpline) +                   \
+                sizeof(((YiCadImportApi*)0)->createSpline)))
 #endif
 
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
@@ -568,6 +743,16 @@ YICAD_ABI_FIELD_FOLLOWS(
     YiCadImportApi,
     createDimensionStyle,
     createTextStyle);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, getModelSpace, createDimensionStyle);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createPoint, getModelSpace);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createLine, createPoint);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createRay, createLine);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createXLine, createRay);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createArc, createXLine);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createCircle, createArc);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createEllipse, createCircle);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createPolyline, createEllipse);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createSpline, createPolyline);
 #endif
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,
