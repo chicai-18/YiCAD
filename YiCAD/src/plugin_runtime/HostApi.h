@@ -285,16 +285,20 @@ private:
         const YiCadTextDataV3& input,
         const QString& value,
         class TextData& output) noexcept;
+    YiCadImportResult normalizeImportEntityAttributes(
+        ImportSessionRecord* session,
+        const YiCadEntityAttributes* input,
+        YiCadEntityAttributes& output) noexcept;
     YiCadImportResult applyImportEntityAttributes(
         ImportSessionRecord* session,
-        const YiCadEntityAttributes& attributes,
+        const YiCadEntityAttributes* attributes,
         DmEntity* entity) noexcept;
     YiCadImportResult validateImportBlocks(
         ImportSessionRecord* session) noexcept;
     YiCadImportResult addImportEntity(
         ImportSessionRecord* session,
         YiCadImportContainerHandle container,
-        const YiCadEntityAttributes& attributes,
+        const YiCadEntityAttributes* attributes,
         DmEntity* entity) noexcept;
     YiCadImportResult setImportError(
         YiCadImportResult result,

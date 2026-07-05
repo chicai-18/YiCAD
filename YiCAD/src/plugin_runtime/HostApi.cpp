@@ -2153,25 +2153,32 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createArc(
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
-    const auto normal = input == nullptr
-        ? DmVector(false)
-        : toDmVector(input->attributes.normal);
     if (input == nullptr ||
         !validStructSize(input->structSize, requiredSize) ||
         !finitePoint(input->center) || !std::isfinite(input->radius) ||
         !std::isfinite(input->startAngle) || !std::isfinite(input->endAngle) ||
         input->radius <= DM_TOLERANCE || input->radius > 1.0e150 ||
-        std::abs(input->endAngle - input->startAngle) <= DM_TOLERANCE ||
-        !finitePoint(input->attributes.normal) ||
-        normal.magnitude() <= DM_TOLERANCE)
+        std::abs(input->endAngle - input->startAngle) <= DM_TOLERANCE)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
             : instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
                   "圆弧半径、角度或法向量无效");
     }
+    YiCadEntityAttributes attributes{};
+    const auto attributesResult = instance->normalizeImportEntityAttributes(
+        session, input->attributes, attributes);
+    const auto normal = toDmVector(attributes.normal);
+    if (attributesResult != YICAD_IMPORT_SUCCESS ||
+        normal.magnitude() <= DM_TOLERANCE)
+    {
+        return attributesResult != YICAD_IMPORT_SUCCESS
+            ? attributesResult
+            : instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                  "圆弧法向量无效");
+    }
     try
     {
-        return instance->addImportEntity(session, container, input->attributes,
+        return instance->addImportEntity(session, container, &attributes,
             new DmArc(nullptr, ArcData(toDmVector(input->center),
                 normal.normalize(), input->radius,
                 input->startAngle, input->endAngle)));
@@ -2252,20 +2259,14 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createEllipse(
     const auto majorAxis = input == nullptr
         ? DmVector(false)
         : toDmVector(input->majorAxis);
-    const auto normal = input == nullptr
-        ? DmVector(false)
-        : toDmVector(input->attributes.normal);
     if (input == nullptr ||
         !validStructSize(input->structSize, requiredSize) ||
         !finitePoint(input->center) || !finitePoint(input->majorAxis) ||
-        !finitePoint(input->attributes.normal) ||
         !std::isfinite(input->minorToMajorRatio) ||
         !std::isfinite(input->startParameter) ||
         !std::isfinite(input->endParameter) || input->closed > 1 ||
         !std::isfinite(majorAxis.magnitude()) ||
         majorAxis.magnitude() <= DM_TOLERANCE ||
-        !std::isfinite(normal.magnitude()) ||
-        normal.magnitude() <= DM_TOLERANCE ||
         input->minorToMajorRatio <= 0.0 || input->minorToMajorRatio > 1.0 ||
         (input->closed == 0 &&
          std::abs(input->endParameter - input->startParameter) <= DM_TOLERANCE))
@@ -2274,9 +2275,22 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createEllipse(
             : instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
                   "椭圆轴、轴比、参数或法向量无效");
     }
+    YiCadEntityAttributes attributes{};
+    const auto attributesResult = instance->normalizeImportEntityAttributes(
+        session, input->attributes, attributes);
+    const auto normal = toDmVector(attributes.normal);
+    if (attributesResult != YICAD_IMPORT_SUCCESS ||
+        !std::isfinite(normal.magnitude()) ||
+        normal.magnitude() <= DM_TOLERANCE)
+    {
+        return attributesResult != YICAD_IMPORT_SUCCESS
+            ? attributesResult
+            : instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                  "椭圆法向量无效");
+    }
     try
     {
-        return instance->addImportEntity(session, container, input->attributes,
+        return instance->addImportEntity(session, container, &attributes,
             new DmEllipse(nullptr, EllipseData(toDmVector(input->center),
                 majorAxis, normal.normalize(), input->minorToMajorRatio,
                 input->closed != 0, input->startParameter,
@@ -2607,9 +2621,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
         : instance->resolveImportSession(sessionHandle);
     constexpr auto requiredSize = offsetof(YiCadMTextDataV3, background) +
         sizeof(((YiCadMTextDataV3*)0)->background);
-    constexpr auto backgroundSize =
-        offsetof(YiCadMTextBackgroundData, borderScaleFactor) +
-        sizeof(((YiCadMTextBackgroundData*)0)->borderScaleFactor);
     QString contents;
     if (session == nullptr)
     {
@@ -2619,7 +2630,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
     }
     if (input == nullptr ||
         !validStructSize(input->structSize, requiredSize) ||
-        !validStructSize(input->background.structSize, backgroundSize) ||
         !copyStringView(input->contents, contents) || contents.isEmpty() ||
         !finitePoint(input->insertionPoint) ||
         !finitePoint(input->direction) ||
@@ -2631,15 +2641,24 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
         !std::isfinite(input->lineSpacingFactor) ||
         input->lineSpacingFactor < 0.25 || input->lineSpacingFactor > 4.0 ||
         input->attachment < YICAD_MTEXT_TOP_LEFT ||
-        input->attachment > YICAD_MTEXT_BOTTOM_RIGHT ||
-        input->background.enabled > 1 ||
-        input->background.useDrawingBackgroundColor > 1)
+        input->attachment > YICAD_MTEXT_BOTTOM_RIGHT)
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
             "多行文字内容、尺寸、方向或排版参数无效");
     }
-    if (input->background.enabled != 0)
+    if (input->background != nullptr)
     {
+        constexpr auto backgroundSize =
+            offsetof(YiCadMTextBackgroundData, borderScaleFactor) +
+            sizeof(((YiCadMTextBackgroundData*)0)->borderScaleFactor);
+        if (!validStructSize(input->background->structSize, backgroundSize) ||
+            input->background->useDrawingBackgroundColor > 1 ||
+            !std::isfinite(input->background->borderScaleFactor) ||
+            input->background->borderScaleFactor <= 0.0)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                "多行文字背景填充参数无效");
+        }
         return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
             "YiCAD 当前多行文字模型不支持背景填充");
     }
@@ -2942,6 +2961,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttributeDefinition(
     }
     if (input == nullptr ||
         !validStructSize(input->structSize, requiredSize) ||
+        input->text == nullptr ||
         !copyStringView(input->tag, tag) || tag.trimmed().isEmpty() ||
         !copyStringView(input->prompt, prompt) ||
         !copyStringView(input->defaultValue, defaultValue))
@@ -2975,13 +2995,13 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttributeDefinition(
     {
         TextData textData;
         const auto result = instance->buildImportTextData(
-            session, input->text, defaultValue, textData);
+            session, *input->text, defaultValue, textData);
         if (result != YICAD_IMPORT_SUCCESS)
         {
             return result;
         }
         return instance->addImportEntity(session, containerHandle,
-            input->text.attributes,
+            input->text->attributes,
             new DmAttributeDefinition(nullptr, textData,
                 AttributeDefinitionData(tag, prompt)));
     }
@@ -3018,6 +3038,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
     }
     if (input == nullptr ||
         !validStructSize(input->structSize, requiredSize) ||
+        input->text == nullptr ||
         !copyStringView(input->tag, tag) || tag.trimmed().isEmpty() ||
         !copyStringView(input->value, value))
     {
@@ -3083,7 +3104,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
     {
         TextData textData;
         auto result = instance->buildImportTextData(
-            session, input->text, value, textData);
+            session, *input->text, value, textData);
         if (result != YICAD_IMPORT_SUCCESS)
         {
             return result;
@@ -3091,7 +3112,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
         auto attribute = std::make_unique<DmAttribute>(nullptr, textData,
             AttributeData(tag));
         result = instance->applyImportEntityAttributes(
-            session, input->text.attributes, attribute.get());
+            session, input->text->attributes, attribute.get());
         if (result != YICAD_IMPORT_SUCCESS)
         {
             return result;
@@ -3294,7 +3315,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
     if (input == nullptr ||
         !validStructSize(input->structSize, requiredSize) ||
         !validPointArray(input->vertices) || input->vertices.count < 2 ||
-        input->hasArrow > 1 || input->hasText > 1)
+        input->hasArrow > 1)
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
             "引线顶点数组或标志无效");
@@ -3347,10 +3368,10 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
         }
 
         std::unique_ptr<DmText> textEntity;
-        if (input->hasText != 0)
+        if (input->text != nullptr)
         {
             QString value;
-            if (!copyStringView(input->text.text, value))
+            if (!copyStringView(input->text->text, value))
             {
                 return instance->setImportError(
                     YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -3358,14 +3379,14 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
             }
             TextData textData;
             result = instance->buildImportTextData(
-                session, input->text, value, textData);
+                session, *input->text, value, textData);
             if (result != YICAD_IMPORT_SUCCESS)
             {
                 return result;
             }
             textEntity = std::make_unique<DmText>(nullptr, textData);
             result = instance->applyImportEntityAttributes(
-                session, input->text.attributes, textEntity.get());
+                session, input->text->attributes, textEntity.get());
             if (result != YICAD_IMPORT_SUCCESS)
             {
                 return result;
@@ -4112,19 +4133,72 @@ void* HostApi::resolveImportContainer(
     return nullptr;
 }
 
-YiCadImportResult HostApi::applyImportEntityAttributes(
+YiCadImportResult HostApi::normalizeImportEntityAttributes(
     ImportSessionRecord* session,
-    const YiCadEntityAttributes& attributes,
-    DmEntity* entity) noexcept
+    const YiCadEntityAttributes* input,
+    YiCadEntityAttributes& output) noexcept
 {
-    if (session == nullptr || entity == nullptr ||
-        !validStructSize(attributes.structSize, sizeof(YiCadEntityAttributes)) ||
-        !validLineWidth(attributes.lineWidth) ||
-        !std::isfinite(attributes.lineTypeScale) || attributes.visible > 1 ||
-        !finitePoint(attributes.normal))
+    constexpr auto requiredSize = offsetof(YiCadEntityAttributes, normal) +
+        sizeof(((YiCadEntityAttributes*)0)->normal);
+    output = {};
+    output.structSize = static_cast<uint32_t>(requiredSize);
+    output.color.method = YICAD_COLOR_BY_LAYER;
+    output.lineWidth = -1;
+    output.lineTypeScale = 1.0;
+    output.visible = 1;
+    output.normal.z = 1.0;
+
+    if (session == nullptr)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr)
+    {
+        return YICAD_IMPORT_SUCCESS;
+    }
+    if (!validStructSize(input->structSize, requiredSize) ||
+        !validLineWidth(input->lineWidth) ||
+        !std::isfinite(input->lineTypeScale) || input->visible > 1 ||
+        !finitePoint(input->normal))
     {
         return setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
             "实体公共属性包含无效字段");
+    }
+
+    DmColor color;
+    if (!toDmColor(input->color, color))
+    {
+        return setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "实体颜色字段无效");
+    }
+
+    output.layer = input->layer;
+    output.lineType = input->lineType;
+    output.color = input->color;
+    output.lineWidth = input->lineWidth;
+    output.lineTypeScale = input->lineTypeScale;
+    output.visible = input->visible;
+    output.normal = input->normal;
+    return YICAD_IMPORT_SUCCESS;
+}
+
+YiCadImportResult HostApi::applyImportEntityAttributes(
+    ImportSessionRecord* session,
+    const YiCadEntityAttributes* input,
+    DmEntity* entity) noexcept
+{
+    if (entity == nullptr)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "实体公共属性的目标实体为空");
+    }
+    YiCadEntityAttributes attributes{};
+    const auto normalized = normalizeImportEntityAttributes(
+        session, input, attributes);
+    if (normalized != YICAD_IMPORT_SUCCESS)
+    {
+        return normalized;
     }
 
     const auto normal = toDmVector(attributes.normal);
@@ -4168,7 +4242,7 @@ YiCadImportResult HostApi::applyImportEntityAttributes(
 YiCadImportResult HostApi::addImportEntity(
     ImportSessionRecord* session,
     YiCadImportContainerHandle container,
-    const YiCadEntityAttributes& attributes,
+    const YiCadEntityAttributes* attributes,
     DmEntity* rawEntity) noexcept
 {
     std::unique_ptr<DmEntity> entity(rawEntity);

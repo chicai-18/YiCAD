@@ -134,7 +134,7 @@ private:
  * @brief 导入会话内的非拥有模型空间或块定义容器包装。
  * @note 容器只在所属会话内有效；块容器在 endBlock 成功后立即失效。
  * @note 创建函数返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，截短子表或
- * 空函数指针返回 UNSUPPORTED。输入字符串和数组只需保持到该函数返回。
+ * 空函数指针返回 UNSUPPORTED。输入字符串、数组和嵌套结构指针只需保持到该函数返回。
  */
 class ImportContainer
 {

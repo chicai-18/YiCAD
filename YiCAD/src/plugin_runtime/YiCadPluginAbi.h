@@ -285,9 +285,11 @@ typedef struct YiCadDimensionStyleDataV3
 
 /**
  * @brief 实体公共属性。
- * @note layer 为空时使用活动图层，lineType 为空时使用 ByLayer；visible 为 0 或 1；
- * 当前二维模型要求 lineTypeScale 为 1，normal 为正 Z 轴。推荐默认值为
- * ByLayer 颜色、标准线宽 -1、可见、线型比例 1 和法向量 (0,0,1)。
+ * @note 该结构只在调用期间借用。layer 为空时使用活动图层，lineType 为空时使用
+ * ByLayer；visible 为 0 或 1；当前二维模型要求 lineTypeScale 为 1，normal 为
+ * 正 Z 轴。
+ * @note 所有实体输入中的 attributes 为空时统一使用活动图层、ByLayer 线型和颜色、
+ * 标准线宽 -1、线型比例 1、可见以及法向量 (0,0,1)。
  */
 typedef struct YiCadEntityAttributes
 {
@@ -305,7 +307,7 @@ typedef struct YiCadEntityAttributes
 typedef struct YiCadPointDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d position;
 } YiCadPointDataV3;
 
@@ -313,7 +315,7 @@ typedef struct YiCadPointDataV3
 typedef struct YiCadLineDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d startPoint;
     YiCadPoint2d endPoint;
 } YiCadLineDataV3;
@@ -322,7 +324,7 @@ typedef struct YiCadLineDataV3
 typedef struct YiCadRayDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d basePoint;
     YiCadVector2d direction;
 } YiCadRayDataV3;
@@ -331,7 +333,7 @@ typedef struct YiCadRayDataV3
 typedef struct YiCadXLineDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d basePoint;
     YiCadVector2d direction;
 } YiCadXLineDataV3;
@@ -340,7 +342,7 @@ typedef struct YiCadXLineDataV3
 typedef struct YiCadArcDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d center;
     double radius;
     double startAngle;
@@ -351,7 +353,7 @@ typedef struct YiCadArcDataV3
 typedef struct YiCadCircleDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d center;
     double radius;
 } YiCadCircleDataV3;
@@ -360,7 +362,7 @@ typedef struct YiCadCircleDataV3
 typedef struct YiCadEllipseDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2d center;
     YiCadVector2d majorAxis;
     double minorToMajorRatio;
@@ -389,7 +391,7 @@ typedef struct YiCadVertex2dArrayView
 typedef struct YiCadPolylineDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadVertex2dArrayView vertices;
     uint32_t closed;
 } YiCadPolylineDataV3;
@@ -405,7 +407,7 @@ typedef int32_t YiCadSplineDefinition;
 typedef struct YiCadSplineDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadSplineDefinition definition;
     uint32_t degree;
     uint32_t closed;
@@ -435,7 +437,7 @@ typedef int32_t YiCadTextVerticalAlignment;
 typedef struct YiCadTextDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadStringView text;
     YiCadPoint2d insertionPoint;
     YiCadPoint2d alignmentPoint;
@@ -459,11 +461,10 @@ typedef int32_t YiCadMTextAttachment;
 #define YICAD_MTEXT_BOTTOM_CENTER ((YiCadMTextAttachment)8)
 #define YICAD_MTEXT_BOTTOM_RIGHT ((YiCadMTextAttachment)9)
 
-/** @brief 多行文字背景填充；比例是文字边界外扩系数。 */
+/** @brief 多行文字背景填充；非空指针表示启用，比例是文字边界外扩系数。 */
 typedef struct YiCadMTextBackgroundData
 {
     uint32_t structSize;
-    uint32_t enabled;
     uint32_t useDrawingBackgroundColor;
     YiCadColorData color;
     double borderScaleFactor;
@@ -473,7 +474,7 @@ typedef struct YiCadMTextBackgroundData
 typedef struct YiCadMTextDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadStringView contents;
     YiCadPoint2d insertionPoint;
     YiCadVector2d direction;
@@ -482,7 +483,7 @@ typedef struct YiCadMTextDataV3
     double lineSpacingFactor;
     YiCadMTextAttachment attachment;
     YiCadImportResourceHandle textStyle;
-    YiCadMTextBackgroundData background;
+    const YiCadMTextBackgroundData* background;
 } YiCadMTextDataV3;
 
 #define YICAD_BLOCK_ANONYMOUS UINT32_C(1)
@@ -511,7 +512,7 @@ typedef struct YiCadBlockDataV3
 typedef struct YiCadInsertDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadImportResourceHandle block;
     YiCadPoint2d insertionPoint;
     YiCadVector3d scale;
@@ -529,11 +530,11 @@ typedef struct YiCadInsertDataV3
 #define YICAD_ATTRIBUTE_LOCK_POSITION UINT32_C(16)
 #define YICAD_ATTRIBUTE_MULTILINE UINT32_C(32)
 
-/** @brief 属性定义；只能添加到活动块定义容器。 */
+/** @brief 属性定义；只能添加到活动块定义容器，text 必须非空。 */
 typedef struct YiCadAttributeDefinitionDataV3
 {
     uint32_t structSize;
-    YiCadTextDataV3 text;
+    const YiCadTextDataV3* text;
     YiCadStringView tag;
     YiCadStringView prompt;
     YiCadStringView defaultValue;
@@ -542,12 +543,13 @@ typedef struct YiCadAttributeDefinitionDataV3
 
 /**
  * @brief 块引用属性值；tag 与块内属性定义关联，不依赖数组顺序。
- * @note insert 必须是 createInsert 返回的句柄，且与 container 属于同一容器。
+ * @note text 必须非空；insert 必须是 createInsert 返回的句柄，且与 container
+ * 属于同一容器。
  */
 typedef struct YiCadAttributeDataV3
 {
     uint32_t structSize;
-    YiCadTextDataV3 text;
+    const YiCadTextDataV3* text;
     YiCadImportResourceHandle insert;
     YiCadStringView tag;
     YiCadStringView value;
@@ -572,7 +574,7 @@ typedef int32_t YiCadDimensionKind;
 typedef struct YiCadDimensionDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadDimensionKind kind;
     YiCadImportResourceHandle dimensionStyle;
     YiCadStringView textOverride;
@@ -593,18 +595,17 @@ typedef struct YiCadDimensionDataV3
 
 /**
  * @brief 引线；顶点使用当前容器坐标。
- * @note hasText 非零时，宿主在同一导入事务中创建原生文字实体；插件负责
- * 提供文字的完整属性。YiCAD 当前以两个关联的原生实体表达引线及其文字。
+ * @note text 非空时，宿主在同一导入事务中创建原生文字实体；空指针表示无文字。
+ * 插件负责提供文字的完整属性。YiCAD 当前以两个关联的原生实体表达引线及其文字。
  */
 typedef struct YiCadLeaderDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadPoint2dArrayView vertices;
     uint32_t hasArrow;
     YiCadImportResourceHandle dimensionStyle;
-    uint32_t hasText;
-    YiCadTextDataV3 text;
+    const YiCadTextDataV3* text;
 } YiCadLeaderDataV3;
 
 typedef int32_t YiCadHatchEdgeType;
@@ -679,7 +680,7 @@ typedef struct YiCadHatchLoopArrayView
 typedef struct YiCadHatchDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     uint32_t solid;
     YiCadStringView patternName;
     double patternScale;
@@ -695,7 +696,7 @@ typedef struct YiCadHatchDataV3
 typedef struct YiCadImageDataV3
 {
     uint32_t structSize;
-    YiCadEntityAttributes attributes;
+    const YiCadEntityAttributes* attributes;
     YiCadStringView path;
     YiCadPoint2d insertionPoint;
     YiCadVector2d uVector;

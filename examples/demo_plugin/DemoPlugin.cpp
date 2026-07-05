@@ -264,7 +264,7 @@ private:
             [&](double x1, double y1, double x2, double y2) {
                 YiCadLineDataV3 data{};
                 data.structSize = sizeof(data);
-                data.attributes = attributes;
+                data.attributes = &attributes;
                 data.startPoint = {x1, y1};
                 data.endPoint = {x2, y2};
                 return modelSpace.createLine(data) == YICAD_IMPORT_SUCCESS;
@@ -272,7 +272,7 @@ private:
             [&](double centerX, double centerY, double radius) {
                 YiCadCircleDataV3 data{};
                 data.structSize = sizeof(data);
-                data.attributes = attributes;
+                data.attributes = &attributes;
                 data.center = {centerX, centerY};
                 data.radius = radius;
                 return modelSpace.createCircle(data) == YICAD_IMPORT_SUCCESS;
