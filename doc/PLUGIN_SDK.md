@@ -171,29 +171,24 @@ v2。开发构建只有显式启用 `YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT` 才会装
 尾部能力返回 `YICAD_IMPORT_ERROR_UNSUPPORTED`，不会影响已有前缀能力。完整实施范围和
 验收要求见 [PLUGIN_ABI_V3_PLAN.md](PLUGIN_ABI_V3_PLAN.md)。
 
-草案最小流程如下；所有结构先清零，再设置自身以及嵌套结构的 `structSize`：
+v3 普通 SDK 用法不得直接填写 `structSize`、数组字节步长或嵌套 ABI 指针，也不得依赖
+零初始化偶然产生有效业务默认值。SDK 必须通过默认构造、语义工厂或 builder 自动生成
+临时 C ABI POD，并设置公共属性默认值、所有可扩展结构大小、嵌套借用指针、数组数量和
+字节步长。普通示例只展示几何、资源和导入事务语义。
 
-```cpp
-auto session = document.beginImport();
-yicad::plugin::ImportContainer modelSpace;
-if (!session || session.modelSpace(modelSpace) != YICAD_IMPORT_SUCCESS)
-    return YICAD_FAILURE;
+当前重构基线尚未提供满足上述约束的完整高层构造 API，因此本文暂不提供 v3 普通导入
+代码示例。完成 `PLUGIN_ABI_V3_USABILITY_REFACTOR_PLAN.md` 的 SDK 构造层和领域封装后，
+此处再加入可直接编译的高层示例。现有接受裸 POD 的重载属于高级 ABI 接口，只用于
+非官方 SDK、其他语言绑定和兼容性验证；其机械初始化规则必须放在明确标记的“高级裸
+ABI”章节，不能作为推荐起点。
 
-YiCadLineDataV3 line{};
-line.structSize = sizeof(line);
-line.attributes.structSize = sizeof(line.attributes);
-line.attributes.color.structSize = sizeof(line.attributes.color);
-line.attributes.color.method = YICAD_COLOR_BY_LAYER;
-line.attributes.lineWidth = -1;
-line.attributes.lineTypeScale = 1.0;
-line.attributes.visible = 1;
-line.attributes.normal.z = 1.0;
-line.endPoint = {100.0, 100.0};
-if (modelSpace.createLine(line) != YICAD_IMPORT_SUCCESS)
-    return YICAD_FAILURE;
-return session.commit() == YICAD_IMPORT_SUCCESS
-    ? YICAD_SUCCESS : YICAD_FAILURE;
-```
+普通 SDK 示例的固定准入规则如下：
+
+- 示例中不出现对 `structSize` 或 `byteStride` 的赋值；
+- 示例不直接读写宿主函数表，也不拼装借用指针；
+- 默认公共属性由 SDK 产生，调用方只覆盖有业务意义的值；
+- SDK 对象只存在于插件侧，跨 DLL 边界时临时转换为 C ABI POD；
+- 宿主仍须在调用返回前复制输入，不能保存 SDK 生成的视图或指针。
 
 文件解析器属于插件实现依赖。插件应自行链接 `libdxfrw` 或其他 DXF、SVG、DGN 解析库，
 并把解析结果转换为 ABI POD；`YiCAD::PluginSdk` 不链接、不传播，也不跨 ABI 传递
