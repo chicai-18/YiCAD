@@ -52,6 +52,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -99,6 +100,55 @@ enum ImportResourceKind
 bool validStructSize(uint32_t actual, std::size_t required) noexcept
 {
     return actual >= required;
+}
+
+template<typename Element, typename View>
+bool validExtensibleArrayView(
+    const View& view,
+    std::size_t requiredPrefix) noexcept
+{
+    if (view.count == 0)
+    {
+        return true;
+    }
+    if (view.data == nullptr || view.byteStride < requiredPrefix ||
+        view.byteStride % alignof(Element) != 0)
+    {
+        return false;
+    }
+    const auto address = reinterpret_cast<std::uintptr_t>(view.data);
+    if (address % alignof(Element) != 0 ||
+        view.count > std::numeric_limits<std::size_t>::max() /
+            view.byteStride)
+    {
+        return false;
+    }
+    const auto byteCount = static_cast<std::size_t>(view.count) *
+        view.byteStride;
+    return byteCount <= std::numeric_limits<std::uintptr_t>::max() - address;
+}
+
+template<typename Element, typename View>
+const Element* extensibleArrayElement(
+    const View& view,
+    uint32_t index) noexcept
+{
+    if (view.data == nullptr || index >= view.count ||
+        (view.byteStride != 0 &&
+         index > std::numeric_limits<std::size_t>::max() /
+             view.byteStride))
+    {
+        return nullptr;
+    }
+    const auto byteOffset = static_cast<std::size_t>(index) *
+        view.byteStride;
+    const auto address = reinterpret_cast<std::uintptr_t>(view.data);
+    if (byteOffset > std::numeric_limits<std::uintptr_t>::max() - address)
+    {
+        return nullptr;
+    }
+    const auto* bytes = reinterpret_cast<const unsigned char*>(view.data);
+    return reinterpret_cast<const Element*>(bytes + byteOffset);
 }
 
 bool copyStringView(const YiCadStringView& source, QString& target) noexcept
@@ -3434,6 +3484,10 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
         : instance->resolveImportSession(sessionHandle);
     constexpr auto requiredSize = offsetof(YiCadHatchDataV3, loops) +
         sizeof(((YiCadHatchDataV3*)0)->loops);
+    constexpr auto loopSize = offsetof(YiCadHatchLoopDataV3, edges) +
+        sizeof(((YiCadHatchLoopDataV3*)0)->edges);
+    constexpr auto edgeSize = offsetof(YiCadHatchEdgeDataV3, weights) +
+        sizeof(((YiCadHatchEdgeDataV3*)0)->weights);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -3447,8 +3501,9 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
         !copyStringView(input->patternName, patternName) ||
         !std::isfinite(input->patternScale) || input->patternScale <= 0.0 ||
         !std::isfinite(input->patternAngle) ||
-        input->loops.data == nullptr || input->loops.count == 0 ||
-        input->loops.count > 100000)
+        input->loops.count == 0 || input->loops.count > 100000 ||
+        !validExtensibleArrayView<YiCadHatchLoopDataV3>(
+            input->loops, loopSize))
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
             "填充图案参数或边界环数组无效");
@@ -3478,15 +3533,25 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
     {
         std::vector<BuiltLoop> builtLoops;
         builtLoops.reserve(input->loops.count);
+        std::vector<const YiCadHatchLoopDataV3*> sourceLoops;
+        sourceLoops.reserve(input->loops.count);
         std::vector<uint32_t> outerIndexes;
 
         for (uint32_t loopIndex = 0;
              loopIndex < input->loops.count; ++loopIndex)
         {
-            const auto& loop = input->loops.data[loopIndex];
-            constexpr auto loopSize = offsetof(YiCadHatchLoopDataV3, edges) +
-                sizeof(((YiCadHatchLoopDataV3*)0)->edges);
+            const auto* loopInput =
+                extensibleArrayElement<YiCadHatchLoopDataV3>(
+                    input->loops, loopIndex);
+            if (loopInput == nullptr)
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                    "填充边界环数组字节步长无效");
+            }
+            const auto& loop = *loopInput;
             if (!validStructSize(loop.structSize, loopSize) ||
+                loop.structSize > input->loops.byteStride ||
                 (loop.role != YICAD_HATCH_LOOP_OUTER &&
                  loop.role != YICAD_HATCH_LOOP_HOLE) ||
                 (loop.kind != YICAD_HATCH_LOOP_POLYLINE &&
@@ -3507,13 +3572,14 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                 outerIndexes.push_back(loopIndex);
             }
             else if (loop.outerLoopIndex >= loopIndex ||
-                     input->loops.data[loop.outerLoopIndex].role !=
+                     sourceLoops[loop.outerLoopIndex]->role !=
                          YICAD_HATCH_LOOP_OUTER)
             {
                 return instance->setImportError(
                     YICAD_IMPORT_ERROR_OUT_OF_RANGE,
                     "填充孔环引用的外环索引无效");
             }
+            sourceLoops.push_back(loopInput);
 
             auto boundary = std::make_shared<DmEntityContainer>(nullptr);
             if (loop.kind == YICAD_HATCH_LOOP_POLYLINE)
@@ -3578,8 +3644,9 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
             else
             {
                 if (loop.polylineVertices.count != 0 ||
-                    loop.edges.data == nullptr || loop.edges.count == 0 ||
-                    loop.edges.count > 1000000)
+                    loop.edges.count == 0 || loop.edges.count > 1000000 ||
+                    !validExtensibleArrayView<YiCadHatchEdgeDataV3>(
+                        loop.edges, edgeSize))
                 {
                     return instance->setImportError(
                         YICAD_IMPORT_ERROR_OUT_OF_RANGE,
@@ -3590,11 +3657,18 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                 for (uint32_t edgeIndex = 0;
                      edgeIndex < loop.edges.count; ++edgeIndex)
                 {
-                    const auto& source = loop.edges.data[edgeIndex];
-                    constexpr auto edgeSize = offsetof(
-                        YiCadHatchEdgeDataV3, weights) +
-                        sizeof(((YiCadHatchEdgeDataV3*)0)->weights);
-                    if (!validStructSize(source.structSize, edgeSize))
+                    const auto* sourceInput =
+                        extensibleArrayElement<YiCadHatchEdgeDataV3>(
+                            loop.edges, edgeIndex);
+                    if (sourceInput == nullptr)
+                    {
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                            "填充边数组字节步长无效");
+                    }
+                    const auto& source = *sourceInput;
+                    if (!validStructSize(source.structSize, edgeSize) ||
+                        source.structSize > loop.edges.byteStride)
                     {
                         return instance->setImportError(
                             YICAD_IMPORT_ERROR_INVALID_ARGUMENT,

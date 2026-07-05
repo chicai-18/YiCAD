@@ -639,11 +639,16 @@ typedef struct YiCadHatchEdgeDataV3
     YiCadDoubleArrayView weights;
 } YiCadHatchEdgeDataV3;
 
-/** @brief 只读填充边界边数组；宿主在调用返回前复制数据。 */
+/**
+ * @brief 只读填充边界边数组；宿主在调用返回前复制数据。
+ * @note 非空数组的 byteStride 必须至少覆盖当前版本的必需前缀，
+ * data 和每个元素均必须按 YiCadHatchEdgeDataV3 对齐。
+ */
 typedef struct YiCadHatchEdgeArrayView
 {
     const YiCadHatchEdgeDataV3* data;
     uint32_t count;
+    uint32_t byteStride;
 } YiCadHatchEdgeArrayView;
 
 typedef int32_t YiCadHatchLoopKind;
@@ -669,11 +674,16 @@ typedef struct YiCadHatchLoopDataV3
     YiCadHatchEdgeArrayView edges;
 } YiCadHatchLoopDataV3;
 
-/** @brief 只读填充环数组；宿主在调用返回前复制数据。 */
+/**
+ * @brief 只读填充环数组；宿主在调用返回前复制数据。
+ * @note 非空数组的 byteStride 必须至少覆盖当前版本的必需前缀，
+ * data 和每个元素均必须按 YiCadHatchLoopDataV3 对齐。
+ */
 typedef struct YiCadHatchLoopArrayView
 {
     const YiCadHatchLoopDataV3* data;
     uint32_t count;
+    uint32_t byteStride;
 } YiCadHatchLoopArrayView;
 
 /** @brief 实体填充或图案填充；支持多外环及各自孔环。 */

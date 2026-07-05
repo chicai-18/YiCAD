@@ -5,7 +5,9 @@
 
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <span>
 #include <utility>
 
 namespace yicad::plugin
@@ -51,6 +53,36 @@ void invokeNoexcept(Callable&& callable) noexcept
 class ImportSession;
 class ImportContainer;
 class ImportResource;
+
+/// @brief 从 SDK 持有的连续容器生成填充边数组 ABI 视图。
+/// @return 元素数超过 ABI 可表示范围时返回空视图。
+inline YiCadHatchEdgeArrayView makeHatchEdgeArrayView(
+    std::span<const YiCadHatchEdgeDataV3> edges) noexcept
+{
+    if (edges.size() > std::numeric_limits<uint32_t>::max())
+    {
+        return {};
+    }
+    return {
+        edges.empty() ? nullptr : edges.data(),
+        static_cast<uint32_t>(edges.size()),
+        static_cast<uint32_t>(sizeof(YiCadHatchEdgeDataV3))};
+}
+
+/// @brief 从 SDK 持有的连续容器生成填充环数组 ABI 视图。
+/// @return 元素数超过 ABI 可表示范围时返回空视图。
+inline YiCadHatchLoopArrayView makeHatchLoopArrayView(
+    std::span<const YiCadHatchLoopDataV3> loops) noexcept
+{
+    if (loops.size() > std::numeric_limits<uint32_t>::max())
+    {
+        return {};
+    }
+    return {
+        loops.empty() ? nullptr : loops.data(),
+        static_cast<uint32_t>(loops.size()),
+        static_cast<uint32_t>(sizeof(YiCadHatchLoopDataV3))};
+}
 
 namespace detail
 {
