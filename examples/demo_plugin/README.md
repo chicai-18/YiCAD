@@ -5,8 +5,9 @@
 执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。ABI v2 的 `.demo` 导入会在一个文档事务中批量添加直线和圆：全部解析成功后一次提交，任意记录失败则整体回滚。选择 **YiCAD Demo Drawing (*.demo)** 导出时，插件通过只读实体迭代 API 输出当前文档中的真实直线和圆数据。
 
 显式启用未发布的 `YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT` 时，demo 声明支持草案 v3，
-并只通过 `ImportSession`、`ImportContainer` 和 `ImportResource` SDK 包装创建导入图层、
-直线和圆；面对只支持 v2 的宿主仍回退到上述 v2 事务流程。示例文件解析不依赖具体库。
+并只通过常规 C++ SDK 的 `ImportSession`、`LayerData`、`EntityAttributes` 和
+`ImportContainer` 语义接口创建导入图层、直线和圆，不直接构造 ABI POD 或填写 ABI
+元数据；面对只支持 v2 的宿主仍回退到上述 v2 事务流程。示例文件解析不依赖具体库。
 真实格式插件应自行链接 `libdxfrw` 等解析库，PluginSDK 不包含或传播这些依赖。
 
 ## Demo 文件格式

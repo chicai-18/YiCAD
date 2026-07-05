@@ -36,27 +36,6 @@ std::filesystem::path utf8Path(const char* path)
         std::u8string(reinterpret_cast<const char8_t*>(path)));
 }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-YiCadStringView stringView(const char* text)
-{
-    return {text, static_cast<uint32_t>(std::char_traits<char>::length(text))};
-}
-
-YiCadEntityAttributes demoAttributes(
-    const yicad::plugin::ImportResource& layer)
-{
-    YiCadEntityAttributes attributes{};
-    attributes.structSize = sizeof(attributes);
-    attributes.layer = layer.nativeHandle();
-    attributes.color.method = YICAD_COLOR_BY_LAYER;
-    attributes.lineWidth = -1;
-    attributes.lineTypeScale = 1.0;
-    attributes.visible = 1;
-    attributes.normal.z = 1.0;
-    return attributes;
-}
-#endif
-
 class DemoPlugin
 {
 public:
@@ -240,15 +219,9 @@ private:
             return YICAD_FAILURE;
         }
 
-        YiCadLayerDataV3 layerData{};
-        layerData.structSize = sizeof(layerData);
-        layerData.name = stringView("Demo Import");
-        layerData.plottable = 1;
-        layerData.color.method = YICAD_COLOR_RGB;
-        layerData.color.red = 80;
-        layerData.color.green = 160;
-        layerData.color.blue = 240;
-        layerData.lineWidth = -1;
+        auto layerData = yicad::plugin::LayerData("Demo Import");
+        layerData.setColor(
+            {YICAD_COLOR_RGB, 0, 80, 160, 240, 0});
 
         yicad::plugin::ImportResource layer;
         yicad::plugin::ImportContainer modelSpace;
@@ -259,23 +232,18 @@ private:
             return YICAD_FAILURE;
         }
 
-        const auto attributes = demoAttributes(layer);
+        auto attributes = yicad::plugin::EntityAttributes{};
+        attributes.setLayer(layer);
         const auto imported = readEntities(input,
             [&](double x1, double y1, double x2, double y2) {
-                YiCadLineDataV3 data{};
-                data.structSize = sizeof(data);
-                data.attributes = &attributes;
-                data.startPoint = {x1, y1};
-                data.endPoint = {x2, y2};
-                return modelSpace.createLine(data) == YICAD_IMPORT_SUCCESS;
+                return modelSpace.createLine(
+                    {x1, y1}, {x2, y2}, attributes) ==
+                    YICAD_IMPORT_SUCCESS;
             },
             [&](double centerX, double centerY, double radius) {
-                YiCadCircleDataV3 data{};
-                data.structSize = sizeof(data);
-                data.attributes = &attributes;
-                data.center = {centerX, centerY};
-                data.radius = radius;
-                return modelSpace.createCircle(data) == YICAD_IMPORT_SUCCESS;
+                return modelSpace.createCircle(
+                    {centerX, centerY}, radius, attributes) ==
+                    YICAD_IMPORT_SUCCESS;
             });
         return imported && session.commit() == YICAD_IMPORT_SUCCESS
             ? YICAD_SUCCESS

@@ -287,6 +287,22 @@ modelSpace.createImage(image);
 `structSize` 设置为实际可访问字节数，并保证所有借用指针和数组视图在宿主函数返回前
 有效。宿主不会保存这些地址。
 
+以下代码只说明不使用官方 C++ 初始化器时的底层协议规则，不是普通插件的推荐写法：
+
+```cpp
+YiCadLineDataV3 data{};
+data.structSize = sizeof(data);
+data.startPoint = {0.0, 0.0};
+data.endPoint = {100.0, 50.0};
+
+// attributes == nullptr 使用宿主定义的完整标准公共属性。
+modelSpace.createLine(data);
+```
+
+这里的大小必须是调用方实际可访问的字节数，而不是接收方头文件中的完整结构大小。
+自定义绑定若只提供已知前缀，应填写该前缀的实际大小；宿主按该范围读取字段并忽略未知
+尾部。可扩展数组还必须提供真实元素字节步长，且相关存储在调用返回前持续有效。
+
 文件解析器属于插件实现依赖。插件应自行链接 `libdxfrw` 或其他 DXF、SVG、DGN 解析库，
 并把解析结果转换为 ABI POD；`YiCAD::PluginSdk` 不链接、不传播，也不跨 ABI 传递
 `libdxfrw` 类型或运行库。
