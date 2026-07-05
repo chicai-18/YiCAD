@@ -373,6 +373,15 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
     m_pluginRegistry = std::make_unique<PluginRegistry>();
     m_pluginHostApi = std::make_unique<HostApi>(
         *m_pluginHostContext, *m_pluginRegistry);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    connect(m_pTabDrawWidget, &UITabDrawWidget::documentAboutToClose,
+        this, [this](DmDocument* document) {
+            if (m_pluginHostApi != nullptr)
+            {
+                m_pluginHostApi->rollbackImportsForDocument(document);
+            }
+        });
+#endif
     m_pluginManager = std::make_unique<PluginManager>(
         *m_pluginHostApi, *m_pluginRegistry);
     m_pluginManager->loadAll();

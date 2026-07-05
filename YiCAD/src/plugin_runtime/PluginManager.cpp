@@ -2,6 +2,7 @@
 
 #include "HostApi.h"
 
+#include <cstring>
 #include <cstddef>
 #include <utility>
 
@@ -139,6 +140,10 @@ void PluginManager::shutdownAll() noexcept
         auto& plugin = **iterator;
         auto& record = m_records[static_cast<int>(plugin.recordIndex)];
         const bool shutdownSucceeded = invokeShutdown(plugin, record);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+        /// @brief DLL 卸载前使插件遗留的宿主会话失效，避免悬挂事务。
+        m_hostApi.rollbackAllImports();
+#endif
         plugin.loader.unload();
 
         if (!shutdownSucceeded && !record.error.isError())
@@ -263,21 +268,35 @@ void PluginManager::loadManifest(
             ? record.pluginAbiVersion
             : host->abiVersion;
 
-        plugin->negotiatedHostApi = *host;
-        plugin->negotiatedHostApi.abiVersion = record.negotiatedAbiVersion;
+        std::uint32_t negotiatedHostSize = YICAD_HOST_API_V1_SIZE;
 #if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-        plugin->negotiatedHostApi.structSize =
+        negotiatedHostSize =
             record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V3_DRAFT
             ? YICAD_HOST_API_V3_DRAFT_SIZE
             : record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V2
                 ? YICAD_HOST_API_V2_SIZE
                 : YICAD_HOST_API_V1_SIZE;
 #else
-        plugin->negotiatedHostApi.structSize =
+        negotiatedHostSize =
             record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V2
             ? YICAD_HOST_API_V2_SIZE
             : YICAD_HOST_API_V1_SIZE;
 #endif
+        if (host->structSize < negotiatedHostSize ||
+            negotiatedHostSize > sizeof(YiCadHostApi))
+        {
+            setError(
+                record,
+                PluginManagerErrorCode::HostApiLayoutMismatch,
+                QStringLiteral("宿主 API 未覆盖协商版本所需的函数表前缀"));
+            return;
+        }
+        std::memcpy(
+            &plugin->negotiatedHostApi,
+            host,
+            negotiatedHostSize);
+        plugin->negotiatedHostApi.structSize = negotiatedHostSize;
+        plugin->negotiatedHostApi.abiVersion = record.negotiatedAbiVersion;
 
         if (!m_registry.beginRegistration())
         {
@@ -455,5 +474,8 @@ void PluginManager::cleanupFailedPlugin(
     }
 
     invokeShutdown(plugin, record);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    m_hostApi.rollbackAllImports();
+#endif
     plugin.loader.unload();
 }

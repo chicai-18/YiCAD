@@ -813,45 +813,57 @@ typedef struct YiCadCircleData
 
 /* All strings crossing the ABI are UTF-8. Document handles are non-owning. */
 
+/** @brief UI 线程调用的命令回调；userData 由插件持有且必须保持到 shutdown。 */
 typedef void (YICAD_PLUGIN_CALL *YiCadCommandCallback)(void* userData);
+/** @brief UI 线程调用的导入回调；文档和路径只在本次调用期间借用。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadImportCallback)(
     YiCadDocumentHandle document,
     const char* filePath,
     void* userData);
+/** @brief UI 线程调用的导出回调；文档和路径只在本次调用期间借用。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadExportCallback)(
     YiCadDocumentHandle document,
     const char* filePath,
     void* userData);
 
+/** @brief 在 UI 线程显示 UTF-8 消息；宿主在返回前复制文本。 */
 typedef void (YICAD_PLUGIN_CALL *YiCadMessageFn)(const char* text);
+/** @brief 在 init 注册命令；字符串在返回前复制，失败时不保留注册。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterCommandFn)(
     const char* pluginId,
     const char* commandId,
     const char* displayName,
     YiCadCommandCallback callback,
     void* userData);
+/** @brief 在 init 注册 Ribbon 按钮；字符串在返回前复制。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterRibbonButtonFn)(
     const char* pluginId,
     const char* tab,
     const char* group,
     const char* commandId,
     const char* iconPath);
+/** @brief 返回当前文档的非拥有句柄；没有活动文档时返回 nullptr。 */
 typedef YiCadDocumentHandle (YICAD_PLUGIN_CALL *YiCadCurrentDocumentFn)(void);
+/** @brief 向打开文档添加直线；失败时不保留部分实体。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadDocumentAddLineFn)(
     YiCadDocumentHandle document,
     double x1,
     double y1,
     double x2,
     double y2);
+/** @brief 向打开文档添加圆；失败时不保留部分实体。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadDocumentAddCircleFn)(
     YiCadDocumentHandle document,
     double centerX,
     double centerY,
     double radius);
+/** @brief 在 UI 线程重生成打开文档。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadDocumentRegenFn)(
     YiCadDocumentHandle document);
+/** @brief 在 UI 线程对打开文档执行自动缩放。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadDocumentZoomAutoFn)(
     YiCadDocumentHandle document);
+/** @brief 在 init 注册导入过滤器；回调和 userData 由插件保持到 shutdown。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterImportFilterFn)(
     const char* pluginId,
     const char* formatId,
@@ -859,6 +871,7 @@ typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterImportFilterFn)(
     const char* extension,
     YiCadImportCallback callback,
     void* userData);
+/** @brief 在 init 注册导出过滤器；回调和 userData 由插件保持到 shutdown。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterExportFilterFn)(
     const char* pluginId,
     const char* formatId,
@@ -866,25 +879,32 @@ typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterExportFilterFn)(
     const char* extension,
     YiCadExportCallback callback,
     void* userData);
+/** @brief 在 UI 线程开始非嵌套事务；返回句柄必须提交或回滚一次。 */
 typedef YiCadTransactionHandle (YICAD_PLUGIN_CALL *YiCadDocumentBeginTransactionFn)(
     YiCadDocumentHandle document,
     const char* name);
+/** @brief 提交并消费事务句柄；失败时句柄也不再可用。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadDocumentCommitTransactionFn)(
     YiCadTransactionHandle transaction);
+/** @brief 回滚并消费事务句柄。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadDocumentRollbackTransactionFn)(
     YiCadTransactionHandle transaction);
+/** @brief 创建只读实体快照迭代器；插件必须显式销毁返回句柄。 */
 typedef YiCadEntityIteratorHandle (YICAD_PLUGIN_CALL *YiCadDocumentCreateEntityIteratorFn)(
     YiCadDocumentHandle document);
+/** @brief 移动到下一实体；失败表示结束或参数无效，不再保留当前实体。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadEntityIteratorNextFn)(
     YiCadEntityIteratorHandle iterator,
     YiCadEntityType* entityType);
-/* next 返回失败表示已到末尾或句柄/参数无效，之后没有当前实体。 */
+/** @brief 复制当前直线快照；类型或句柄不匹配时失败且不转移所有权。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadEntityIteratorGetLineFn)(
     YiCadEntityIteratorHandle iterator,
     YiCadLineData* line);
+/** @brief 复制当前圆快照；类型或句柄不匹配时失败且不转移所有权。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadEntityIteratorGetCircleFn)(
     YiCadEntityIteratorHandle iterator,
     YiCadCircleData* circle);
+/** @brief 销毁宿主持有的迭代器句柄；空句柄和重复销毁安全。 */
 typedef void (YICAD_PLUGIN_CALL *YiCadEntityIteratorDestroyFn)(
     YiCadEntityIteratorHandle iterator);
 
@@ -1168,17 +1188,22 @@ typedef struct YiCadPluginApi
                 sizeof(((YiCadImportApi*)0)->createImage)))
 #endif
 
+/** @brief 插件入口类型；返回插件实现的最高 ABI 版本且不得抛出异常。 */
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
+/** @brief 插件初始化入口类型；宿主表借用到 shutdown，输出表容量由宿主给出。 */
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadPluginInitFn)(
     const YiCadHostApi* host,
     YiCadPluginApi* plugin);
+/** @brief 插件关闭入口类型；必须释放回调引用且不得抛出异常。 */
 typedef void (YICAD_PLUGIN_CALL *YiCadPluginShutdownFn)(void);
 
 /** @brief 返回插件实现的最高 C ABI 版本。 */
 YICAD_PLUGIN_API uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void);
+/** @brief 按宿主给出的协商版本初始化插件并填写输出表。 */
 YICAD_PLUGIN_API YiCadResult YICAD_PLUGIN_CALL
 yicad_plugin_init(const YiCadHostApi* host, YiCadPluginApi* plugin);
+/** @brief 关闭插件；宿主保证成功调用 init 后至多调用一次。 */
 YICAD_PLUGIN_API void YICAD_PLUGIN_CALL
 yicad_plugin_shutdown(void);
 
@@ -1530,6 +1555,9 @@ YICAD_ABI_STATIC_ASSERT(
     YICAD_HOST_API_V3_DRAFT_SIZE ==
         YICAD_HOST_API_V2_SIZE + sizeof(void*),
     "unexpected ABI v3 draft host-table growth");
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadImportApi) == YICAD_IMPORT_API_V3_DRAFT_SIZE,
+    "ABI v3 draft import table has unexpected tail padding");
 #endif
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadHostApi) >=
@@ -1583,6 +1611,18 @@ YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorNext, 120);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetLine, 128);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetCircle, 136);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorDestroy, 144);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_HOST_API_V3_DRAFT_SIZE == 160,
+    "unexpected Win64 host ABI v3 draft size");
+YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 152);
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadImportApi) == 248,
+    "unexpected Win64 import ABI v3 draft size");
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_ABI_ALIGNOF(YiCadImportApi) == 8,
+    "unexpected Win64 import ABI v3 draft alignment");
+#endif
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadPluginApi) >= YICAD_PLUGIN_API_V1_SIZE,
     "Win64 plugin ABI lost its v1 prefix");
@@ -1626,6 +1666,18 @@ YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorNext, 64);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetLine, 68);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetCircle, 72);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorDestroy, 76);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_HOST_API_V3_DRAFT_SIZE == 84,
+    "unexpected Win32 host ABI v3 draft size");
+YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 80);
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadImportApi) == 128,
+    "unexpected Win32 import ABI v3 draft size");
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_ABI_ALIGNOF(YiCadImportApi) == 4,
+    "unexpected Win32 import ABI v3 draft alignment");
+#endif
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadPluginApi) >= YICAD_PLUGIN_API_V1_SIZE,
     "Win32 plugin ABI lost its v1 prefix");
@@ -1664,6 +1716,12 @@ struct IsSame<Type, Type>
 
 } // namespace yicad_plugin_abi_detail
 
+#define YICAD_ABI_FUNCTION_FIELD_TYPE(type, field, functionType)          \
+    YICAD_ABI_STATIC_ASSERT(                                               \
+        (yicad_plugin_abi_detail::IsSame<                                  \
+            decltype(((type*)0)->field), functionType>::value),            \
+        #type "." #field " function type changed")
+
 YICAD_ABI_STATIC_ASSERT(
     __is_standard_layout(YiCadHostApi),
     "YiCadHostApi must have standard layout");
@@ -1674,6 +1732,99 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     __is_standard_layout(YiCadImportApi),
     "YiCadImportApi must have standard layout");
+#endif
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadHostApi, message, YiCadMessageFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerCommand, YiCadRegisterCommandFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerRibbonButton, YiCadRegisterRibbonButtonFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, currentDocument, YiCadCurrentDocumentFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentAddLine, YiCadDocumentAddLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentAddCircle, YiCadDocumentAddCircleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentRegen, YiCadDocumentRegenFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentZoomAuto, YiCadDocumentZoomAutoFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerImportFilter, YiCadRegisterImportFilterFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerExportFilter, YiCadRegisterExportFilterFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentBeginTransaction,
+    YiCadDocumentBeginTransactionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentCommitTransaction,
+    YiCadDocumentCommitTransactionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentRollbackTransaction,
+    YiCadDocumentRollbackTransactionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentCreateEntityIterator,
+    YiCadDocumentCreateEntityIteratorFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorNext, YiCadEntityIteratorNextFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorGetLine, YiCadEntityIteratorGetLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorGetCircle, YiCadEntityIteratorGetCircleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorDestroy, YiCadEntityIteratorDestroyFn);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, beginImport, YiCadImportBeginFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, commitImport, YiCadImportCommitFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, rollbackImport, YiCadImportRollbackFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, getLastError, YiCadImportGetLastErrorFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, setDocumentSettings, YiCadImportSetDocumentSettingsFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createLineType, YiCadImportCreateLineTypeFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createLayer, YiCadImportCreateLayerFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createTextStyle, YiCadImportCreateTextStyleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createDimensionStyle,
+    YiCadImportCreateDimensionStyleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, getModelSpace, YiCadImportGetModelSpaceFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createPoint, YiCadImportCreatePointFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createLine, YiCadImportCreateLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createRay, YiCadImportCreateRayFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createXLine, YiCadImportCreateXLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createArc, YiCadImportCreateArcFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createCircle, YiCadImportCreateCircleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createEllipse, YiCadImportCreateEllipseFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createPolyline, YiCadImportCreatePolylineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createSpline, YiCadImportCreateSplineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createText, YiCadImportCreateTextFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createMText, YiCadImportCreateMTextFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, beginBlock, YiCadImportBeginBlockFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, endBlock, YiCadImportEndBlockFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createInsert, YiCadImportCreateInsertFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createAttributeDefinition,
+    YiCadImportCreateAttributeDefinitionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createAttribute, YiCadImportCreateAttributeFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createDimension, YiCadImportCreateDimensionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createLeader, YiCadImportCreateLeaderFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createHatch, YiCadImportCreateHatchFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createImage, YiCadImportCreateImageFn);
 #endif
 YICAD_ABI_STATIC_ASSERT(
     (yicad_plugin_abi_detail::IsSame<
@@ -1690,7 +1841,105 @@ YICAD_ABI_STATIC_ASSERT(
         decltype(&yicad_plugin_shutdown),
         YiCadPluginShutdownFn>::value),
     "plugin shutdown entry point signature changed");
+#undef YICAD_ABI_FUNCTION_FIELD_TYPE
 #else
+#define YICAD_ABI_FUNCTION_FIELD_TYPE(type, field, functionType)          \
+    YICAD_ABI_STATIC_ASSERT(                                               \
+        _Generic(((type*)0)->field, functionType: 1, default: 0),          \
+        #type "." #field " function type changed")
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadHostApi, message, YiCadMessageFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerCommand, YiCadRegisterCommandFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerRibbonButton, YiCadRegisterRibbonButtonFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, currentDocument, YiCadCurrentDocumentFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentAddLine, YiCadDocumentAddLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentAddCircle, YiCadDocumentAddCircleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentRegen, YiCadDocumentRegenFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentZoomAuto, YiCadDocumentZoomAutoFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerImportFilter, YiCadRegisterImportFilterFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, registerExportFilter, YiCadRegisterExportFilterFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentBeginTransaction,
+    YiCadDocumentBeginTransactionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentCommitTransaction,
+    YiCadDocumentCommitTransactionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentRollbackTransaction,
+    YiCadDocumentRollbackTransactionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, documentCreateEntityIterator,
+    YiCadDocumentCreateEntityIteratorFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorNext, YiCadEntityIteratorNextFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorGetLine, YiCadEntityIteratorGetLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorGetCircle, YiCadEntityIteratorGetCircleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadHostApi, entityIteratorDestroy, YiCadEntityIteratorDestroyFn);
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, beginImport, YiCadImportBeginFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, commitImport, YiCadImportCommitFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, rollbackImport, YiCadImportRollbackFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, getLastError, YiCadImportGetLastErrorFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, setDocumentSettings, YiCadImportSetDocumentSettingsFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createLineType, YiCadImportCreateLineTypeFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createLayer, YiCadImportCreateLayerFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createTextStyle, YiCadImportCreateTextStyleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createDimensionStyle,
+    YiCadImportCreateDimensionStyleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, getModelSpace, YiCadImportGetModelSpaceFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createPoint, YiCadImportCreatePointFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createLine, YiCadImportCreateLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createRay, YiCadImportCreateRayFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createXLine, YiCadImportCreateXLineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createArc, YiCadImportCreateArcFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createCircle, YiCadImportCreateCircleFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createEllipse, YiCadImportCreateEllipseFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createPolyline, YiCadImportCreatePolylineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createSpline, YiCadImportCreateSplineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createText, YiCadImportCreateTextFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createMText, YiCadImportCreateMTextFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, beginBlock, YiCadImportBeginBlockFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, endBlock, YiCadImportEndBlockFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createInsert, YiCadImportCreateInsertFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createAttributeDefinition,
+    YiCadImportCreateAttributeDefinitionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createAttribute, YiCadImportCreateAttributeFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createDimension, YiCadImportCreateDimensionFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createLeader, YiCadImportCreateLeaderFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createHatch, YiCadImportCreateHatchFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createImage, YiCadImportCreateImageFn);
+#endif
 YICAD_ABI_STATIC_ASSERT(
     _Generic(
         &yicad_plugin_get_abi_version,
@@ -1703,6 +1952,7 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     _Generic(&yicad_plugin_shutdown, YiCadPluginShutdownFn: 1, default: 0),
     "plugin shutdown entry point signature changed");
+#undef YICAD_ABI_FUNCTION_FIELD_TYPE
 #endif
 
 #undef YICAD_ABI_FIELD_FOLLOWS

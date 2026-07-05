@@ -124,6 +124,31 @@ bool validExtensibleArrayView(
 }
 
 template<typename Element, typename View>
+bool validFixedArrayView(
+    const View& view,
+    uint32_t maximumCount = 1000000) noexcept
+{
+    if (view.count == 0)
+    {
+        return true;
+    }
+    if (view.data == nullptr || view.count > maximumCount)
+    {
+        return false;
+    }
+    const auto address = reinterpret_cast<std::uintptr_t>(view.data);
+    if (address % alignof(Element) != 0 ||
+        view.count > std::numeric_limits<std::size_t>::max() /
+            sizeof(Element))
+    {
+        return false;
+    }
+    const auto byteCount = static_cast<std::size_t>(view.count) *
+        sizeof(Element);
+    return byteCount <= std::numeric_limits<std::uintptr_t>::max() - address;
+}
+
+template<typename Element, typename View>
 const Element* extensibleArrayElement(
     const View& view,
     uint32_t index) noexcept
@@ -159,6 +184,12 @@ bool copyStringView(const YiCadStringView& source, QString& target) noexcept
         {
             target.clear();
             return true;
+        }
+        const auto address = reinterpret_cast<std::uintptr_t>(source.data);
+        if (source.size >
+            std::numeric_limits<std::uintptr_t>::max() - address)
+        {
+            return false;
         }
         if (std::memchr(source.data, '\0', source.size) != nullptr)
         {
@@ -211,6 +242,10 @@ bool validLineWidth(int32_t width) noexcept
 
 bool toDmColor(const YiCadColorData& source, DmColor& color)
 {
+    if (source.reserved != 0)
+    {
+        return false;
+    }
     switch (source.method)
     {
     case YICAD_COLOR_BY_LAYER:
@@ -261,8 +296,7 @@ DmVector toDmVector(const YiCadPoint2d& point)
 
 bool validPointArray(const YiCadPoint2dArrayView& points) noexcept
 {
-    if ((points.data == nullptr && points.count != 0) ||
-        points.count > 1000000)
+    if (!validFixedArrayView<YiCadPoint2d>(points))
     {
         return false;
     }
@@ -278,8 +312,7 @@ bool validPointArray(const YiCadPoint2dArrayView& points) noexcept
 
 bool validDoubleArray(const YiCadDoubleArrayView& values) noexcept
 {
-    if ((values.data == nullptr && values.count != 0) ||
-        values.count > 1000000)
+    if (!validFixedArrayView<double>(values))
     {
         return false;
     }
@@ -292,6 +325,11 @@ bool validDoubleArray(const YiCadDoubleArrayView& values) noexcept
         }
     }
     return true;
+}
+
+bool validVertexArray(const YiCadVertex2dArrayView& vertices) noexcept
+{
+    return validFixedArrayView<YiCadVertex2d>(vertices);
 }
 #endif
 
@@ -436,24 +474,7 @@ HostApi::HostApi(
 HostApi::~HostApi()
 {
 #if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-    for (auto& record : m_importSessions)
-    {
-        if (!record->active)
-        {
-            continue;
-        }
-        try
-        {
-            if (m_context.isDocumentOpen(record->document))
-            {
-                record->transaction->rollback();
-            }
-        }
-        catch (...)
-        {
-        }
-        releaseImportSession(record.get());
-    }
+    rollbackAllImports();
     m_importSessions.clear();
 #endif
     for (auto& record : m_transactions)
@@ -510,6 +531,59 @@ bool HostApi::isDocumentHandleValid(
 {
     return m_active && resolveDocument(handle) != nullptr;
 }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+void HostApi::rollbackImportsForDocument(
+    const DmDocument* document) noexcept
+{
+    if (document == nullptr)
+    {
+        return;
+    }
+    for (auto& record : m_importSessions)
+    {
+        if (!record->active || record->document != document)
+        {
+            continue;
+        }
+        try
+        {
+            if (m_context.isDocumentOpen(record->document) &&
+                record->transaction != nullptr)
+            {
+                record->transaction->rollback();
+            }
+        }
+        catch (...)
+        {
+        }
+        releaseImportSession(record.get());
+    }
+}
+
+void HostApi::rollbackAllImports() noexcept
+{
+    for (auto& record : m_importSessions)
+    {
+        if (!record->active)
+        {
+            continue;
+        }
+        try
+        {
+            if (m_context.isDocumentOpen(record->document) &&
+                record->transaction != nullptr)
+            {
+                record->transaction->rollback();
+            }
+        }
+        catch (...)
+        {
+        }
+        releaseImportSession(record.get());
+    }
+}
+#endif
 
 HostApi* HostApi::activeInstance() noexcept
 {
@@ -1099,6 +1173,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
         *session = nullptr;
     }
 
+    std::unique_ptr<ImportSessionRecord> record;
     try
     {
         auto* instance = activeInstance();
@@ -1131,7 +1206,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
                 "文档已存在活动事务或导入会话");
         }
 
-        auto record = std::make_unique<ImportSessionRecord>();
+        record = std::make_unique<ImportSessionRecord>();
         record->document = document;
         record->modelSpace.document = document;
         record->modelSpace.modelSpace = true;
@@ -1145,6 +1220,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
         record->command = manager->getCurrentCmd();
         if (record->command == nullptr)
         {
+            record->transaction->rollback();
             return instance->setImportError(
                 YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
                 "宿主无法启动导入事务");
@@ -1160,6 +1236,18 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
     catch (const std::bad_alloc&)
     {
         auto* instance = activeInstance();
+        try
+        {
+            if (record != nullptr && record->transaction != nullptr &&
+                record->document != nullptr && instance != nullptr &&
+                instance->m_context.isDocumentOpen(record->document))
+            {
+                record->transaction->rollback();
+            }
+        }
+        catch (...)
+        {
+        }
         return instance == nullptr
             ? YICAD_IMPORT_ERROR_OUT_OF_MEMORY
             : instance->setImportError(
@@ -1169,6 +1257,18 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
     catch (...)
     {
         auto* instance = activeInstance();
+        try
+        {
+            if (record != nullptr && record->transaction != nullptr &&
+                record->document != nullptr && instance != nullptr &&
+                instance->m_context.isDocumentOpen(record->document))
+            {
+                record->transaction->rollback();
+            }
+        }
+        catch (...)
+        {
+        }
         return instance == nullptr
             ? YICAD_IMPORT_ERROR_TRANSACTION_FAILED
             : instance->setImportError(
@@ -1405,7 +1505,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
             "ABI v3 不支持含文字或形文件的复杂线型");
     }
     if ((input->elements.data == nullptr && input->elements.count != 0) ||
-        input->elements.count > 1000000)
+        !validDoubleArray(input->elements))
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
             "线型元素数组无效");
@@ -1413,6 +1513,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
 
     try
     {
+        session->resources.reserve(session->resources.size() + 1);
+        auto resourceRecord =
+            std::make_unique<ImportSessionRecord::ResourceRecord>();
+        const auto publishResource = [&](void* object, int kind) {
+            resourceRecord->object = object;
+            resourceRecord->kind = kind;
+            resourceRecord->active = true;
+            auto* handle = resourceRecord.get();
+            session->resources.push_back(std::move(resourceRecord));
+            return static_cast<void*>(handle);
+        };
         std::vector<double> elements;
         elements.reserve(input->elements.count);
         double calculatedLength = 0.0;
@@ -1440,8 +1551,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
             existing->getLineTypeData() == elements;
         if (identical)
         {
-            *resource = instance->registerImportResource(
-                session, existing, ImportResourceLineType);
+            *resource = publishResource(existing, ImportResourceLineType);
             instance->clearImportError();
             return YICAD_IMPORT_SUCCESS;
         }
@@ -1472,8 +1582,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
             lineType->setLineTypeDesp(description);
             lineType->setLineTypeData(elements);
         }
-        *resource = instance->registerImportResource(
-            session, lineType, ImportResourceLineType);
+        *resource = publishResource(lineType, ImportResourceLineType);
         instance->clearImportError();
         return YICAD_IMPORT_SUCCESS;
     }
@@ -1510,7 +1619,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
         !validConflictPolicy(conflictPolicy) ||
         !copyStringView(input->name, name) || name.isEmpty() ||
         !toDmColor(input->color, color) ||
-        !validLineWidth(input->lineWidth))
+        !validLineWidth(input->lineWidth) || input->frozen > 1 ||
+        input->locked > 1 || input->plottable > 1)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -1529,6 +1639,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
 
     try
     {
+        session->resources.reserve(session->resources.size() + 1);
+        auto resourceRecord =
+            std::make_unique<ImportSessionRecord::ResourceRecord>();
+        const auto publishResource = [&](void* object, int kind) {
+            resourceRecord->object = object;
+            resourceRecord->kind = kind;
+            resourceRecord->active = true;
+            auto* handle = resourceRecord.get();
+            session->resources.push_back(std::move(resourceRecord));
+            return static_cast<void*>(handle);
+        };
         auto* table = session->document->getLayerTable();
         auto* existing = table->find(name);
         DmLayerData desired(name,
@@ -1543,8 +1664,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
             existing->getData().print == desired.print;
         if (identical)
         {
-            *resource = instance->registerImportResource(
-                session, existing, ImportResourceLayer);
+            *resource = publishResource(existing, ImportResourceLayer);
             instance->clearImportError();
             return YICAD_IMPORT_SUCCESS;
         }
@@ -1574,8 +1694,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
             table->startModify(layer);
             layer->setData(desired);
         }
-        *resource = instance->registerImportResource(
-            session, layer, ImportResourceLayer);
+        *resource = publishResource(layer, ImportResourceLayer);
         instance->clearImportError();
         return YICAD_IMPORT_SUCCESS;
     }
@@ -1631,6 +1750,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
 
     try
     {
+        session->resources.reserve(session->resources.size() + 1);
+        auto resourceRecord =
+            std::make_unique<ImportSessionRecord::ResourceRecord>();
+        const auto publishResource = [&](void* object, int kind) {
+            resourceRecord->object = object;
+            resourceRecord->kind = kind;
+            resourceRecord->active = true;
+            auto* handle = resourceRecord.get();
+            session->resources.push_back(std::move(resourceRecord));
+            return static_cast<void*>(handle);
+        };
         DmTextStyleData desired;
         desired.name = name;
         desired.defaultHeight = input->fixedHeight;
@@ -1698,8 +1828,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
         }();
         if (identical)
         {
-            *resource = instance->registerImportResource(
-                session, existing, ImportResourceTextStyle);
+            *resource = publishResource(existing, ImportResourceTextStyle);
             if (!existing->isValid())
             {
                 instance->setImportError(YICAD_IMPORT_SUCCESS,
@@ -1736,8 +1865,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
             table->startModify(textStyle);
             textStyle->setData(desired);
         }
-        *resource = instance->registerImportResource(
-            session, textStyle, ImportResourceTextStyle);
+        *resource = publishResource(textStyle, ImportResourceTextStyle);
         if (!textStyle->isValid())
         {
             instance->setImportError(YICAD_IMPORT_SUCCESS,
@@ -1794,7 +1922,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
         !toDmColor(input->textColor, textColor) ||
         !toDmColor(input->textFillColor, textFillColor) ||
         !validLineWidth(input->dimLineWidth) ||
-        !validLineWidth(input->extensionLineWidth))
+        !validLineWidth(input->extensionLineWidth) ||
+        input->hideDimLine1 > 1 || input->hideDimLine2 > 1 ||
+        input->hideExtensionLine1 > 1 ||
+        input->hideExtensionLine2 > 1 ||
+        input->fixedExtensionLineLengthEnabled > 1 ||
+        input->drawTextBoundary > 1 ||
+        input->suppressLeadingZeros > 1 ||
+        input->suppressTrailingZeros > 1 ||
+        input->suppressAngularLeadingZeros > 1 ||
+        input->suppressAngularTrailingZeros > 1 ||
+        input->allowUnsupportedFields > 1)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -1849,6 +1987,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
 
     try
     {
+        session->resources.reserve(session->resources.size() + 1);
+        auto resourceRecord =
+            std::make_unique<ImportSessionRecord::ResourceRecord>();
+        const auto publishResource = [&](void* object, int kind) {
+            resourceRecord->object = object;
+            resourceRecord->kind = kind;
+            resourceRecord->active = true;
+            auto* handle = resourceRecord.get();
+            session->resources.push_back(std::move(resourceRecord));
+            return static_cast<void*>(handle);
+        };
         DmDimensionStyleData desired;
         desired.name = name;
         desired.setDimLineColor(dimLineColor);
@@ -1929,8 +2078,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
         auto* existing = table->find(name);
         if (existing != nullptr && same(existing->getDataConstRef(), desired))
         {
-            *resource = instance->registerImportResource(
-                session, existing, ImportResourceDimensionStyle);
+            *resource = publishResource(
+                existing, ImportResourceDimensionStyle);
         }
         else
         {
@@ -1958,8 +2107,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
                 table->startModify(style);
                 style->updateData(desired);
             }
-            *resource = instance->registerImportResource(
-                session, style, ImportResourceDimensionStyle);
+            *resource = publishResource(
+                style, ImportResourceDimensionStyle);
         }
 
         if (input->unsupportedFieldMask != 0)
@@ -2373,8 +2522,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createPolyline(
     if (input == nullptr ||
         !validStructPrefix(
             input->structSize, YICAD_POLYLINE_DATA_V3_MIN_SIZE) ||
-        input->vertices.data == nullptr || input->vertices.count < 2 ||
-        input->vertices.count > 1000000 ||
+        !validVertexArray(input->vertices) || input->vertices.count < 2 ||
         input->closed > 1)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
@@ -2690,9 +2838,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
     }
     if (input->background != nullptr)
     {
+        DmColor backgroundColor;
         if (!validStructPrefix(input->background->structSize,
                 YICAD_MTEXT_BACKGROUND_DATA_V3_MIN_SIZE) ||
             input->background->useDrawingBackgroundColor > 1 ||
+            !toDmColor(input->background->color, backgroundColor) ||
             !std::isfinite(input->background->borderScaleFactor) ||
             input->background->borderScaleFactor <= 0.0)
         {
@@ -2777,6 +2927,19 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginBlock(
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
             "块名称、基点或字符串参数无效");
+    }
+    constexpr uint32_t knownFlags =
+        YICAD_BLOCK_ANONYMOUS |
+        YICAD_BLOCK_HAS_ATTRIBUTES |
+        YICAD_BLOCK_EXTERNAL_REFERENCE |
+        YICAD_BLOCK_EXTERNAL_OVERLAY |
+        YICAD_BLOCK_EXTERNALLY_DEPENDENT |
+        YICAD_BLOCK_RESOLVED_EXTERNAL_REFERENCE |
+        YICAD_BLOCK_REFERENCED_EXTERNAL_REFERENCE;
+    if ((input->flags & ~knownFlags) != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "块标志包含未定义位");
     }
     constexpr uint32_t supportedFlags = YICAD_BLOCK_HAS_ATTRIBUTES;
     if (!description.isEmpty() || !path.isEmpty() ||
@@ -3002,6 +3165,18 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttributeDefinition(
         return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
             "属性定义的 tag、提示或默认值无效");
     }
+    constexpr uint32_t knownAttributeFlags =
+        YICAD_ATTRIBUTE_INVISIBLE |
+        YICAD_ATTRIBUTE_CONSTANT |
+        YICAD_ATTRIBUTE_VERIFY |
+        YICAD_ATTRIBUTE_PRESET |
+        YICAD_ATTRIBUTE_LOCK_POSITION |
+        YICAD_ATTRIBUTE_MULTILINE;
+    if ((input->flags & ~knownAttributeFlags) != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "属性定义标志包含未定义位");
+    }
     if (input->flags != 0)
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
@@ -3076,6 +3251,18 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
             "属性值的 tag 或内容无效");
+    }
+    constexpr uint32_t knownAttributeFlags =
+        YICAD_ATTRIBUTE_INVISIBLE |
+        YICAD_ATTRIBUTE_CONSTANT |
+        YICAD_ATTRIBUTE_VERIFY |
+        YICAD_ATTRIBUTE_PRESET |
+        YICAD_ATTRIBUTE_LOCK_POSITION |
+        YICAD_ATTRIBUTE_MULTILINE;
+    if ((input->flags & ~knownAttributeFlags) != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "属性值标志包含未定义位");
     }
     if (input->flags != 0)
     {
@@ -3561,7 +3748,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
             if (loop.kind == YICAD_HATCH_LOOP_POLYLINE)
             {
                 if (loop.edges.count != 0 ||
-                    loop.polylineVertices.data == nullptr ||
+                    !validVertexArray(loop.polylineVertices) ||
                     loop.polylineVertices.count < 3 ||
                     loop.polylineVertices.count > 1000000)
                 {
@@ -3651,13 +3838,40 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                             YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
                             "填充边结构被截短");
                     }
+                    if (source.counterClockwise > 1 ||
+                        source.rational > 1 || source.periodic > 1 ||
+                        !validPointArray(source.controlPoints) ||
+                        !validDoubleArray(source.knots) ||
+                        !validDoubleArray(source.weights))
+                    {
+                        return instance->setImportError(
+                            YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                            "填充边包含无效布尔值或数组视图");
+                    }
+                    const auto zeroPoint = [](const YiCadPoint2d& point) {
+                        return point.x == 0.0 && point.y == 0.0;
+                    };
+                    const auto noSplineData = [&source]() {
+                        return source.degree == 0 && source.rational == 0 &&
+                            source.periodic == 0 &&
+                            source.controlPoints.count == 0 &&
+                            source.knots.count == 0 &&
+                            source.weights.count == 0;
+                    };
                     std::unique_ptr<DmEntity> edge;
                     DmVector start(false);
                     DmVector end(false);
                     switch (source.type)
                     {
                     case YICAD_HATCH_EDGE_LINE:
-                        if (!finitePoint(source.startPoint) ||
+                        if (!zeroPoint(source.center) ||
+                            !zeroPoint(source.majorAxis) ||
+                            source.radius != 0.0 ||
+                            source.minorToMajorRatio != 0.0 ||
+                            source.startParameter != 0.0 ||
+                            source.endParameter != 0.0 ||
+                            source.counterClockwise != 0 || !noSplineData() ||
+                            !finitePoint(source.startPoint) ||
                             !finitePoint(source.endPoint) ||
                             toDmVector(source.startPoint).distanceTo(
                                 toDmVector(source.endPoint)) <= DM_TOLERANCE)
@@ -3672,7 +3886,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                             LineData(start, end));
                         break;
                     case YICAD_HATCH_EDGE_CIRCULAR_ARC:
-                        if (!finitePoint(source.center) ||
+                        if (!zeroPoint(source.startPoint) ||
+                            !zeroPoint(source.endPoint) ||
+                            !zeroPoint(source.majorAxis) ||
+                            source.minorToMajorRatio != 0.0 ||
+                            !noSplineData() || !finitePoint(source.center) ||
                             !std::isfinite(source.radius) ||
                             source.radius <= DM_TOLERANCE ||
                             !std::isfinite(source.startParameter) ||
@@ -3701,7 +3919,10 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                     case YICAD_HATCH_EDGE_ELLIPTIC_ARC:
                     {
                         const auto major = toDmVector(source.majorAxis);
-                        if (!finitePoint(source.center) ||
+                        if (!zeroPoint(source.startPoint) ||
+                            !zeroPoint(source.endPoint) ||
+                            source.radius != 0.0 || !noSplineData() ||
+                            !finitePoint(source.center) ||
                             !finitePoint(source.majorAxis) ||
                             major.magnitude() <= DM_TOLERANCE ||
                             !std::isfinite(source.minorToMajorRatio) ||
@@ -3736,6 +3957,20 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                     }
                     case YICAD_HATCH_EDGE_SPLINE:
                     {
+                        if (!zeroPoint(source.startPoint) ||
+                            !zeroPoint(source.endPoint) ||
+                            !zeroPoint(source.center) ||
+                            !zeroPoint(source.majorAxis) ||
+                            source.radius != 0.0 ||
+                            source.minorToMajorRatio != 0.0 ||
+                            source.startParameter != 0.0 ||
+                            source.endParameter != 0.0 ||
+                            source.counterClockwise != 0)
+                        {
+                            return instance->setImportError(
+                                YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                                "填充样条边的未使用字段必须为零");
+                        }
                         if (source.rational != 0 || source.periodic != 0 ||
                             source.weights.count != 0)
                         {
@@ -3744,8 +3979,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                                 "YiCAD 当前不支持有理或周期填充样条边");
                         }
                         if (source.degree < 1 || source.degree > 25 ||
-                            !validPointArray(source.controlPoints) ||
-                            !validDoubleArray(source.knots) ||
                             source.controlPoints.count < source.degree + 1 ||
                             source.knots.count !=
                                 source.controlPoints.count + source.degree + 1 ||
@@ -3897,9 +4130,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createImage(
         input->brightness < 0 || input->brightness > 100 ||
         input->contrast < 0 || input->contrast > 100 ||
         input->fade < 0 || input->fade > 100 ||
-        (input->clipBoundary.data == nullptr &&
-         input->clipBoundary.count != 0) ||
-        input->clipBoundary.count > 1000000)
+        !validPointArray(input->clipBoundary))
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
             "图像路径、方向、尺寸或显示参数无效");
@@ -4135,24 +4366,6 @@ void* HostApi::resolveImportResource(
         }
     }
     return nullptr;
-}
-
-YiCadImportResourceHandle HostApi::registerImportResource(
-    ImportSessionRecord* session,
-    void* object,
-    int kind)
-{
-    if (session == nullptr || !session->active || object == nullptr)
-    {
-        return nullptr;
-    }
-    auto resource = std::make_unique<ImportSessionRecord::ResourceRecord>();
-    resource->object = object;
-    resource->kind = kind;
-    resource->active = true;
-    auto* handle = resource.get();
-    session->resources.push_back(std::move(resource));
-    return static_cast<void*>(handle);
 }
 
 void* HostApi::resolveImportContainer(

@@ -402,6 +402,7 @@ void UITabDrawWidget::closeTab(SingleTabDrawDataRibbon* newTab)
 	// 删除数组对应元素
 	if (numb != -1)
 	{
+		emit documentAboutToClose(newTab->mdiWindow->getDocument());
 		// 释放资源
 		delete newTab->mdiWindow;
 		delete newTab->textBtn;

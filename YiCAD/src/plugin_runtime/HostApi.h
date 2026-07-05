@@ -61,6 +61,14 @@ public:
     /// @brief 验证 ABI 文档句柄当前仍可解析到打开的文档。
     bool isDocumentHandleValid(YiCadDocumentHandle handle) const noexcept;
 
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    /// @brief 在文档销毁前回滚并失效其全部活动导入会话。
+    void rollbackImportsForDocument(const DmDocument* document) noexcept;
+
+    /// @brief 在插件卸载或宿主退出前回滚并失效全部活动导入会话。
+    void rollbackAllImports() noexcept;
+#endif
+
 private:
     struct DocumentHandleRecord;
     struct TransactionRecord;
@@ -282,10 +290,6 @@ private:
         ImportSessionRecord* session,
         YiCadImportResourceHandle handle,
         int expectedKind) const noexcept;
-    YiCadImportResourceHandle registerImportResource(
-        ImportSessionRecord* session,
-        void* object,
-        int kind);
     void* resolveImportContainer(
         ImportSessionRecord* session,
         YiCadImportContainerHandle handle) const noexcept;

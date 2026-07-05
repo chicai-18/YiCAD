@@ -109,6 +109,8 @@ public:
 
 signals:
 	void tabChangeSignals();
+	/// @brief 文档对象销毁前通知宿主清理非拥有句柄和活动事务。
+	void documentAboutToClose(DmDocument* document);
 
 public:
 	/// @brief 新建指定名字的图纸，名字为空则自动指定

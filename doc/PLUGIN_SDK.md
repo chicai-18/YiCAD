@@ -18,11 +18,15 @@ share/YiCAD/sdk/
   PLUGIN_SDK.md
   PLUGIN_ABI_EVOLUTION.md
   PLUGIN_ABI_V3_PLAN.md
+  PLUGIN_ABI_V3_STAGE8_REVIEW.md
   licenses/LICENSE
 share/YiCAD/examples/demo_plugin/
 ```
 
-插件工程需要 CMake 3.21 或更高版本、C++23 编译器和与 YiCAD 进程相同的 Windows 架构。最小 `CMakeLists.txt`：
+插件工程需要 CMake 3.21 或更高版本、C++23 编译器和与 YiCAD 进程相同的 Windows 架构。
+ABI v3 发布候选仅完成 Win64 构建与运行时审查，因此当前正式支持范围是 Win64；头文件中
+保留的 Win32 布局断言只用于防止候选布局意外漂移，不构成 Win32 支持声明。最小
+`CMakeLists.txt`：
 
 YiCAD 使用两个安装组件。普通用户只安装运行时，插件开发者额外安装 SDK；不指定组件时，CMake 会安装两者：
 
