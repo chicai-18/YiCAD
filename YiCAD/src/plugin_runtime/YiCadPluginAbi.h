@@ -147,10 +147,9 @@ typedef int32_t YiCadColorMethod;
 #define YICAD_COLOR_ACI ((YiCadColorMethod)2)
 #define YICAD_COLOR_RGB ((YiCadColorMethod)3)
 
-/** @brief 支持随层、随块和 RGB；ACI 输入由宿主转换为 RGB。 */
+/** @brief 固定布局颜色值；支持随层、随块和 RGB，ACI 输入由宿主转换为 RGB。 */
 typedef struct YiCadColorData
 {
-    uint32_t structSize;
     YiCadColorMethod method;
     uint32_t aci;
     uint8_t red;
@@ -1149,6 +1148,107 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadImportResult) == 4,
     "YiCadImportResult must be 32-bit");
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadColorMethod) == 4,
+    "YiCadColorMethod must be 32-bit");
+
+#if defined(_WIN32) && UINTPTR_MAX == UINT64_MAX
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadStringView) == 16,
+    "unexpected Win64 YiCadStringView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadStringView) == 8,
+    "unexpected Win64 YiCadStringView alignment");
+YICAD_ABI_FIELD_AT(YiCadStringView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadStringView, size, 8);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadDoubleArrayView) == 16,
+    "unexpected Win64 YiCadDoubleArrayView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadDoubleArrayView) == 8,
+    "unexpected Win64 YiCadDoubleArrayView alignment");
+YICAD_ABI_FIELD_AT(YiCadDoubleArrayView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadDoubleArrayView, count, 8);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadPoint2dArrayView) == 16,
+    "unexpected Win64 YiCadPoint2dArrayView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadPoint2dArrayView) == 8,
+    "unexpected Win64 YiCadPoint2dArrayView alignment");
+YICAD_ABI_FIELD_AT(YiCadPoint2dArrayView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadPoint2dArrayView, count, 8);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadVertex2dArrayView) == 16,
+    "unexpected Win64 YiCadVertex2dArrayView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadVertex2dArrayView) == 8,
+    "unexpected Win64 YiCadVertex2dArrayView alignment");
+YICAD_ABI_FIELD_AT(YiCadVertex2dArrayView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadVertex2dArrayView, count, 8);
+#elif defined(_WIN32) && UINTPTR_MAX == UINT32_MAX
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadStringView) == 8,
+    "unexpected Win32 YiCadStringView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadStringView) == 4,
+    "unexpected Win32 YiCadStringView alignment");
+YICAD_ABI_FIELD_AT(YiCadStringView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadStringView, size, 4);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadDoubleArrayView) == 8,
+    "unexpected Win32 YiCadDoubleArrayView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadDoubleArrayView) == 4,
+    "unexpected Win32 YiCadDoubleArrayView alignment");
+YICAD_ABI_FIELD_AT(YiCadDoubleArrayView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadDoubleArrayView, count, 4);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadPoint2dArrayView) == 8,
+    "unexpected Win32 YiCadPoint2dArrayView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadPoint2dArrayView) == 4,
+    "unexpected Win32 YiCadPoint2dArrayView alignment");
+YICAD_ABI_FIELD_AT(YiCadPoint2dArrayView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadPoint2dArrayView, count, 4);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadVertex2dArrayView) == 8,
+    "unexpected Win32 YiCadVertex2dArrayView size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadVertex2dArrayView) == 4,
+    "unexpected Win32 YiCadVertex2dArrayView alignment");
+YICAD_ABI_FIELD_AT(YiCadVertex2dArrayView, data, 0);
+YICAD_ABI_FIELD_AT(YiCadVertex2dArrayView, count, 4);
+#endif
+
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadPoint2d) == 16,
+    "unexpected YiCadPoint2d size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadPoint2d) == 8,
+    "unexpected YiCadPoint2d alignment");
+YICAD_ABI_FIELD_AT(YiCadPoint2d, x, 0);
+YICAD_ABI_FIELD_AT(YiCadPoint2d, y, 8);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadPoint3d) == 24,
+    "unexpected YiCadPoint3d size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadPoint3d) == 8,
+    "unexpected YiCadPoint3d alignment");
+YICAD_ABI_FIELD_AT(YiCadPoint3d, x, 0);
+YICAD_ABI_FIELD_AT(YiCadPoint3d, y, 8);
+YICAD_ABI_FIELD_AT(YiCadPoint3d, z, 16);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadVector2d) == 16,
+    "unexpected YiCadVector2d size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadVector2d) == 8,
+    "unexpected YiCadVector2d alignment");
+YICAD_ABI_FIELD_AT(YiCadVector2d, x, 0);
+YICAD_ABI_FIELD_AT(YiCadVector2d, y, 8);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadVector3d) == 24,
+    "unexpected YiCadVector3d size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadVector3d) == 8,
+    "unexpected YiCadVector3d alignment");
+YICAD_ABI_FIELD_AT(YiCadVector3d, x, 0);
+YICAD_ABI_FIELD_AT(YiCadVector3d, y, 8);
+YICAD_ABI_FIELD_AT(YiCadVector3d, z, 16);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadColorData) == 12,
+    "unexpected YiCadColorData size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadColorData) == 4,
+    "unexpected YiCadColorData alignment");
+YICAD_ABI_FIELD_AT(YiCadColorData, method, 0);
+YICAD_ABI_FIELD_AT(YiCadColorData, aci, 4);
+YICAD_ABI_FIELD_AT(YiCadColorData, red, 8);
+YICAD_ABI_FIELD_AT(YiCadColorData, green, 9);
+YICAD_ABI_FIELD_AT(YiCadColorData, blue, 10);
+YICAD_ABI_FIELD_AT(YiCadColorData, reserved, 11);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadVertex2d) == 40,
+    "unexpected YiCadVertex2d size");
+YICAD_ABI_STATIC_ASSERT(YICAD_ABI_ALIGNOF(YiCadVertex2d) == 8,
+    "unexpected YiCadVertex2d alignment");
+YICAD_ABI_FIELD_AT(YiCadVertex2d, position, 0);
+YICAD_ABI_FIELD_AT(YiCadVertex2d, startWidth, 16);
+YICAD_ABI_FIELD_AT(YiCadVertex2d, endWidth, 24);
+YICAD_ABI_FIELD_AT(YiCadVertex2d, bulge, 32);
+
 YICAD_ABI_STATIC_ASSERT(
     offsetof(YiCadImportApi, structSize) == 0,
     "YiCadImportApi.structSize must be first");

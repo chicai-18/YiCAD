@@ -48,7 +48,6 @@ YiCadEntityAttributes demoAttributes(
     YiCadEntityAttributes attributes{};
     attributes.structSize = sizeof(attributes);
     attributes.layer = layer.nativeHandle();
-    attributes.color.structSize = sizeof(attributes.color);
     attributes.color.method = YICAD_COLOR_BY_LAYER;
     attributes.lineWidth = -1;
     attributes.lineTypeScale = 1.0;
@@ -245,7 +244,6 @@ private:
         layerData.structSize = sizeof(layerData);
         layerData.name = stringView("Demo Import");
         layerData.plottable = 1;
-        layerData.color.structSize = sizeof(layerData.color);
         layerData.color.method = YICAD_COLOR_RGB;
         layerData.color.red = 80;
         layerData.color.green = 160;

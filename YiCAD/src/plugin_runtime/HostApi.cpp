@@ -166,10 +166,6 @@ bool validLineWidth(int32_t width) noexcept
 
 bool toDmColor(const YiCadColorData& source, DmColor& color)
 {
-    if (!validStructSize(source.structSize, sizeof(YiCadColorData)))
-    {
-        return false;
-    }
     switch (source.method)
     {
     case YICAD_COLOR_BY_LAYER:
