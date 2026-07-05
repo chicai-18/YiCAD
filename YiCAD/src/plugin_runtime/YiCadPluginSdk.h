@@ -53,6 +53,206 @@ void invokeNoexcept(Callable&& callable) noexcept
 class ImportSession;
 class ImportContainer;
 class ImportResource;
+class EntityAttributes;
+
+namespace detail
+{
+
+template<typename Data>
+Data initializeImportData() noexcept = delete;
+
+#define YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(type)                         \
+    template<>                                                         \
+    inline type initializeImportData<type>() noexcept                  \
+    {                                                                  \
+        type data{};                                                   \
+        data.structSize = static_cast<uint32_t>(sizeof(data));         \
+        return data;                                                   \
+    }
+
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadLineTypeDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadPointDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadLineDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadArcDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadCircleDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadEllipseDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadPolylineDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadSplineDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadBlockDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadAttributeDefinitionDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadAttributeDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadLeaderDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadHatchEdgeDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadImageDataV3)
+
+#undef YICAD_SDK_DEFINE_ZERO_IMPORT_DATA
+
+template<>
+inline YiCadDocumentSettings
+initializeImportData<YiCadDocumentSettings>() noexcept
+{
+    YiCadDocumentSettings data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.globalLineTypeScale = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadLayerDataV3 initializeImportData<YiCadLayerDataV3>() noexcept
+{
+    YiCadLayerDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.plottable = 1;
+    data.color.method = YICAD_COLOR_BY_LAYER;
+    data.lineWidth = -1;
+    return data;
+}
+
+template<>
+inline YiCadTextStyleDataV3
+initializeImportData<YiCadTextStyleDataV3>() noexcept
+{
+    YiCadTextStyleDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.widthFactor = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadDimensionStyleDataV3
+initializeImportData<YiCadDimensionStyleDataV3>() noexcept
+{
+    YiCadDimensionStyleDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.dimLineColor.method = YICAD_COLOR_BY_LAYER;
+    data.extensionLineColor.method = YICAD_COLOR_BY_LAYER;
+    data.textColor.method = YICAD_COLOR_BY_LAYER;
+    data.textFillColor.method = YICAD_COLOR_BY_LAYER;
+    data.dimLineWidth = -1;
+    data.extensionLineWidth = -1;
+    data.fractionHeightScale = 1.0;
+    data.measurementScale = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadEntityAttributes
+initializeImportData<YiCadEntityAttributes>() noexcept
+{
+    YiCadEntityAttributes data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.color.method = YICAD_COLOR_BY_LAYER;
+    data.lineWidth = -1;
+    data.lineTypeScale = 1.0;
+    data.visible = 1;
+    data.normal.z = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadRayDataV3 initializeImportData<YiCadRayDataV3>() noexcept
+{
+    YiCadRayDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.direction.x = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadXLineDataV3 initializeImportData<YiCadXLineDataV3>() noexcept
+{
+    YiCadXLineDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.direction.x = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadTextDataV3 initializeImportData<YiCadTextDataV3>() noexcept
+{
+    YiCadTextDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.widthFactor = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadMTextBackgroundData
+initializeImportData<YiCadMTextBackgroundData>() noexcept
+{
+    YiCadMTextBackgroundData data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.color.method = YICAD_COLOR_BY_LAYER;
+    data.borderScaleFactor = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadMTextDataV3 initializeImportData<YiCadMTextDataV3>() noexcept
+{
+    YiCadMTextDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.direction.x = 1.0;
+    data.lineSpacingFactor = 1.0;
+    data.attachment = YICAD_MTEXT_TOP_LEFT;
+    return data;
+}
+
+template<>
+inline YiCadInsertDataV3 initializeImportData<YiCadInsertDataV3>() noexcept
+{
+    YiCadInsertDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.scale.x = 1.0;
+    data.scale.y = 1.0;
+    data.scale.z = 1.0;
+    data.columnCount = 1;
+    data.rowCount = 1;
+    return data;
+}
+
+template<>
+inline YiCadDimensionDataV3
+initializeImportData<YiCadDimensionDataV3>() noexcept
+{
+    YiCadDimensionDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.lineSpacingFactor = 1.0;
+    return data;
+}
+
+template<>
+inline YiCadHatchLoopDataV3
+initializeImportData<YiCadHatchLoopDataV3>() noexcept
+{
+    YiCadHatchLoopDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.outerLoopIndex = UINT32_MAX;
+    return data;
+}
+
+template<>
+inline YiCadHatchDataV3 initializeImportData<YiCadHatchDataV3>() noexcept
+{
+    YiCadHatchDataV3 data{};
+    data.structSize = static_cast<uint32_t>(sizeof(data));
+    data.patternScale = 1.0;
+    return data;
+}
+
+} // namespace detail
+
+/**
+ * @brief 创建已清零并带有完整 ABI 大小和协议默认值的 v3 输入 POD。
+ * @tparam Data `YiCadPluginAbi.h` 中受 SDK 支持的可扩展输入类型。
+ * @return 可继续填写业务字段并传给底层 POD 重载的输入结构。
+ * @note 不支持固定布局值类型或任意自定义类型；这些类型会在编译期被拒绝。
+ */
+template<typename Data>
+Data makeImportData() noexcept
+{
+    return detail::initializeImportData<Data>();
+}
 
 /// @brief 从 SDK 持有的连续容器生成填充边数组 ABI 视图。
 /// @return 元素数超过 ABI 可表示范围时返回空视图。
@@ -163,6 +363,73 @@ private:
 };
 
 /**
+ * @brief 插件侧实体公共属性，默认值与宿主的空 attributes 语义一致。
+ * @note 本对象不跨 DLL 边界；实体语义重载仅在宿主调用期间借用其内部 POD。
+ */
+class EntityAttributes
+{
+public:
+    EntityAttributes() noexcept
+        : m_data(makeImportData<YiCadEntityAttributes>())
+    {
+    }
+
+    /// @brief 设置图层；空或过期资源恢复为活动图层。
+    EntityAttributes& setLayer(const ImportResource& layer) noexcept
+    {
+        m_data.layer = layer.nativeHandle();
+        return *this;
+    }
+
+    /// @brief 设置线型；空或过期资源恢复为 ByLayer。
+    EntityAttributes& setLineType(const ImportResource& lineType) noexcept
+    {
+        m_data.lineType = lineType.nativeHandle();
+        return *this;
+    }
+
+    /// @brief 设置固定布局 ABI 颜色值。
+    EntityAttributes& setColor(const YiCadColorData& color) noexcept
+    {
+        m_data.color = color;
+        return *this;
+    }
+
+    /// @brief 设置标准线宽枚举值。
+    EntityAttributes& setLineWidth(int32_t lineWidth) noexcept
+    {
+        m_data.lineWidth = lineWidth;
+        return *this;
+    }
+
+    /// @brief 设置实体线型比例。
+    EntityAttributes& setLineTypeScale(double scale) noexcept
+    {
+        m_data.lineTypeScale = scale;
+        return *this;
+    }
+
+    /// @brief 设置实体可见性。
+    EntityAttributes& setVisible(bool visible) noexcept
+    {
+        m_data.visible = visible ? 1U : 0U;
+        return *this;
+    }
+
+    /// @brief 设置实体法向量。
+    EntityAttributes& setNormal(YiCadVector3d normal) noexcept
+    {
+        m_data.normal = normal;
+        return *this;
+    }
+
+private:
+    friend class ImportContainer;
+
+    YiCadEntityAttributes m_data;
+};
+
+/**
  * @brief 导入会话内的非拥有模型空间或块定义容器包装。
  * @note 容器只在所属会话内有效；块容器在 endBlock 成功后立即失效。
  * @note 创建函数返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，截短子表或
@@ -179,7 +446,53 @@ public:
                m_handle != nullptr;
     }
 
-    /// @brief 向容器添加点实体。
+    /**
+     * @brief 使用语义参数向容器添加点实体。
+     * @note SDK 在调用期间生成 ABI POD 和公共属性指针。
+     */
+    YiCadImportResult createPoint(
+        YiCadPoint2d position,
+        const EntityAttributes& attributes = {}) const noexcept
+    {
+        auto data = makeImportData<YiCadPointDataV3>();
+        data.attributes = &attributes.m_data;
+        data.position = position;
+        return createPoint(data);
+    }
+
+    /**
+     * @brief 使用语义参数向容器添加线段实体。
+     * @note SDK 在调用期间生成 ABI POD 和公共属性指针。
+     */
+    YiCadImportResult createLine(
+        YiCadPoint2d startPoint,
+        YiCadPoint2d endPoint,
+        const EntityAttributes& attributes = {}) const noexcept
+    {
+        auto data = makeImportData<YiCadLineDataV3>();
+        data.attributes = &attributes.m_data;
+        data.startPoint = startPoint;
+        data.endPoint = endPoint;
+        return createLine(data);
+    }
+
+    /**
+     * @brief 使用语义参数向容器添加圆实体。
+     * @note SDK 在调用期间生成 ABI POD 和公共属性指针。
+     */
+    YiCadImportResult createCircle(
+        YiCadPoint2d center,
+        double radius,
+        const EntityAttributes& attributes = {}) const noexcept
+    {
+        auto data = makeImportData<YiCadCircleDataV3>();
+        data.attributes = &attributes.m_data;
+        data.center = center;
+        data.radius = radius;
+        return createCircle(data);
+    }
+
+    /// @brief 使用底层 ABI POD 向容器添加点实体。
     YiCadImportResult createPoint(const YiCadPointDataV3& data) const noexcept
     {
         return createEntity(data, offsetof(YiCadImportApi, createPoint),
@@ -190,7 +503,7 @@ public:
                 : nullptr);
     }
 
-    /// @brief 向容器添加线段实体。
+    /// @brief 使用底层 ABI POD 向容器添加线段实体。
     YiCadImportResult createLine(const YiCadLineDataV3& data) const noexcept
     {
         return createEntity(data, offsetof(YiCadImportApi, createLine),
@@ -234,7 +547,7 @@ public:
                 : nullptr);
     }
 
-    /// @brief 向容器添加圆实体。
+    /// @brief 使用底层 ABI POD 向容器添加圆实体。
     YiCadImportResult createCircle(const YiCadCircleDataV3& data) const noexcept
     {
         return createEntity(data, offsetof(YiCadImportApi, createCircle),
