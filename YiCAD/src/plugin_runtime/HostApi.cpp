@@ -97,11 +97,6 @@ enum ImportResourceKind
     ImportResourceInsert = 6
 };
 
-bool validStructSize(uint32_t actual, std::size_t required) noexcept
-{
-    return actual >= required;
-}
-
 template<typename Element, typename View>
 bool validExtensibleArrayView(
     const View& view,
@@ -520,6 +515,25 @@ HostApi* HostApi::activeInstance() noexcept
 {
     return s_activeInstance;
 }
+
+#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+bool HostApi::hasStructField(
+    uint32_t structSize,
+    std::size_t fieldOffset,
+    std::size_t fieldSize) noexcept
+{
+    const auto availableSize = static_cast<std::size_t>(structSize);
+    return fieldOffset <= availableSize &&
+        fieldSize <= availableSize - fieldOffset;
+}
+
+bool HostApi::validStructPrefix(
+    uint32_t structSize,
+    std::size_t requiredSize) noexcept
+{
+    return hasStructField(structSize, 0, requiredSize);
+}
+#endif
 
 void YICAD_PLUGIN_CALL HostApi::message(const char* text) noexcept
 {
@@ -1320,11 +1334,10 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::setDocumentSettings(
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
-    constexpr auto requiredSize = offsetof(YiCadDocumentSettings, sourceCodePage) +
-        sizeof(((YiCadDocumentSettings*)0)->sourceCodePage);
     QString codePage;
     if (settings == nullptr ||
-        !validStructSize(settings->structSize, requiredSize) ||
+        !validStructPrefix(
+            settings->structSize, YICAD_DOCUMENT_SETTINGS_V3_MIN_SIZE) ||
         settings->insertionUnits < 0 || settings->insertionUnits > 20 ||
         (settings->measurement != 0 && settings->measurement != 1) ||
         !std::isfinite(settings->globalLineTypeScale) ||
@@ -1373,12 +1386,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadLineTypeDataV3, complex) +
-        sizeof(((YiCadLineTypeDataV3*)0)->complex);
     QString name;
     QString description;
     if (session == nullptr || input == nullptr || resource == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(
+            input->structSize, YICAD_LINE_TYPE_DATA_V3_MIN_SIZE) ||
         !validConflictPolicy(conflictPolicy) ||
         !copyStringView(input->name, name) || name.isEmpty() ||
         !copyStringView(input->description, description))
@@ -1491,12 +1503,10 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadLayerDataV3, lineWidth) +
-        sizeof(((YiCadLayerDataV3*)0)->lineWidth);
     QString name;
     DmColor color;
     if (session == nullptr || input == nullptr || resource == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_LAYER_DATA_V3_MIN_SIZE) ||
         !validConflictPolicy(conflictPolicy) ||
         !copyStringView(input->name, name) || name.isEmpty() ||
         !toDmColor(input->color, color) ||
@@ -1595,8 +1605,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadTextStyleDataV3, generationFlags) +
-        sizeof(((YiCadTextStyleDataV3*)0)->generationFlags);
     QString name;
     QString fontFile;
     QString bigFontFile;
@@ -1605,7 +1613,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
         YICAD_TEXT_GENERATION_UPSIDE_DOWN |
         YICAD_TEXT_GENERATION_VERTICAL;
     if (session == nullptr || input == nullptr || resource == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(
+            input->structSize, YICAD_TEXT_STYLE_DATA_V3_MIN_SIZE) ||
         !validConflictPolicy(conflictPolicy) ||
         !copyStringView(input->name, name) || name.isEmpty() ||
         !copyStringView(input->fontFile, fontFile) || fontFile.isEmpty() ||
@@ -1766,9 +1775,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(
-        YiCadDimensionStyleDataV3, allowUnsupportedFields) +
-        sizeof(((YiCadDimensionStyleDataV3*)0)->allowUnsupportedFields);
     QString name;
     QString prefix;
     QString suffix;
@@ -1777,7 +1783,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
     DmColor textColor;
     DmColor textFillColor;
     if (session == nullptr || input == nullptr || resource == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(
+            input->structSize, YICAD_DIMENSION_STYLE_DATA_V3_MIN_SIZE) ||
         !validConflictPolicy(conflictPolicy) ||
         !copyStringView(input->name, name) || name.isEmpty() ||
         !copyStringView(input->prefix, prefix) ||
@@ -2015,8 +2022,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createPoint(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadPointDataV3, position) +
-        sizeof(((YiCadPointDataV3*)0)->position);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2024,7 +2029,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createPoint(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_POINT_DATA_V3_MIN_SIZE) ||
         !finitePoint(input->position))
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
@@ -2057,21 +2062,21 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLine(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadLineDataV3, endPoint) +
-        sizeof(((YiCadLineDataV3*)0)->endPoint);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
-    const auto segmentLength = input == nullptr
-        ? 0.0
-        : toDmVector(input->startPoint).distanceTo(
-              toDmVector(input->endPoint));
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
-        !finitePoint(input->startPoint) || !finitePoint(input->endPoint) ||
+        !validStructPrefix(input->structSize, YICAD_LINE_DATA_V3_MIN_SIZE))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "线段结构为空或被截短");
+    }
+    const auto segmentLength = toDmVector(input->startPoint).distanceTo(
+        toDmVector(input->endPoint));
+    if (!finitePoint(input->startPoint) || !finitePoint(input->endPoint) ||
         !std::isfinite(segmentLength) || segmentLength <= DM_TOLERANCE)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_ARGUMENT
@@ -2105,8 +2110,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createRay(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadRayDataV3, direction) +
-        sizeof(((YiCadRayDataV3*)0)->direction);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2114,7 +2117,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createRay(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_RAY_DATA_V3_MIN_SIZE) ||
         !finitePoint(input->basePoint) || !finitePoint(input->direction) ||
         !std::isfinite(toDmVector(input->direction).magnitude()) ||
         toDmVector(input->direction).magnitude() <= DM_TOLERANCE)
@@ -2150,8 +2153,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createXLine(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadXLineDataV3, direction) +
-        sizeof(((YiCadXLineDataV3*)0)->direction);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2159,7 +2160,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createXLine(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_XLINE_DATA_V3_MIN_SIZE) ||
         !finitePoint(input->basePoint) || !finitePoint(input->direction) ||
         !std::isfinite(toDmVector(input->direction).magnitude()) ||
         toDmVector(input->direction).magnitude() <= DM_TOLERANCE)
@@ -2195,8 +2196,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createArc(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadArcDataV3, endAngle) +
-        sizeof(((YiCadArcDataV3*)0)->endAngle);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2204,7 +2203,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createArc(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_ARC_DATA_V3_MIN_SIZE) ||
         !finitePoint(input->center) || !std::isfinite(input->radius) ||
         !std::isfinite(input->startAngle) || !std::isfinite(input->endAngle) ||
         input->radius <= DM_TOLERANCE || input->radius > 1.0e150 ||
@@ -2254,8 +2253,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createCircle(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadCircleDataV3, radius) +
-        sizeof(((YiCadCircleDataV3*)0)->radius);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2263,7 +2260,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createCircle(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_CIRCLE_DATA_V3_MIN_SIZE) ||
         !finitePoint(input->center) || !std::isfinite(input->radius) ||
         input->radius <= DM_TOLERANCE || input->radius > 1.0e150)
     {
@@ -2298,20 +2295,20 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createEllipse(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadEllipseDataV3, closed) +
-        sizeof(((YiCadEllipseDataV3*)0)->closed);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
-    const auto majorAxis = input == nullptr
-        ? DmVector(false)
-        : toDmVector(input->majorAxis);
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
-        !finitePoint(input->center) || !finitePoint(input->majorAxis) ||
+        !validStructPrefix(input->structSize, YICAD_ELLIPSE_DATA_V3_MIN_SIZE))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "椭圆结构为空或被截短");
+    }
+    const auto majorAxis = toDmVector(input->majorAxis);
+    if (!finitePoint(input->center) || !finitePoint(input->majorAxis) ||
         !std::isfinite(input->minorToMajorRatio) ||
         !std::isfinite(input->startParameter) ||
         !std::isfinite(input->endParameter) || input->closed > 1 ||
@@ -2367,8 +2364,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createPolyline(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadPolylineDataV3, closed) +
-        sizeof(((YiCadPolylineDataV3*)0)->closed);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2376,7 +2371,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createPolyline(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(
+            input->structSize, YICAD_POLYLINE_DATA_V3_MIN_SIZE) ||
         input->vertices.data == nullptr || input->vertices.count < 2 ||
         input->vertices.count > 1000000 ||
         input->closed > 1)
@@ -2459,8 +2455,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createSpline(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadSplineDataV3, fitPoints) +
-        sizeof(((YiCadSplineDataV3*)0)->fitPoints);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2468,7 +2462,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createSpline(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_SPLINE_DATA_V3_MIN_SIZE) ||
         (input->definition != YICAD_SPLINE_CONTROL_POINTS &&
          input->definition != YICAD_SPLINE_FIT_POINTS) ||
         input->degree < 1 || input->degree > 25 || input->closed > 1 ||
@@ -2575,10 +2569,8 @@ YiCadImportResult HostApi::buildImportTextData(
     const QString& value,
     TextData& output) noexcept
 {
-    constexpr auto requiredSize = offsetof(YiCadTextDataV3, textStyle) +
-        sizeof(((YiCadTextDataV3*)0)->textStyle);
     if (session == nullptr ||
-        !validStructSize(input.structSize, requiredSize) ||
+        !validStructPrefix(input.structSize, YICAD_TEXT_DATA_V3_MIN_SIZE) ||
         !finitePoint(input.insertionPoint) ||
         !finitePoint(input.alignmentPoint) ||
         !std::isfinite(input.height) || input.height <= DM_TOLERANCE ||
@@ -2630,7 +2622,9 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createText(
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
-    if (input == nullptr || !copyStringView(input->text, value) ||
+    if (input == nullptr ||
+        !validStructPrefix(input->structSize, YICAD_TEXT_DATA_V3_MIN_SIZE) ||
+        !copyStringView(input->text, value) ||
         value.isEmpty())
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -2669,8 +2663,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadMTextDataV3, background) +
-        sizeof(((YiCadMTextDataV3*)0)->background);
     QString contents;
     if (session == nullptr)
     {
@@ -2679,7 +2671,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_MTEXT_DATA_V3_MIN_SIZE) ||
         !copyStringView(input->contents, contents) || contents.isEmpty() ||
         !finitePoint(input->insertionPoint) ||
         !finitePoint(input->direction) ||
@@ -2698,10 +2690,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
     }
     if (input->background != nullptr)
     {
-        constexpr auto backgroundSize =
-            offsetof(YiCadMTextBackgroundData, borderScaleFactor) +
-            sizeof(((YiCadMTextBackgroundData*)0)->borderScaleFactor);
-        if (!validStructSize(input->background->structSize, backgroundSize) ||
+        if (!validStructPrefix(input->background->structSize,
+                YICAD_MTEXT_BACKGROUND_DATA_V3_MIN_SIZE) ||
             input->background->useDrawingBackgroundColor > 1 ||
             !std::isfinite(input->background->borderScaleFactor) ||
             input->background->borderScaleFactor <= 0.0)
@@ -2768,9 +2758,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginBlock(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(
-        YiCadBlockDataV3, externalReferencePath) +
-        sizeof(((YiCadBlockDataV3*)0)->externalReferencePath);
     QString name;
     QString description;
     QString path;
@@ -2782,7 +2769,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginBlock(
     }
     if (input == nullptr || blockHandle == nullptr ||
         containerHandle == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_BLOCK_DATA_V3_MIN_SIZE) ||
         !copyStringView(input->name, name) || name.isEmpty() ||
         !finitePoint(input->basePoint) ||
         !copyStringView(input->description, description) ||
@@ -2899,8 +2886,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createInsert(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadInsertDataV3, rowSpacing) +
-        sizeof(((YiCadInsertDataV3*)0)->rowSpacing);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -2908,7 +2893,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createInsert(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr || insertHandle == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_INSERT_DATA_V3_MIN_SIZE) ||
         !finitePoint(input->insertionPoint) || !finitePoint(input->scale) ||
         !std::isfinite(input->rotation) ||
         !std::isfinite(input->columnSpacing) ||
@@ -2997,9 +2982,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttributeDefinition(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(
-        YiCadAttributeDefinitionDataV3, flags) +
-        sizeof(((YiCadAttributeDefinitionDataV3*)0)->flags);
     QString tag;
     QString prompt;
     QString defaultValue;
@@ -3010,7 +2992,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttributeDefinition(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize,
+            YICAD_ATTRIBUTE_DEFINITION_DATA_V3_MIN_SIZE) ||
         input->text == nullptr ||
         !copyStringView(input->tag, tag) || tag.trimmed().isEmpty() ||
         !copyStringView(input->prompt, prompt) ||
@@ -3076,8 +3059,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadAttributeDataV3, flags) +
-        sizeof(((YiCadAttributeDataV3*)0)->flags);
     QString tag;
     QString value;
     if (session == nullptr)
@@ -3087,7 +3068,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(
+            input->structSize, YICAD_ATTRIBUTE_DATA_V3_MIN_SIZE) ||
         input->text == nullptr ||
         !copyStringView(input->tag, tag) || tag.trimmed().isEmpty() ||
         !copyStringView(input->value, value))
@@ -3198,8 +3180,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimension(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadDimensionDataV3, leaderLength) +
-        sizeof(((YiCadDimensionDataV3*)0)->leaderLength);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -3207,7 +3187,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimension(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize))
+        !validStructPrefix(
+            input->structSize, YICAD_DIMENSION_DATA_V3_MIN_SIZE))
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
             "标注结构为空或被截短");
@@ -3354,8 +3335,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadLeaderDataV3, text) +
-        sizeof(((YiCadLeaderDataV3*)0)->text);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -3363,7 +3342,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
                   "导入会话句柄无效或已过期");
     }
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_LEADER_DATA_V3_MIN_SIZE) ||
         !validPointArray(input->vertices) || input->vertices.count < 2 ||
         input->hasArrow > 1)
     {
@@ -3421,7 +3400,9 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
         if (input->text != nullptr)
         {
             QString value;
-            if (!copyStringView(input->text->text, value))
+            if (!validStructPrefix(
+                    input->text->structSize, YICAD_TEXT_DATA_V3_MIN_SIZE) ||
+                !copyStringView(input->text->text, value))
             {
                 return instance->setImportError(
                     YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -3482,12 +3463,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadHatchDataV3, loops) +
-        sizeof(((YiCadHatchDataV3*)0)->loops);
-    constexpr auto loopSize = offsetof(YiCadHatchLoopDataV3, edges) +
-        sizeof(((YiCadHatchLoopDataV3*)0)->edges);
-    constexpr auto edgeSize = offsetof(YiCadHatchEdgeDataV3, weights) +
-        sizeof(((YiCadHatchEdgeDataV3*)0)->weights);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -3496,14 +3471,14 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
     }
     QString patternName;
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_HATCH_DATA_V3_MIN_SIZE) ||
         input->solid > 1 ||
         !copyStringView(input->patternName, patternName) ||
         !std::isfinite(input->patternScale) || input->patternScale <= 0.0 ||
         !std::isfinite(input->patternAngle) ||
         input->loops.count == 0 || input->loops.count > 100000 ||
         !validExtensibleArrayView<YiCadHatchLoopDataV3>(
-            input->loops, loopSize))
+            input->loops, YICAD_HATCH_LOOP_DATA_V3_MIN_SIZE))
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
             "填充图案参数或边界环数组无效");
@@ -3550,7 +3525,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                     "填充边界环数组字节步长无效");
             }
             const auto& loop = *loopInput;
-            if (!validStructSize(loop.structSize, loopSize) ||
+            if (!validStructPrefix(
+                    loop.structSize, YICAD_HATCH_LOOP_DATA_V3_MIN_SIZE) ||
                 loop.structSize > input->loops.byteStride ||
                 (loop.role != YICAD_HATCH_LOOP_OUTER &&
                  loop.role != YICAD_HATCH_LOOP_HOLE) ||
@@ -3646,7 +3622,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                 if (loop.polylineVertices.count != 0 ||
                     loop.edges.count == 0 || loop.edges.count > 1000000 ||
                     !validExtensibleArrayView<YiCadHatchEdgeDataV3>(
-                        loop.edges, edgeSize))
+                        loop.edges, YICAD_HATCH_EDGE_DATA_V3_MIN_SIZE))
                 {
                     return instance->setImportError(
                         YICAD_IMPORT_ERROR_OUT_OF_RANGE,
@@ -3667,7 +3643,8 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
                             "填充边数组字节步长无效");
                     }
                     const auto& source = *sourceInput;
-                    if (!validStructSize(source.structSize, edgeSize) ||
+                    if (!validStructPrefix(source.structSize,
+                            YICAD_HATCH_EDGE_DATA_V3_MIN_SIZE) ||
                         source.structSize > loop.edges.byteStride)
                     {
                         return instance->setImportError(
@@ -3899,8 +3876,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createImage(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
-    constexpr auto requiredSize = offsetof(YiCadImageDataV3, clipBoundary) +
-        sizeof(((YiCadImageDataV3*)0)->clipBoundary);
     if (session == nullptr)
     {
         return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
@@ -3909,7 +3884,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createImage(
     }
     QString path;
     if (input == nullptr ||
-        !validStructSize(input->structSize, requiredSize) ||
+        !validStructPrefix(input->structSize, YICAD_IMAGE_DATA_V3_MIN_SIZE) ||
         !copyStringView(input->path, path) || path.isEmpty() ||
         !finitePoint(input->insertionPoint) ||
         !finitePoint(input->uVector) || !finitePoint(input->vVector) ||
@@ -4212,10 +4187,8 @@ YiCadImportResult HostApi::normalizeImportEntityAttributes(
     const YiCadEntityAttributes* input,
     YiCadEntityAttributes& output) noexcept
 {
-    constexpr auto requiredSize = offsetof(YiCadEntityAttributes, normal) +
-        sizeof(((YiCadEntityAttributes*)0)->normal);
     output = {};
-    output.structSize = static_cast<uint32_t>(requiredSize);
+    output.structSize = YICAD_ENTITY_ATTRIBUTES_V3_MIN_SIZE;
     output.color.method = YICAD_COLOR_BY_LAYER;
     output.lineWidth = -1;
     output.lineTypeScale = 1.0;
@@ -4231,7 +4204,8 @@ YiCadImportResult HostApi::normalizeImportEntityAttributes(
     {
         return YICAD_IMPORT_SUCCESS;
     }
-    if (!validStructSize(input->structSize, requiredSize) ||
+    if (!validStructPrefix(
+            input->structSize, YICAD_ENTITY_ATTRIBUTES_V3_MIN_SIZE) ||
         !validLineWidth(input->lineWidth) ||
         !std::isfinite(input->lineTypeScale) || input->visible > 1 ||
         !finitePoint(input->normal))

@@ -717,6 +717,75 @@ typedef struct YiCadImageDataV3
     int32_t fade;
     YiCadPoint2dArrayView clipBoundary;
 } YiCadImageDataV3;
+
+/**
+ * @brief ABI v3 草案可扩展输入的当前最小必需前缀。
+ * @note 最小值只覆盖当前版本最后一个必需字段，不等同于接收方的 sizeof(T)。
+ * 调用方可以提供更大的结构；宿主必须忽略未知尾字段。未来新增可选尾字段时，
+ * 必须另行记录字段缺失时的默认值，并保持下列已有前缀不变。
+ */
+#define YICAD_ABI_STRUCT_FIELD_END(type, field) \
+    (offsetof(type, field) + sizeof(((type*)0)->field))
+
+#define YICAD_DOCUMENT_SETTINGS_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadDocumentSettings, sourceCodePage))
+#define YICAD_LINE_TYPE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadLineTypeDataV3, complex))
+#define YICAD_LAYER_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadLayerDataV3, lineWidth))
+#define YICAD_TEXT_STYLE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadTextStyleDataV3, generationFlags))
+#define YICAD_DIMENSION_STYLE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END( \
+        YiCadDimensionStyleDataV3, allowUnsupportedFields))
+#define YICAD_ENTITY_ATTRIBUTES_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadEntityAttributes, normal))
+#define YICAD_POINT_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadPointDataV3, position))
+#define YICAD_LINE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadLineDataV3, endPoint))
+#define YICAD_RAY_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadRayDataV3, direction))
+#define YICAD_XLINE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadXLineDataV3, direction))
+#define YICAD_ARC_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadArcDataV3, endAngle))
+#define YICAD_CIRCLE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadCircleDataV3, radius))
+#define YICAD_ELLIPSE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadEllipseDataV3, closed))
+#define YICAD_POLYLINE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadPolylineDataV3, closed))
+#define YICAD_SPLINE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadSplineDataV3, fitPoints))
+#define YICAD_TEXT_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadTextDataV3, textStyle))
+#define YICAD_MTEXT_BACKGROUND_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END( \
+        YiCadMTextBackgroundData, borderScaleFactor))
+#define YICAD_MTEXT_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadMTextDataV3, background))
+#define YICAD_BLOCK_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END( \
+        YiCadBlockDataV3, externalReferencePath))
+#define YICAD_INSERT_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadInsertDataV3, rowSpacing))
+#define YICAD_ATTRIBUTE_DEFINITION_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadAttributeDefinitionDataV3, flags))
+#define YICAD_ATTRIBUTE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadAttributeDataV3, flags))
+#define YICAD_DIMENSION_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadDimensionDataV3, leaderLength))
+#define YICAD_LEADER_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadLeaderDataV3, text))
+#define YICAD_HATCH_EDGE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadHatchEdgeDataV3, weights))
+#define YICAD_HATCH_LOOP_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadHatchLoopDataV3, edges))
+#define YICAD_HATCH_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadHatchDataV3, loops))
+#define YICAD_IMAGE_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadImageDataV3, clipBoundary))
 #endif
 
 typedef int32_t YiCadEntityType;

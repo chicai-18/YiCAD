@@ -264,6 +264,15 @@ private:
         YiCadEntityIteratorHandle handle) const noexcept;
     bool hasActiveTransaction(const DmDocument* document) const noexcept;
 #if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
+    /// @brief 判断结构声明的可访问范围是否完整覆盖指定字段。
+    static bool hasStructField(
+        uint32_t structSize,
+        std::size_t fieldOffset,
+        std::size_t fieldSize) noexcept;
+    /// @brief 判断结构声明的可访问范围是否覆盖当前版本必需前缀。
+    static bool validStructPrefix(
+        uint32_t structSize,
+        std::size_t requiredSize) noexcept;
     ImportSessionRecord* resolveImportSession(
         YiCadImportSessionHandle handle) const noexcept;
     bool hasActiveImportSession(const DmDocument* document) const noexcept;
