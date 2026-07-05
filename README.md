@@ -6,7 +6,7 @@ YiCAD is an open-source 2D CAD application that provides core features found in 
 
 ![YiCAD UI](screenshot.png)
 
-Current version: **v0.1**
+Current version: **v0.20.0**
 
 ## Features
 

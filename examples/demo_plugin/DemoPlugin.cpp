@@ -24,11 +24,7 @@ namespace
 constexpr const char* PluginId = "com.yicad.demo";
 constexpr const char* CommandId = "demo.add-line";
 constexpr const char* FormatId = "demo";
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-constexpr uint32_t SupportedAbiVersion = YICAD_PLUGIN_ABI_V3_DRAFT;
-#else
 constexpr uint32_t SupportedAbiVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
-#endif
 
 std::filesystem::path utf8Path(const char* path)
 {
@@ -127,12 +123,10 @@ private:
                 return YICAD_FAILURE;
             }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
             if (document.supportsImport())
             {
                 return plugin->importV3(document, input);
             }
-#endif
             return plugin->importV2(document, input);
         }, YICAD_FAILURE);
     }
@@ -208,7 +202,6 @@ private:
         return YICAD_SUCCESS;
     }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     static YiCadResult importV3(
         const yicad::plugin::Document& document,
         std::ifstream& input)
@@ -249,7 +242,6 @@ private:
             ? YICAD_SUCCESS
             : YICAD_FAILURE;
     }
-#endif
 
     static YiCadResult YICAD_PLUGIN_CALL exportFile(
         YiCadDocumentHandle handle,

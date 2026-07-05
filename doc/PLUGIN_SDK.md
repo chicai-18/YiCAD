@@ -17,15 +17,15 @@ lib/cmake/YiCADPluginSdk/
 share/YiCAD/sdk/
   PLUGIN_SDK.md
   PLUGIN_ABI_EVOLUTION.md
-  PLUGIN_ABI_V3_PLAN.md
-  PLUGIN_ABI_V3_STAGE8_REVIEW.md
+  PLUGIN_ABI_V3_REFERENCE.md
+  PLUGIN_ABI_V3_RELEASE.md
   licenses/LICENSE
 share/YiCAD/examples/demo_plugin/
 ```
 
 插件工程需要 CMake 3.21 或更高版本、C++23 编译器和与 YiCAD 进程相同的 Windows 架构。
-ABI v3 发布候选仅完成 Win64 构建与运行时审查，因此当前正式支持范围是 Win64；头文件中
-保留的 Win32 布局断言只用于防止候选布局意外漂移，不构成 Win32 支持声明。最小
+ABI v3 的正式支持范围是 Win64；头文件保留 Win32 布局断言以防止布局漂移，但当前发布
+没有完成 Win32 依赖、构建和运行时验收，因此不构成 Win32 支持声明。最小
 `CMakeLists.txt`：
 
 YiCAD 使用两个安装组件。普通用户只安装运行时，插件开发者额外安装 SDK；不指定组件时，CMake 会安装两者：
@@ -159,7 +159,7 @@ sdkHost.registerExportFilter(
     pluginId, "sample", "Sample Drawing", "sample", exportFile, userData);
 ```
 
-扩展名不带前导点。导出格式的规范名为 `pluginId/formatId`。文件回调收到有效期仅限本次调用的文档句柄和 UTF-8 路径；可通过 `Host::document(handle)` 获取 SDK 文档对象。批量导入应使用 v2 事务，任何解析或添加失败都返回 `YICAD_FAILURE`，让未提交事务整体回滚。导出应使用只读实体快照，不得访问 YiCAD 内部实体指针。
+扩展名不带前导点。导出格式的规范名为 `pluginId/formatId`。文件回调收到有效期仅限本次调用的文档句柄和 UTF-8 路径；可通过 `Host::document(handle)` 获取 SDK 文档对象。批量导入优先使用 v3 导入会话；协商到 v2 时可显式回退到文档事务。任何解析或添加失败都应让 RAII 对象回滚并返回 `YICAD_FAILURE`。导出应使用只读实体快照，不得访问 YiCAD 内部实体指针。
 
 ## ABI 版本兼容
 
@@ -167,20 +167,20 @@ sdkHost.registerExportFilter(
 
 ABI v1 包含命令、Ribbon、当前文档、基础几何、刷新、缩放和导入导出注册。ABI v2 只在 v1 尾部追加事务与只读实体枚举。详细规则和兼容矩阵见 [PLUGIN_ABI_EVOLUTION.md](PLUGIN_ABI_EVOLUTION.md)。
 
-ABI v3 仍是未发布草案，`YICAD_PLUGIN_ABI_MAX_VERSION` 和正式安装 SDK 均保持在
-v2。开发构建只有显式启用 `YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT` 才会装配导入子表。
-草案 C++ 封装提供 `ImportSession`、`ImportContainer` 和 `ImportResource`：会话析构
+ABI v3 已正式发布，`YICAD_PLUGIN_ABI_MAX_VERSION` 和 `YICAD_PLUGIN_ABI_VERSION` 均为
+`YICAD_PLUGIN_ABI_V3`。C++ 封装提供 `ImportSession`、`ImportContainer` 和
+`ImportResource`：会话析构
 自动回滚，容器负责创建实体，资源包装通过 `nativeHandle()` 填入关联资源的 POD 字段。
 每个包装方法都会分别检查协商版本、子表 `structSize` 和函数指针；截短子表只让对应
 尾部能力返回 `YICAD_IMPORT_ERROR_UNSUPPORTED`，不会影响已有前缀能力。完整实施范围和
-验收要求见 [PLUGIN_ABI_V3_PLAN.md](PLUGIN_ABI_V3_PLAN.md)。
+底层契约见 [PLUGIN_ABI_V3_REFERENCE.md](PLUGIN_ABI_V3_REFERENCE.md)。
 
 v3 普通 SDK 用法不得直接填写 `structSize`、数组字节步长或嵌套 ABI 指针，也不得依赖
 零初始化偶然产生有效业务默认值。SDK 必须通过默认构造、语义工厂或 builder 自动生成
 临时 C ABI POD，并设置公共属性默认值、所有可扩展结构大小、嵌套借用指针、数组数量和
 字节步长。普通示例只展示几何、资源和导入事务语义。
 
-草案 SDK 已提供默认构造层和按领域划分的高层输入类型。`EntityAttributes` 默认生成活动
+正式 SDK 提供默认构造层和按领域划分的高层输入类型。`EntityAttributes` 默认生成活动
 图层、ByLayer 线型和颜色、标准线宽 `-1`、线型比例 `1.0`、可见以及法向量
 `(0, 0, 1)`。基础几何直接使用语义重载；SDK 在调用宿主前生成临时 POD 并连接公共属性
 指针：

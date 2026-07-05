@@ -13,14 +13,12 @@
 #define YICAD_PLUGIN_ABI_V1 UINT32_C(1)
 /** @brief 文档事务与只读实体枚举 C ABI 版本号。 */
 #define YICAD_PLUGIN_ABI_V2 UINT32_C(2)
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-/** @brief 未发布的导入会话 C ABI v3 草案版本号。 */
-#define YICAD_PLUGIN_ABI_V3_DRAFT UINT32_C(3)
-#endif
+/** @brief 原子导入会话 C ABI v3 版本号。 */
+#define YICAD_PLUGIN_ABI_V3 UINT32_C(3)
 /** @brief 当前 SDK 支持的最低 C ABI 版本。 */
 #define YICAD_PLUGIN_ABI_MIN_VERSION YICAD_PLUGIN_ABI_V1
 /** @brief 当前 SDK 支持的最高 C ABI 版本。 */
-#define YICAD_PLUGIN_ABI_MAX_VERSION YICAD_PLUGIN_ABI_V2
+#define YICAD_PLUGIN_ABI_MAX_VERSION YICAD_PLUGIN_ABI_V3
 /** @brief 当前 C ABI 版本；保留该名称以兼容 ABI v1 插件源码。 */
 #define YICAD_PLUGIN_ABI_VERSION YICAD_PLUGIN_ABI_MAX_VERSION
 
@@ -68,7 +66,6 @@ typedef void* YiCadTransactionHandle;
  */
 typedef void* YiCadEntityIteratorHandle;
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 /** @brief 宿主持有的导入会话句柄，提交或回滚后立即失效。 */
 typedef void* YiCadImportSessionHandle;
 /** @brief 所属导入会话内有效的容器句柄。 */
@@ -90,7 +87,7 @@ typedef int32_t YiCadImportResult;
 #define YICAD_IMPORT_ERROR_TRANSACTION_FAILED ((YiCadImportResult)-8)
 
 /**
- * @brief ABI v3 草案输入结构的共同约定。
+ * @brief ABI v3 输入结构的共同约定。
  * @note 调用方应先将完整结构清零，再把 structSize 设为 sizeof(结构) 并填写字段。
  * 所有浮点数必须有限且绝对值不超过宿主可表示范围；角度使用弧度。布尔型
  * uint32_t 字段只接受 0 或 1。未明确声明可为空的字符串、数组和句柄不得为空。
@@ -719,7 +716,7 @@ typedef struct YiCadImageDataV3
 } YiCadImageDataV3;
 
 /**
- * @brief ABI v3 草案可扩展输入的当前最小必需前缀。
+ * @brief ABI v3 可扩展输入的冻结最小必需前缀。
  * @note 最小值只覆盖当前版本最后一个必需字段，不等同于接收方的 sizeof(T)。
  * 调用方可以提供更大的结构；宿主必须忽略未知尾字段。未来新增可选尾字段时，
  * 必须另行记录字段缺失时的默认值，并保持下列已有前缀不变。
@@ -786,7 +783,6 @@ typedef struct YiCadImageDataV3
     YICAD_ABI_STRUCT_FIELD_END(YiCadHatchDataV3, loops))
 #define YICAD_IMAGE_DATA_V3_MIN_SIZE ((uint32_t) \
     YICAD_ABI_STRUCT_FIELD_END(YiCadImageDataV3, clipBoundary))
-#endif
 
 typedef int32_t YiCadEntityType;
 
@@ -908,7 +904,6 @@ typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadEntityIteratorGetCircleFn)(
 typedef void (YICAD_PLUGIN_CALL *YiCadEntityIteratorDestroyFn)(
     YiCadEntityIteratorHandle iterator);
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 typedef struct YiCadImportApi YiCadImportApi;
 
 /**
@@ -1086,10 +1081,10 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateImageFn)(
     const YiCadImageDataV3* data);
 
 /**
- * @brief 未发布的 ABI v3 导入子函数表草案。
+ * @brief ABI v3 导入子函数表。
  * @note 宿主持有本表，其生命周期与 YiCadHostApi 相同。插件读取任何函数指针前
  * 必须同时检查 abiVersion、structSize 和指针；缺失尾字段表示该能力不支持。
- * 字段顺序是当前候选顺序，只能在尾部追加。
+ * 字段顺序是 ABI v3 冻结顺序；后续 ABI 只能在尾部追加。
  */
 struct YiCadImportApi
 {
@@ -1126,7 +1121,6 @@ struct YiCadImportApi
     YiCadImportCreateHatchFn createHatch;
     YiCadImportCreateImageFn createImage;
 };
-#endif
 
 typedef struct YiCadHostApi
 {
@@ -1150,10 +1144,8 @@ typedef struct YiCadHostApi
     YiCadEntityIteratorGetLineFn entityIteratorGetLine;
     YiCadEntityIteratorGetCircleFn entityIteratorGetCircle;
     YiCadEntityIteratorDestroyFn entityIteratorDestroy;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-    /** @brief ABI v3 草案导入子表；其生命周期与宿主表相同。 */
+    /** @brief ABI v3 导入子表；其生命周期与宿主表相同。 */
     const YiCadImportApi* importApi;
-#endif
 } YiCadHostApi;
 
 typedef struct YiCadPluginApi
@@ -1177,16 +1169,14 @@ typedef struct YiCadPluginApi
 #define YICAD_HOST_API_V2_SIZE                                            \
     ((uint32_t)(offsetof(YiCadHostApi, entityIteratorDestroy) +           \
                 sizeof(((YiCadHostApi*)0)->entityIteratorDestroy)))
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-/** @brief ABI v3 草案宿主表的当前可访问字节数。 */
-#define YICAD_HOST_API_V3_DRAFT_SIZE                                      \
+/** @brief ABI v3 宿主表的冻结字节数。 */
+#define YICAD_HOST_API_V3_SIZE                                            \
     ((uint32_t)(offsetof(YiCadHostApi, importApi) +                        \
                 sizeof(((YiCadHostApi*)0)->importApi)))
-/** @brief ABI v3 草案导入子表的当前可访问字节数。 */
-#define YICAD_IMPORT_API_V3_DRAFT_SIZE                                    \
+/** @brief ABI v3 导入子表的冻结字节数。 */
+#define YICAD_IMPORT_API_V3_SIZE                                          \
     ((uint32_t)(offsetof(YiCadImportApi, createImage) +                    \
                 sizeof(((YiCadImportApi*)0)->createImage)))
-#endif
 
 /** @brief 插件入口类型；返回插件实现的最高 ABI 版本且不得抛出异常。 */
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
@@ -1251,10 +1241,9 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_V2 == UINT32_C(2),
     "ABI v2 version snapshot changed");
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_STATIC_ASSERT(
-    YICAD_PLUGIN_ABI_V3_DRAFT == UINT32_C(3),
-    "ABI v3 draft version snapshot changed");
+    YICAD_PLUGIN_ABI_V3 == UINT32_C(3),
+    "ABI v3 version snapshot changed");
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadImportResult) == 4,
     "YiCadImportResult must be 32-bit");
@@ -1490,7 +1479,6 @@ YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createDimension, createAttribute);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createLeader, createDimension);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createHatch, createLeader);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createImage, createHatch);
-#endif
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,
     "invalid supported ABI version range");
@@ -1546,24 +1534,20 @@ YICAD_ABI_FIELD_FOLLOWS(
     YiCadHostApi,
     entityIteratorDestroy,
     entityIteratorGetCircle);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, importApi, entityIteratorDestroy);
 YICAD_ABI_STATIC_ASSERT(
     offsetof(YiCadHostApi, importApi) == YICAD_HOST_API_V2_SIZE,
-    "ABI v3 draft must append only one aligned host-table pointer");
+    "ABI v3 must append only one aligned host-table pointer");
 YICAD_ABI_STATIC_ASSERT(
-    YICAD_HOST_API_V3_DRAFT_SIZE ==
+    YICAD_HOST_API_V3_SIZE ==
         YICAD_HOST_API_V2_SIZE + sizeof(void*),
-    "unexpected ABI v3 draft host-table growth");
+    "unexpected ABI v3 host-table growth");
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadImportApi) == YICAD_IMPORT_API_V3_DRAFT_SIZE,
-    "ABI v3 draft import table has unexpected tail padding");
-#endif
+    sizeof(YiCadImportApi) == YICAD_IMPORT_API_V3_SIZE,
+    "ABI v3 import table has unexpected tail padding");
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadHostApi) >=
-        offsetof(YiCadHostApi, entityIteratorDestroy) +
-            sizeof(((YiCadHostApi*)0)->entityIteratorDestroy),
-    "YiCadHostApi must contain its final field");
+    sizeof(YiCadHostApi) == YICAD_HOST_API_V3_SIZE,
+    "YiCadHostApi must match the ABI v3 snapshot");
 
 YICAD_ABI_STATIC_ASSERT(
     offsetof(YiCadPluginApi, structSize) == 0,
@@ -1611,18 +1595,16 @@ YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorNext, 120);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetLine, 128);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetCircle, 136);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorDestroy, 144);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_STATIC_ASSERT(
-    YICAD_HOST_API_V3_DRAFT_SIZE == 160,
-    "unexpected Win64 host ABI v3 draft size");
+    YICAD_HOST_API_V3_SIZE == 160,
+    "unexpected Win64 host ABI v3 size");
 YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 152);
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadImportApi) == 248,
-    "unexpected Win64 import ABI v3 draft size");
+    "unexpected Win64 import ABI v3 size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_ABI_ALIGNOF(YiCadImportApi) == 8,
-    "unexpected Win64 import ABI v3 draft alignment");
-#endif
+    "unexpected Win64 import ABI v3 alignment");
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadPluginApi) >= YICAD_PLUGIN_API_V1_SIZE,
     "Win64 plugin ABI lost its v1 prefix");
@@ -1666,18 +1648,16 @@ YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorNext, 64);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetLine, 68);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetCircle, 72);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorDestroy, 76);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_STATIC_ASSERT(
-    YICAD_HOST_API_V3_DRAFT_SIZE == 84,
-    "unexpected Win32 host ABI v3 draft size");
+    YICAD_HOST_API_V3_SIZE == 84,
+    "unexpected Win32 host ABI v3 size");
 YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 80);
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadImportApi) == 128,
-    "unexpected Win32 import ABI v3 draft size");
+    "unexpected Win32 import ABI v3 size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_ABI_ALIGNOF(YiCadImportApi) == 4,
-    "unexpected Win32 import ABI v3 draft alignment");
-#endif
+    "unexpected Win32 import ABI v3 alignment");
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadPluginApi) >= YICAD_PLUGIN_API_V1_SIZE,
     "Win32 plugin ABI lost its v1 prefix");
@@ -1728,11 +1708,9 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_STATIC_ASSERT(
     __is_standard_layout(YiCadPluginApi),
     "YiCadPluginApi must have standard layout");
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_STATIC_ASSERT(
     __is_standard_layout(YiCadImportApi),
     "YiCadImportApi must have standard layout");
-#endif
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadHostApi, message, YiCadMessageFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadHostApi, registerCommand, YiCadRegisterCommandFn);
@@ -1772,7 +1750,6 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadHostApi, entityIteratorGetCircle, YiCadEntityIteratorGetCircleFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadHostApi, entityIteratorDestroy, YiCadEntityIteratorDestroyFn);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, beginImport, YiCadImportBeginFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, commitImport, YiCadImportCommitFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
@@ -1825,7 +1802,6 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createHatch, YiCadImportCreateHatchFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createImage, YiCadImportCreateImageFn);
-#endif
 YICAD_ABI_STATIC_ASSERT(
     (yicad_plugin_abi_detail::IsSame<
         decltype(&yicad_plugin_get_abi_version),
@@ -1886,7 +1862,6 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadHostApi, entityIteratorGetCircle, YiCadEntityIteratorGetCircleFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadHostApi, entityIteratorDestroy, YiCadEntityIteratorDestroyFn);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, beginImport, YiCadImportBeginFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, commitImport, YiCadImportCommitFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
@@ -1939,7 +1914,6 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createHatch, YiCadImportCreateHatchFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createImage, YiCadImportCreateImageFn);
-#endif
 YICAD_ABI_STATIC_ASSERT(
     _Generic(
         &yicad_plugin_get_abi_version,

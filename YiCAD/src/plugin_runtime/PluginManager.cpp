@@ -17,13 +17,8 @@ constexpr std::uint32_t AbiHeaderSize =
     static_cast<std::uint32_t>(
         offsetof(YiCadHostApi, abiVersion) +
         sizeof(std::uint32_t));
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-constexpr std::uint32_t HostMaximumAbiVersion =
-    YICAD_PLUGIN_ABI_V3_DRAFT;
-#else
 constexpr std::uint32_t HostMaximumAbiVersion =
     YICAD_PLUGIN_ABI_MAX_VERSION;
-#endif
 
 void setError(
     PluginManagerRecord& record,
@@ -140,10 +135,8 @@ void PluginManager::shutdownAll() noexcept
         auto& plugin = **iterator;
         auto& record = m_records[static_cast<int>(plugin.recordIndex)];
         const bool shutdownSucceeded = invokeShutdown(plugin, record);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
         /// @brief DLL 卸载前使插件遗留的宿主会话失效，避免悬挂事务。
         m_hostApi.rollbackAllImports();
-#endif
         plugin.loader.unload();
 
         if (!shutdownSucceeded && !record.error.isError())
@@ -269,19 +262,12 @@ void PluginManager::loadManifest(
             : host->abiVersion;
 
         std::uint32_t negotiatedHostSize = YICAD_HOST_API_V1_SIZE;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
         negotiatedHostSize =
-            record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V3_DRAFT
-            ? YICAD_HOST_API_V3_DRAFT_SIZE
+            record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V3
+            ? YICAD_HOST_API_V3_SIZE
             : record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V2
                 ? YICAD_HOST_API_V2_SIZE
                 : YICAD_HOST_API_V1_SIZE;
-#else
-        negotiatedHostSize =
-            record.negotiatedAbiVersion >= YICAD_PLUGIN_ABI_V2
-            ? YICAD_HOST_API_V2_SIZE
-            : YICAD_HOST_API_V1_SIZE;
-#endif
         if (host->structSize < negotiatedHostSize ||
             negotiatedHostSize > sizeof(YiCadHostApi))
         {
@@ -474,8 +460,6 @@ void PluginManager::cleanupFailedPlugin(
     }
 
     invokeShutdown(plugin, record);
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     m_hostApi.rollbackAllImports();
-#endif
     plugin.loader.unload();
 }

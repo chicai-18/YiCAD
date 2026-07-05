@@ -86,7 +86,6 @@ bool copyUtf8(const char* source, QString& target)
     return true;
 }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 enum ImportResourceKind
 {
     ImportResourceLineType = 1,
@@ -331,7 +330,6 @@ bool validVertexArray(const YiCadVertex2dArrayView& vertices) noexcept
 {
     return validFixedArrayView<YiCadVertex2d>(vertices);
 }
-#endif
 
 } // namespace
 
@@ -361,7 +359,6 @@ struct HostApi::EntityIteratorRecord
     bool hasCurrent = false;
 };
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 struct HostApi::ImportSessionRecord
 {
     struct ContainerRecord
@@ -390,7 +387,6 @@ struct HostApi::ImportSessionRecord
     std::vector<std::unique_ptr<ContainerRecord>> containers;
     std::vector<std::unique_ptr<ResourceRecord>> resources;
 };
-#endif
 
 thread_local HostApi* HostApi::s_activeInstance = nullptr;
 
@@ -399,10 +395,9 @@ HostApi::HostApi(
     PluginRegistry& registry) noexcept
     : m_context(context)
     , m_registry(registry)
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     , m_importApi{
-          YICAD_IMPORT_API_V3_DRAFT_SIZE,
-          YICAD_PLUGIN_ABI_V3_DRAFT,
+          YICAD_IMPORT_API_V3_SIZE,
+          YICAD_PLUGIN_ABI_V3,
           &HostApi::beginImport,
           &HostApi::commitImport,
           &HostApi::rollbackImport,
@@ -433,14 +428,9 @@ HostApi::HostApi(
           &HostApi::createLeader,
           &HostApi::createHatch,
           &HostApi::createImage}
-#endif
     , m_api{
           static_cast<uint32_t>(sizeof(YiCadHostApi)),
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-          YICAD_PLUGIN_ABI_V3_DRAFT,
-#else
           YICAD_PLUGIN_ABI_MAX_VERSION,
-#endif
           &HostApi::message,
           &HostApi::registerCommand,
           &HostApi::registerRibbonButton,
@@ -458,10 +448,8 @@ HostApi::HostApi(
           &HostApi::entityIteratorNext,
           &HostApi::entityIteratorGetLine,
           &HostApi::entityIteratorGetCircle,
-          &HostApi::entityIteratorDestroy
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-          , &m_importApi
-#endif
+          &HostApi::entityIteratorDestroy,
+          &m_importApi
       }
 {
     if (s_activeInstance == nullptr)
@@ -473,10 +461,8 @@ HostApi::HostApi(
 
 HostApi::~HostApi()
 {
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     rollbackAllImports();
     m_importSessions.clear();
-#endif
     for (auto& record : m_transactions)
     {
         try
@@ -532,7 +518,6 @@ bool HostApi::isDocumentHandleValid(
     return m_active && resolveDocument(handle) != nullptr;
 }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 void HostApi::rollbackImportsForDocument(
     const DmDocument* document) noexcept
 {
@@ -583,14 +568,12 @@ void HostApi::rollbackAllImports() noexcept
         releaseImportSession(record.get());
     }
 }
-#endif
 
 HostApi* HostApi::activeInstance() noexcept
 {
     return s_activeInstance;
 }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 bool HostApi::hasStructField(
     uint32_t structSize,
     std::size_t fieldOffset,
@@ -607,7 +590,6 @@ bool HostApi::validStructPrefix(
 {
     return hasStructField(structSize, 0, requiredSize);
 }
-#endif
 
 void YICAD_PLUGIN_CALL HostApi::message(const char* text) noexcept
 {
@@ -1163,7 +1145,6 @@ void YICAD_PLUGIN_CALL HostApi::entityIteratorDestroy(
     }
 }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginImport(
     YiCadDocumentHandle documentHandle,
     YiCadImportSessionHandle* session) noexcept
@@ -4168,7 +4149,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createImage(
             "创建图像实体失败");
     }
 }
-#endif
 
 YiCadDocumentHandle HostApi::handleForDocument(DmDocument* document)
 {
@@ -4272,16 +4252,13 @@ bool HostApi::hasActiveTransaction(
             return true;
         }
     }
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     if (hasActiveImportSession(document))
     {
         return true;
     }
-#endif
     return false;
 }
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
 HostApi::ImportSessionRecord* HostApi::resolveImportSession(
     YiCadImportSessionHandle handle) const noexcept
 {
@@ -4650,4 +4627,3 @@ void HostApi::clearImportError() noexcept
 {
     m_importLastError.clear();
 }
-#endif

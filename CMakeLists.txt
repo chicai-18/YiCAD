@@ -12,7 +12,7 @@ include(CMakePackageConfigHelpers)
 set(PACKAGE_VERSION_MAJOR "0")
 set(PACKAGE_VERSION_MINOR "20")
 set(PACKAGE_VERSION_PATCH "0")
-set(PACKAGE_VERSION_SUFFIX "dev") # either "dev" for development snapshot or "" (empty string)
+set(PACKAGE_VERSION_SUFFIX "") # either "dev" for development snapshot or "" (empty string)
 set(YICAD_VERSION_PATCH "0") # number of patch release (e.g. "4" for the 0.18.4 release)
 set(YICAD_VERSION "${PACKAGE_VERSION_MAJOR}.${PACKAGE_VERSION_MINOR}")
 
@@ -74,17 +74,9 @@ endif()
 OPTION(UPDATE_TRANSLATIONS "Update translations on compile" OFF)
 MESSAGE(STATUS "UPDATE TRANSLATIONS: ${UPDATE_TRANSLATIONS}")
 option(USE_VISUAL_LEAK_DETECTOR "Use visual leak detector to detect memory leakage" OFF)
-option(
-    YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT
-    "Enable the unpublished plugin ABI v3 import-session draft"
-    OFF)
-
 # 设置子项目
 add_subdirectory("YiCAD")
-if(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
-    # 草案 demo 仅参与开发构建，不安装为正式 ABI v3 二进制 SDK 交付物。
-    add_subdirectory("examples/demo_plugin" "examples/demo_plugin")
-endif()
+add_subdirectory("examples/demo_plugin" "examples/demo_plugin")
 
 # YiCADPluginSdk CMake package 的生成、安装和消费流程：
 # 1. 配置阶段：
@@ -129,8 +121,8 @@ install(FILES
 install(FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/doc/PLUGIN_SDK.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/doc/PLUGIN_ABI_EVOLUTION.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/doc/PLUGIN_ABI_V3_PLAN.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/doc/PLUGIN_ABI_V3_STAGE8_REVIEW.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/doc/PLUGIN_ABI_V3_REFERENCE.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/doc/PLUGIN_ABI_V3_RELEASE.md"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/YiCAD/sdk"
         COMPONENT PluginSDK)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"

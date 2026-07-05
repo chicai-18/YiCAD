@@ -61,21 +61,17 @@ public:
     /// @brief 验证 ABI 文档句柄当前仍可解析到打开的文档。
     bool isDocumentHandleValid(YiCadDocumentHandle handle) const noexcept;
 
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     /// @brief 在文档销毁前回滚并失效其全部活动导入会话。
     void rollbackImportsForDocument(const DmDocument* document) noexcept;
 
     /// @brief 在插件卸载或宿主退出前回滚并失效全部活动导入会话。
     void rollbackAllImports() noexcept;
-#endif
 
 private:
     struct DocumentHandleRecord;
     struct TransactionRecord;
     struct EntityIteratorRecord;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     struct ImportSessionRecord;
-#endif
 
     static HostApi* activeInstance() noexcept;
 
@@ -142,7 +138,6 @@ private:
         YiCadCircleData* circle) noexcept;
     static void YICAD_PLUGIN_CALL entityIteratorDestroy(
         YiCadEntityIteratorHandle iterator) noexcept;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     static YiCadImportResult YICAD_PLUGIN_CALL beginImport(
         YiCadDocumentHandle document,
         YiCadImportSessionHandle* session) noexcept;
@@ -260,7 +255,6 @@ private:
         YiCadImportSessionHandle session,
         YiCadImportContainerHandle container,
         const YiCadImageDataV3* data) noexcept;
-#endif
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);
     DmDocument* resolveDocument(
@@ -271,7 +265,6 @@ private:
     EntityIteratorRecord* resolveEntityIterator(
         YiCadEntityIteratorHandle handle) const noexcept;
     bool hasActiveTransaction(const DmDocument* document) const noexcept;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     /// @brief 判断结构声明的可访问范围是否完整覆盖指定字段。
     static bool hasStructField(
         uint32_t structSize,
@@ -317,21 +310,16 @@ private:
         YiCadImportResult result,
         const char* message) noexcept;
     void clearImportError() noexcept;
-#endif
 
     PluginHostContext& m_context;
     PluginRegistry& m_registry;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     YiCadImportApi m_importApi;
-#endif
     YiCadHostApi m_api;
     std::vector<std::unique_ptr<DocumentHandleRecord>> m_documentHandles;
     std::vector<std::unique_ptr<TransactionRecord>> m_transactions;
     std::vector<std::unique_ptr<EntityIteratorRecord>> m_entityIterators;
-#if defined(YICAD_ENABLE_PLUGIN_ABI_V3_DRAFT)
     std::vector<std::unique_ptr<ImportSessionRecord>> m_importSessions;
     std::string m_importLastError;
-#endif
     bool m_active = false;
 
     static thread_local HostApi* s_activeInstance;
