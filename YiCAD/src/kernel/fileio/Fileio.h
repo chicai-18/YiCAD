@@ -24,7 +24,12 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <QStringList>
 #include "FilterInterface.h"
+
+class HostApi;
+class PluginManager;
+class PluginRegistry;
 
 // TODO destructor for clear filterList
 /// @class FileIO
@@ -55,9 +60,31 @@ public:
     /// @brief 文件导出
     bool fileExport(DmDocument& document, const QString& file, const QString& formatType);
 
+    /// @brief 接入应用持有的新原生插件运行时，不取得所有权。
+    void setPluginRuntime(
+        PluginRegistry& registry,
+        PluginManager& manager,
+        HostApi& hostApi) noexcept;
+
+    /// @brief 在插件关闭前断开运行时，避免保留 DLL 回调地址。
+    void clearPluginRuntime() noexcept;
+
+    /// @brief 返回当前活动插件声明的导入文件对话框过滤项。
+    QStringList pluginImportNameFilters() const;
+
+    /// @brief 返回当前活动插件声明的导出文件对话框过滤项。
+    QStringList pluginExportNameFilters() const;
+
+    /// @brief 将导出对话框显示项转换为插件规范格式名。
+    QString exportFormatType(const QString& nameFilter) const;
+
 private:
     /// @brief 获取指向创建文件转换器的静态函数的指针列表
     static std::vector<std::function<FilterInterface* ()>> getFilters();
+
+    PluginRegistry* m_pluginRegistry = nullptr;
+    PluginManager* m_pluginManager = nullptr;
+    HostApi* m_pluginHostApi = nullptr;
 };
 
 #endif

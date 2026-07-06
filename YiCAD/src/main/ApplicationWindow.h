@@ -16,7 +16,7 @@
  */
 
 /// @file ApplicationWindow.h
-/// @brief 应用程序主窗口类，管理Ribbon界面、绘图区域、图层面板和插件加载
+/// @brief 应用程序主窗口类，管理Ribbon界面、绘图区域和图层面板
 
 #ifndef APPLICATIONWINDOW_H
 #define APPLICATIONWINDOW_H
@@ -26,6 +26,7 @@
 #include <QScrollBar>
 #include <set>
 #include <map>
+#include <memory>
 
 class SARibbonCategory;
 class SARibbonContextCategory;
@@ -46,7 +47,6 @@ class QMdiArea;
 class MDIWindow;
 class GuiDocumentView;
 class UIDialogFactory;
-class PluginInterface;
 
 class UIActionHandler;
 class UIWindowSize;
@@ -57,9 +57,14 @@ class UICommandWidget;
 class UIBlockListWidget;
 class UIBlockSaveAs;
 class AIAssistant;
+class ApplicationPluginHostContext;
+class HostApi;
+class PluginManager;
+class PluginRegistry;
+class PluginUiAdapter;
 struct SingleTabDraw;
 
-/// @brief 应用程序主窗口，继承自SARibbonMainWindow，管理Ribbon菜单、MDI绘图区域、图层面板和插件
+/// @brief 应用程序主窗口，继承自SARibbonMainWindow，管理Ribbon菜单、MDI绘图区域和图层面板
 class ApplicationWindow : public SARibbonMainWindow
 {
     Q_OBJECT
@@ -203,9 +208,6 @@ private:
     /// @brief 创建图层列表
     void createLayerTable(SARibbonPannel* layerPannel);
 
-    /// @brief 加载插件
-    void loadPlugins();
-
     /// @brief 计算鼠标所在行区域
     /// @param [in] p 鼠标位置
     /// @param [in] row 基准行号
@@ -249,10 +251,6 @@ private slots:
 
     /// @brief 键盘删除事件
     void slotDelete();
-
-    /// @brief 插件Plugins点击事件
-    void execPlug();
-    void execPlug(const QObject* object, const QString& strTag);
 
     /// @brief 主窗体放缩事件
     /// @param [in] event 放缩事件
@@ -321,6 +319,13 @@ private:
     // AI 助手
     QAction*                        m_pActAI = nullptr;                 ///< AI助手按钮Action
     AIAssistant*                    m_pAIAssistant = nullptr;           ///< AI 助手控制器
+
+    /// @brief 新插件运行时；声明顺序保证 Manager 最先析构，宿主上下文最后析构。
+    std::unique_ptr<ApplicationPluginHostContext> m_pluginHostContext;
+    std::unique_ptr<PluginRegistry>                m_pluginRegistry;
+    std::unique_ptr<HostApi>                       m_pluginHostApi;
+    std::unique_ptr<PluginUiAdapter>               m_pluginUiAdapter;
+    std::unique_ptr<PluginManager>                 m_pluginManager;
 };
 
 #endif  // APPLICATIONWINDOW_H

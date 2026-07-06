@@ -24,7 +24,7 @@ class YiCADRecipe(ConanFile):
 
     name = "yicad"
     version = "0.20.0"
-    license = "GPL-2.0-only"
+    license = "GPL-3.0-only"
     description = "YiCAD -- 2D CAD application based on Qt 5.15"
     url = "https://github.com/YiCAX/YiCAD"
     homepage = "https://github.com/YiCAX/YiCAD"
@@ -66,7 +66,10 @@ class YiCADRecipe(ConanFile):
         # ---- Parsing / math ----
         self.requires("muparser/2.3.2")
 
-        # ---- XML (replaces Xerces-C, Apache-2.0 incompatible with GPLv2) ----
+        # ---- CAD 文件格式 ----
+        self.requires("libdxfrw/2.2.0")
+
+        # ---- XML 解析 ----
         self.requires("pugixml/1.14")
 
         # NOTE: SARibbonBar is NOT a Conan dependency. It is provided by the
@@ -100,6 +103,9 @@ class YiCADRecipe(ConanFile):
 
         # muparser: static library
         self.options["muparser"].shared = False
+
+        # libdxfrw：使用静态库，后续 DXF 插件可直接链接
+        self.options["libdxfrw"].shared = False
 
         # pugixml: static library (MIT license, replaces Xerces-C)
         self.options["pugixml"].shared = False

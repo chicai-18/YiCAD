@@ -6,7 +6,7 @@ YiCAD is an open-source 2D CAD application that provides core features found in 
 
 ![YiCAD UI](screenshot.png)
 
-Current version: **v0.1**
+Current version: **v0.20.0**
 
 ## Features
 
@@ -157,10 +157,20 @@ Most third-party dependencies are installed via [Conan 2](https://conan.io/). In
 pip install conan
 
 # Install Release dependencies
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never
+conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
 
 # Install Debug dependencies
-conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never
+conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never --lockfile=conan.lock
+```
+
+ConanCenter currently does not provide `libdxfrw` binaries for the repository's
+MSVC 194 Release and Debug profiles. If `--build=never` reports only `libdxfrw`
+as missing, build that package once for the matching configuration while keeping
+all other dependencies binary-only:
+
+```powershell
+conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="missing:libdxfrw/*" --lockfile=conan.lock
+conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build="missing:libdxfrw/*" --lockfile=conan.lock
 ```
 
 When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/conan-<config>/build/generators/conan_toolchain.cmake`.
@@ -178,6 +188,7 @@ When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/c
 | [zlib 1.3](https://www.zlib.net/) | Compression | Conan |
 | [minizip-ng 4.0](https://github.com/nmoinvaz/minizip) | ZIP archive | Conan |
 | [muparser 2.3](https://beltoforion.de/en/muparser/) | Math expression parsing | Conan |
+| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for future file-format plugins | Conan |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON serialization | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML parsing | Conan |
 
@@ -197,24 +208,47 @@ The project provides CMake presets (`CMakePresets.json`) to simplify configurati
 $env:Qt5_DIR = "C:/Qt/5.15.2/msvc2019_64"
 
 # 1. Install Conan dependencies (Release example)
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never
+conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
 
 # 2. Configure with CMake preset (outputs to build/Release, toolchain/SARibbon/CDT paths are baked into the preset)
 cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
 
-# 3. Build Release
-cmake --build --preset Release
+# 3. Build and install the Release runtime (without plugin development files)
+cmake --build --preset Release-Runtime
 
-# 4. Install (outputs to build/Release/bin/ directory with all dependency DLLs)
-cmake --install build/Release
+# Optional: install the third-party plugin SDK
+cmake --build --preset Release-PluginSDK
 
 # Build output: build/Release/bin/YiCAD.exe
 # Install output: build/Release/bin/YiCAD.exe + all third-party DLLs
 ```
 
+This Release flow has been verified with Windows 11, Visual Studio 2022/v143,
+Qt 5.15.2, CMake 3.26.3, and Conan 2.29.1. It completed dependency resolution,
+CMake configuration, compilation, Runtime installation, and a launch smoke test.
+
+The project presets deliberately do not fix a CMake generator. CMake reuses the
+generator, platform, and toolset recorded in the build directory. If
+`build/Release` was previously configured by another IDE or with different
+generator options, refresh only the generated CMake state before configuring:
+
+```powershell
+cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
+```
+
+Use `--fresh` when switching generators or resolving a generator/platform/toolset
+cache mismatch; it is unnecessary for normal incremental builds.
+
 **Install notes:**
 
-Running `cmake --install` automatically copies the following dependencies to `build/<config>/bin/`:
+Install components:
+
+- `Runtime`: YiCAD executable, runtime libraries, resources, translations, and runtime licenses.
+- `PluginSDK`: public headers, CMake package, SDK documentation, license, and standalone Demo sources.
+- The `Debug-Runtime`, `Debug-PluginSDK`, `Release-Runtime`, and `Release-PluginSDK` build presets install their corresponding components automatically.
+- Omitting `--component` installs both components.
+
+Installing `Runtime` automatically copies the following dependencies to `build/<config>/bin/`:
 - SARibbonBar.dll
 - CDT.dll (if present)
 - Conan-managed third-party DLLs (GLEW, FreeType, zlib, etc.)
@@ -236,6 +270,17 @@ The presets already include `CMAKE_TOOLCHAIN_FILE` (Conan toolchain), `SARIBBON_
 - Restart CLion for the environment variable to take effect
 
 In PowerShell, keep the quotes around `"-D...=..."` arguments, especially for paths ending in `.cmake` like `conan_toolchain.cmake`. Test programs are built in the build directory for verification, but `cmake --install` does not install `test_*` programs to `bin/`.
+
+If MSBuild reports `MSB6001` with duplicate `PATH`/`Path` keys, start a clean
+Developer PowerShell for Visual Studio 2022. To diagnose the current process:
+
+```powershell
+[System.Environment]::GetEnvironmentVariables().Keys |
+  Where-Object { $_ -ieq "path" }
+```
+
+If both spellings are listed, normalize the environment before rerunning CMake.
+Do not add a second PATH variable that differs only by letter case.
 
 > **Note:** Linux support is planned for the future.
 

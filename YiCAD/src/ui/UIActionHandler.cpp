@@ -26,6 +26,8 @@
 #include "GuiCommandEvent.h"
 #include "Commands.h"
 
+#include <utility>
+
 #include "ActionBlocksCreate.h"
 #include "ActionBlocksDelete.h"
 #include "ActionBlocksEdit.h"
@@ -920,12 +922,39 @@ bool UIActionHandler::command(const QString& cmd)
 			}
 			return true;
 		}
+
+		// 外部命令最后解析，保持活动 Action 和内置命令的既有优先级。
+		return executeExternalCommand(cmd);
 	}
 	else 
 	{
 		return true;
 	}
 	return false;
+}
+
+void UIActionHandler::setExternalCommandExecutor(
+	ExternalCommandExecutor executor)
+{
+	m_externalCommandExecutor = std::move(executor);
+}
+
+bool UIActionHandler::executeExternalCommand(const QString& command)
+{
+	if (!m_externalCommandExecutor)
+	{
+		return false;
+	}
+
+	const int separator = command.indexOf(QLatin1Char('/'));
+	if (separator <= 0 || separator == command.size() - 1)
+	{
+		return false;
+	}
+
+	return m_externalCommandExecutor(
+		command.left(separator),
+		command.mid(separator + 1));
 }
 
 void UIActionHandler::slotFileNew()

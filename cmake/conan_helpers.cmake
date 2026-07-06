@@ -49,6 +49,7 @@ function(conan_print_summary)
         "freetype;${freetype_VERSION}"
         "ZLIB;${ZLIB_VERSION}"
         "muparser;${muparser_VERSION}"
+        "libdxfrw;${libdxfrw_VERSION}"
     )
 
     foreach(_pair IN LISTS _packages)

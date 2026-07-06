@@ -289,11 +289,33 @@ void UICommandWidget::createTempWin(QLineEdit* e)
 
 void UICommandWidget::setCompleterStrings(const QStringList& strs)
 {
-	if (m_pCompleter)
+	m_completerStrings = strs;
+	updateCompleterModel();
+}
+
+void UICommandWidget::setExternalCommandStrings(const QStringList& commands)
+{
+	m_externalCommandStrings = commands;
+	updateCompleterModel();
+}
+
+void UICommandWidget::updateCompleterModel()
+{
+	if (!m_pCompleter)
 	{
-		QStringListModel* model = dynamic_cast<QStringListModel*>( m_pCompleter->model());
-		model->setStringList(strs);
+		return;
 	}
+
+	auto* model = qobject_cast<QStringListModel*>(m_pCompleter->model());
+	if (!model)
+	{
+		return;
+	}
+
+	QStringList commands = m_completerStrings;
+	commands.append(m_externalCommandStrings);
+	commands.removeDuplicates();
+	model->setStringList(commands);
 }
 
 QWidget* UICommandWidget::createTempEdit()
@@ -306,13 +328,16 @@ QWidget* UICommandWidget::createTempEdit()
 	connect(m_editline, SIGNAL(returnPressed()), this, SLOT(pressShowLineEdit()));
 
 	std::map<QString, DM::ActionType> cmdTranslation = COMMANDS->getActionCommands();
-	QStringList strList;
+	m_completerStrings.clear();
 	for (auto ite = cmdTranslation.begin(); ite != cmdTranslation.end(); ite++)
 	{
-		strList.push_back(ite->first);
+		m_completerStrings.push_back(ite->first);
 	}
 	m_pCompleter = new QCompleter();
-	QStringListModel* model = new QStringListModel(strList,m_pCompleter);
+	QStringList commands = m_completerStrings;
+	commands.append(m_externalCommandStrings);
+	commands.removeDuplicates();
+	QStringListModel* model = new QStringListModel(commands,m_pCompleter);
 	m_pCompleter->setModel(model);
 	m_pCompleter->setCaseSensitivity(Qt::CaseInsensitive);
 	m_pCompleter->setCompletionMode(QCompleter::PopupCompletion);

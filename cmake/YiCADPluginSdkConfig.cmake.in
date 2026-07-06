@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+# 暴露 SDK 发布版本；运行时插件兼容性仍由 C ABI 版本协商决定。
+set(YiCADPluginSdk_VERSION "@YICAD_PLUGIN_SDK_VERSION@")
+
+# 加载 install(EXPORT) 生成的 YiCAD::PluginSdk imported target。
+include("${CMAKE_CURRENT_LIST_DIR}/YiCADPluginSdkTargets.cmake")
+
+# 当前包未定义可选组件；该检查用于拒绝调用方请求的未知组件。
+check_required_components(YiCADPluginSdk)

@@ -16,7 +16,7 @@
  */
 
 /// @file ApplicationWindow.cpp
-/// @brief 应用程序主窗口实现，管理Ribbon界面、绘图区域、图层面板、插件加载和事件分发
+/// @brief 应用程序主窗口实现，管理Ribbon界面、绘图区域、图层面板和事件分发
 
 #include "ApplicationWindow.h"
 #include <QFile>
@@ -67,7 +67,6 @@
 #include <QVBoxLayout>
 #include <QSettings>
 #include <QVariant>
-#include <QPluginLoader>
 
 #include "UITabDrawWidget.h"
 #include "UIBottomWidget.h"
@@ -97,14 +96,17 @@
 #include "UIDialogFactory.h"
 #include "Selection.h"
 #include "DmSystem.h"
-#include "PluginInterface.h"
-#include "DocPluginInterface.h"
-#include "DbPluginInterface.h"
 #include "Debug.h"
 #include "GuiDialogFactory.h"
 #include "GuiEventHandler.h"
 #include "Commands.h"
 #include "DmFontList.h"
+
+#include "HostApi.h"
+#include "PluginManager.h"
+#include "PluginRegistry.h"
+#include "PluginUiAdapter.h"
+#include "Fileio.h"
 
 #include "DmLine.h"
 #include "DmCircle.h"
@@ -115,6 +117,54 @@
 #include "DmRay.h"
 #include "DmXline.h"
 #include "DmSpline.h"
+
+/// @brief 将插件宿主服务限制在主窗口公开的文档和消息接口内。
+class ApplicationPluginHostContext final : public PluginHostContext
+{
+public:
+    explicit ApplicationPluginHostContext(ApplicationWindow& window) noexcept
+        : m_window(window)
+    {
+    }
+
+    void showPluginMessage(const QString& message) override
+    {
+        auto* commandWidget = m_window.getCmdWidget();
+        if (commandWidget != nullptr && m_window.getMDIWindow() != nullptr)
+        {
+            commandWidget->appCmdTempText(message);
+            return;
+        }
+        m_window.statusBar()->showMessage(message, 5000);
+    }
+
+    DmDocument* currentDocument() const noexcept override
+    {
+        return m_window.getDocument();
+    }
+
+    bool isDocumentOpen(const DmDocument* document) const noexcept override
+    {
+        const auto* tabs = m_window.getTabDrawWidget();
+        return document != nullptr && tabs != nullptr &&
+               tabs->getTabDrawDataOfDocument(document) != nullptr;
+    }
+
+    GuiDocumentView* documentView(
+        const DmDocument* document) const noexcept override
+    {
+        auto* tabs = m_window.getTabDrawWidget();
+        auto* tab = tabs == nullptr
+            ? nullptr
+            : tabs->getTabDrawDataOfDocument(document);
+        return tab == nullptr || tab->mdiWindow == nullptr
+            ? nullptr
+            : tab->mdiWindow->getDocumentView();
+    }
+
+private:
+    ApplicationWindow& m_window;
+};
 
 // TODO: 以下宏为性能调试用函数式宏，无法直接转换为constexpr，建议后续改为内联函数
 #define PRINT_COST_START()                                                                                             \
@@ -298,8 +348,6 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 
 	GuiDocumentView* view = m_pCurrentMdiWin->getDocumentView();
 
-	// 加载插件
-
 	// ===========================AI 助手按钮=========================
 	SARibbonButtonGroupWidget* rightGroup = m_pRibbon->rightButtonGroup();
 	if (rightGroup)
@@ -318,7 +366,30 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 		});
 		rightGroup->addAction(m_pActAI);
 	}
-	loadPlugins();
+
+    /// @brief Ribbon、命令窗口和首个文档就绪后，接入唯一的新插件加载路径。
+    m_pluginHostContext =
+        std::make_unique<ApplicationPluginHostContext>(*this);
+    m_pluginRegistry = std::make_unique<PluginRegistry>();
+    m_pluginHostApi = std::make_unique<HostApi>(
+        *m_pluginHostContext, *m_pluginRegistry);
+    connect(m_pTabDrawWidget, &UITabDrawWidget::documentAboutToClose,
+        this, [this](DmDocument* document) {
+            if (m_pluginHostApi != nullptr)
+            {
+                m_pluginHostApi->rollbackImportsForDocument(document);
+            }
+        });
+    m_pluginManager = std::make_unique<PluginManager>(
+        *m_pluginHostApi, *m_pluginRegistry);
+    m_pluginManager->loadAll();
+
+    FileIO::instance()->setPluginRuntime(
+        *m_pluginRegistry, *m_pluginManager, *m_pluginHostApi);
+
+    m_pluginUiAdapter = std::make_unique<PluginUiAdapter>(
+        *m_pRibbon, *m_pluginRegistry, *m_pActionHandler, *m_cmdWin);
+    m_pluginUiAdapter->materialize();
 }
 
 
@@ -638,46 +709,6 @@ void ApplicationWindow::slotEnter()
 void ApplicationWindow::slotDelete()
 {
 	m_pActionHandler->slotModifyDeleteNoSelect();
-}
-
-void ApplicationWindow::execPlug()
-{
-	QAction* action = qobject_cast<QAction*>(sender());
-	PluginInterface* plugin = qobject_cast<PluginInterface*>(action->parent());
-	m_pCurrentMdiWin = m_pTabDrawWidget->getCurrentMdiWindow();
-	// 获取当前激活的文档
-	DmDocument* currdoc = m_pCurrentMdiWin->getDocument();
-	// 创建文档接口实例
-	Doc_plugin_interface pligundoc(currdoc, m_pCurrentMdiWin->getDocumentView(), this);
-	// 执行插件
-	// TODO undo: undo 重构标记
-	//DmUndoSection undo(currdoc);
-	plugin->execComm(&pligundoc, this, action->data().toString());
-	//TODO call update view
-	m_pCurrentMdiWin->getDocumentView()->redraw();
-}
-
-void ApplicationWindow::execPlug(const QObject* object, const QString& strTag)
-{
-	PluginInterface* plugin = qobject_cast<PluginInterface*>(object);
-	m_pCurrentMdiWin = m_pTabDrawWidget->getCurrentMdiWindow();
-
-	DmDocument* currdoc = nullptr;
-	GuiDocumentView* docView = nullptr;
-	if (m_pCurrentMdiWin)
-	{
-		// 获取当前激活的文档
-		currdoc = m_pCurrentMdiWin->getDocument();
-		docView = m_pCurrentMdiWin->getDocumentView();
-	}
-	// 创建文档接口实例
-	Doc_plugin_interface pligundoc(currdoc, docView, this);
-	// 执行插件
-	// TODO undo: undo 重构标记
-	//DmUndoSection undo(currdoc);
-	plugin->execComm(&pligundoc, this, strTag);
-	//TODO call update view
-	m_pCurrentMdiWin->getDocumentView()->redraw();
 }
 
 void ApplicationWindow::resizeEvent(QResizeEvent* event)
@@ -1007,6 +1038,18 @@ std::vector<CustomComboboxItem*> ApplicationWindow::getLayerComboboxItems()
 
 ApplicationWindow::~ApplicationWindow()
 {
+    /// @brief 必须在任何窗口、文档和全局宿主服务销毁前关闭并卸载插件。
+    FileIO::instance()->clearPluginRuntime();
+    if (m_pluginManager)
+    {
+        m_pluginManager->shutdownAll();
+    }
+    m_pluginManager.reset();
+    m_pluginUiAdapter.reset();
+    m_pluginHostApi.reset();
+    m_pluginRegistry.reset();
+    m_pluginHostContext.reset();
+
 	COMMANDS->deleteCommands();
 	DMSETTINGS->deleteDmStettings();
 	delete GuiDialogFactory::instance();
@@ -1955,103 +1998,6 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 void ApplicationWindow::setDrawingTabName(const QString& fileName)
 {
 	m_pTabDrawWidget->soltSetDrawingTabName(fileName);
-}
-
-void ApplicationWindow::loadPlugins()
-{
-	QStringList lst = DMSYSTEM->getDirectoryList("plugins"); // todo: 这里还需要获取子目录 否则只能记载进plugins文件夹下的插件
-	// 跟踪加载的插件文件名用于跳过重复的插件
-	QStringList loadedPluginFileNames;
-
-	for (int i = 0; i < lst.size(); ++i)
-	{
-		QDir pluginsDir(lst.at(i));
-		QStringList filters;	// 过滤只保留dll后缀的文件
-		#ifdef Q_OS_WIN32
-				filters << "*.dll";
-		#elif defined(Q_OS_LINUX)
-				filters << "*.so";
-		#elif defined(Q_OS_MAC)
-				filters << "*.dylib";
-		#endif 
-		for (const QString& fileName : pluginsDir.entryList(filters, QDir::Files))
-		{
-			// 如果已加载相同文件名的插件,则跳过加载插件
-			if (loadedPluginFileNames.contains(fileName))
-			{
-				continue;
-			}
-
-			QString fullFileName = pluginsDir.absoluteFilePath(fileName);
-			QPluginLoader pluginLoader(fullFileName);
-			//bool res = pluginLoader.load();
-			//QString err = pluginLoader.errorString();
-			QObject* plugin = pluginLoader.instance();
-			if (plugin)
-			{
-				PluginInterface* pluginInterface = qobject_cast<PluginInterface*>(plugin);
-				if (pluginInterface)
-				{
-					loadedPluginFileNames.push_back(fileName);
-					auto db = new Database_plugin_interface();
-					pluginInterface->setDatabase(db);
-					PluginCapabilities pluginCapabilities = pluginInterface->getCapabilities();
-					for (const PluginMenuLocation& loc : pluginCapabilities.menuEntryPoints)
-					{
-						if (loc.isLoad)
-						{
-							// 新增一个插件列表并添加一个按钮
-							//QString qss = "QToolButton{background: transparent;border: none;} QToolButton:hover{ color:white; border: 0px; background-color: rgb(206,231,252); }";
-
-							// 添加选项卡
-							SARibbonCategory* categoryPlugin = new SARibbonCategory();
-							categoryPlugin->setCategoryName(loc.menuEntryActionName);
-							categoryPlugin->setObjectName(loc.menuEntryActionName);
-							m_pRibbon->addCategoryPage(categoryPlugin);
-
-							for (auto group : loc.menuGroups)
-							{
-								// 在选下卡下添加分组
-								SARibbonPannel* pannel = new SARibbonPannel(group.groupName);
-								pannel->setObjectName(group.groupName);
-								categoryPlugin->addPannel(pannel);
-
-								SARibbonButtonGroupWidget* aboutGroup = createRibbonButtonGroup(pannel, 1);
-
-								for (auto item : group.menuItems)
-								{
-									// 在分组下添加按钮或QAction
-									if (item.itemType == EItemType::Button)
-									{
-										QToolButton* btn = new QToolButton();
-										btn->setIcon(item.itemIcon);
-										btn->setProperty("yiCadStandaloneRibbonButton", true);
-										btn->setToolTip(item.itemName);
-										connect(btn, &QToolButton::clicked, this, [plugin, item, this] {
-											execPlug(plugin, item.itemName);
-										});
-
-										aboutGroup->addWidget(btn);
-									}
-									else if (item.itemType == EItemType::Action)
-									{
-										QAction* actpl = new QAction(item.itemName, plugin);
-										actpl->setData(item.itemName);
-										actpl->setIcon(item.itemIcon);
-										actpl->setToolTip(item.itemName);
-										connect(actpl, SIGNAL(triggered()), this, SLOT(execPlug()));
-										aboutGroup->addAction(actpl);
-									}
-								}
-
-								pannel->addLargeWidget(aboutGroup);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 int ApplicationWindow::countRow(QPoint p, int row, int height) // 计算鼠标在哪一列和哪一行

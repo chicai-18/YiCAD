@@ -23,6 +23,11 @@
 
 #include "Cmd.h"
 #include "DmPen.h"
+#include "DmVariable.h"
+
+#include <QHash>
+#include <QSet>
+#include <QString>
 
 /// @brief 修改文档当前画笔命令
 class ModifyDocPenCmd : public ICmd
@@ -43,6 +48,30 @@ protected:
     DmDocument* m_doc;          ///< 目标文档
     DmPen   m_originPen;        ///< 原始画笔
     DmPen   m_newPen;           ///< 新画笔
+};
+
+/// @brief 修改文档变量的可撤销命令
+class ModifyDocVariablesCmd : public ICmd
+{
+public:
+    /// @brief 构造文档变量修改命令
+    /// @param document 目标文档
+    /// @param variables 要新增或覆盖的变量
+    ModifyDocVariablesCmd(
+        DmDocument* document,
+        const QHash<QString, DmVariable>& variables);
+    void execute() override;
+    void undo() override;
+    void redo() override;
+    void clear() override {}
+
+private:
+    void applyVariables();
+
+    DmDocument* m_document;
+    QHash<QString, DmVariable> m_newVariables;
+    QHash<QString, DmVariable> m_previousVariables;
+    QSet<QString> m_addedVariables;
 };
 
 #endif //DOCUMENTCMD_H

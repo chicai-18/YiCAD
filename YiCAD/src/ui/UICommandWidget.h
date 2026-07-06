@@ -25,6 +25,7 @@
 #include <QLineEdit>
 #include <QTextEdit>
 #include <QToolButton>
+#include <QStringList>
 #include "DmVector.h"
 #include "MDIWindow.h"
 #include "qevent.h"
@@ -45,6 +46,9 @@ public:
     void createTempWin(QLineEdit* e);
 
     void setCompleterStrings(const QStringList& strs);
+
+    /// @brief 设置外部规范命令，并与内置命令共同用于自动补全。
+    void setExternalCommandStrings(const QStringList& commands);
     QWidget* createTempEdit();
     QWidget* getCommandWidget();
     QWidget* getInfoWidget();
@@ -67,6 +71,8 @@ private slots:
     void btnShowTextEdit();
 
 private:
+    void updateCompleterModel();
+
     QCompleter*                     m_pCompleter = nullptr;
     QLineEdit*                      m_editline = nullptr;
     QLineEdit*                      m_pEdit = nullptr;                      ///< 输入栏
@@ -87,5 +93,7 @@ private:
     QString                         m_Coord;
     UITabDrawWidget*                m_pTabDrawWidget = nullptr;
     std::unique_ptr<QPropertyAnimation> m_pAnimation;
+    QStringList                     m_completerStrings;
+    QStringList                     m_externalCommandStrings;
 };
 #endif // UICOMMANDWIDGETNEW

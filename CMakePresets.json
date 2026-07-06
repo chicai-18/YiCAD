@@ -50,6 +50,46 @@
             "name": "Release",
             "configurePreset": "Release",
             "configuration": "Release"
+        },
+        {
+            "name": "Debug-Runtime",
+            "displayName": "Debug Runtime Install",
+            "description": "Build and install the Debug Runtime component",
+            "configurePreset": "Debug",
+            "configuration": "Debug",
+            "targets": [
+                "install-runtime"
+            ]
+        },
+        {
+            "name": "Debug-PluginSDK",
+            "displayName": "Debug Plugin SDK Install",
+            "description": "Install the Debug PluginSDK component",
+            "configurePreset": "Debug",
+            "configuration": "Debug",
+            "targets": [
+                "install-plugin-sdk"
+            ]
+        },
+        {
+            "name": "Release-Runtime",
+            "displayName": "Release Runtime Install",
+            "description": "Build and install the Release Runtime component",
+            "configurePreset": "Release",
+            "configuration": "Release",
+            "targets": [
+                "install-runtime"
+            ]
+        },
+        {
+            "name": "Release-PluginSDK",
+            "displayName": "Release Plugin SDK Install",
+            "description": "Install the Release PluginSDK component",
+            "configurePreset": "Release",
+            "configuration": "Release",
+            "targets": [
+                "install-plugin-sdk"
+            ]
         }
     ]
 }

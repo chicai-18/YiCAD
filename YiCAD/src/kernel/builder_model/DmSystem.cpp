@@ -596,7 +596,7 @@ QStringList DmSystem::getDirectoryList(const QString& _subDirectory)
 
 	if (!appDir.isEmpty() && appDir != "/" && appDir != getHomeDir())
 	{
-		if (appDir != getCurrentDir() && subDirectory != QString("plugins"))
+		if (appDir != getCurrentDir())
 		{
 			dirList.append(appDir + "/" + subDirectory);
 		}

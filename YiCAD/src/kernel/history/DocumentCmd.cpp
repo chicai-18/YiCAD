@@ -61,3 +61,79 @@ void ModifyDocPenCmd::redo()
     m_doc->setActivePen(m_newPen);
     ICmd::redo();
 }
+
+ModifyDocVariablesCmd::ModifyDocVariablesCmd(
+    DmDocument* document,
+    const QHash<QString, DmVariable>& variables)
+    : m_document(document)
+    , m_newVariables(variables)
+{
+    if (m_document == nullptr)
+    {
+        return;
+    }
+
+    const auto& variableDict = m_document->getVariableDict();
+    for (auto it = m_newVariables.cbegin(); it != m_newVariables.cend(); ++it)
+    {
+        const auto previous = variableDict.constFind(it.key());
+        if (previous == variableDict.cend())
+        {
+            m_addedVariables.insert(it.key());
+        }
+        else
+        {
+            m_previousVariables.insert(it.key(), previous.value());
+        }
+    }
+}
+
+void ModifyDocVariablesCmd::applyVariables()
+{
+    auto& variables = m_document->getVariableDict();
+    variables.reserve(variables.size() + m_newVariables.size());
+    for (auto it = m_newVariables.cbegin(); it != m_newVariables.cend(); ++it)
+    {
+        variables.insert(it.key(), it.value());
+    }
+}
+
+void ModifyDocVariablesCmd::execute()
+{
+    if (m_isExecuted || m_document == nullptr)
+    {
+        return;
+    }
+    applyVariables();
+    ICmd::execute();
+}
+
+void ModifyDocVariablesCmd::undo()
+{
+    if (!m_isExecuted || m_document == nullptr)
+    {
+        return;
+    }
+    auto& variables = m_document->getVariableDict();
+    variables.reserve(variables.size() + m_previousVariables.size());
+    for (auto it = m_previousVariables.cbegin();
+         it != m_previousVariables.cend(); ++it)
+    {
+        variables.insert(it.key(), it.value());
+    }
+    for (const auto& key : m_addedVariables)
+    {
+        variables.remove(key);
+    }
+    ICmd::undo();
+}
+
+void ModifyDocVariablesCmd::redo()
+{
+    if (m_isExecuted || m_document == nullptr)
+    {
+        return;
+    }
+    applyVariables();
+    ICmd::redo();
+}
