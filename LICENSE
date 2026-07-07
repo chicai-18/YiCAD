@@ -102,5 +102,12 @@ pugixml is released under the MIT License.
 
 - <https://pugixml.org>
 
+libdxfrw is released under the GNU General Public License version 2
+or (at your option) any later version.
+
+- <https://github.com/LibreCAD/libdxfrw>
+
+The GPLv2 license text is included at licenses/gpl-2.0.txt.
+
 Third-party components not listed above are distributed under their
 respective licenses. See the `licenses` directory for details.

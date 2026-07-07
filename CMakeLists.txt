@@ -76,7 +76,7 @@ MESSAGE(STATUS "UPDATE TRANSLATIONS: ${UPDATE_TRANSLATIONS}")
 option(USE_VISUAL_LEAK_DETECTOR "Use visual leak detector to detect memory leakage" OFF)
 # 设置子项目
 add_subdirectory("YiCAD")
-add_subdirectory("examples/demo_plugin" "examples/demo_plugin")
+add_subdirectory("plugins")
 
 # YiCADPluginSdk CMake package 的生成、安装和消费流程：
 # 1. 配置阶段：
@@ -127,7 +127,7 @@ install(FILES
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/YiCAD/sdk/licenses"
         COMPONENT PluginSDK)
-install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/examples/demo_plugin/"
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/plugins/demo_plugin/"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/YiCAD/examples/demo_plugin"
         COMPONENT PluginSDK
         PATTERN "build" EXCLUDE
@@ -209,7 +209,7 @@ add_custom_target(install-runtime
             --component Runtime
     COMMENT "Install YiCAD runtime component"
     USES_TERMINAL)
-add_dependencies(install-runtime YiCAD)
+add_dependencies(install-runtime YiCAD YiCadDxfPlugin)
 
 add_custom_target(install-plugin-sdk
     COMMAND "${CMAKE_COMMAND}" --install "${CMAKE_BINARY_DIR}"

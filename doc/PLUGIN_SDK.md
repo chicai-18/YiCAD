@@ -324,4 +324,4 @@ modelSpace.createLine(data);
 
 旧 `QPluginLoader`、`PluginInterface`、`Document_Interface` 和 `Database_Interface` Qt/C++ 插件 ABI 已移除，没有二进制或源码兼容层。旧插件 DLL 无法由新运行时加载，必须使用本 SDK 重写边界、重新构建，并改用 XML 清单部署。
 
-完整工程参见 `examples/demo_plugin`。SDK 头和示例按仓库根目录 `LICENSE` 的 GPLv3-or-later 条款分发；插件作者应自行确认其交付物的许可证兼容性。
+完整工程参见 `plugins/demo_plugin`。SDK 头和示例按仓库根目录 `LICENSE` 的 GPLv3-or-later 条款分发；插件作者应自行确认其交付物的许可证兼容性。

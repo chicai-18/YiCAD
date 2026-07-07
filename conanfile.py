@@ -37,7 +37,13 @@ class YiCADRecipe(ConanFile):
     package_type = "application"
 
     # --- Exported sources (none needed for pure consumer) ---
-    exports_sources = "CMakeLists.txt", "YiCAD/*", "cmake/*", "profiles/*"
+    exports_sources = (
+        "CMakeLists.txt",
+        "YiCAD/*",
+        "cmake/*",
+        "plugins/*",
+        "profiles/*",
+    )
 
     def requirements(self):
         """
