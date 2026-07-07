@@ -18,7 +18,6 @@ share/YiCAD/sdk/
   PLUGIN_SDK.md
   PLUGIN_ABI_EVOLUTION.md
   PLUGIN_ABI_V3_REFERENCE.md
-  PLUGIN_ABI_V3_RELEASE.md
   licenses/LICENSE
 share/YiCAD/examples/demo_plugin/
 ```

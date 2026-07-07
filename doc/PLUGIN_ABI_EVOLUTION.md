@@ -2,7 +2,7 @@
 
 ABI v3 已于 YiCAD 0.20.0 正式冻结，支持范围为 Win64。公开真值由
 `YiCadPluginAbi.h`、本文和 [PLUGIN_ABI_V3_REFERENCE.md](PLUGIN_ABI_V3_REFERENCE.md)
-共同定义；发布基线与验证环境见 [PLUGIN_ABI_V3_RELEASE.md](PLUGIN_ABI_V3_RELEASE.md)。
+共同定义。
 
 ## 版本协商
 
