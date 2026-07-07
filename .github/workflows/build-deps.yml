@@ -1,8 +1,8 @@
 # Dependency Package Publishing Workflow
 #
 # This workflow builds and publishes Conan dependency packages to the YiCAX
-# Conan remote. It is the ONLY workflow authorized to use --build=missing
-# and to upload packages.
+# Conan remote. It is the only workflow authorized to build all missing
+# packages and upload packages. The main CI may build only libdxfrw locally.
 #
 # Requirements:
 #   - Repository secrets: CONAN_REMOTE_URL, CONAN_LOGIN_USERNAME, CONAN_PASSWORD
