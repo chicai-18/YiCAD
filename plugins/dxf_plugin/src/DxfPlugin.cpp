@@ -8,16 +8,16 @@
  */
 
 /// @file DxfPlugin.cpp
-/// @brief DXF 插件构建骨架和生命周期入口
+/// @brief DXF 插件生命周期和导入过滤器入口
 
+#include "DxfImporter.h"
 #include "YiCadPluginSdk.h"
-
-#include <libdxfrw/libdxfrw.h>
 
 namespace
 {
 
 constexpr auto PluginId = "com.yicad.dxf";
+constexpr auto FormatId = "dxf";
 
 class DxfPlugin final
 {
@@ -36,7 +36,13 @@ public:
         plugin->pluginId = PluginId;
         plugin->pluginName = "YiCAD DXF Plugin";
         plugin->pluginVersion = "1.0.0";
-        return true;
+        return m_host.registerImportFilter(
+            PluginId,
+            FormatId,
+            "DXF Drawing",
+            "dxf",
+            &DxfPlugin::importFile,
+            this);
     }
 
     void shutdown() noexcept
@@ -45,6 +51,24 @@ public:
     }
 
 private:
+    static YiCadResult YICAD_PLUGIN_CALL importFile(
+        YiCadDocumentHandle handle,
+        const char* path,
+        void* userData) noexcept
+    {
+        return yicad::plugin::invokeNoexcept<YiCadResult>([&]() {
+            auto* self = static_cast<DxfPlugin*>(userData);
+            if (self == nullptr || path == nullptr || *path == '\0')
+            {
+                return YICAD_FAILURE;
+            }
+            const auto document = self->m_host.document(handle);
+            return DxfImporter(document).read(path)
+                ? YICAD_SUCCESS
+                : YICAD_FAILURE;
+        }, YICAD_FAILURE);
+    }
+
     yicad::plugin::Host m_host;
 };
 

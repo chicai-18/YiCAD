@@ -12,7 +12,12 @@ if(NOT TARGET libdxfrw::libdxfrw)
 endif()
 
 add_library(YiCadDxfPlugin MODULE
-    src/DxfPlugin.cpp)
+    src/DxfPlugin.cpp
+    src/DxfImporter.cpp
+    src/DxfImporter.h
+    src/DxfInterfaceAdapter.h
+    src/DxfMapping.cpp
+    src/DxfMapping.h)
 
 if(WIN32)
     target_sources(YiCadDxfPlugin PRIVATE

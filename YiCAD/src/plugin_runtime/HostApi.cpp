@@ -3816,7 +3816,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createMText(
         !std::isfinite(input->characterHeight) ||
         input->characterHeight <= DM_TOLERANCE ||
         !std::isfinite(input->rectangleWidth) ||
-        input->rectangleWidth <= DM_TOLERANCE ||
+        //input->rectangleWidth <= DM_TOLERANCE ||  // 不验证宽度，有时候为0
         !std::isfinite(input->lineSpacingFactor) ||
         input->lineSpacingFactor < 0.25 || input->lineSpacingFactor > 4.0 ||
         input->attachment < YICAD_MTEXT_TOP_LEFT ||
@@ -4018,7 +4018,6 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::endBlock(
             resource->object == container->block)
         {
             resource->finalized = true;
-            container->active = false;
             instance->clearImportError();
             return YICAD_IMPORT_SUCCESS;
         }
@@ -5536,15 +5535,6 @@ YiCadImportResult HostApi::validateImportBlocks(
         return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
             "导入会话句柄无效或已过期");
     }
-    for (const auto& container : session->containers)
-    {
-        if (container->active)
-        {
-            return setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
-                "提交导入前必须结束所有块定义容器");
-        }
-    }
-
     try
     {
         std::unordered_map<const DmBlock*, int> states;

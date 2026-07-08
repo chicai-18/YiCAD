@@ -177,7 +177,7 @@ typedef struct YiCadDocumentSettings
 } YiCadDocumentSettings;
 
 /**
- * @brief 简单线型定义；名称非空，elements 至少包含一个有限值。
+ * @brief 简单线型定义；名称非空，空 elements 表示连续线，其他元素必须有限。
  * @note complex 必须为 0；非零时返回 YICAD_IMPORT_ERROR_UNSUPPORTED，禁止降级。
  */
 typedef struct YiCadLineTypeDataV3

@@ -626,8 +626,7 @@ private:
     {
         if (!detail::validString(m_name, true) ||
             !detail::validString(m_description, false) ||
-            !detail::fitsAbiCount(m_elements.size()) ||
-            (!m_complex && m_elements.empty()))
+            !detail::fitsAbiCount(m_elements.size()))
         {
             return YICAD_IMPORT_ERROR_INVALID_ARGUMENT;
         }
@@ -1838,7 +1837,8 @@ using EntityData = std::variant<
 
 /**
  * @brief 导入会话内的非拥有模型空间或块定义容器包装。
- * @note 容器只在所属会话内有效；块容器在 endBlock 成功后立即失效。
+ * @note 容器只在所属会话内有效；endBlock 会消费调用它的包装对象，之前复制的
+ * 包装可在会话提交前用于解析延迟块引用。
  * @note 创建函数返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，缺失函数或
  * 空函数指针返回 UNSUPPORTED。输入字符串、数组和嵌套结构指针只需保持到该函数返回。
  */
