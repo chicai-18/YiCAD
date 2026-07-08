@@ -31,6 +31,7 @@
 #include "DmRay.h"
 #include "DmRegion.h"
 #include "DmSpline.h"
+#include "DmSolid.h"
 #include "DmHatch.h"
 #include "DmImage.h"
 #include "DmMText.h"
@@ -331,6 +332,55 @@ bool validVertexArray(const YiCadVertex2dArrayView& vertices) noexcept
     return validFixedArrayView<YiCadVertex2d>(vertices);
 }
 
+YiCadPoint2d readPoint(const DmVector& value) noexcept
+{
+    return {value.x, value.y};
+}
+
+YiCadStringView readString(const QString& value, std::string& scratch)
+{
+    const auto bytes = value.toUtf8();
+    scratch.assign(bytes.constData(), static_cast<std::size_t>(bytes.size()));
+    return {scratch.empty() ? nullptr : scratch.data(),
+        static_cast<uint32_t>(scratch.size())};
+}
+
+YiCadColorData readColor(const DmColor& value) noexcept
+{
+    if (value.isByLayer())
+    {
+        return {YICAD_COLOR_BY_LAYER, 0, 0, 0, 0, 0};
+    }
+    if (value.isByBlock())
+    {
+        return {YICAD_COLOR_BY_BLOCK, 0, 0, 0, 0, 0};
+    }
+    return {YICAD_COLOR_RGB, 0,
+        static_cast<uint8_t>(value.red()),
+        static_cast<uint8_t>(value.green()),
+        static_cast<uint8_t>(value.blue()), 0};
+}
+
+void readAttributes(DmEntity* entity, YiCadEntityAttributes& output) noexcept
+{
+    output = {};
+    output.structSize = static_cast<uint32_t>(sizeof(output));
+    output.color.method = YICAD_COLOR_BY_LAYER;
+    output.lineWidth = -1;
+    output.lineTypeScale = 1.0;
+    output.visible = entity != nullptr && entity->isVisible() ? 1U : 0U;
+    output.normal.z = 1.0;
+    if (entity == nullptr)
+    {
+        return;
+    }
+    output.layer = entity->getLayer(false);
+    const auto pen = entity->getPen(false);
+    output.lineType = pen.getLineType();
+    output.color = readColor(pen.getColor());
+    output.lineWidth = static_cast<int32_t>(pen.getWidth());
+}
+
 } // namespace
 
 struct HostApi::DocumentHandleRecord
@@ -354,6 +404,19 @@ struct HostApi::EntityIteratorRecord
     };
 
     std::vector<EntitySnapshot> entities;
+    std::vector<DmEntity*> readEntities;
+    std::vector<std::string> strings;
+    std::vector<YiCadPoint2d> points;
+    std::vector<YiCadPoint2d> secondaryPoints;
+    std::vector<YiCadVertex2d> vertices;
+    std::vector<double> doubles;
+    std::vector<double> secondaryDoubles;
+    std::vector<std::vector<YiCadHatchEdgeDataV3>> hatchEdges;
+    std::vector<std::vector<std::vector<YiCadPoint2d>>> hatchControlPoints;
+    std::vector<std::vector<std::vector<double>>> hatchKnots;
+    std::vector<YiCadHatchLoopDataV3> hatchLoops;
+    YiCadEntityAttributes attributes{};
+    YiCadTextDataV3 textData{};
     std::size_t nextIndex = 0;
     std::size_t currentIndex = 0;
     bool hasCurrent = false;
@@ -417,6 +480,7 @@ HostApi::HostApi(
           &HostApi::createEllipse,
           &HostApi::createPolyline,
           &HostApi::createSpline,
+          &HostApi::createSolid,
           &HostApi::createText,
           &HostApi::createMText,
           &HostApi::beginBlock,
@@ -428,9 +492,24 @@ HostApi::HostApi(
           &HostApi::createLeader,
           &HostApi::createHatch,
           &HostApi::createImage}
+    , m_readApi{
+          static_cast<uint32_t>(sizeof(YiCadReadApi)),
+          YICAD_PLUGIN_ABI_V3,
+          &HostApi::readDocumentSettings,
+          &HostApi::readResourceCount,
+          &HostApi::readResourceAt,
+          &HostApi::readResourceData,
+          &HostApi::readResourceName,
+          &HostApi::readBlockCount,
+          &HostApi::readBlockAt,
+          &HostApi::readBlockData,
+          &HostApi::readEntities,
+          &HostApi::readEntityNext,
+          &HostApi::readEntityData,
+          &HostApi::entityIteratorDestroy}
     , m_api{
           static_cast<uint32_t>(sizeof(YiCadHostApi)),
-          YICAD_PLUGIN_ABI_MAX_VERSION,
+          YICAD_PLUGIN_ABI_V3,
           &HostApi::message,
           &HostApi::registerCommand,
           &HostApi::registerRibbonButton,
@@ -449,7 +528,8 @@ HostApi::HostApi(
           &HostApi::entityIteratorGetLine,
           &HostApi::entityIteratorGetCircle,
           &HostApi::entityIteratorDestroy,
-          &m_importApi
+          &m_importApi,
+          &m_readApi
       }
 {
     if (s_activeInstance == nullptr)
@@ -1142,6 +1222,881 @@ void YICAD_PLUGIN_CALL HostApi::entityIteratorDestroy(
     }
     catch (...)
     {
+    }
+}
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::readDocumentSettings(
+    YiCadDocumentHandle documentHandle,
+    YiCadDocumentSettings* output) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        auto* document = instance == nullptr
+            ? nullptr : instance->resolveDocument(documentHandle);
+        if (document == nullptr || output == nullptr)
+        {
+            return YICAD_FAILURE;
+        }
+        instance->m_readStringsScratch.resize(1);
+        *output = {};
+        output->structSize = static_cast<uint32_t>(sizeof(*output));
+        output->insertionUnits = document->getVariableInt("$INSUNITS", 0);
+        output->measurement = document->getVariableInt("$MEASUREMENT", 0);
+        output->globalLineTypeScale = document->getVariableDouble("$LTSCALE", 1.0);
+        output->sourceCodePage = readString(
+            document->getVariableString("$DWGCODEPAGE", {}),
+            instance->m_readStringsScratch[0]);
+        return YICAD_SUCCESS;
+    }
+    catch (...)
+    {
+        return YICAD_FAILURE;
+    }
+}
+
+uint32_t YICAD_PLUGIN_CALL HostApi::readResourceCount(
+    YiCadDocumentHandle documentHandle,
+    YiCadReadResourceKind kind) noexcept
+{
+    auto* instance = activeInstance();
+    auto* document = instance == nullptr
+        ? nullptr : instance->resolveDocument(documentHandle);
+    if (document == nullptr)
+    {
+        return 0;
+    }
+    switch (kind)
+    {
+    case YICAD_READ_LINE_TYPE:
+        return document->getLineTypeTable()->count();
+    case YICAD_READ_LAYER:
+        return document->getLayerTable()->count();
+    case YICAD_READ_TEXT_STYLE:
+    {
+        uint32_t count = 0;
+        for (auto* value : *document->getTextStyleTable())
+        {
+            (void)value;
+            ++count;
+        }
+        return count;
+    }
+    case YICAD_READ_DIMENSION_STYLE:
+        return document->getDimStyleTable()->count();
+    default:
+        return 0;
+    }
+}
+
+YiCadReadResourceHandle YICAD_PLUGIN_CALL HostApi::readResourceAt(
+    YiCadDocumentHandle documentHandle,
+    YiCadReadResourceKind kind,
+    uint32_t index) noexcept
+{
+    auto* instance = activeInstance();
+    auto* document = instance == nullptr
+        ? nullptr : instance->resolveDocument(documentHandle);
+    if (document == nullptr)
+    {
+        return nullptr;
+    }
+    auto at = [index](auto* table) -> YiCadReadResourceHandle {
+        uint32_t current = 0;
+        for (auto* value : *table)
+        {
+            if (current++ == index)
+            {
+                return value;
+            }
+        }
+        return nullptr;
+    };
+    switch (kind)
+    {
+    case YICAD_READ_LINE_TYPE: return at(document->getLineTypeTable());
+    case YICAD_READ_LAYER: return at(document->getLayerTable());
+    case YICAD_READ_TEXT_STYLE: return at(document->getTextStyleTable());
+    case YICAD_READ_DIMENSION_STYLE: return at(document->getDimStyleTable());
+    default: return nullptr;
+    }
+}
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::readResourceName(
+    YiCadReadResourceHandle resource,
+    YiCadStringView* output) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        if (instance == nullptr || resource == nullptr || output == nullptr)
+        {
+            return YICAD_FAILURE;
+        }
+        const auto* object = static_cast<const DmObject*>(resource);
+        QString name;
+        if (const auto* value = dynamic_cast<const DmLineType*>(object))
+        {
+            name = const_cast<DmLineType*>(value)->getLineTypeName();
+        }
+        else if (const auto* value = dynamic_cast<const DmLayer*>(object))
+        {
+            name = value->getName();
+        }
+        else if (const auto* value = dynamic_cast<const DmTextStyle*>(object))
+        {
+            name = value->getName();
+        }
+        else if (const auto* value = dynamic_cast<const DmDimensionStyle*>(object))
+        {
+            name = value->getName();
+        }
+        else if (const auto* value = dynamic_cast<const DmBlock*>(object))
+        {
+            name = value->getName();
+        }
+        else
+        {
+            return YICAD_FAILURE;
+        }
+        instance->m_readStringsScratch.resize(1);
+        *output = readString(name, instance->m_readStringsScratch[0]);
+        return YICAD_SUCCESS;
+    }
+    catch (...)
+    {
+        return YICAD_FAILURE;
+    }
+}
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::readResourceData(
+    YiCadReadResourceHandle resource,
+    YiCadReadResourceKind kind,
+    void* output) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        if (instance == nullptr || resource == nullptr || output == nullptr)
+        {
+            return YICAD_FAILURE;
+        }
+        instance->m_readStringsScratch.resize(3);
+        if (kind == YICAD_READ_LINE_TYPE)
+        {
+            auto* value = const_cast<DmLineType*>(
+                static_cast<const DmLineType*>(resource));
+            auto* data = static_cast<YiCadLineTypeDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->name = readString(value->getLineTypeName(),
+                instance->m_readStringsScratch[0]);
+            data->description = readString(value->getLineTypeDesp(),
+                instance->m_readStringsScratch[1]);
+            instance->m_readDoublesScratch = value->getLineTypeData();
+            data->elements = {instance->m_readDoublesScratch.data(),
+                static_cast<uint32_t>(instance->m_readDoublesScratch.size())};
+            return YICAD_SUCCESS;
+        }
+        if (kind == YICAD_READ_LAYER)
+        {
+            const auto* value = static_cast<const DmLayer*>(resource);
+            auto* data = static_cast<YiCadLayerDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->name = readString(value->getName(),
+                instance->m_readStringsScratch[0]);
+            data->frozen = value->isFrozen() ? 1U : 0U;
+            data->locked = value->isLocked() ? 1U : 0U;
+            data->plottable = value->isPrint() ? 1U : 0U;
+            const auto pen = value->getPen();
+            data->color = readColor(pen.getColor());
+            data->lineType = pen.getLineType();
+            data->lineWidth = static_cast<int32_t>(pen.getWidth());
+            return YICAD_SUCCESS;
+        }
+        if (kind == YICAD_READ_TEXT_STYLE)
+        {
+            const auto* value = static_cast<const DmTextStyle*>(resource);
+            const auto source = value->getData();
+            auto* data = static_cast<YiCadTextStyleDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->name = readString(source.name,
+                instance->m_readStringsScratch[0]);
+            const auto font = source.pAsciiFont != nullptr
+                ? source.pAsciiFont->getFileName() : source.invalidAsciiFont;
+            const auto bigFont = source.pBigFont != nullptr
+                ? source.pBigFont->getFileName() : source.invalidBigFont;
+            data->fontFile = readString(font,
+                instance->m_readStringsScratch[1]);
+            data->bigFontFile = readString(bigFont,
+                instance->m_readStringsScratch[2]);
+            data->fixedHeight = source.defaultHeight;
+            data->widthFactor = source.widhFactor;
+            data->obliqueAngle = source.slashAngle;
+            data->generationFlags =
+                (source.isReverseDirection ? YICAD_TEXT_GENERATION_BACKWARD : 0) |
+                (source.isUpsideDown ? YICAD_TEXT_GENERATION_UPSIDE_DOWN : 0) |
+                (source.isVertical ? YICAD_TEXT_GENERATION_VERTICAL : 0);
+            return YICAD_SUCCESS;
+        }
+        if (kind == YICAD_READ_DIMENSION_STYLE)
+        {
+            const auto* value = static_cast<const DmDimensionStyle*>(resource);
+            const auto& source = value->getDataConstRef();
+            auto* data = static_cast<YiCadDimensionStyleDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->name = readString(value->getName(),
+                instance->m_readStringsScratch[0]);
+            data->textStyle = source.textStyle();
+            data->dimLineType = source.dimLineType();
+            data->extensionLineType = source.boundLineType();
+            data->dimLineColor = readColor(source.dimLineColor());
+            data->extensionLineColor = readColor(source.boundLineColor());
+            data->textColor = readColor(source.textColor());
+            data->textFillColor = readColor(source.textFillColor());
+            data->dimLineWidth = static_cast<int32_t>(source.dimLineWidth());
+            data->extensionLineWidth = static_cast<int32_t>(source.boundLineWidth());
+            data->hideDimLine1 = source.hideDimLine1();
+            data->hideDimLine2 = source.hideDimLine2();
+            data->hideExtensionLine1 = source.hideBoundLine1();
+            data->hideExtensionLine2 = source.hideBoundLine2();
+            data->extensionBeyondDimLine = source.extendDimLine();
+            data->extensionOriginOffset = source.startPtOffset();
+            data->fixedExtensionLineLengthEnabled = source.isFixedBoundLineLength();
+            data->fixedExtensionLineLength = source.fixedBoundLineLength();
+            data->firstArrow = static_cast<int32_t>(source.firstArrow());
+            data->secondArrow = static_cast<int32_t>(source.secondArrow());
+            data->leaderArrow = static_cast<int32_t>(source.leaderArrow());
+            data->arrowSize = source.arrowSize();
+            data->textHeight = source.textHeight();
+            data->fractionHeightScale = source.fractionHeightScale();
+            data->drawTextBoundary = source.isDrawTextBoundary();
+            data->textVerticalPosition = static_cast<int32_t>(source.textVerticalPos());
+            data->textHorizontalPosition = static_cast<int32_t>(source.textHorizontalPos());
+            data->textDirection = static_cast<int32_t>(source.viewDirection());
+            data->textOffset = source.offsetFromDimLine();
+            data->linearUnitFormat = static_cast<int32_t>(source.unitFormat());
+            data->linearPrecision = static_cast<int32_t>(source.precision());
+            data->fractionFormat = static_cast<int32_t>(source.fractionFormat());
+            data->decimalSeparator = static_cast<int32_t>(source.decimalSaparator());
+            data->roundOff = source.roundOff();
+            data->prefix = readString(source.prefix(),
+                instance->m_readStringsScratch[1]);
+            data->suffix = readString(source.postfix(),
+                instance->m_readStringsScratch[2]);
+            data->measurementScale = source.mesureUnitFactor();
+            data->suppressLeadingZeros = source.resetPrefix();
+            data->suppressTrailingZeros = source.resetPostfix();
+            data->angularUnitFormat = static_cast<int32_t>(source.angleUnitFormat());
+            data->angularPrecision = static_cast<int32_t>(source.anglePrecision());
+            data->suppressAngularLeadingZeros = source.resetAnglePrefix();
+            data->suppressAngularTrailingZeros = source.resetAnglePostfix();
+            return YICAD_SUCCESS;
+        }
+        return YICAD_FAILURE;
+    }
+    catch (...)
+    {
+        return YICAD_FAILURE;
+    }
+}
+
+uint32_t YICAD_PLUGIN_CALL HostApi::readBlockCount(
+    YiCadDocumentHandle documentHandle) noexcept
+{
+    auto* instance = activeInstance();
+    auto* document = instance == nullptr
+        ? nullptr : instance->resolveDocument(documentHandle);
+    return document == nullptr ? 0U : document->getBlockTable()->count();
+}
+
+YiCadReadResourceHandle YICAD_PLUGIN_CALL HostApi::readBlockAt(
+    YiCadDocumentHandle documentHandle,
+    uint32_t index) noexcept
+{
+    auto* instance = activeInstance();
+    auto* document = instance == nullptr
+        ? nullptr : instance->resolveDocument(documentHandle);
+    if (document == nullptr)
+    {
+        return nullptr;
+    }
+    uint32_t current = 0;
+    for (auto* block : *document->getBlockTable())
+    {
+        if (current++ == index)
+        {
+            return block;
+        }
+    }
+    return nullptr;
+}
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::readBlockData(
+    YiCadReadResourceHandle blockHandle,
+    YiCadBlockDataV3* output) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        const auto* block = static_cast<const DmBlock*>(blockHandle);
+        if (instance == nullptr || block == nullptr || output == nullptr)
+        {
+            return YICAD_FAILURE;
+        }
+        instance->m_readStringsScratch.resize(3);
+        *output = {};
+        output->structSize = static_cast<uint32_t>(sizeof(*output));
+        output->name = readString(block->getName(),
+            instance->m_readStringsScratch[0]);
+        output->basePoint = readPoint(block->getBasePoint());
+        output->externalReferencePath = readString(block->getPath(),
+            instance->m_readStringsScratch[1]);
+        output->flags = block->hasAttributeDefinitions()
+            ? YICAD_BLOCK_HAS_ATTRIBUTES : 0;
+        return YICAD_SUCCESS;
+    }
+    catch (...)
+    {
+        return YICAD_FAILURE;
+    }
+}
+
+YiCadEntityIteratorHandle YICAD_PLUGIN_CALL HostApi::readEntities(
+    YiCadDocumentHandle documentHandle,
+    YiCadReadResourceHandle blockHandle) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        auto* document = instance == nullptr
+            ? nullptr : instance->resolveDocument(documentHandle);
+        if (document == nullptr)
+        {
+            return nullptr;
+        }
+        auto record = std::make_unique<EntityIteratorRecord>();
+        auto append = [&](auto& table) {
+            for (auto* entity : table)
+            {
+                if (dynamic_cast<DmPoint*>(entity) ||
+                    dynamic_cast<DmLine*>(entity) ||
+                    dynamic_cast<DmRay*>(entity) ||
+                    dynamic_cast<DmXline*>(entity) ||
+                    dynamic_cast<DmArc*>(entity) ||
+                    dynamic_cast<DmCircle*>(entity) ||
+                    dynamic_cast<DmEllipse*>(entity) ||
+                    dynamic_cast<DmPolyline*>(entity) ||
+                    dynamic_cast<DmSpline*>(entity) ||
+                    dynamic_cast<DmSolid*>(entity) ||
+                    dynamic_cast<DmText*>(entity) ||
+                    dynamic_cast<DmMText*>(entity) ||
+                    dynamic_cast<DmDimLinear*>(entity) ||
+                    dynamic_cast<DmDimAligned*>(entity) ||
+                    dynamic_cast<DmDimAngular*>(entity) ||
+                    dynamic_cast<DmDimRadial*>(entity) ||
+                    dynamic_cast<DmDimDiametric*>(entity) ||
+                    dynamic_cast<DmLeader*>(entity) ||
+                    dynamic_cast<DmHatch*>(entity) ||
+                    dynamic_cast<DmBlockReference*>(entity) ||
+                    dynamic_cast<DmAttributeDefinition*>(entity) ||
+                    dynamic_cast<DmAttribute*>(entity) ||
+                    (blockHandle == nullptr && dynamic_cast<DmImage*>(entity)))
+                {
+                    record->readEntities.push_back(entity);
+                }
+            }
+        };
+        if (blockHandle == nullptr)
+        {
+            append(*document->getDocumentEntityTable());
+        }
+        else
+        {
+            auto* block = const_cast<DmBlock*>(
+                static_cast<const DmBlock*>(blockHandle));
+            bool found = false;
+            for (auto* value : *document->getBlockTable())
+            {
+                found = found || value == block;
+            }
+            if (!found)
+            {
+                return nullptr;
+            }
+            append(block->getEntityTable());
+        }
+        auto* handle = record.get();
+        instance->m_entityIterators.push_back(std::move(record));
+        return handle;
+    }
+    catch (...)
+    {
+        return nullptr;
+    }
+}
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::readEntityNext(
+    YiCadEntityIteratorHandle iteratorHandle,
+    YiCadEntityType* type) noexcept
+{
+    auto* instance = activeInstance();
+    auto* iterator = instance == nullptr
+        ? nullptr : instance->resolveEntityIterator(iteratorHandle);
+    if (iterator == nullptr || type == nullptr ||
+        iterator->nextIndex >= iterator->readEntities.size())
+    {
+        if (iterator != nullptr)
+        {
+            iterator->hasCurrent = false;
+        }
+        return YICAD_FAILURE;
+    }
+    iterator->currentIndex = iterator->nextIndex++;
+    iterator->hasCurrent = true;
+    auto* entity = iterator->readEntities[iterator->currentIndex];
+    if (dynamic_cast<DmAttributeDefinition*>(entity)) *type = YICAD_ENTITY_ATTRIBUTE_DEFINITION;
+    else if (dynamic_cast<DmAttribute*>(entity)) *type = YICAD_ENTITY_ATTRIBUTE;
+    else if (dynamic_cast<DmPoint*>(entity)) *type = YICAD_ENTITY_POINT;
+    else if (dynamic_cast<DmLine*>(entity)) *type = YICAD_ENTITY_LINE;
+    else if (dynamic_cast<DmRay*>(entity)) *type = YICAD_ENTITY_RAY;
+    else if (dynamic_cast<DmXline*>(entity)) *type = YICAD_ENTITY_XLINE;
+    else if (dynamic_cast<DmArc*>(entity)) *type = YICAD_ENTITY_ARC;
+    else if (dynamic_cast<DmCircle*>(entity)) *type = YICAD_ENTITY_CIRCLE;
+    else if (dynamic_cast<DmEllipse*>(entity)) *type = YICAD_ENTITY_ELLIPSE;
+    else if (dynamic_cast<DmPolyline*>(entity)) *type = YICAD_ENTITY_POLYLINE;
+    else if (dynamic_cast<DmSpline*>(entity)) *type = YICAD_ENTITY_SPLINE;
+    else if (dynamic_cast<DmSolid*>(entity)) *type = YICAD_ENTITY_SOLID;
+    else if (dynamic_cast<DmMText*>(entity)) *type = YICAD_ENTITY_MTEXT;
+    else if (dynamic_cast<DmText*>(entity)) *type = YICAD_ENTITY_TEXT;
+    else if (dynamic_cast<DmDimension*>(entity)) *type = YICAD_ENTITY_DIMENSION;
+    else if (dynamic_cast<DmLeader*>(entity)) *type = YICAD_ENTITY_LEADER;
+    else if (dynamic_cast<DmHatch*>(entity)) *type = YICAD_ENTITY_HATCH;
+    else if (dynamic_cast<DmBlockReference*>(entity)) *type = YICAD_ENTITY_INSERT;
+    else if (dynamic_cast<DmImage*>(entity)) *type = YICAD_ENTITY_IMAGE;
+    else return YICAD_FAILURE;
+    return YICAD_SUCCESS;
+}
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::readEntityData(
+    YiCadEntityIteratorHandle iteratorHandle,
+    void* output) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        auto* iterator = instance == nullptr
+            ? nullptr : instance->resolveEntityIterator(iteratorHandle);
+        if (iterator == nullptr || output == nullptr || !iterator->hasCurrent ||
+            iterator->currentIndex >= iterator->readEntities.size())
+        {
+            return YICAD_FAILURE;
+        }
+        auto* entity = iterator->readEntities[iterator->currentIndex];
+        iterator->strings.clear();
+        iterator->strings.resize(6);
+        iterator->points.clear();
+        iterator->secondaryPoints.clear();
+        iterator->vertices.clear();
+        iterator->doubles.clear();
+        iterator->secondaryDoubles.clear();
+        readAttributes(entity, iterator->attributes);
+
+        auto fillText = [&](DmText* source, YiCadTextDataV3& data) {
+            data = {};
+            data.structSize = static_cast<uint32_t>(sizeof(data));
+            data.attributes = &iterator->attributes;
+            data.text = readString(source->getText(), iterator->strings[0]);
+            data.insertionPoint = readPoint(source->getPosition());
+            data.alignmentPoint = readPoint(source->getAlignment());
+            data.height = source->getHeight();
+            data.rotation = source->getAngle();
+            data.widthFactor = source->getWidthFactor();
+            data.obliqueAngle = source->getSlashAngle();
+            data.horizontalAlignment = static_cast<YiCadTextHorizontalAlignment>(
+                source->getHAlign());
+            data.verticalAlignment = static_cast<YiCadTextVerticalAlignment>(
+                source->getVAlign());
+            data.textStyle = source->getStyle();
+        };
+
+        if (auto* value = dynamic_cast<DmAttributeDefinition*>(entity))
+        {
+            auto* data = static_cast<YiCadAttributeDefinitionDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            fillText(value, iterator->textData);
+            data->text = &iterator->textData;
+            data->tag = readString(value->getTag(), iterator->strings[1]);
+            data->prompt = readString(value->getPrompt(), iterator->strings[2]);
+            data->defaultValue = iterator->textData.text;
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmAttribute*>(entity))
+        {
+            auto* data = static_cast<YiCadAttributeDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            fillText(value, iterator->textData);
+            data->text = &iterator->textData;
+            data->insert = value->getParent();
+            data->tag = readString(value->getTag(), iterator->strings[1]);
+            data->value = iterator->textData.text;
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmPoint*>(entity))
+        {
+            auto* data = static_cast<YiCadPointDataV3*>(output);
+            *data = {static_cast<uint32_t>(sizeof(*data)),
+                &iterator->attributes, readPoint(value->getPos())};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmLine*>(entity))
+        {
+            auto* data = static_cast<YiCadLineDataV3*>(output);
+            *data = {static_cast<uint32_t>(sizeof(*data)),
+                &iterator->attributes, readPoint(value->getStartpoint()),
+                readPoint(value->getEndpoint())};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmRay*>(entity))
+        {
+            auto* data = static_cast<YiCadRayDataV3*>(output);
+            *data = {static_cast<uint32_t>(sizeof(*data)),
+                &iterator->attributes, readPoint(value->getBasePoint()),
+                readPoint(value->getDirecion())};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmXline*>(entity))
+        {
+            auto* data = static_cast<YiCadXLineDataV3*>(output);
+            *data = {static_cast<uint32_t>(sizeof(*data)),
+                &iterator->attributes, readPoint(value->getBasePoint()),
+                readPoint(value->getDirecion())};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmArc*>(entity))
+        {
+            auto* data = static_cast<YiCadArcDataV3*>(output);
+            *data = {static_cast<uint32_t>(sizeof(*data)),
+                &iterator->attributes, readPoint(value->getCenter()),
+                value->getRadius(), value->getStartAngle(), value->getEndAngle()};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmCircle*>(entity))
+        {
+            auto* data = static_cast<YiCadCircleDataV3*>(output);
+            *data = {static_cast<uint32_t>(sizeof(*data)),
+                &iterator->attributes, readPoint(value->getCenter()),
+                value->getRadius()};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmEllipse*>(entity))
+        {
+            auto* data = static_cast<YiCadEllipseDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->center = readPoint(value->getCenter());
+            data->majorAxis = readPoint(value->getMajorP());
+            data->minorToMajorRatio = value->getRatio();
+            data->startParameter = value->getStartParam();
+            data->endParameter = value->getEndParam();
+            data->closed = value->isClosed() ? 1U : 0U;
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmPolyline*>(entity))
+        {
+            auto* data = static_cast<YiCadPolylineDataV3*>(output);
+            const auto source = value->getData();
+            const auto points = source.getVertexs();
+            iterator->vertices.reserve(points.size());
+            for (int index = 0; index < static_cast<int>(points.size()); ++index)
+            {
+                double startWidth = 0.0;
+                double endWidth = 0.0;
+                source.getLineWeightsAt(index, startWidth, endWidth);
+                iterator->vertices.push_back({readPoint(points[index]),
+                    startWidth, endWidth, source.getBulgeAt(index)});
+            }
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->vertices = {iterator->vertices.data(),
+                static_cast<uint32_t>(iterator->vertices.size())};
+            data->closed = value->isClosed() ? 1U : 0U;
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmSpline*>(entity))
+        {
+            auto* data = static_cast<YiCadSplineDataV3*>(output);
+            for (const auto& point : value->getControlPoints())
+                iterator->points.push_back(readPoint(point));
+            for (const auto& point : value->getFitPoints())
+                iterator->secondaryPoints.push_back(readPoint(point));
+            iterator->doubles = value->getKnots();
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->definition = value->isByFit()
+                ? YICAD_SPLINE_FIT_POINTS : YICAD_SPLINE_CONTROL_POINTS;
+            data->degree = static_cast<uint32_t>(value->getDegree());
+            data->closed = value->isClosed() ? 1U : 0U;
+            data->controlPoints = {iterator->points.data(),
+                static_cast<uint32_t>(iterator->points.size())};
+            data->knots = {iterator->doubles.data(),
+                static_cast<uint32_t>(iterator->doubles.size())};
+            data->fitPoints = {iterator->secondaryPoints.data(),
+                static_cast<uint32_t>(iterator->secondaryPoints.size())};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmSolid*>(entity))
+        {
+            auto* data = static_cast<YiCadSolidDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->cornerCount = static_cast<uint32_t>(
+                std::clamp(value->getData().getCornerSize(), 0, 4));
+            for (uint32_t index = 0; index < data->cornerCount; ++index)
+                data->corners[index] = readPoint(value->getCorner(index));
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmMText*>(entity))
+        {
+            auto* data = static_cast<YiCadMTextDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->contents = readString(value->getContent(), iterator->strings[0]);
+            data->insertionPoint = readPoint(value->getPosition());
+            data->direction = {std::cos(value->getAngle()), std::sin(value->getAngle())};
+            data->characterHeight = value->getCharHeight();
+            data->rectangleWidth = value->getWidth();
+            data->lineSpacingFactor = value->getLineSpacingFactor();
+            data->attachment = static_cast<YiCadMTextAttachment>(value->getJustification()) + 1;
+            data->textStyle = value->getStyle();
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmText*>(entity))
+        {
+            fillText(value, *static_cast<YiCadTextDataV3*>(output));
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmBlockReference*>(entity))
+        {
+            auto* data = static_cast<YiCadInsertDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->block = value->getBlockForInsert();
+            data->insertionPoint = readPoint(value->getInsertionPoint());
+            const auto scale = value->getScale();
+            data->scale = {scale.x, scale.y, scale.z};
+            data->rotation = value->getAngle();
+            data->columnCount = static_cast<uint32_t>(value->getCols());
+            data->rowCount = static_cast<uint32_t>(value->getRows());
+            const auto spacing = value->getSpacing();
+            data->columnSpacing = spacing.x;
+            data->rowSpacing = spacing.y;
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmLeader*>(entity))
+        {
+            auto* data = static_cast<YiCadLeaderDataV3*>(output);
+            const auto source = value->getData();
+            for (const auto& point : source.vertextes)
+                iterator->points.push_back(readPoint(point));
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->vertices = {iterator->points.data(),
+                static_cast<uint32_t>(iterator->points.size())};
+            data->hasArrow = source.vertextes.empty() ? 0U : 1U;
+            data->dimensionStyle = source.pStyle;
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmDimension*>(entity))
+        {
+            auto* data = static_cast<YiCadDimensionDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->dimensionStyle = value->getStyle();
+            data->textOverride = readString(value->getLabel(), iterator->strings[0]);
+            data->definitionPoint = readPoint(value->getDefinitionPoint());
+            data->textPosition = readPoint(value->getMiddleOfText());
+            data->textRotation = value->getData().angle;
+            data->lineSpacingFactor = value->getLineSpacingFactor();
+            if (auto* linear = dynamic_cast<DmDimLinear*>(value))
+            {
+                const auto source = linear->getEData();
+                data->kind = YICAD_DIMENSION_LINEAR;
+                data->extensionPoint1 = readPoint(source.extensionPoint1);
+                data->extensionPoint2 = readPoint(source.extensionPoint2);
+            }
+            else if (auto* aligned = dynamic_cast<DmDimAligned*>(value))
+            {
+                const auto source = aligned->getEData();
+                data->kind = YICAD_DIMENSION_ALIGNED;
+                data->extensionPoint1 = readPoint(source.extensionPoint1);
+                data->extensionPoint2 = readPoint(source.extensionPoint2);
+            }
+            else if (auto* angular = dynamic_cast<DmDimAngular*>(value))
+            {
+                const auto source = angular->getEData();
+                data->kind = YICAD_DIMENSION_ANGULAR;
+                data->line1Start = readPoint(source.line1StartPt);
+                data->line1End = readPoint(source.line1EndPt);
+                data->line2Start = readPoint(source.line2StartPt);
+                data->line2End = readPoint(source.line2EndPt);
+                data->arcPoint = readPoint(source.ptOnArc);
+            }
+            else if (auto* radial = dynamic_cast<DmDimRadial*>(value))
+            {
+                const auto source = radial->getEData();
+                data->kind = YICAD_DIMENSION_RADIAL;
+                data->featurePoint = readPoint(source.endPoint);
+                data->leaderLength = source.leader;
+            }
+            else if (auto* diametric = dynamic_cast<DmDimDiametric*>(value))
+            {
+                const auto source = diametric->getEData();
+                data->kind = YICAD_DIMENSION_DIAMETRIC;
+                data->featurePoint = readPoint(source.endPoint);
+                data->leaderLength = source.leader;
+            }
+            else
+            {
+                return YICAD_FAILURE;
+            }
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmHatch*>(entity))
+        {
+            auto* data = static_cast<YiCadHatchDataV3*>(output);
+            const auto region = value->getBoundary();
+            if (region == nullptr)
+            {
+                return YICAD_FAILURE;
+            }
+            const auto regionData = region->getData();
+            std::vector<DmEntityContainerPtr> boundaries;
+            boundaries.push_back(regionData.getBoundary());
+            const auto holes = regionData.getHoles();
+            boundaries.insert(boundaries.end(), holes.begin(), holes.end());
+            iterator->hatchEdges.clear();
+            iterator->hatchLoops.clear();
+            iterator->hatchEdges.resize(boundaries.size());
+            iterator->hatchControlPoints.resize(boundaries.size());
+            iterator->hatchKnots.resize(boundaries.size());
+            iterator->hatchLoops.resize(boundaries.size());
+            for (std::size_t loopIndex = 0; loopIndex < boundaries.size(); ++loopIndex)
+            {
+                if (boundaries[loopIndex] == nullptr)
+                {
+                    return YICAD_FAILURE;
+                }
+                auto& edges = iterator->hatchEdges[loopIndex];
+                for (auto* edgeEntity : *boundaries[loopIndex])
+                {
+                    YiCadHatchEdgeDataV3 edge{};
+                    edge.structSize = static_cast<uint32_t>(sizeof(edge));
+                    if (auto* line = dynamic_cast<DmLine*>(edgeEntity))
+                    {
+                        edge.type = YICAD_HATCH_EDGE_LINE;
+                        edge.startPoint = readPoint(line->getStartpoint());
+                        edge.endPoint = readPoint(line->getEndpoint());
+                    }
+                    else if (auto* arc = dynamic_cast<DmArc*>(edgeEntity))
+                    {
+                        edge.type = YICAD_HATCH_EDGE_CIRCULAR_ARC;
+                        edge.center = readPoint(arc->getCenter());
+                        edge.radius = arc->getRadius();
+                        edge.startParameter = arc->getStartAngle();
+                        edge.endParameter = arc->getEndAngle();
+                        edge.counterClockwise = arc->isClockwise() ? 0U : 1U;
+                    }
+                    else if (auto* ellipse = dynamic_cast<DmEllipse*>(edgeEntity))
+                    {
+                        edge.type = YICAD_HATCH_EDGE_ELLIPTIC_ARC;
+                        edge.center = readPoint(ellipse->getCenter());
+                        edge.majorAxis = readPoint(ellipse->getMajorP());
+                        edge.minorToMajorRatio = ellipse->getRatio();
+                        edge.startParameter = ellipse->getStartParam();
+                        edge.endParameter = ellipse->getEndParam();
+                        edge.counterClockwise = ellipse->isClockwise() ? 0U : 1U;
+                    }
+                    else if (auto* spline = dynamic_cast<DmSpline*>(edgeEntity))
+                    {
+                        edge.type = YICAD_HATCH_EDGE_SPLINE;
+                        edge.degree = static_cast<uint32_t>(spline->getDegree());
+                        edge.periodic = 0;
+                        edge.rational = 0;
+                        auto& points = iterator->hatchControlPoints[loopIndex];
+                        auto& knots = iterator->hatchKnots[loopIndex];
+                        points.emplace_back();
+                        knots.push_back(spline->getKnots());
+                        for (const auto& point : spline->getControlPoints())
+                            points.back().push_back(readPoint(point));
+                        edge.controlPoints = {points.back().data(),
+                            static_cast<uint32_t>(points.back().size())};
+                        edge.knots = {knots.back().data(),
+                            static_cast<uint32_t>(knots.back().size())};
+                    }
+                    else
+                    {
+                        return YICAD_FAILURE;
+                    }
+                    edges.push_back(edge);
+                }
+                YiCadHatchLoopDataV3 loop{};
+                loop.structSize = static_cast<uint32_t>(sizeof(loop));
+                loop.kind = YICAD_HATCH_LOOP_EDGES;
+                loop.role = loopIndex == 0
+                    ? YICAD_HATCH_LOOP_OUTER : YICAD_HATCH_LOOP_HOLE;
+                loop.outerLoopIndex = loopIndex == 0 ? UINT32_MAX : 0U;
+                loop.edges = {edges.data(), static_cast<uint32_t>(edges.size()),
+                    static_cast<uint32_t>(sizeof(YiCadHatchEdgeDataV3))};
+                iterator->hatchLoops[loopIndex] = loop;
+            }
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->solid = value->isSolid() ? 1U : 0U;
+            data->patternName = readString(value->getPattern(), iterator->strings[0]);
+            data->patternScale = value->getScale();
+            data->patternAngle = value->getAngle();
+            data->loops = {iterator->hatchLoops.data(),
+                static_cast<uint32_t>(iterator->hatchLoops.size()),
+                static_cast<uint32_t>(sizeof(YiCadHatchLoopDataV3))};
+            return YICAD_SUCCESS;
+        }
+        if (auto* value = dynamic_cast<DmImage*>(entity))
+        {
+            auto* data = static_cast<YiCadImageDataV3*>(output);
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->path = readString(value->getFile(), iterator->strings[0]);
+            data->insertionPoint = readPoint(value->getInsertionPoint());
+            data->uVector = readPoint(value->getUVector());
+            data->vVector = readPoint(value->getVVector());
+            data->size = {static_cast<double>(value->getWidth()),
+                static_cast<double>(value->getHeight())};
+            data->brightness = value->getBrightness();
+            data->contrast = value->getContrast();
+            data->fade = value->getFade();
+            return YICAD_SUCCESS;
+        }
+        return YICAD_FAILURE;
+    }
+    catch (...)
+    {
+        return YICAD_FAILURE;
     }
 }
 
@@ -2689,6 +3644,59 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createSpline(
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
             "创建样条实体失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createSolid(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle container,
+    const YiCadSolidDataV3* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr
+        ? nullptr
+        : instance->resolveImportSession(sessionHandle);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (input == nullptr ||
+        !validStructPrefix(input->structSize, YICAD_SOLID_DATA_V3_MIN_SIZE) ||
+        (input->cornerCount != 3 && input->cornerCount != 4))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "实体填充必须包含三个或四个顶点");
+    }
+    try
+    {
+        std::vector<DmVector> corners;
+        corners.reserve(input->cornerCount);
+        for (uint32_t index = 0; index < input->cornerCount; ++index)
+        {
+            if (!finitePoint(input->corners[index]))
+            {
+                return instance->setImportError(
+                    YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                    "实体填充顶点坐标无效");
+            }
+            corners.push_back(toDmVector(input->corners[index]));
+        }
+        auto entity = std::make_unique<DmSolid>(nullptr, SolidData(corners));
+        return instance->addImportEntity(session, container, input->attributes,
+            entity.release());
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建实体填充时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建实体填充失败");
     }
 }
 

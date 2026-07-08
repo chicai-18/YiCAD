@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <array>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace yicad::plugin
@@ -65,6 +67,7 @@ class TextStyleData;
 class DimensionStyleData;
 class PolylineData;
 class SplineData;
+class SolidData;
 class TextData;
 class MTextData;
 class BlockData;
@@ -116,6 +119,13 @@ inline bool validString(const std::string& value, bool required) noexcept
            value.find('\0') == std::string::npos;
 }
 
+inline std::string copyString(YiCadStringView value)
+{
+    return value.data == nullptr || value.size == 0
+        ? std::string{}
+        : std::string(value.data, value.size);
+}
+
 template<typename Data>
 Data initializeImportData() noexcept = delete;
 
@@ -136,6 +146,7 @@ YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadCircleDataV3)
 YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadEllipseDataV3)
 YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadPolylineDataV3)
 YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadSplineDataV3)
+YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadSolidDataV3)
 YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadBlockDataV3)
 YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadAttributeDefinitionDataV3)
 YICAD_SDK_DEFINE_ZERO_IMPORT_DATA(YiCadAttributeDataV3)
@@ -351,11 +362,9 @@ inline bool hasImportField(
     std::size_t offset,
     std::size_t size) noexcept
 {
-    constexpr auto headerSize =
-        offsetof(YiCadImportApi, abiVersion) + sizeof(uint32_t);
-    return api != nullptr && api->structSize >= headerSize &&
-           api->abiVersion >= YICAD_PLUGIN_ABI_V3 &&
-           api->structSize >= offset && size <= api->structSize - offset;
+    (void)offset;
+    (void)size;
+    return api != nullptr && api->abiVersion == YICAD_PLUGIN_ABI_V3;
 }
 
 struct ImportState
@@ -481,10 +490,30 @@ public:
         return *this;
     }
 
+    const YiCadEntityAttributes& abiData() const noexcept { return m_data; }
+    const std::string& layerName() const noexcept { return m_layerName; }
+    const std::string& lineTypeName() const noexcept { return m_lineTypeName; }
+
+    static EntityAttributes fromAbi(
+        const YiCadEntityAttributes* value,
+        std::string layerName = {},
+        std::string lineTypeName = {})
+    {
+        EntityAttributes result;
+        if (value != nullptr)
+        {
+            result.m_data = *value;
+        }
+        result.m_layerName = std::move(layerName);
+        result.m_lineTypeName = std::move(lineTypeName);
+        return result;
+    }
+
 private:
     friend class ImportContainer;
     friend class PolylineData;
     friend class SplineData;
+    friend class SolidData;
     friend class TextData;
     friend class MTextData;
     friend class InsertData;
@@ -494,12 +523,26 @@ private:
     friend class ImageData;
 
     YiCadEntityAttributes m_data;
+    std::string m_layerName;
+    std::string m_lineTypeName;
 };
+
+struct PointData { YiCadPoint2d position{}; EntityAttributes attributes; };
+struct LineData { YiCadPoint2d startPoint{}; YiCadPoint2d endPoint{}; EntityAttributes attributes; };
+struct RayData { YiCadPoint2d basePoint{}; YiCadVector2d direction{}; EntityAttributes attributes; };
+struct XLineData { YiCadPoint2d basePoint{}; YiCadVector2d direction{}; EntityAttributes attributes; };
+struct ArcData { YiCadPoint2d center{}; double radius = 0.0; double startAngle = 0.0; double endAngle = 0.0; EntityAttributes attributes; };
+struct CircleData { YiCadPoint2d center{}; double radius = 0.0; EntityAttributes attributes; };
+struct EllipseData { YiCadPoint2d center{}; YiCadVector2d majorAxis{}; double minorToMajorRatio = 0.0; double startParameter = 0.0; double endParameter = 0.0; bool closed = false; EntityAttributes attributes; };
 
 /** @brief 插件侧拥有字符串的文档设置。 */
 class DocumentSettings
 {
 public:
+    int32_t insertionUnits() const noexcept { return m_insertionUnits; }
+    int32_t measurement() const noexcept { return m_measurement; }
+    double globalLineTypeScale() const noexcept { return m_globalLineTypeScale; }
+    const std::string& sourceCodePage() const noexcept { return m_sourceCodePage; }
     DocumentSettings& setInsertionUnits(int32_t value) noexcept
     {
         m_insertionUnits = value;
@@ -571,6 +614,10 @@ public:
         m_complex = value;
         return *this;
     }
+    const std::string& name() const noexcept { return m_name; }
+    const std::string& description() const noexcept { return m_description; }
+    const std::vector<double>& elements() const noexcept { return m_elements; }
+    bool complex() const noexcept { return m_complex; }
 
 private:
     friend class ImportSession;
@@ -614,6 +661,18 @@ public:
         return *this;
     }
     LayerData& setLineWidth(int32_t value) noexcept { m_lineWidth = value; return *this; }
+    LayerData& setLineTypeName(std::string value)
+    {
+        m_lineTypeName = std::move(value);
+        return *this;
+    }
+    const std::string& name() const noexcept { return m_name; }
+    bool frozen() const noexcept { return m_frozen; }
+    bool locked() const noexcept { return m_locked; }
+    bool plottable() const noexcept { return m_plottable; }
+    YiCadColorData color() const noexcept { return m_color; }
+    int32_t lineWidth() const noexcept { return m_lineWidth; }
+    const std::string& lineTypeName() const noexcept { return m_lineTypeName; }
 
 private:
     friend class ImportSession;
@@ -641,6 +700,7 @@ private:
     bool m_plottable = true;
     YiCadColorData m_color{YICAD_COLOR_BY_LAYER, 0, 0, 0, 0, 0};
     ImportResource m_lineType;
+    std::string m_lineTypeName;
     int32_t m_lineWidth = -1;
 };
 
@@ -669,6 +729,9 @@ public:
         m_generationFlags = value;
         return *this;
     }
+    const std::string& name() const noexcept { return m_name; }
+    const std::string& fontFile() const noexcept { return m_fontFile; }
+    const std::string& bigFontFile() const noexcept { return m_bigFontFile; }
 
 private:
     friend class ImportSession;
@@ -706,6 +769,28 @@ class DimensionStyleData
 {
 public:
     explicit DimensionStyleData(std::string name = {}) : m_name(std::move(name)) {}
+    const std::string& name() const noexcept { return m_name; }
+    const YiCadDimensionStyleDataV3& abiData() const noexcept { return m_data; }
+    DimensionStyleData& setResourceNames(std::string textStyle,
+        std::string dimLineType, std::string extensionLineType)
+    {
+        m_textStyleName = std::move(textStyle);
+        m_dimLineTypeName = std::move(dimLineType);
+        m_extensionLineTypeName = std::move(extensionLineType);
+        return *this;
+    }
+    const std::string& textStyleName() const noexcept { return m_textStyleName; }
+    static DimensionStyleData fromAbi(const YiCadDimensionStyleDataV3& data)
+    {
+        DimensionStyleData result(detail::copyString(data.name));
+        result.m_data = data;
+        result.m_prefix = detail::copyString(data.prefix);
+        result.m_suffix = detail::copyString(data.suffix);
+        result.m_data.name = {};
+        result.m_data.prefix = {};
+        result.m_data.suffix = {};
+        return result;
+    }
 
     DimensionStyleData& setResources(const ImportResource& textStyle,
         const ImportResource& dimLineType,
@@ -807,6 +892,9 @@ private:
     std::string m_name;
     std::string m_prefix;
     std::string m_suffix;
+    std::string m_textStyleName;
+    std::string m_dimLineTypeName;
+    std::string m_extensionLineTypeName;
     ImportResource m_textStyle;
     ImportResource m_dimLineType;
     ImportResource m_extensionLineType;
@@ -825,6 +913,9 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    const std::vector<YiCadVertex2d>& vertices() const noexcept { return m_vertices; }
+    bool closed() const noexcept { return m_closed; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -872,6 +963,13 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    YiCadSplineDefinition definition() const noexcept { return m_definition; }
+    uint32_t degree() const noexcept { return m_degree; }
+    bool closed() const noexcept { return m_closed; }
+    const std::vector<YiCadPoint2d>& controlPoints() const noexcept { return m_controlPoints; }
+    const std::vector<YiCadPoint2d>& fitPoints() const noexcept { return m_fitPoints; }
+    const std::vector<double>& knots() const noexcept { return m_knots; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -915,6 +1013,49 @@ private:
     EntityAttributes m_attributes;
 };
 
+/** @brief 插件侧拥有三个或四个顶点的二维实体填充。 */
+class SolidData
+{
+public:
+    explicit SolidData(std::vector<YiCadPoint2d> corners = {})
+        : m_corners(std::move(corners))
+    {
+    }
+
+    SolidData& setAttributes(EntityAttributes value) noexcept
+    {
+        m_attributes = std::move(value);
+        return *this;
+    }
+
+    const std::vector<YiCadPoint2d>& corners() const noexcept
+    {
+        return m_corners;
+    }
+
+private:
+    friend class ImportContainer;
+
+    YiCadImportResult makeAbi(YiCadSolidDataV3& data) const noexcept
+    {
+        if (m_corners.size() != 3 && m_corners.size() != 4)
+        {
+            return YICAD_IMPORT_ERROR_INVALID_ARGUMENT;
+        }
+        data = makeImportData<YiCadSolidDataV3>();
+        data.attributes = &m_attributes.m_data;
+        data.cornerCount = static_cast<uint32_t>(m_corners.size());
+        for (std::size_t index = 0; index < m_corners.size(); ++index)
+        {
+            data.corners[index] = m_corners[index];
+        }
+        return YICAD_IMPORT_SUCCESS;
+    }
+
+    std::vector<YiCadPoint2d> m_corners;
+    EntityAttributes m_attributes;
+};
+
 /** @brief 插件侧拥有 UTF-8 内容的单行文字输入。 */
 class TextData
 {
@@ -943,10 +1084,21 @@ public:
     {
         m_textStyle = value; return *this;
     }
+    TextData& setStyleName(std::string value)
+    {
+        m_textStyleName = std::move(value); return *this;
+    }
     TextData& setAttributes(EntityAttributes value) noexcept
     {
         m_attributes = std::move(value); return *this;
     }
+    const std::string& text() const noexcept { return m_text; }
+    YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
+    YiCadPoint2d alignmentPoint() const noexcept { return m_alignmentPoint; }
+    double height() const noexcept { return m_height; }
+    double rotation() const noexcept { return m_rotation; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
+    const std::string& textStyleName() const noexcept { return m_textStyleName; }
 
 private:
     friend class ImportContainer;
@@ -983,6 +1135,7 @@ private:
     YiCadTextHorizontalAlignment m_horizontalAlignment = YICAD_TEXT_ALIGN_LEFT;
     YiCadTextVerticalAlignment m_verticalAlignment = YICAD_TEXT_ALIGN_BASELINE;
     ImportResource m_textStyle;
+    std::string m_textStyleName;
     EntityAttributes m_attributes;
 };
 
@@ -1008,6 +1161,10 @@ public:
     {
         m_textStyle = value; return *this;
     }
+    MTextData& setStyleName(std::string value)
+    {
+        m_textStyleName = std::move(value); return *this;
+    }
     MTextData& setAttributes(EntityAttributes value) noexcept
     {
         m_attributes = std::move(value); return *this;
@@ -1022,6 +1179,10 @@ public:
         return *this;
     }
     MTextData& clearBackground() noexcept { m_background.reset(); return *this; }
+    const std::string& contents() const noexcept { return m_contents; }
+    YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
+    YiCadVector2d direction() const noexcept { return m_direction; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -1053,6 +1214,7 @@ private:
     double m_lineSpacingFactor = 1.0;
     YiCadMTextAttachment m_attachment = YICAD_MTEXT_TOP_LEFT;
     ImportResource m_textStyle;
+    std::string m_textStyleName;
     EntityAttributes m_attributes;
     std::optional<YiCadMTextBackgroundData> m_background;
 };
@@ -1073,9 +1235,15 @@ public:
     {
         m_externalReferencePath = std::move(value); return *this;
     }
+    const std::string& name() const noexcept { return m_name; }
+    YiCadPoint2d basePoint() const noexcept { return m_basePoint; }
+    uint32_t flags() const noexcept { return m_flags; }
+    const std::string& description() const noexcept { return m_description; }
+    const std::string& externalReferencePath() const noexcept { return m_externalReferencePath; }
 
 private:
     friend class ImportSession;
+    friend class Document;
 
     YiCadImportResult makeAbi(YiCadBlockDataV3& data) const noexcept
     {
@@ -1097,6 +1265,7 @@ private:
     uint32_t m_flags = 0;
     std::string m_description;
     std::string m_externalReferencePath;
+    YiCadReadResourceHandle m_readHandle = nullptr;
 };
 
 /** @brief 插件侧保存块引用资源与变换参数的块引用输入。 */
@@ -1104,6 +1273,7 @@ class InsertData
 {
 public:
     explicit InsertData(const ImportResource& block = {}) : m_block(block) {}
+    explicit InsertData(std::string blockName) : m_blockName(std::move(blockName)) {}
 
     InsertData& setPlacement(YiCadPoint2d point, YiCadVector3d scale = {1.0, 1.0, 1.0},
         double rotation = 0.0) noexcept
@@ -1120,6 +1290,9 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    const std::string& blockName() const noexcept { return m_blockName; }
+    YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -1140,6 +1313,7 @@ private:
     }
 
     ImportResource m_block;
+    std::string m_blockName;
     EntityAttributes m_attributes;
     YiCadPoint2d m_insertionPoint{};
     YiCadVector3d m_scale{1.0, 1.0, 1.0};
@@ -1257,6 +1431,10 @@ public:
     {
         m_dimensionStyle = value; return *this;
     }
+    DimensionData& setStyleName(std::string value)
+    {
+        m_dimensionStyleName = std::move(value); return *this;
+    }
     DimensionData& setText(std::string overrideText, YiCadPoint2d position,
         double rotation = 0.0, double lineSpacingFactor = 1.0)
     {
@@ -1314,6 +1492,7 @@ private:
 
     YiCadDimensionKind m_kind;
     ImportResource m_dimensionStyle;
+    std::string m_dimensionStyleName;
     std::string m_textOverride;
     YiCadPoint2d m_definitionPoint{};
     YiCadPoint2d m_textPosition{};
@@ -1342,6 +1521,10 @@ public:
     LeaderData& setStyle(const ImportResource& value) noexcept
     {
         m_dimensionStyle = value; return *this;
+    }
+    LeaderData& setStyleName(std::string value)
+    {
+        m_dimensionStyleName = std::move(value); return *this;
     }
     LeaderData& setText(TextData value)
     {
@@ -1382,6 +1565,7 @@ private:
     std::vector<YiCadPoint2d> m_vertices;
     bool m_hasArrow = false;
     ImportResource m_dimensionStyle;
+    std::string m_dimensionStyleName;
     std::optional<TextData> m_text;
     EntityAttributes m_attributes;
 };
@@ -1611,6 +1795,9 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    const std::string& path() const noexcept { return m_path; }
+    YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -1643,10 +1830,16 @@ private:
     EntityAttributes m_attributes;
 };
 
+using EntityData = std::variant<
+    PointData, LineData, RayData, XLineData, ArcData, CircleData,
+    EllipseData, PolylineData, SplineData, SolidData, TextData,
+    MTextData, DimensionData, LeaderData, HatchData, InsertData,
+    AttributeDefinitionData, AttributeData, ImageData>;
+
 /**
  * @brief 导入会话内的非拥有模型空间或块定义容器包装。
  * @note 容器只在所属会话内有效；块容器在 endBlock 成功后立即失效。
- * @note 创建函数返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，截短子表或
+ * @note 创建函数返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，缺失函数或
  * 空函数指针返回 UNSUPPORTED。输入字符串、数组和嵌套结构指针只需保持到该函数返回。
  */
 class ImportContainer
@@ -1968,6 +2161,30 @@ public:
                 : nullptr);
     }
 
+    /// @brief 创建三点或四点二维实体填充。
+    YiCadImportResult createSolid(const SolidData& value) const noexcept
+    {
+        if (!*this)
+        {
+            return YICAD_IMPORT_ERROR_INVALID_HANDLE;
+        }
+        YiCadSolidDataV3 data{};
+        const auto result = value.makeAbi(data);
+        return result == YICAD_IMPORT_SUCCESS ? createSolid(data) : result;
+    }
+
+    /// @brief 使用底层 ABI POD 创建三点或四点二维实体填充。
+    YiCadImportResult createSolid(
+        const YiCadSolidDataV3& data) const noexcept
+    {
+        return createEntity(data, offsetof(YiCadImportApi, createSolid),
+            sizeof(((YiCadImportApi*)nullptr)->createSolid),
+            m_state != nullptr && YICAD_SDK_HAS_IMPORT_FUNCTION(
+                                      m_state->api, createSolid)
+                ? m_state->api->createSolid
+                : nullptr);
+    }
+
     /// @brief 向容器添加单行文字实体。
     YiCadImportResult createText(const YiCadTextDataV3& data) const noexcept
     {
@@ -2163,7 +2380,7 @@ private:
 /**
  * @brief 不可复制、可移动的导入会话；析构时自动回滚未结束会话。
  * @note 仅允许在 YiCAD UI 主线程和创建该会话的文件导入回调内使用。
- * @note 包装方法返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，截短子表或
+ * @note 包装方法返回宿主的确定结果码；无效包装返回 INVALID_HANDLE，缺失函数或
  * 空函数指针返回 UNSUPPORTED。commit 和 rollback 都会消费会话及全部子句柄。
  */
 class ImportSession
@@ -2645,6 +2862,298 @@ public:
         return m_api != nullptr && m_handle != nullptr;
     }
 
+    /// @brief 读取下一项并转换为拥有全部字符串和数组的 C++ 值。
+    bool next(EntityData& value) noexcept
+    {
+        if (m_api == nullptr || m_api->readApi == nullptr ||
+            m_handle == nullptr)
+        {
+            return false;
+        }
+        const auto* read = m_api->readApi;
+        YiCadEntityType type = YICAD_ENTITY_UNKNOWN;
+        if (read->entityNext(m_handle, &type) != YICAD_SUCCESS)
+        {
+            return false;
+        }
+        auto attributes = [&](const YiCadEntityAttributes* source) {
+            return EntityAttributes::fromAbi(source,
+                resourceName(source == nullptr ? nullptr : source->layer),
+                resourceName(source == nullptr ? nullptr : source->lineType));
+        };
+        switch (type)
+        {
+        case YICAD_ENTITY_POINT:
+        {
+            YiCadPointDataV3 data{};
+            if (!readCurrent(data)) return false;
+            value = PointData{data.position, attributes(data.attributes)};
+            return true;
+        }
+        case YICAD_ENTITY_LINE:
+        {
+            YiCadLineDataV3 data{};
+            if (!readCurrent(data)) return false;
+            value = LineData{data.startPoint, data.endPoint,
+                attributes(data.attributes)};
+            return true;
+        }
+        case YICAD_ENTITY_RAY:
+        case YICAD_ENTITY_XLINE:
+        {
+            YiCadRayDataV3 data{};
+            if (!readCurrent(data)) return false;
+            if (type == YICAD_ENTITY_RAY)
+                value = RayData{data.basePoint, data.direction, attributes(data.attributes)};
+            else
+                value = XLineData{data.basePoint, data.direction, attributes(data.attributes)};
+            return true;
+        }
+        case YICAD_ENTITY_ARC:
+        {
+            YiCadArcDataV3 data{};
+            if (!readCurrent(data)) return false;
+            value = ArcData{data.center, data.radius, data.startAngle,
+                data.endAngle, attributes(data.attributes)};
+            return true;
+        }
+        case YICAD_ENTITY_CIRCLE:
+        {
+            YiCadCircleDataV3 data{};
+            if (!readCurrent(data)) return false;
+            value = CircleData{data.center, data.radius, attributes(data.attributes)};
+            return true;
+        }
+        case YICAD_ENTITY_ELLIPSE:
+        {
+            YiCadEllipseDataV3 data{};
+            if (!readCurrent(data)) return false;
+            value = EllipseData{data.center, data.majorAxis,
+                data.minorToMajorRatio, data.startParameter, data.endParameter,
+                data.closed != 0, attributes(data.attributes)};
+            return true;
+        }
+        case YICAD_ENTITY_POLYLINE:
+        {
+            YiCadPolylineDataV3 data{};
+            if (!readCurrent(data)) return false;
+            std::vector<YiCadVertex2d> vertices(data.vertices.data,
+                data.vertices.data + data.vertices.count);
+            PolylineData result(std::move(vertices));
+            result.setClosed(data.closed != 0).setAttributes(attributes(data.attributes));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_SPLINE:
+        {
+            YiCadSplineDataV3 data{};
+            if (!readCurrent(data)) return false;
+            SplineData result;
+            if (data.definition == YICAD_SPLINE_FIT_POINTS)
+                result.setFitPoints(data.degree,
+                    std::vector<YiCadPoint2d>(data.fitPoints.data,
+                        data.fitPoints.data + data.fitPoints.count));
+            else
+                result.setControlPoints(data.degree,
+                    std::vector<YiCadPoint2d>(data.controlPoints.data,
+                        data.controlPoints.data + data.controlPoints.count),
+                    std::vector<double>(data.knots.data,
+                        data.knots.data + data.knots.count),
+                    std::vector<double>(data.weights.data,
+                        data.weights.data + data.weights.count));
+            result.setClosed(data.closed != 0).setRational(data.rational != 0)
+                .setPeriodic(data.periodic != 0).setAttributes(attributes(data.attributes));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_SOLID:
+        {
+            YiCadSolidDataV3 data{};
+            if (!readCurrent(data)) return false;
+            SolidData result(std::vector<YiCadPoint2d>(
+                data.corners, data.corners + data.cornerCount));
+            result.setAttributes(attributes(data.attributes));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_TEXT:
+        {
+            YiCadTextDataV3 data{};
+            if (!readCurrent(data)) return false;
+            auto result = textValue(data, attributes(data.attributes));
+            result.setStyleName(resourceName(data.textStyle));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_MTEXT:
+        {
+            YiCadMTextDataV3 data{};
+            if (!readCurrent(data)) return false;
+            MTextData result(detail::copyString(data.contents));
+            result.setPlacement(data.insertionPoint, data.direction)
+                .setLayout(data.characterHeight, data.rectangleWidth,
+                    data.lineSpacingFactor, data.attachment)
+                .setAttributes(attributes(data.attributes));
+            result.setStyleName(resourceName(data.textStyle));
+            if (data.background != nullptr)
+                result.setBackground(data.background->useDrawingBackgroundColor != 0,
+                    data.background->color, data.background->borderScaleFactor);
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_INSERT:
+        {
+            YiCadInsertDataV3 data{};
+            if (!readCurrent(data)) return false;
+            InsertData result(resourceName(data.block));
+            result.setPlacement(data.insertionPoint, data.scale, data.rotation)
+                .setArray(data.columnCount, data.rowCount,
+                    data.columnSpacing, data.rowSpacing)
+                .setAttributes(attributes(data.attributes));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_ATTRIBUTE_DEFINITION:
+        {
+            YiCadAttributeDefinitionDataV3 data{};
+            if (!readCurrent(data) || data.text == nullptr) return false;
+            AttributeDefinitionData result(
+                textValue(*data.text, attributes(data.text->attributes)),
+                detail::copyString(data.tag));
+            result.setPrompt(detail::copyString(data.prompt))
+                .setDefaultValue(detail::copyString(data.defaultValue))
+                .setFlags(data.flags);
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_ATTRIBUTE:
+        {
+            YiCadAttributeDataV3 data{};
+            if (!readCurrent(data) || data.text == nullptr) return false;
+            AttributeData result(
+                textValue(*data.text, attributes(data.text->attributes)), {},
+                detail::copyString(data.tag), detail::copyString(data.value));
+            result.setFlags(data.flags);
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_DIMENSION:
+        {
+            YiCadDimensionDataV3 data{};
+            if (!readCurrent(data)) return false;
+            DimensionData result(data.kind);
+            result.setText(detail::copyString(data.textOverride), data.textPosition,
+                    data.textRotation, data.lineSpacingFactor)
+                .setDefinitionPoints(data.definitionPoint,
+                    data.extensionPoint1, data.extensionPoint2)
+                .setAngularLines(data.line1Start, data.line1End,
+                    data.line2Start, data.line2End, data.arcPoint)
+                .setFeaturePoint(data.featurePoint, data.leaderLength)
+                .setAttributes(attributes(data.attributes));
+            result.setStyleName(resourceName(data.dimensionStyle));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_LEADER:
+        {
+            YiCadLeaderDataV3 data{};
+            if (!readCurrent(data)) return false;
+            LeaderData result(std::vector<YiCadPoint2d>(data.vertices.data,
+                data.vertices.data + data.vertices.count));
+            result.setArrow(data.hasArrow != 0).setAttributes(attributes(data.attributes));
+            result.setStyleName(resourceName(data.dimensionStyle));
+            if (data.text != nullptr)
+                result.setText(textValue(*data.text, attributes(data.text->attributes)));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_HATCH:
+        {
+            YiCadHatchDataV3 data{};
+            if (!readCurrent(data)) return false;
+            HatchData result;
+            if (data.solid != 0) result.setSolid();
+            else result.setPattern(detail::copyString(data.patternName),
+                data.patternScale, data.patternAngle);
+            for (uint32_t loopIndex = 0; loopIndex < data.loops.count; ++loopIndex)
+            {
+                const auto* loop = reinterpret_cast<const YiCadHatchLoopDataV3*>(
+                    reinterpret_cast<const std::byte*>(data.loops.data) +
+                    static_cast<std::size_t>(loopIndex) * data.loops.byteStride);
+                if (loop->kind == YICAD_HATCH_LOOP_POLYLINE)
+                {
+                    result.addPolylineLoop(
+                        std::vector<YiCadVertex2d>(loop->polylineVertices.data,
+                            loop->polylineVertices.data +
+                                loop->polylineVertices.count),
+                        loop->role, loop->outerLoopIndex);
+                    continue;
+                }
+                std::vector<HatchData::Edge> edges;
+                edges.reserve(loop->edges.count);
+                for (uint32_t edgeIndex = 0; edgeIndex < loop->edges.count;
+                     ++edgeIndex)
+                {
+                    const auto* edge = reinterpret_cast<const YiCadHatchEdgeDataV3*>(
+                        reinterpret_cast<const std::byte*>(loop->edges.data) +
+                        static_cast<std::size_t>(edgeIndex) * loop->edges.byteStride);
+                    switch (edge->type)
+                    {
+                    case YICAD_HATCH_EDGE_LINE:
+                        edges.push_back(HatchData::Edge::line(
+                            edge->startPoint, edge->endPoint));
+                        break;
+                    case YICAD_HATCH_EDGE_CIRCULAR_ARC:
+                        edges.push_back(HatchData::Edge::circularArc(
+                            edge->center, edge->radius, edge->startParameter,
+                            edge->endParameter, edge->counterClockwise != 0));
+                        break;
+                    case YICAD_HATCH_EDGE_ELLIPTIC_ARC:
+                        edges.push_back(HatchData::Edge::ellipticArc(
+                            edge->center, edge->majorAxis,
+                            edge->minorToMajorRatio, edge->startParameter,
+                            edge->endParameter, edge->counterClockwise != 0));
+                        break;
+                    case YICAD_HATCH_EDGE_SPLINE:
+                        edges.push_back(HatchData::Edge::spline(edge->degree,
+                            std::vector<YiCadPoint2d>(edge->controlPoints.data,
+                                edge->controlPoints.data + edge->controlPoints.count),
+                            std::vector<double>(edge->knots.data,
+                                edge->knots.data + edge->knots.count),
+                            std::vector<double>(edge->weights.data,
+                                edge->weights.data + edge->weights.count),
+                            edge->rational != 0, edge->periodic != 0));
+                        break;
+                    default:
+                        return false;
+                    }
+                }
+                result.addEdgeLoop(std::move(edges),
+                    loop->role, loop->outerLoopIndex);
+            }
+            result.setAttributes(attributes(data.attributes));
+            value = std::move(result);
+            return true;
+        }
+        case YICAD_ENTITY_IMAGE:
+        {
+            YiCadImageDataV3 data{};
+            if (!readCurrent(data)) return false;
+            ImageData result(detail::copyString(data.path));
+            result.setGeometry(data.insertionPoint, data.uVector, data.vVector, data.size)
+                .setDisplay(data.brightness, data.contrast, data.fade)
+                .setClipBoundary(std::vector<YiCadPoint2d>(
+                    data.clipBoundary.data,
+                    data.clipBoundary.data + data.clipBoundary.count))
+                .setAttributes(attributes(data.attributes));
+            value = std::move(result);
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
+
     bool next(YiCadEntityType& type) noexcept
     {
         return m_api && m_handle && m_api->entityIteratorNext &&
@@ -2676,11 +3185,41 @@ private:
     {
     }
 
+    template<typename Data>
+    bool readCurrent(Data& data) const noexcept
+    {
+        return m_api != nullptr && m_api->readApi != nullptr &&
+               m_api->readApi->entityData(m_handle, &data) == YICAD_SUCCESS;
+    }
+
+    std::string resourceName(YiCadReadResourceHandle resource) const
+    {
+        YiCadStringView name{};
+        return resource != nullptr && m_api != nullptr && m_api->readApi != nullptr &&
+               m_api->readApi->resourceName(resource, &name) == YICAD_SUCCESS
+            ? detail::copyString(name) : std::string{};
+    }
+
+    static TextData textValue(
+        const YiCadTextDataV3& data,
+        EntityAttributes attributes)
+    {
+        TextData result(detail::copyString(data.text));
+        result.setPlacement(data.insertionPoint, data.alignmentPoint)
+            .setMetrics(data.height, data.rotation,
+                data.widthFactor, data.obliqueAngle)
+            .setAlignment(data.horizontalAlignment, data.verticalAlignment)
+            .setAttributes(std::move(attributes));
+        result.setStyleName({});
+        return result;
+    }
+
     void reset() noexcept
     {
-        if (m_api && m_handle && m_api->entityIteratorDestroy)
+        if (m_api && m_handle && m_api->readApi &&
+            m_api->readApi->entityDestroy)
         {
-            m_api->entityIteratorDestroy(m_handle);
+            m_api->readApi->entityDestroy(m_handle);
         }
         m_handle = nullptr;
     }
@@ -2696,9 +3235,8 @@ public:
 
     explicit operator bool() const noexcept
     {
-        return hasField(
-            offsetof(YiCadHostApi, abiVersion),
-            sizeof(m_api->abiVersion));
+        return m_api != nullptr && m_handle != nullptr &&
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V3;
     }
 
     bool addLine(
@@ -2749,7 +3287,7 @@ public:
                m_api->documentZoomAuto(m_handle) == YICAD_SUCCESS;
     }
 
-    /// @brief 开始一个整体可撤销的 ABI v2 文档事务。
+    /// @brief 开始一个整体可撤销的文档事务。
     DocumentTransaction beginTransaction(const char* name) const noexcept
     {
         if (name == nullptr || *name == '\0' ||
@@ -2767,21 +3305,144 @@ public:
     /// @brief 创建与文档后续修改无关的只读实体数据快照。
     EntityIterator entities() const noexcept
     {
-        if (!hasV2Field(
-                offsetof(YiCadHostApi, entityIteratorDestroy),
-                sizeof(m_api->entityIteratorDestroy)) ||
-            m_api->documentCreateEntityIterator == nullptr)
+        if (!*this || m_api->readApi == nullptr ||
+            m_api->readApi->entities == nullptr)
         {
             return {};
         }
         return EntityIterator(
-            m_api, m_api->documentCreateEntityIterator(m_handle));
+            m_api, m_api->readApi->entities(m_handle, nullptr));
     }
 
-    /// @brief 判断当前协商宿主是否提供导入会话基础能力。
-    bool supportsImport() const noexcept
+    /// @brief 枚举指定块定义中的一等实体。
+    EntityIterator entities(const BlockData& block) const noexcept
     {
-        return importApiForSession() != nullptr;
+        if (!*this || block.m_readHandle == nullptr ||
+            m_api->readApi == nullptr || m_api->readApi->entities == nullptr)
+        {
+            return {};
+        }
+        return EntityIterator(
+            m_api, m_api->readApi->entities(m_handle, block.m_readHandle));
+    }
+
+    DocumentSettings settings() const
+    {
+        DocumentSettings result;
+        YiCadDocumentSettings data{};
+        if (*this && m_api->readApi != nullptr &&
+            m_api->readApi->documentSettings(m_handle, &data) == YICAD_SUCCESS)
+        {
+            result.setInsertionUnits(data.insertionUnits)
+                .setMeasurement(data.measurement)
+                .setGlobalLineTypeScale(data.globalLineTypeScale)
+                .setSourceCodePage(detail::copyString(data.sourceCodePage));
+        }
+        return result;
+    }
+
+    std::vector<LineTypeData> lineTypes() const
+    {
+        std::vector<LineTypeData> result;
+        forEachResource(YICAD_READ_LINE_TYPE, [&](const void* handle) {
+            YiCadLineTypeDataV3 data{};
+            if (m_api->readApi->resourceData(handle, YICAD_READ_LINE_TYPE,
+                    &data) == YICAD_SUCCESS)
+            {
+                LineTypeData value(detail::copyString(data.name));
+                value.setDescription(detail::copyString(data.description))
+                    .setElements(std::vector<double>(data.elements.data,
+                        data.elements.data + data.elements.count))
+                    .setComplex(data.complex != 0);
+                result.push_back(std::move(value));
+            }
+        });
+        return result;
+    }
+
+    std::vector<LayerData> layers() const
+    {
+        std::vector<LayerData> result;
+        forEachResource(YICAD_READ_LAYER, [&](const void* handle) {
+            YiCadLayerDataV3 data{};
+            if (m_api->readApi->resourceData(handle, YICAD_READ_LAYER,
+                    &data) == YICAD_SUCCESS)
+            {
+                LayerData value(detail::copyString(data.name));
+                value.setFrozen(data.frozen != 0).setLocked(data.locked != 0)
+                    .setPlottable(data.plottable != 0).setColor(data.color)
+                    .setLineWidth(data.lineWidth)
+                    .setLineTypeName(readResourceName(data.lineType));
+                result.push_back(std::move(value));
+            }
+        });
+        return result;
+    }
+
+    std::vector<TextStyleData> textStyles() const
+    {
+        std::vector<TextStyleData> result;
+        forEachResource(YICAD_READ_TEXT_STYLE, [&](const void* handle) {
+            YiCadTextStyleDataV3 data{};
+            if (m_api->readApi->resourceData(handle, YICAD_READ_TEXT_STYLE,
+                    &data) == YICAD_SUCCESS)
+            {
+                TextStyleData value(detail::copyString(data.name));
+                value.setFontFiles(detail::copyString(data.fontFile),
+                        detail::copyString(data.bigFontFile))
+                    .setMetrics(data.fixedHeight, data.widthFactor,
+                        data.obliqueAngle)
+                    .setGenerationFlags(data.generationFlags);
+                result.push_back(std::move(value));
+            }
+        });
+        return result;
+    }
+
+    std::vector<DimensionStyleData> dimensionStyles() const
+    {
+        std::vector<DimensionStyleData> result;
+        forEachResource(YICAD_READ_DIMENSION_STYLE, [&](const void* handle) {
+            YiCadDimensionStyleDataV3 data{};
+            if (m_api->readApi->resourceData(handle,
+                    YICAD_READ_DIMENSION_STYLE, &data) == YICAD_SUCCESS)
+            {
+                auto value = DimensionStyleData::fromAbi(data);
+                value.setResourceNames(readResourceName(data.textStyle),
+                    readResourceName(data.dimLineType),
+                    readResourceName(data.extensionLineType));
+                result.push_back(std::move(value));
+            }
+        });
+        return result;
+    }
+
+    std::vector<BlockData> blocks() const
+    {
+        std::vector<BlockData> result;
+        if (!*this || m_api->readApi == nullptr)
+        {
+            return result;
+        }
+        const auto count = m_api->readApi->blockCount(m_handle);
+        result.reserve(count);
+        for (uint32_t index = 0; index < count; ++index)
+        {
+            const auto handle = m_api->readApi->blockAt(m_handle, index);
+            YiCadBlockDataV3 data{};
+            if (handle != nullptr &&
+                m_api->readApi->blockData(handle, &data) == YICAD_SUCCESS)
+            {
+                BlockData value(detail::copyString(data.name));
+                value.setBasePoint(data.basePoint).setFlags(data.flags)
+                    .setDescription(detail::copyString(data.description))
+                    .setExternalReferencePath(
+                        detail::copyString(data.externalReferencePath));
+                value.m_readHandle = handle;
+                result.push_back(std::move(value));
+            }
+        }
+        return result;
     }
 
     /// @brief 开始一个 ABI v3 导入会话。
@@ -2840,45 +3501,54 @@ private:
     {
     }
 
+    template<typename Callback>
+    void forEachResource(YiCadReadResourceKind kind, Callback&& callback) const
+    {
+        if (!*this || m_api->readApi == nullptr)
+        {
+            return;
+        }
+        const auto count = m_api->readApi->resourceCount(m_handle, kind);
+        for (uint32_t index = 0; index < count; ++index)
+        {
+            const auto handle = m_api->readApi->resourceAt(m_handle, kind, index);
+            if (handle != nullptr)
+            {
+                callback(handle);
+            }
+        }
+    }
+
+    std::string readResourceName(YiCadReadResourceHandle handle) const
+    {
+        YiCadStringView value{};
+        return handle != nullptr && m_api->readApi->resourceName(handle, &value) ==
+                   YICAD_SUCCESS
+            ? detail::copyString(value) : std::string{};
+    }
+
     bool hasField(size_t offset, size_t size) const noexcept
     {
-        constexpr auto maximumVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
+        (void)offset;
+        (void)size;
         return m_api != nullptr && m_handle != nullptr &&
-               m_api->structSize >=
-                   offsetof(YiCadHostApi, abiVersion) +
-                       sizeof(m_api->abiVersion) &&
-               m_api->abiVersion >= YICAD_PLUGIN_ABI_MIN_VERSION &&
-               m_api->abiVersion <= maximumVersion &&
-               m_api->structSize >= offset + size;
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V3;
     }
 
     bool hasV2Field(size_t offset, size_t size) const noexcept
     {
-        return hasField(offset, size) &&
-               m_api->abiVersion >= YICAD_PLUGIN_ABI_V2;
+        return hasField(offset, size);
     }
 
     const YiCadImportApi* importApiForSession() const noexcept
     {
-        if (!hasField(
-                offsetof(YiCadHostApi, importApi),
-                sizeof(m_api->importApi)) ||
-            m_api->abiVersion < YICAD_PLUGIN_ABI_V3 ||
-            m_api->importApi == nullptr)
+        if (!*this || m_api->importApi == nullptr)
         {
             return nullptr;
         }
 
         const auto* importApi = m_api->importApi;
-        const auto headerSize =
-            offsetof(YiCadImportApi, abiVersion) +
-            sizeof(importApi->abiVersion);
-        const auto requiredSize =
-            offsetof(YiCadImportApi, getLastError) +
-            sizeof(importApi->getLastError);
-        return importApi->structSize >= headerSize &&
-               importApi->abiVersion >= YICAD_PLUGIN_ABI_V3 &&
-               importApi->structSize >= requiredSize &&
+        return importApi->abiVersion == YICAD_PLUGIN_ABI_V3 &&
                importApi->beginImport != nullptr &&
                importApi->commitImport != nullptr &&
                importApi->rollbackImport != nullptr
@@ -3029,18 +3699,15 @@ public:
 private:
     bool isCompatible() const noexcept
     {
-        constexpr auto maximumVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
         return m_api != nullptr &&
-               m_api->structSize >=
-                   offsetof(YiCadHostApi, abiVersion) +
-                       sizeof(m_api->abiVersion) &&
-               m_api->abiVersion >= YICAD_PLUGIN_ABI_MIN_VERSION &&
-               m_api->abiVersion <= maximumVersion;
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V3;
     }
 
     bool hasField(size_t offset, size_t size) const noexcept
     {
-        return isCompatible() && m_api->structSize >= offset + size;
+        (void)offset;
+        (void)size;
+        return isCompatible();
     }
 
     const YiCadHostApi* m_api = nullptr;

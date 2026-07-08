@@ -18,7 +18,6 @@ namespace
 {
 
 constexpr auto PluginId = "com.yicad.dxf";
-constexpr auto SupportedAbiVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
 
 class DxfPlugin final
 {
@@ -28,10 +27,7 @@ public:
         YiCadPluginApi* plugin) noexcept
     {
         yicad::plugin::Host host(api);
-        if (!host || plugin == nullptr ||
-            plugin->structSize < YICAD_PLUGIN_API_V1_SIZE ||
-            plugin->abiVersion < YICAD_PLUGIN_ABI_MIN_VERSION ||
-            plugin->abiVersion > SupportedAbiVersion)
+        if (!host || plugin == nullptr)
         {
             return false;
         }
@@ -59,7 +55,7 @@ DxfPlugin g_plugin;
 YICAD_PLUGIN_EXPORT uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void)
 {
-    return SupportedAbiVersion;
+    return YICAD_PLUGIN_ABI_V3;
 }
 
 YICAD_PLUGIN_EXPORT YiCadResult YICAD_PLUGIN_CALL
