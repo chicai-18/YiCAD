@@ -257,7 +257,7 @@ void DxfImporter::addLayer(const DRW_Layer& source)
     yicad::plugin::ImportResource resource;
     const auto result = m_session.createLayer(
         dxf::toLayer(source, m_lineTypes),
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)
@@ -276,7 +276,7 @@ void DxfImporter::addTextStyle(const DRW_Textstyle& source)
     yicad::plugin::ImportResource resource;
     const auto result = m_session.createTextStyle(
         dxf::toTextStyle(source),
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)
@@ -302,7 +302,7 @@ void DxfImporter::addDimStyle(const DRW_Dimstyle& source)
     yicad::plugin::ImportResource resource;
     const auto result = m_session.createDimensionStyle(
         dxf::toDimensionStyle(source, textStyle, lineType),
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)
@@ -937,7 +937,7 @@ yicad::plugin::ImportResource DxfImporter::ensureTextStyle(
         .setFontFiles("txt");
     const auto result = m_session.createTextStyle(
         data,
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)
@@ -964,7 +964,7 @@ yicad::plugin::ImportResource DxfImporter::ensureDimensionStyle(
         .setResources(textStyle, lineType, lineType);
     const auto result = m_session.createDimensionStyle(
         data,
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)
