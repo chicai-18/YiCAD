@@ -9,7 +9,7 @@
 
 #include "DxfImporter.h"
 
-#include <libdxfrw/libdxfrw.h>
+#include <libdxfrw.h>
 
 #include <algorithm>
 #include <cmath>

@@ -13,7 +13,7 @@
 #include "DxfInterfaceAdapter.h"
 #include "YiCadPluginSdk.h"
 
-#include <libdxfrw/libdxfrw.h>
+#include <libdxfrw.h>
 
 #include <vector>
 

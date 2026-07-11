@@ -10,7 +10,7 @@
 #ifndef YICAD_DXF_INTERFACE_ADAPTER_H
 #define YICAD_DXF_INTERFACE_ADAPTER_H
 
-#include <libdxfrw/drw_interface.h>
+#include <drw_interface.h>
 
 /// @brief 为未使用的 libdxfrw 回调提供空实现。
 class DxfInterfaceAdapter : public DRW_Interface

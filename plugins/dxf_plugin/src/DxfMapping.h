@@ -12,10 +12,10 @@
 
 #include "YiCadPluginSdk.h"
 
-#include <libdxfrw/drw_entities.h>
-#include <libdxfrw/drw_header.h>
-#include <libdxfrw/drw_objects.h>
-#include <libdxfrw/libdxfrw.h>
+#include <drw_entities.h>
+#include <drw_header.h>
+#include <drw_objects.h>
+#include <libdxfrw.h>
 
 #include <string>
 #include <unordered_map>

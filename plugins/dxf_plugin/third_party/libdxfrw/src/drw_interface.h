@@ -19,6 +19,7 @@
 #include "drw_objects.h"
 #include "drw_header.h"
 
+// YiCAD local modification, 2026-07-11: export the cross-DLL interface.
 /**
  * Abstract class (interface) for communicate dxfReader with the application.
  * Inherit your class which takes care of the entities in the 
@@ -26,7 +27,7 @@
  *
  * @author Rallaz
  */
-class DRW_Interface {
+class YICAD_LIBDXFRW_API DRW_Interface {
 public:
     DRW_Interface() {
     }

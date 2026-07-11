@@ -55,7 +55,8 @@ namespace DRW {
 *  Base class for tables entries
 *  @author Rallaz
 */
-class DRW_TableEntry {
+// YiCAD local modification, 2026-07-11: export public types from the DLL.
+class YICAD_LIBDXFRW_API DRW_TableEntry {
 public:
 
     DRW_TableEntry() {}
@@ -126,7 +127,7 @@ private:
 *  Class to handle dim style symbol table entries
 *  @author Rallaz
 */
-class DRW_Dimstyle : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_Dimstyle : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_Dimstyle() { reset();}
@@ -240,7 +241,7 @@ public:
 *  @author Rallaz
 */
 /*TODO: handle complex lineType*/
-class DRW_LType : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_LType : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_LType() { reset();}
@@ -276,7 +277,7 @@ private:
 *  Class to handle layer symbol table entries
 *  @author Rallaz
 */
-class DRW_Layer : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_Layer : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_Layer() { reset();}
@@ -312,7 +313,7 @@ public:
 *  Class to handle block record table entries
 *  @author Rallaz
 */
-class DRW_Block_Record : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_Block_Record : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_Block_Record() { reset();}
@@ -345,7 +346,7 @@ private:
 *  Class to handle text style symbol table entries
 *  @author Rallaz
 */
-class DRW_Textstyle : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_Textstyle : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_Textstyle() { reset();}
@@ -380,7 +381,7 @@ public:
 *  Class to handle vport symbol table entries
 *  @author Rallaz
 */
-class DRW_Vport : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_Vport : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_Vport() { reset();}
@@ -448,7 +449,7 @@ public:
 *  Class to handle image definitions object entries
 *  @author Rallaz
 */
-class DRW_ImageDef : public DRW_TableEntry {//
+class YICAD_LIBDXFRW_API DRW_ImageDef : public DRW_TableEntry {//
     SETOBJFRIENDS
 public:
     DRW_ImageDef() {
@@ -484,7 +485,7 @@ public:
 *  Class to handle plot settings object entries
 *  @author baranovskiykonstantin@gmail.com
 */
-class DRW_PlotSettings : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_PlotSettings : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_PlotSettings() {
@@ -517,7 +518,7 @@ public:
 *  Class to handle AppId symbol table entries
 *  @author Rallaz
 */
-class DRW_AppId : public DRW_TableEntry {
+class YICAD_LIBDXFRW_API DRW_AppId : public DRW_TableEntry {
     SETOBJFRIENDS
 public:
     DRW_AppId() { reset();}

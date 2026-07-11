@@ -7,9 +7,7 @@ include(GNUInstallDirs)
 if(NOT TARGET YiCAD::PluginSdk)
     find_package(YiCADPluginSdk CONFIG REQUIRED)
 endif()
-if(NOT TARGET libdxfrw::libdxfrw)
-    find_package(libdxfrw 2.2 CONFIG REQUIRED)
-endif()
+add_subdirectory(third_party/libdxfrw)
 
 add_library(YiCadDxfPlugin MODULE
     src/DxfPlugin.cpp
@@ -28,7 +26,7 @@ endif()
 
 target_link_libraries(YiCadDxfPlugin PRIVATE
     YiCAD::PluginSdk
-    libdxfrw::libdxfrw)
+    YiCAD::DxfLibdxfrw)
 
 if(MSVC)
     target_compile_options(YiCadDxfPlugin PRIVATE /utf-8)

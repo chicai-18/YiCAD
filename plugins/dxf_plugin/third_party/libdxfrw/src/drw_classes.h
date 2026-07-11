@@ -27,7 +27,8 @@ class dwgBuffer;
 *  TODO: verify the dxf read/write part
 *  @author Rallaz
 */
-class DRW_Class {
+// YiCAD local modification, 2026-07-11: export public types from the DLL.
+class YICAD_LIBDXFRW_API DRW_Class {
 public:
     DRW_Class() {
     }
