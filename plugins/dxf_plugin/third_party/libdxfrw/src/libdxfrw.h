@@ -151,6 +151,7 @@ private:
     bool writingBlock;
     int elParts;  /*!< parts number when convert ellipse to polyline */
     std::unordered_map<std::string,int> blockMap;
+    std::unordered_map<duint32, std::string> textStyleNames;  /*!< 文字样式句柄到名称的映射 */
     std::vector<DRW_ImageDef*> imageDef;  /*!< imageDef list */
 
     int currHandle;

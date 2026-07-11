@@ -66,6 +66,7 @@ void dxfRW::setDebug(DRW::DebugLevel lvl){
 bool dxfRW::read(DRW_Interface *interface_, bool ext){
     drw_assert(fileName.empty() == false);
     applyExt = ext;
+    textStyleNames.clear();
     std::ifstream filestr;
     if (nullptr == interface_) {
         return setError(DRW::BAD_UNKNOWN);
@@ -2108,8 +2109,18 @@ bool dxfRW::processDimStyle() {
     while (reader->readRec(&code)) {
         DRW_DBG(code); DRW_DBG("\n");
         if (code == 0) {
-            if (reading)
+            if (reading) {
+                duint32 styleHandle = 0;
+                std::istringstream handleStream(dimSty.dimtxsty);
+                handleStream >> std::hex >> styleHandle;
+                if (handleStream && handleStream.eof()) {
+                    const auto style = textStyleNames.find(styleHandle);
+                    if (style != textStyleNames.end()) {
+                        dimSty.dimtxsty = style->second;
+                    }
+                }
                 iface->addDimStyle(dimSty);
+            }
             sectionstr = reader->getString();
             DRW_DBG(sectionstr); DRW_DBG("\n");
             if (sectionstr == "DIMSTYLE") {
@@ -2137,8 +2148,12 @@ bool dxfRW::processTextStyle(){
     while (reader->readRec(&code)) {
         DRW_DBG(code); DRW_DBG("\n");
         if (code == 0) {
-            if (reading)
+            if (reading) {
+                if (TxtSty.handle != 0 && !TxtSty.name.empty()) {
+                    textStyleNames[TxtSty.handle] = TxtSty.name;
+                }
                 iface->addTextStyle(TxtSty);
+            }
             sectionstr = reader->getString();
             DRW_DBG(sectionstr); DRW_DBG("\n");
             if (sectionstr == "STYLE") {
