@@ -14,6 +14,7 @@
 #ifndef LIBDXFRW_H
 #define LIBDXFRW_H
 
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include "drw_entities.h"
@@ -135,7 +136,7 @@ private:
 private:
     DRW::Version version;
     DRW::error error {DRW::BAD_NONE};
-    std::string fileName;
+    std::filesystem::path fileName;
     std::string codePage;
     bool binFile;
     dxfReader *reader;
