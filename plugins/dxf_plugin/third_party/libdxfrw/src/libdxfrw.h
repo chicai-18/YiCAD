@@ -25,7 +25,7 @@
 class dxfReader;
 class dxfWriter;
 
-// YiCAD local modification, 2026-07-11: export the public reader/writer.
+/// @brief YiCAD 本地修改（2026-07-11）：导出公开读写器。
 class YICAD_LIBDXFRW_API dxfRW {
 public:
     dxfRW(const char* name);

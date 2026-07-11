@@ -152,6 +152,10 @@ After building, specify the install path in YiCAD's CMake configuration via `CDT
 
 Most third-party dependencies are installed via [Conan 2](https://conan.io/). Install Conan 2 first, then run:
 
+The DXF plugin's `libdxfrw 2.2.0` dependency is bundled in the repository and
+is not downloaded by Conan. CMake builds it together with `YiCadDxfPlugin` as
+the private `YiCadLibdxfrw220` shared library.
+
 ```powershell
 # Install Conan 2 (if not already installed)
 pip install conan
@@ -190,6 +194,9 @@ Before building, ensure the following dependencies are ready:
 2. **SARibbonBar** — Cloned, built, and installed to `external/SARibbonBar/install-release/` and `external/SARibbonBar/install-debug/` (see above)
 3. **CDT** — Cloned, built, and installed to `external/CDT/install-release/` and `external/CDT/install-debug/` (see above)
 4. **Conan dependencies** — Downloaded via `conan install` (see below)
+
+`libdxfrw` does not require a separate installation step. Its bundled source is
+configured and built automatically when the DXF plugin is enabled.
 
 The project provides CMake presets (`CMakePresets.json`) to simplify configuration:
 

@@ -105,9 +105,16 @@ pugixml is released under the MIT License.
 libdxfrw is released under the GNU General Public License version 2
 or (at your option) any later version.
 
+YiCAD bundles the libdxfrw 2.2.0 source code under
+`plugins/dxf_plugin/third_party/libdxfrw` and builds it as a private runtime
+dependency of the DXF plugin. The bundled copy contains YiCAD-specific changes
+for Windows DLL exports; modified upstream files retain their original notices
+and identify the local changes.
+
 - <https://github.com/LibreCAD/libdxfrw>
 
-The GPLv2 license text is included at licenses/gpl-2.0.txt.
+The original libdxfrw `COPYING` file is retained with the bundled source. The
+GPLv2 license text is also included at licenses/gpl-2.0.txt.
 
 Third-party components not listed above are distributed under their
 respective licenses. See the `licenses` directory for details.

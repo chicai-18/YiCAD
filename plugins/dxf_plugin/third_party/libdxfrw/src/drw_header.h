@@ -32,7 +32,7 @@ class dwgBuffer;
 *  or use add* helper functions.
 *  @author Rallaz
 */
-// YiCAD local modification, 2026-07-11: export public types from the DLL.
+/// @brief YiCAD 本地修改（2026-07-11）：从 DLL 导出公开类型。
 class YICAD_LIBDXFRW_API DRW_Header {
     SETHDRFRIENDS
 public:

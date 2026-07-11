@@ -14,7 +14,7 @@
 #ifndef DRW_BASE_H
 #define DRW_BASE_H
 
-// YiCAD local modification, 2026-07-11: export public types from the DLL.
+/// @brief YiCAD 本地修改（2026-07-11）：从 DLL 导出公开类型。
 #include "yicad_libdxfrw_export.h"
 
 #define DRW_VERSION "0.6.3"

@@ -31,9 +31,24 @@ cmake --build --preset Release --target YiCadDxfPlugin
 build/Release/bin/plugins/
   dxf.xml
   dxf/YiCadDxfPlugin.dll
+  dxf/YiCadLibdxfrw220.dll
 ```
 
 YiCAD 扫描插件目录第一层的 `*.xml`，清单中的 DLL 相对路径以清单所在目录为基准。
+`YiCadLibdxfrw220.dll` 与插件 DLL 安装到同一目录，由插件加载器的受限 DLL 搜索路径
+解析；部署时两者不可拆分。Plugin SDK 安装组件不包含 libdxfrw 的头文件、导入库或 DLL。
+
+## 内置 libdxfrw 维护
+
+内置源码固定来自上游标签 `LC2.2.0` 的提交
+`d73a25c61fa6b7f41000b38b4b4c8b32ed4e2fd1`。来源、导入范围、本地修改策略和修改
+文件清单记录在 `third_party/libdxfrw/UPSTREAM.md`；原始许可证保留在同目录的
+`COPYING` 中，原始快照校验值记录在 `MANIFEST.sha256` 中。
+
+同步上游时，先更新纯上游源码快照及校验清单，再单独应用 YiCAD 的 DLL 导出适配。
+不得移除上游文件已有的版权或许可证声明；修改上游文件时，应在文件中记录修改事实和
+日期，并同步更新 `UPSTREAM.md` 的本地修改清单。发布源码包必须包含本目录中的实际
+构建源码、CMake 脚本、`COPYING`、`UPSTREAM.md` 和 `MANIFEST.sha256`。
 
 ## 第三方许可证
 
