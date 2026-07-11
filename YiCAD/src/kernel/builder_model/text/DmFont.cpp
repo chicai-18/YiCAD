@@ -649,20 +649,32 @@ void DmFont::readSystem(QString path)
     }
 }
 
-/// @brief 排序字体名称记录，优先取Preferred Family和Unicode编码
+/// @brief 获得字体族名记录的优先级
+/// @param nameId OpenType名称ID
+/// @return 数值越小优先级越高
+static int familyNamePriority(FT_UShort nameId)
+{
+    switch (nameId)
+    {
+    case TT_NAME_ID_WWS_FAMILY:
+        return 0;
+    case TT_NAME_ID_FONT_FAMILY:
+        return 1;
+    case TT_NAME_ID_PREFERRED_FAMILY:
+        return 2;
+    default:
+        return 3;
+    }
+}
+
+/// @brief 排序字体名称记录，优先取WWS/Legacy Family和Unicode编码
 static bool nameComp(const FT_SfntName a, const FT_SfntName b)
 {
-    // sort preferred family first
-    if (a.name_id != b.name_id)
+    int aPriority = familyNamePriority(a.name_id);
+    int bPriority = familyNamePriority(b.name_id);
+    if (aPriority != bPriority)
     {
-        if (a.name_id == TT_NAME_ID_PREFERRED_FAMILY)
-        {
-            return true;
-        }
-        else if (b.name_id == TT_NAME_ID_PREFERRED_FAMILY)
-        {
-            return false;
-        }
+        return aPriority < bPriority;
     }
 
     // sort Unicode platforms first
@@ -789,10 +801,12 @@ static QString getFamilyName(const FT_Face face)
         {
             switch (name.name_id)
             {
+            case TT_NAME_ID_WWS_FAMILY:
             case TT_NAME_ID_FONT_FAMILY:
             case TT_NAME_ID_PREFERRED_FAMILY:
             {
-                if (name.language_id == TT_MS_LANGID_CHINESE_PRC)  // 简体汉字
+                QString decodedName = decodeNameRecord(name);
+                if (!decodedName.isEmpty())
                 {
                     names.append(name);
                 }
