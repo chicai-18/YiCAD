@@ -13,6 +13,8 @@ endif()
 
 add_library(YiCadDxfPlugin MODULE
     src/DxfPlugin.cpp
+    src/DxfExporter.cpp
+    src/DxfExporter.h
     src/DxfImporter.cpp
     src/DxfImporter.h
     src/DxfInterfaceAdapter.h

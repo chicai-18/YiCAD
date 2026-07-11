@@ -10,6 +10,7 @@
 /// @file DxfPlugin.cpp
 /// @brief DXF 插件生命周期和导入过滤器入口
 
+#include "DxfExporter.h"
 #include "DxfImporter.h"
 #include "YiCadPluginSdk.h"
 
@@ -37,12 +38,19 @@ public:
         plugin->pluginName = "YiCAD DXF Plugin";
         plugin->pluginVersion = "1.0.0";
         return m_host.registerImportFilter(
-            PluginId,
-            FormatId,
-            "DXF Drawing",
-            "dxf",
-            &DxfPlugin::importFile,
-            this);
+                   PluginId,
+                   FormatId,
+                   "DXF Drawing",
+                   "dxf",
+                   &DxfPlugin::importFile,
+                   this) &&
+               m_host.registerExportFilter(
+                   PluginId,
+                   FormatId,
+                   "DXF Drawing",
+                   "dxf",
+                   &DxfPlugin::exportFile,
+                   this);
     }
 
     void shutdown() noexcept
@@ -64,6 +72,24 @@ private:
             }
             const auto document = self->m_host.document(handle);
             return DxfImporter(document).read(path)
+                ? YICAD_SUCCESS
+                : YICAD_FAILURE;
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL exportFile(
+        YiCadDocumentHandle handle,
+        const char* path,
+        void* userData) noexcept
+    {
+        return yicad::plugin::invokeNoexcept<YiCadResult>([&]() {
+            auto* self = static_cast<DxfPlugin*>(userData);
+            if (self == nullptr || path == nullptr || *path == '\0')
+            {
+                return YICAD_FAILURE;
+            }
+            const auto document = self->m_host.document(handle);
+            return DxfExporter(document).write(path)
                 ? YICAD_SUCCESS
                 : YICAD_FAILURE;
         }, YICAD_FAILURE);

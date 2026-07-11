@@ -15,6 +15,7 @@
 #include <libdxfrw/drw_entities.h>
 #include <libdxfrw/drw_header.h>
 #include <libdxfrw/drw_objects.h>
+#include <libdxfrw/libdxfrw.h>
 
 #include <string>
 #include <unordered_map>
@@ -26,6 +27,8 @@ using ResourceMap =
     std::unordered_map<std::string, yicad::plugin::ImportResource>;
 
 std::string resourceKey(const std::string& value);
+/// @brief 判断块名称是否为 YiCAD 或 DXF 内置箭头块
+bool isInternalArrowBlock(const std::string& blockName);
 YiCadPoint2d point(const DRW_Coord& value) noexcept;
 YiCadVector2d vector(const DRW_Coord& value) noexcept;
 YiCadColorData color(int aci, int color24) noexcept;
@@ -65,6 +68,37 @@ yicad::plugin::SolidData toSolid(
     const DRW_Trace& value,
     const ResourceMap& layers,
     const ResourceMap& lineTypes);
+
+void writeHeader(
+    const yicad::plugin::DocumentSettings& settings,
+    DRW_Header& header);
+DRW_LType toDxf(const yicad::plugin::LineTypeData& value);
+DRW_Layer toDxf(const yicad::plugin::LayerData& value);
+DRW_Textstyle toDxf(const yicad::plugin::TextStyleData& value);
+DRW_Dimstyle toDxf(const yicad::plugin::DimensionStyleData& value);
+DRW_Block toDxf(const yicad::plugin::BlockData& value);
+
+bool writeEntity(dxfRW& writer, const yicad::plugin::PointData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::LineData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::RayData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::XLineData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::ArcData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::CircleData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::EllipseData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::PolylineData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::SplineData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::SolidData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::TextData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::MTextData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::DimensionData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::LeaderData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::HatchData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::InsertData& value);
+bool writeEntity(
+    dxfRW& writer,
+    const yicad::plugin::AttributeDefinitionData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::AttributeData& value);
+bool writeEntity(dxfRW& writer, const yicad::plugin::ImageData& value);
 
 } // namespace dxf
 

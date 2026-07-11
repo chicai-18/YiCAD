@@ -320,7 +320,8 @@ void DxfImporter::addBlock(const DRW_Block& source)
         m_currentBlock == "*MODEL_SPACE" ||
         m_currentBlock == "*PAPER_SPACE" ||
         m_currentBlock.rfind("*MODEL_SPACE", 0) == 0 ||
-        m_currentBlock.rfind("*PAPER_SPACE", 0) == 0;
+        m_currentBlock.rfind("*PAPER_SPACE", 0) == 0 ||
+        dxf::isInternalArrowBlock(m_currentBlock);
     if (m_skipBlock)
     {
         m_currentContainer = {};
@@ -611,6 +612,10 @@ void DxfImporter::addInsert(const DRW_Insert& source)
     }
     PendingInsert pending;
     pending.blockName = dxf::resourceKey(source.name);
+    if (dxf::isInternalArrowBlock(pending.blockName))
+    {
+        return;
+    }
     pending.container = m_currentContainer;
     pending.insertionPoint = dxf::point(source.basePoint);
     pending.scale = {source.xscale, source.yscale, 1.0};

@@ -731,6 +731,10 @@ public:
     const std::string& name() const noexcept { return m_name; }
     const std::string& fontFile() const noexcept { return m_fontFile; }
     const std::string& bigFontFile() const noexcept { return m_bigFontFile; }
+    double fixedHeight() const noexcept { return m_fixedHeight; }
+    double widthFactor() const noexcept { return m_widthFactor; }
+    double obliqueAngle() const noexcept { return m_obliqueAngle; }
+    uint32_t generationFlags() const noexcept { return m_generationFlags; }
 
 private:
     friend class ImportSession;
@@ -779,6 +783,10 @@ public:
         return *this;
     }
     const std::string& textStyleName() const noexcept { return m_textStyleName; }
+    const std::string& dimLineTypeName() const noexcept { return m_dimLineTypeName; }
+    const std::string& extensionLineTypeName() const noexcept { return m_extensionLineTypeName; }
+    const std::string& prefix() const noexcept { return m_prefix; }
+    const std::string& suffix() const noexcept { return m_suffix; }
     static DimensionStyleData fromAbi(const YiCadDimensionStyleDataV3& data)
     {
         DimensionStyleData result(detail::copyString(data.name));
@@ -965,9 +973,12 @@ public:
     YiCadSplineDefinition definition() const noexcept { return m_definition; }
     uint32_t degree() const noexcept { return m_degree; }
     bool closed() const noexcept { return m_closed; }
+    bool rational() const noexcept { return m_rational; }
+    bool periodic() const noexcept { return m_periodic; }
     const std::vector<YiCadPoint2d>& controlPoints() const noexcept { return m_controlPoints; }
     const std::vector<YiCadPoint2d>& fitPoints() const noexcept { return m_fitPoints; }
     const std::vector<double>& knots() const noexcept { return m_knots; }
+    const std::vector<double>& weights() const noexcept { return m_weights; }
     const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
@@ -1031,6 +1042,7 @@ public:
     {
         return m_corners;
     }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -1096,6 +1108,10 @@ public:
     YiCadPoint2d alignmentPoint() const noexcept { return m_alignmentPoint; }
     double height() const noexcept { return m_height; }
     double rotation() const noexcept { return m_rotation; }
+    double widthFactor() const noexcept { return m_widthFactor; }
+    double obliqueAngle() const noexcept { return m_obliqueAngle; }
+    YiCadTextHorizontalAlignment horizontalAlignment() const noexcept { return m_horizontalAlignment; }
+    YiCadTextVerticalAlignment verticalAlignment() const noexcept { return m_verticalAlignment; }
     const EntityAttributes& attributes() const noexcept { return m_attributes; }
     const std::string& textStyleName() const noexcept { return m_textStyleName; }
 
@@ -1181,7 +1197,12 @@ public:
     const std::string& contents() const noexcept { return m_contents; }
     YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
     YiCadVector2d direction() const noexcept { return m_direction; }
+    double characterHeight() const noexcept { return m_characterHeight; }
+    double rectangleWidth() const noexcept { return m_rectangleWidth; }
+    double lineSpacingFactor() const noexcept { return m_lineSpacingFactor; }
+    YiCadMTextAttachment attachment() const noexcept { return m_attachment; }
     const EntityAttributes& attributes() const noexcept { return m_attributes; }
+    const std::string& textStyleName() const noexcept { return m_textStyleName; }
 
 private:
     friend class ImportContainer;
@@ -1291,6 +1312,12 @@ public:
     }
     const std::string& blockName() const noexcept { return m_blockName; }
     YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
+    YiCadVector3d scale() const noexcept { return m_scale; }
+    double rotation() const noexcept { return m_rotation; }
+    uint32_t columnCount() const noexcept { return m_columnCount; }
+    uint32_t rowCount() const noexcept { return m_rowCount; }
+    double columnSpacing() const noexcept { return m_columnSpacing; }
+    double rowSpacing() const noexcept { return m_rowSpacing; }
     const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
@@ -1342,6 +1369,11 @@ public:
     {
         m_flags = value; return *this;
     }
+    const TextData& text() const noexcept { return m_text; }
+    const std::string& tag() const noexcept { return m_tag; }
+    const std::string& prompt() const noexcept { return m_prompt; }
+    const std::string& defaultValue() const noexcept { return m_defaultValue; }
+    uint32_t flags() const noexcept { return m_flags; }
 
 private:
     friend class ImportContainer;
@@ -1384,6 +1416,10 @@ public:
           m_value(std::move(value)) {}
 
     AttributeData& setFlags(uint32_t value) noexcept { m_flags = value; return *this; }
+    const TextData& text() const noexcept { return m_text; }
+    const std::string& tag() const noexcept { return m_tag; }
+    const std::string& value() const noexcept { return m_value; }
+    uint32_t flags() const noexcept { return m_flags; }
 
 private:
     friend class ImportContainer;
@@ -1464,6 +1500,23 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    YiCadDimensionKind kind() const noexcept { return m_kind; }
+    const std::string& styleName() const noexcept { return m_dimensionStyleName; }
+    const std::string& textOverride() const noexcept { return m_textOverride; }
+    YiCadPoint2d definitionPoint() const noexcept { return m_definitionPoint; }
+    YiCadPoint2d textPosition() const noexcept { return m_textPosition; }
+    double textRotation() const noexcept { return m_textRotation; }
+    double lineSpacingFactor() const noexcept { return m_lineSpacingFactor; }
+    YiCadPoint2d extensionPoint1() const noexcept { return m_extensionPoint1; }
+    YiCadPoint2d extensionPoint2() const noexcept { return m_extensionPoint2; }
+    YiCadPoint2d line1Start() const noexcept { return m_line1Start; }
+    YiCadPoint2d line1End() const noexcept { return m_line1End; }
+    YiCadPoint2d line2Start() const noexcept { return m_line2Start; }
+    YiCadPoint2d line2End() const noexcept { return m_line2End; }
+    YiCadPoint2d arcPoint() const noexcept { return m_arcPoint; }
+    YiCadPoint2d featurePoint() const noexcept { return m_featurePoint; }
+    double leaderLength() const noexcept { return m_leaderLength; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -1534,6 +1587,11 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    const std::vector<YiCadPoint2d>& vertices() const noexcept { return m_vertices; }
+    bool hasArrow() const noexcept { return m_hasArrow; }
+    const std::string& styleName() const noexcept { return m_dimensionStyleName; }
+    const std::optional<TextData>& text() const noexcept { return m_text; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
@@ -1610,6 +1668,23 @@ public:
             return edge;
         }
 
+        YiCadHatchEdgeType type() const noexcept { return m_type; }
+        YiCadPoint2d startPoint() const noexcept { return m_startPoint; }
+        YiCadPoint2d endPoint() const noexcept { return m_endPoint; }
+        YiCadPoint2d center() const noexcept { return m_center; }
+        YiCadVector2d majorAxis() const noexcept { return m_majorAxis; }
+        double radius() const noexcept { return m_radius; }
+        double minorToMajorRatio() const noexcept { return m_minorToMajorRatio; }
+        double startParameter() const noexcept { return m_startParameter; }
+        double endParameter() const noexcept { return m_endParameter; }
+        bool counterClockwise() const noexcept { return m_counterClockwise; }
+        uint32_t degree() const noexcept { return m_degree; }
+        bool rational() const noexcept { return m_rational; }
+        bool periodic() const noexcept { return m_periodic; }
+        const std::vector<YiCadPoint2d>& controlPoints() const noexcept { return m_controlPoints; }
+        const std::vector<double>& knots() const noexcept { return m_knots; }
+        const std::vector<double>& weights() const noexcept { return m_weights; }
+
     private:
         friend class HatchData;
 
@@ -1660,6 +1735,15 @@ public:
         std::vector<double> m_weights;
     };
 
+    struct Loop
+    {
+        YiCadHatchLoopKind kind = YICAD_HATCH_LOOP_POLYLINE;
+        YiCadHatchLoopRole role = YICAD_HATCH_LOOP_OUTER;
+        uint32_t outerLoopIndex = UINT32_MAX;
+        std::vector<YiCadVertex2d> vertices;
+        std::vector<Edge> edges;
+    };
+
     HatchData& setPattern(std::string name, double scale = 1.0,
         double angle = 0.0)
     {
@@ -1690,18 +1774,15 @@ public:
     {
         m_attributes = std::move(value); return *this;
     }
+    bool solid() const noexcept { return m_solid; }
+    const std::string& patternName() const noexcept { return m_patternName; }
+    double patternScale() const noexcept { return m_patternScale; }
+    double patternAngle() const noexcept { return m_patternAngle; }
+    const std::vector<Loop>& loops() const noexcept { return m_loops; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
     friend class ImportContainer;
-
-    struct Loop
-    {
-        YiCadHatchLoopKind kind = YICAD_HATCH_LOOP_POLYLINE;
-        YiCadHatchLoopRole role = YICAD_HATCH_LOOP_OUTER;
-        uint32_t outerLoopIndex = UINT32_MAX;
-        std::vector<YiCadVertex2d> vertices;
-        std::vector<Edge> edges;
-    };
 
     struct Scratch
     {
@@ -1796,6 +1877,13 @@ public:
     }
     const std::string& path() const noexcept { return m_path; }
     YiCadPoint2d insertionPoint() const noexcept { return m_insertionPoint; }
+    YiCadVector2d uVector() const noexcept { return m_uVector; }
+    YiCadVector2d vVector() const noexcept { return m_vVector; }
+    YiCadVector2d size() const noexcept { return m_size; }
+    int32_t brightness() const noexcept { return m_brightness; }
+    int32_t contrast() const noexcept { return m_contrast; }
+    int32_t fade() const noexcept { return m_fade; }
+    const std::vector<YiCadPoint2d>& clipBoundary() const noexcept { return m_clipBoundary; }
     const EntityAttributes& attributes() const noexcept { return m_attributes; }
 
 private:
