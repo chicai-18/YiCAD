@@ -200,6 +200,9 @@ add_executable(${PROJECT_NAME} ${ALL_RSC_FILES}
                                  ${qrc_FILES}
                                 ${QM_FILES})
 
+target_precompile_headers(${PROJECT_NAME} PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/main/YiCadPch.h")
+
 # 支持linux相对路径库加载，参考：https://stackoverflow.com/questions/43330165/how-to-link-a-shared-library-with-cmake-with-relative-path/69707790#69707790
 # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
 if(NOT WIN32)
