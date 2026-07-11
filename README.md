@@ -22,6 +22,8 @@ Current version: **v0.20.0**
 - **Undo / Redo**: Full undo/redo framework based on a command stack
 - **Office Ribbon UI**: Modern ribbon interface powered by SARibbonBar
 - **Command Line Input**: Quick command-line operations
+- **Plugin System**: ABI v3 SDK for commands, Ribbon actions, and file import/export filters
+- **DXF Import / Export**: Built-in runtime plugin powered by the bundled libdxfrw 2.2.0 source
 
 ## Build
 
@@ -249,8 +251,54 @@ Installing `Runtime` automatically copies the following dependencies to `build/<
 - SARibbonBar.dll
 - CDT.dll (if present)
 - Conan-managed third-party DLLs (GLEW, FreeType, zlib, etc.)
+- The DXF plugin manifest, `YiCadDxfPlugin.dll`, and its private `YiCadLibdxfrw220.dll` dependency
 
-This makes the install directory self-contained — no manual DLL copying needed.
+This makes the application runtime directory self-contained. Plugin activation
+still requires deploying its manifest and DLL directory to the discovery path
+described below.
+
+The DXF runtime files are produced as one deployable unit:
+
+```text
+build/<config>/bin/plugins/
+  dxf.xml
+  dxf/YiCadDxfPlugin.dll
+  dxf/YiCadLibdxfrw220.dll
+```
+
+Keep both DLLs together. The installed `bin/plugins` directory is the deployment
+source; the production application loads plugins only from:
+
+```text
+C:\ProgramData\YiCAD\plugins
+```
+
+Copy `dxf.xml` to the first level of that directory and copy the `dxf` directory
+beside it. YiCAD scans only first-level `*.xml` files and does not recursively
+search subdirectories. With the supplied relative path, the resulting layout is:
+
+```text
+C:\ProgramData\YiCAD\plugins\
+  dxf.xml
+  dxf\YiCadDxfPlugin.dll
+  dxf\YiCadLibdxfrw220.dll
+```
+
+Each manifest is UTF-8 XML with exactly one empty `plugin` root element and one
+unnamespaced `dll` attribute:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin dll="dxf/YiCadDxfPlugin.dll"/>
+```
+
+No other attributes, namespaces, child elements, text, or DTD are allowed. The
+`dll` value must identify an existing `.dll` file. It may be an absolute path,
+or a relative path resolved from the directory containing the manifest. The
+bundled libdxfrw source is a private DXF-plugin dependency and is not part of
+the public Plugin SDK. See the [Plugin SDK guide](doc/PLUGIN_SDK.md),
+[Demo plugin deployment guide](plugins/demo_plugin/README.md), and
+[DXF plugin notes](plugins/dxf_plugin/README.md).
 
 **Developing with CLion:**
 
@@ -327,6 +375,10 @@ Key modifications by YiCAD include:
 ### Third-Party Components
 
 Third-party components are subject to their own licenses. See the [`LICENSE`](LICENSE) file and [`licenses/`](licenses/) directory for details.
+The DXF plugin bundles modified libdxfrw 2.2.0 source under
+`plugins/dxf_plugin/third_party/libdxfrw` under GPL-2.0-or-later. Its upstream
+`COPYING` file is retained, and the GPLv2 text is also available at
+[`licenses/gpl-2.0.txt`](licenses/gpl-2.0.txt) and installed with the Runtime.
 
 ### Disclaimer
 

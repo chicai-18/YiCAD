@@ -8,6 +8,8 @@ demo 固定声明 ABI v3，并只通过常规 C++ SDK 的 `ImportSession`、`Lay
 `ImportContainer` 语义接口创建导入图层、直线和圆，不直接构造 ABI POD 或填写 ABI
 元数据。示例文件解析不依赖具体库。
 真实格式插件应自行链接 `libdxfrw` 等解析库，PluginSDK 不包含或传播这些依赖。
+仓库中的 `plugins/dxf_plugin` 展示了如何把此类解析库构建为插件私有 DLL，并将插件、
+私有依赖和许可证作为完整运行时单元部署；第三方插件应按其依赖许可证履行对应义务。
 
 ## Demo 文件格式
 
@@ -70,6 +72,11 @@ cmake --build build/Debug --config Debug --target YiCadDemoPlugin
 清单中的相对 DLL 路径以 XML 所在目录为基准。YiCAD 只扫描 `C:\ProgramData\YiCAD\plugins` 第一层的 `*.xml`；其他目录中的相同清单不会被发现。
 
 相对路径和绝对路径都是受支持的部署方式。只要最终解析到同一个 DLL，加载效果相同。开发时可让清单直接指向外部插件工程构建目录下的绝对路径；固定部署建议使用 `demo/YiCadDemoPlugin.dll`，避免依赖本机构建目录。不要同时部署两个指向不同 Demo DLL 的清单，否则相同插件 ID 和格式注册会发生冲突。
+
+如果插件还有私有 DLL 依赖，应把这些 DLL 与插件 DLL 放在同一个插件子目录中，并将
+它们视为不可拆分的部署单元。`PluginSDK` 组件不会自动收集第三方插件的私有依赖或
+许可证；插件发布者需要自行随部署包提供这些文件。内置 DXF 插件的
+`dxf/YiCadDxfPlugin.dll` 与 `dxf/YiCadLibdxfrw220.dll` 布局可作为参考。
 
 ## 手工验收
 

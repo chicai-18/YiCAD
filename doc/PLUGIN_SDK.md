@@ -58,3 +58,42 @@ SDK 只允许在 YiCAD UI 主线程调用。文档、资源、块和底层迭代
 `YICAD_SUCCESS` 或 `YICAD_FAILURE`。
 
 完整工程参见 `plugins/demo_plugin`。
+
+## SDK 安装与插件部署
+
+先在 YiCAD 仓库根目录安装与插件配置一致的 SDK 组件：
+
+```powershell
+cmake --build --preset Release-PluginSDK
+```
+
+仓库外插件通过 `find_package(YiCADPluginSdk CONFIG REQUIRED)` 查找 SDK，并只链接
+`YiCAD::PluginSdk`。已安装的 `share/YiCAD/examples/demo_plugin` 是可复制到仓库外
+独立构建的示例。SDK 只包含公开头文件、CMake package、文档、许可证和 Demo 源码，
+不包含 DXF 插件或 libdxfrw 的头文件、导入库与 DLL。
+
+运行时插件采用“第一层 XML 清单 + 子目录 DLL”的布局。生产环境下 YiCAD 只扫描
+`C:\ProgramData\YiCAD\plugins\*.xml`，并以清单所在目录为基准解析 `dll` 属性：
+
+```text
+C:\ProgramData\YiCAD\plugins\
+  example.xml
+  example/ExamplePlugin.dll
+```
+
+开发时也可在清单中使用插件 DLL 的绝对路径。固定部署应使用相对路径，并将插件的
+所有私有 DLL 依赖放在插件子目录中。不要部署多个使用相同 `pluginId` 的 DLL。
+
+仓库内的 DXF 插件是带私有第三方依赖的实际示例。安装 `Runtime` 后，先从
+`bin/plugins` 取得安装产物，再按以下布局部署：
+
+```text
+C:\ProgramData\YiCAD\plugins\
+  dxf.xml
+  dxf/YiCadDxfPlugin.dll
+  dxf/YiCadLibdxfrw220.dll
+```
+
+`YiCadLibdxfrw220.dll` 由内置 libdxfrw 2.2.0 源码构建，必须与 DXF 插件 DLL 一起
+部署。其许可证为 `GPL-2.0-or-later`；上游 `COPYING` 保留在源码目录，GPLv2 全文
+位于 `licenses/gpl-2.0.txt`，并随 Runtime 安装到 `bin/licenses`。

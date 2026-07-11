@@ -49,6 +49,10 @@ The YiCAD source code is released as a whole under the GPLv3.
 The following refers to the licenses used by bundled resources,
 when they were released independently from YiCAD.
 
+The Runtime installation includes the applicable license texts under
+`bin/licenses`. The PluginSDK installation contains YiCAD's `LICENSE`; it does
+not redistribute the DXF plugin, libdxfrw development files, or libdxfrw DLL.
+
 SARibbonBar is released under the MIT License.
 
 - <https://github.com/czyt1988/SARibbon>
@@ -107,14 +111,18 @@ or (at your option) any later version.
 
 YiCAD bundles the libdxfrw 2.2.0 source code under
 `plugins/dxf_plugin/third_party/libdxfrw` and builds it as a private runtime
-dependency of the DXF plugin. The bundled copy contains YiCAD-specific changes
-for Windows DLL exports; modified upstream files retain their original notices
-and identify the local changes.
+dependency of the DXF plugin named `YiCadLibdxfrw220.dll`. It is deployed next
+to `YiCadDxfPlugin.dll` and is not part of the public Plugin SDK. The bundled
+copy contains YiCAD-specific changes for Windows DLL exports; modified upstream
+files retain their original notices and identify the local changes.
 
 - <https://github.com/LibreCAD/libdxfrw>
 
 The original libdxfrw `COPYING` file is retained with the bundled source. The
-GPLv2 license text is also included at licenses/gpl-2.0.txt.
+upstream source provenance and local modifications are recorded in
+`plugins/dxf_plugin/third_party/libdxfrw/UPSTREAM.md`. The GPLv2 license text is
+also included at `licenses/gpl-2.0.txt` and installed with the Runtime under
+`bin/licenses/gpl-2.0.txt`.
 
 Third-party components not listed above are distributed under their
 respective licenses. See the `licenses` directory for details.
