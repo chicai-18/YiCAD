@@ -37,7 +37,13 @@ class YiCADRecipe(ConanFile):
     package_type = "application"
 
     # --- Exported sources (none needed for pure consumer) ---
-    exports_sources = "CMakeLists.txt", "YiCAD/*", "cmake/*", "profiles/*"
+    exports_sources = (
+        "CMakeLists.txt",
+        "YiCAD/*",
+        "cmake/*",
+        "plugins/*",
+        "profiles/*",
+    )
 
     def requirements(self):
         """
@@ -65,9 +71,6 @@ class YiCADRecipe(ConanFile):
 
         # ---- Parsing / math ----
         self.requires("muparser/2.3.2")
-
-        # ---- CAD 文件格式 ----
-        self.requires("libdxfrw/2.2.0")
 
         # ---- XML 解析 ----
         self.requires("pugixml/1.14")
@@ -103,9 +106,6 @@ class YiCADRecipe(ConanFile):
 
         # muparser: static library
         self.options["muparser"].shared = False
-
-        # libdxfrw：使用静态库，后续 DXF 插件可直接链接
-        self.options["libdxfrw"].shared = False
 
         # pugixml: static library (MIT license, replaces Xerces-C)
         self.options["pugixml"].shared = False

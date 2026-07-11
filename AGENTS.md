@@ -34,3 +34,12 @@ Recent history uses short imperative subjects such as `add license` and `init`; 
 ## Security & Configuration Tips
 
 Do not commit local Qt paths, generated Conan files, binaries, credentials, API keys, or user-provided `*.pat`, `*.lin`, and `*.shx` resources. Keep third-party version changes synchronized across `README.md`, `conanfile.py`, `conan.lock`, CMake presets, and CI.
+
+## Stop-and-Confirm Rules for Coding Tasks
+
+Strictly follow these stop-and-confirm rules when performing coding tasks:
+
+1. If the requirement is ambiguous or allows multiple reasonable interpretations, first list your understanding and the points that need confirmation, then wait for my confirmation before starting.
+2. If there are multiple technical implementation paths and no clearly best option, list the core options with their pros and cons, then wait for me to choose before proceeding.
+3. Before deleting files, changing core configuration, running high-risk commands, adding heavy new dependencies, or modifying more than three core files, first explain the scope of impact and wait for my confirmation before executing.
+4. Do not force multiple options unnecessarily; stop only when there is a real key decision or risk.

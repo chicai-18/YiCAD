@@ -138,6 +138,30 @@ private:
         YiCadCircleData* circle) noexcept;
     static void YICAD_PLUGIN_CALL entityIteratorDestroy(
         YiCadEntityIteratorHandle iterator) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL readDocumentSettings(
+        YiCadDocumentHandle document, YiCadDocumentSettings* output) noexcept;
+    static uint32_t YICAD_PLUGIN_CALL readResourceCount(
+        YiCadDocumentHandle document, YiCadReadResourceKind kind) noexcept;
+    static YiCadReadResourceHandle YICAD_PLUGIN_CALL readResourceAt(
+        YiCadDocumentHandle document, YiCadReadResourceKind kind,
+        uint32_t index) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL readResourceData(
+        YiCadReadResourceHandle resource, YiCadReadResourceKind kind,
+        void* output) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL readResourceName(
+        YiCadReadResourceHandle resource, YiCadStringView* output) noexcept;
+    static uint32_t YICAD_PLUGIN_CALL readBlockCount(
+        YiCadDocumentHandle document) noexcept;
+    static YiCadReadResourceHandle YICAD_PLUGIN_CALL readBlockAt(
+        YiCadDocumentHandle document, uint32_t index) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL readBlockData(
+        YiCadReadResourceHandle block, YiCadBlockDataV3* output) noexcept;
+    static YiCadEntityIteratorHandle YICAD_PLUGIN_CALL readEntities(
+        YiCadDocumentHandle document, YiCadReadResourceHandle block) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL readEntityNext(
+        YiCadEntityIteratorHandle iterator, YiCadEntityType* type) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL readEntityData(
+        YiCadEntityIteratorHandle iterator, void* output) noexcept;
     static YiCadImportResult YICAD_PLUGIN_CALL beginImport(
         YiCadDocumentHandle document,
         YiCadImportSessionHandle* session) noexcept;
@@ -210,6 +234,10 @@ private:
         YiCadImportSessionHandle session,
         YiCadImportContainerHandle container,
         const YiCadSplineDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createSolid(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadSolidDataV3* data) noexcept;
     static YiCadImportResult YICAD_PLUGIN_CALL createText(
         YiCadImportSessionHandle session,
         YiCadImportContainerHandle container,
@@ -314,12 +342,15 @@ private:
     PluginHostContext& m_context;
     PluginRegistry& m_registry;
     YiCadImportApi m_importApi;
+    YiCadReadApi m_readApi;
     YiCadHostApi m_api;
     std::vector<std::unique_ptr<DocumentHandleRecord>> m_documentHandles;
     std::vector<std::unique_ptr<TransactionRecord>> m_transactions;
     std::vector<std::unique_ptr<EntityIteratorRecord>> m_entityIterators;
     std::vector<std::unique_ptr<ImportSessionRecord>> m_importSessions;
     std::string m_importLastError;
+    std::vector<std::string> m_readStringsScratch;
+    std::vector<double> m_readDoublesScratch;
     bool m_active = false;
 
     static thread_local HostApi* s_activeInstance;

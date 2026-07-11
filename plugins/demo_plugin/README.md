@@ -2,12 +2,14 @@
 
 该插件只依赖 `YiCAD::PluginSdk` 公开接口目标，不链接 Qt 或 YiCAD 内部库。它注册命令 `com.yicad.demo/demo.add-line`、Ribbon 中的 **Demo > Draw > Add demo line** 按钮，以及 `.demo` 导入和 `com.yicad.demo/demo` 导出格式。
 
-执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。ABI v2 的 `.demo` 导入会在一个文档事务中批量添加直线和圆：全部解析成功后一次提交，任意记录失败则整体回滚。选择 **YiCAD Demo Drawing (*.demo)** 导出时，插件通过只读实体迭代 API 输出当前文档中的真实直线和圆数据。
+执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。`.demo` 导入通过 v3 `ImportSession` 批量添加直线和圆：全部解析成功后一次提交，任意记录失败则整体回滚。选择 **YiCAD Demo Drawing (*.demo)** 导出时，插件通过 v3 拥有型实体变体枚举输出当前文档中的真实直线和圆数据。
 
-demo 默认声明支持 ABI v3，并只通过常规 C++ SDK 的 `ImportSession`、`LayerData`、`EntityAttributes` 和
+demo 固定声明 ABI v3，并只通过常规 C++ SDK 的 `ImportSession`、`LayerData`、`EntityAttributes` 和
 `ImportContainer` 语义接口创建导入图层、直线和圆，不直接构造 ABI POD 或填写 ABI
-元数据；面对只支持 v2 的宿主仍回退到上述 v2 事务流程。示例文件解析不依赖具体库。
+元数据。示例文件解析不依赖具体库。
 真实格式插件应自行链接 `libdxfrw` 等解析库，PluginSDK 不包含或传播这些依赖。
+仓库中的 `plugins/dxf_plugin` 展示了如何把此类解析库构建为插件私有 DLL，并将插件、
+私有依赖和许可证作为完整运行时单元部署；第三方插件应按其依赖许可证履行对应义务。
 
 ## Demo 文件格式
 
@@ -22,7 +24,7 @@ CIRCLE 50 50 25
 - `LINE` 后依次为起点 `x y` 和终点 `x y`。
 - `CIRCLE` 后依次为圆心 `x y` 和半径。
 - 空行会被忽略；未知类型、缺少参数、多余参数或无效几何会使整个导入失败并回滚。
-- 当前只读 ABI 仅定义直线和圆数据，导出时其他实体类型不会写入 `.demo` 文件。
+- demo 只选择完整只读实体变体中的直线和圆，其他实体不会写入 `.demo` 文件。
 
 ## 独立构建
 
@@ -70,6 +72,11 @@ cmake --build build/Debug --config Debug --target YiCadDemoPlugin
 清单中的相对 DLL 路径以 XML 所在目录为基准。YiCAD 只扫描 `C:\ProgramData\YiCAD\plugins` 第一层的 `*.xml`；其他目录中的相同清单不会被发现。
 
 相对路径和绝对路径都是受支持的部署方式。只要最终解析到同一个 DLL，加载效果相同。开发时可让清单直接指向外部插件工程构建目录下的绝对路径；固定部署建议使用 `demo/YiCadDemoPlugin.dll`，避免依赖本机构建目录。不要同时部署两个指向不同 Demo DLL 的清单，否则相同插件 ID 和格式注册会发生冲突。
+
+如果插件还有私有 DLL 依赖，应把这些 DLL 与插件 DLL 放在同一个插件子目录中，并将
+它们视为不可拆分的部署单元。`PluginSDK` 组件不会自动收集第三方插件的私有依赖或
+许可证；插件发布者需要自行随部署包提供这些文件。内置 DXF 插件的
+`dxf/YiCadDxfPlugin.dll` 与 `dxf/YiCadLibdxfrw220.dll` 布局可作为参考。
 
 ## 手工验收
 

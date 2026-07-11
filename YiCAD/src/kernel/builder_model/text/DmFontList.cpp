@@ -191,6 +191,13 @@ void DmFontList::readAllFontFiles()
 
 QString DmFontList::getFontFamilyName(const DmFont* font, bool& isBold, bool& isItalic)
 {
+    if (font == nullptr)
+    {
+        isBold = false;
+        isItalic = false;
+        return "";
+    }
+
     QString fileName = font->getFileName();
     // shx字体
     if (DmFont::isShxFont(fileName))
@@ -199,22 +206,11 @@ QString DmFontList::getFontFamilyName(const DmFont* font, bool& isBold, bool& is
         isItalic = false;
         return fileName;
     }
-    // 系统字体
-    else
-    {
-        for (auto& kv : m_sysFontsMap)
-        {
-            for (int idx = 0; idx < SYS_FONT_STYLE_COUNT; idx++)
-            {
-                if (kv.second.at(idx) == font)
-                {
-                    getSysFontStyleByIdx(idx, isBold, isItalic);
-                    return kv.first;
-                }
-            }
-        }
-    }
-    return "";
+    // 系统字体的族名和样式由字体对象自身提供，避免索引槽位冲突导致指针反查失败
+    QString style = font->getStyle().toLower();
+    isBold = style == "bold" || style == "bold italic";
+    isItalic = style == "italic" || style == "bold italic";
+    return font->getFamily();
 }
 
 const std::map<QString, std::vector<DmFont*>>& DmFontList::getSysFontsMapConstRef() const

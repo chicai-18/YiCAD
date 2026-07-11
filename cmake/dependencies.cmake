@@ -87,15 +87,6 @@ message(STATUS "  ZLIB: ${ZLIB_VERSION}")
 find_package(muparser 2.3 REQUIRED CONFIG)
 message(STATUS "  muparser: ${muparser_VERSION}")
 
-# -- libdxfrw --
-# 仅为后续 DXF 插件导入依赖，此处不实现 DXF 过滤器。
-find_package(libdxfrw 2.2 REQUIRED CONFIG)
-if(NOT TARGET libdxfrw::libdxfrw)
-    message(FATAL_ERROR
-        "libdxfrw imported target (libdxfrw::libdxfrw) not found.")
-endif()
-message(STATUS "  libdxfrw: ${libdxfrw_VERSION}")
-
 # -- pugixml (replaces Xerces-C, MIT license) --
 find_package(pugixml 1.14 REQUIRED CONFIG)
 message(STATUS "  pugixml: ${pugixml_VERSION}")

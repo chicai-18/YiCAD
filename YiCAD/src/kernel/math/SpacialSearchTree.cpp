@@ -23,6 +23,18 @@
 #include "DmEntity.h"
 #include "DmBlockReference.h"
 
+#include <cmath>
+
+namespace
+{
+bool isValidBoundingBox(const DmVector& min, const DmVector& max)
+{
+    return std::isfinite(min.x) && std::isfinite(min.y) &&
+        std::isfinite(max.x) && std::isfinite(max.y) &&
+        min.x <= max.x && min.y <= max.y;
+}
+}
+
 SearchTreeBoundingBox::SearchTreeBoundingBox(const DmVector& min, const DmVector& max)
     : min(min)
     , max(max)
@@ -58,9 +70,14 @@ SpacialSearchTree::~SpacialSearchTree()
 
 void SpacialSearchTree::insert(DmEntity* entity)
 {
+    if (!entity)
+    {
+        return;
+    }
+
     DmVector min = entity->getMin();
     DmVector max = entity->getMax();
-    if (min.x > max.x || min.y > max.y) // 保证范围有效
+    if (!isValidBoundingBox(min, max))
     {
         return;
     }
@@ -78,17 +95,23 @@ void SpacialSearchTree::insert(DmEntity* entity)
 
 void SpacialSearchTree::remove(DmEntity* entity)
 {
-    DmVector min = entity->getMin();
-    DmVector max = entity->getMax();
+    if (!entity || !entity->getId().isValid())
+    {
+        return;
+    }
 
-    // 移除实体本身（包括块参照）
+    auto it = m_searchTreeBoundingBoxes.find(entity->getId());
+    if (it == m_searchTreeBoundingBoxes.end())
+    {
+        return;
+    }
+
+    const DmVector& min = it->second.min;
+    const DmVector& max = it->second.max;
     double mind[2] = { min.x, min.y };
     double maxd[2] = { max.x, max.y };
     m_pTreePrivate->searchTree.Remove(mind, maxd, entity);
-    if (entity->getId().isValid())
-    {
-        m_searchTreeBoundingBoxes.erase(entity->getId());
-    }
+    m_searchTreeBoundingBoxes.erase(it);
 
     // 如果是块参照，也移除子实体
     auto entType = entity->getEntityType();

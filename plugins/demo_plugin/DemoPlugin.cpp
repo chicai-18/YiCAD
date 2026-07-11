@@ -24,7 +24,6 @@ namespace
 constexpr const char* PluginId = "com.yicad.demo";
 constexpr const char* CommandId = "demo.add-line";
 constexpr const char* FormatId = "demo";
-constexpr uint32_t SupportedAbiVersion = YICAD_PLUGIN_ABI_MAX_VERSION;
 
 std::filesystem::path utf8Path(const char* path)
 {
@@ -40,10 +39,7 @@ public:
         YiCadPluginApi* plugin) noexcept
     {
         yicad::plugin::Host host(api);
-        if (!host || plugin == nullptr ||
-            plugin->structSize < YICAD_PLUGIN_API_V1_SIZE ||
-            plugin->abiVersion < YICAD_PLUGIN_ABI_MIN_VERSION ||
-            plugin->abiVersion > SupportedAbiVersion)
+        if (!host || plugin == nullptr)
         {
             return false;
         }
@@ -123,11 +119,7 @@ private:
                 return YICAD_FAILURE;
             }
 
-            if (document.supportsImport())
-            {
-                return plugin->importV3(document, input);
-            }
-            return plugin->importV2(document, input);
+            return plugin->importV3(document, input);
         }, YICAD_FAILURE);
     }
 
@@ -176,30 +168,6 @@ private:
             }
         }
         return input.eof();
-    }
-
-    static YiCadResult importV2(
-        const yicad::plugin::Document& document,
-        std::ifstream& input)
-    {
-        auto transaction = document.beginTransaction("Import demo drawing");
-        if (!transaction)
-        {
-            return YICAD_FAILURE;
-        }
-
-        const auto imported = readEntities(input,
-            [&](double x1, double y1, double x2, double y2) {
-                return document.addLine(x1, y1, x2, y2);
-            },
-            [&](double centerX, double centerY, double radius) {
-                return document.addCircle(centerX, centerY, radius);
-            });
-        if (!imported || !transaction.commit())
-        {
-            return YICAD_FAILURE;
-        }
-        return YICAD_SUCCESS;
     }
 
     static YiCadResult importV3(
@@ -271,28 +239,21 @@ private:
                 return YICAD_FAILURE;
             }
             output << "YICAD_DEMO_V2\n" << std::setprecision(17);
-            YiCadEntityType type = YICAD_ENTITY_UNKNOWN;
-            while (entities.next(type))
+            yicad::plugin::EntityData entity;
+            while (entities.next(entity))
             {
-                if (type == YICAD_ENTITY_LINE)
+                if (const auto* line =
+                        std::get_if<yicad::plugin::LineData>(&entity))
                 {
-                    YiCadLineData line{};
-                    if (!entities.line(line))
-                    {
-                        return YICAD_FAILURE;
-                    }
-                    output << "LINE " << line.x1 << ' ' << line.y1 << ' '
-                           << line.x2 << ' ' << line.y2 << '\n';
+                    output << "LINE " << line->startPoint.x << ' '
+                           << line->startPoint.y << ' ' << line->endPoint.x
+                           << ' ' << line->endPoint.y << '\n';
                 }
-                else if (type == YICAD_ENTITY_CIRCLE)
+                else if (const auto* circle =
+                             std::get_if<yicad::plugin::CircleData>(&entity))
                 {
-                    YiCadCircleData circle{};
-                    if (!entities.circle(circle))
-                    {
-                        return YICAD_FAILURE;
-                    }
-                    output << "CIRCLE " << circle.centerX << ' '
-                           << circle.centerY << ' ' << circle.radius << '\n';
+                    output << "CIRCLE " << circle->center.x << ' '
+                           << circle->center.y << ' ' << circle->radius << '\n';
                 }
             }
             output.flush();
@@ -329,7 +290,7 @@ DemoPlugin g_plugin;
 YICAD_PLUGIN_EXPORT uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void)
 {
-    return SupportedAbiVersion;
+    return YICAD_PLUGIN_ABI_V3;
 }
 
 YICAD_PLUGIN_EXPORT YiCadResult YICAD_PLUGIN_CALL

@@ -9,18 +9,18 @@
 #error "YiCadPluginAbi.h requires C11 or later"
 #endif
 
-/** @brief 冻结的 C ABI v1 版本号。 */
+/** @brief 历史版本号，仅用于说明既有字段来源。 */
 #define YICAD_PLUGIN_ABI_V1 UINT32_C(1)
-/** @brief 文档事务与只读实体枚举 C ABI 版本号。 */
+/** @brief 历史版本号，仅用于说明既有字段来源。 */
 #define YICAD_PLUGIN_ABI_V2 UINT32_C(2)
-/** @brief 原子导入会话 C ABI v3 版本号。 */
+/** @brief 当前且唯一受支持的插件 ABI 版本号。 */
 #define YICAD_PLUGIN_ABI_V3 UINT32_C(3)
 /** @brief 当前 SDK 支持的最低 C ABI 版本。 */
-#define YICAD_PLUGIN_ABI_MIN_VERSION YICAD_PLUGIN_ABI_V1
+#define YICAD_PLUGIN_ABI_MIN_VERSION YICAD_PLUGIN_ABI_V3
 /** @brief 当前 SDK 支持的最高 C ABI 版本。 */
 #define YICAD_PLUGIN_ABI_MAX_VERSION YICAD_PLUGIN_ABI_V3
-/** @brief 当前 C ABI 版本；保留该名称以兼容 ABI v1 插件源码。 */
-#define YICAD_PLUGIN_ABI_VERSION YICAD_PLUGIN_ABI_MAX_VERSION
+/** @brief 当前 C ABI 版本。 */
+#define YICAD_PLUGIN_ABI_VERSION YICAD_PLUGIN_ABI_V3
 
 #if defined(_WIN32)
 #define YICAD_PLUGIN_CALL __cdecl
@@ -72,6 +72,8 @@ typedef void* YiCadImportSessionHandle;
 typedef void* YiCadImportContainerHandle;
 /** @brief 所属导入会话内有效的资源、块定义或块引用句柄。 */
 typedef void* YiCadImportResourceHandle;
+/** @brief 文档只读期间有效的资源或块句柄。 */
+typedef const void* YiCadReadResourceHandle;
 
 /** @brief 导入子接口使用的固定宽度结果码。 */
 typedef int32_t YiCadImportResult;
@@ -175,7 +177,7 @@ typedef struct YiCadDocumentSettings
 } YiCadDocumentSettings;
 
 /**
- * @brief 简单线型定义；名称非空，elements 至少包含一个有限值。
+ * @brief 简单线型定义；名称非空，空 elements 表示连续线，其他元素必须有限。
  * @note complex 必须为 0；非零时返回 YICAD_IMPORT_ERROR_UNSUPPORTED，禁止降级。
  */
 typedef struct YiCadLineTypeDataV3
@@ -415,6 +417,15 @@ typedef struct YiCadSplineDataV3
     YiCadDoubleArrayView weights;
     YiCadPoint2dArrayView fitPoints;
 } YiCadSplineDataV3;
+
+/** @brief 三点或四点二维实体填充；corners 按边界顺序排列。 */
+typedef struct YiCadSolidDataV3
+{
+    uint32_t structSize;
+    const YiCadEntityAttributes* attributes;
+    YiCadPoint2d corners[4];
+    uint32_t cornerCount;
+} YiCadSolidDataV3;
 
 typedef int32_t YiCadTextHorizontalAlignment;
 #define YICAD_TEXT_ALIGN_LEFT ((YiCadTextHorizontalAlignment)0)
@@ -755,6 +766,8 @@ typedef struct YiCadImageDataV3
     YICAD_ABI_STRUCT_FIELD_END(YiCadPolylineDataV3, closed))
 #define YICAD_SPLINE_DATA_V3_MIN_SIZE ((uint32_t) \
     YICAD_ABI_STRUCT_FIELD_END(YiCadSplineDataV3, fitPoints))
+#define YICAD_SOLID_DATA_V3_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadSolidDataV3, cornerCount))
 #define YICAD_TEXT_DATA_V3_MIN_SIZE ((uint32_t) \
     YICAD_ABI_STRUCT_FIELD_END(YiCadTextDataV3, textStyle))
 #define YICAD_MTEXT_BACKGROUND_DATA_V3_MIN_SIZE ((uint32_t) \
@@ -787,8 +800,31 @@ typedef struct YiCadImageDataV3
 typedef int32_t YiCadEntityType;
 
 #define YICAD_ENTITY_UNKNOWN ((YiCadEntityType)0)
-#define YICAD_ENTITY_LINE ((YiCadEntityType)1)
-#define YICAD_ENTITY_CIRCLE ((YiCadEntityType)2)
+#define YICAD_ENTITY_POINT ((YiCadEntityType)1)
+#define YICAD_ENTITY_LINE ((YiCadEntityType)2)
+#define YICAD_ENTITY_RAY ((YiCadEntityType)3)
+#define YICAD_ENTITY_XLINE ((YiCadEntityType)4)
+#define YICAD_ENTITY_ARC ((YiCadEntityType)5)
+#define YICAD_ENTITY_CIRCLE ((YiCadEntityType)6)
+#define YICAD_ENTITY_ELLIPSE ((YiCadEntityType)7)
+#define YICAD_ENTITY_POLYLINE ((YiCadEntityType)8)
+#define YICAD_ENTITY_SPLINE ((YiCadEntityType)9)
+#define YICAD_ENTITY_SOLID ((YiCadEntityType)10)
+#define YICAD_ENTITY_TEXT ((YiCadEntityType)11)
+#define YICAD_ENTITY_MTEXT ((YiCadEntityType)12)
+#define YICAD_ENTITY_DIMENSION ((YiCadEntityType)13)
+#define YICAD_ENTITY_LEADER ((YiCadEntityType)14)
+#define YICAD_ENTITY_HATCH ((YiCadEntityType)15)
+#define YICAD_ENTITY_INSERT ((YiCadEntityType)16)
+#define YICAD_ENTITY_ATTRIBUTE_DEFINITION ((YiCadEntityType)17)
+#define YICAD_ENTITY_ATTRIBUTE ((YiCadEntityType)18)
+#define YICAD_ENTITY_IMAGE ((YiCadEntityType)19)
+
+typedef int32_t YiCadReadResourceKind;
+#define YICAD_READ_LINE_TYPE ((YiCadReadResourceKind)1)
+#define YICAD_READ_LAYER ((YiCadReadResourceKind)2)
+#define YICAD_READ_TEXT_STYLE ((YiCadReadResourceKind)3)
+#define YICAD_READ_DIMENSION_STYLE ((YiCadReadResourceKind)4)
 
 typedef struct YiCadLineData
 {
@@ -1020,6 +1056,11 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateSplineFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadSplineDataV3* data);
+/** @brief 创建三点或四点二维实体填充。 */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateSolidFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadSolidDataV3* data);
 /** @brief 创建语义单行文字；宿主在返回前复制 UTF-8 内容。 */
 typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateTextFn)(
     YiCadImportSessionHandle session,
@@ -1109,6 +1150,7 @@ struct YiCadImportApi
     YiCadImportCreateEllipseFn createEllipse;
     YiCadImportCreatePolylineFn createPolyline;
     YiCadImportCreateSplineFn createSpline;
+    YiCadImportCreateSolidFn createSolid;
     YiCadImportCreateTextFn createText;
     YiCadImportCreateMTextFn createMText;
     YiCadImportBeginBlockFn beginBlock;
@@ -1121,6 +1163,50 @@ struct YiCadImportApi
     YiCadImportCreateHatchFn createHatch;
     YiCadImportCreateImageFn createImage;
 };
+
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadDocumentSettingsFn)(
+    YiCadDocumentHandle document, YiCadDocumentSettings* output);
+typedef uint32_t (YICAD_PLUGIN_CALL *YiCadReadResourceCountFn)(
+    YiCadDocumentHandle document, YiCadReadResourceKind kind);
+typedef YiCadReadResourceHandle (YICAD_PLUGIN_CALL *YiCadReadResourceAtFn)(
+    YiCadDocumentHandle document, YiCadReadResourceKind kind, uint32_t index);
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadResourceDataFn)(
+    YiCadReadResourceHandle resource, YiCadReadResourceKind kind, void* output);
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadResourceNameFn)(
+    YiCadReadResourceHandle resource, YiCadStringView* output);
+typedef uint32_t (YICAD_PLUGIN_CALL *YiCadReadBlockCountFn)(
+    YiCadDocumentHandle document);
+typedef YiCadReadResourceHandle (YICAD_PLUGIN_CALL *YiCadReadBlockAtFn)(
+    YiCadDocumentHandle document, uint32_t index);
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadBlockDataFn)(
+    YiCadReadResourceHandle block, YiCadBlockDataV3* output);
+typedef YiCadEntityIteratorHandle (YICAD_PLUGIN_CALL *YiCadReadEntitiesFn)(
+    YiCadDocumentHandle document, YiCadReadResourceHandle block);
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadEntityNextFn)(
+    YiCadEntityIteratorHandle iterator, YiCadEntityType* type);
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadEntityDataFn)(
+    YiCadEntityIteratorHandle iterator, void* output);
+typedef void (YICAD_PLUGIN_CALL *YiCadReadEntityDestroyFn)(
+    YiCadEntityIteratorHandle iterator);
+
+/** @brief v3 文档只读枚举子表；返回的视图保持到同一子表的下一次调用。 */
+typedef struct YiCadReadApi
+{
+    uint32_t structSize;
+    uint32_t abiVersion;
+    YiCadReadDocumentSettingsFn documentSettings;
+    YiCadReadResourceCountFn resourceCount;
+    YiCadReadResourceAtFn resourceAt;
+    YiCadReadResourceDataFn resourceData;
+    YiCadReadResourceNameFn resourceName;
+    YiCadReadBlockCountFn blockCount;
+    YiCadReadBlockAtFn blockAt;
+    YiCadReadBlockDataFn blockData;
+    YiCadReadEntitiesFn entities;
+    YiCadReadEntityNextFn entityNext;
+    YiCadReadEntityDataFn entityData;
+    YiCadReadEntityDestroyFn entityDestroy;
+} YiCadReadApi;
 
 typedef struct YiCadHostApi
 {
@@ -1146,6 +1232,8 @@ typedef struct YiCadHostApi
     YiCadEntityIteratorDestroyFn entityIteratorDestroy;
     /** @brief ABI v3 导入子表；其生命周期与宿主表相同。 */
     const YiCadImportApi* importApi;
+    /** @brief ABI v3 文档只读枚举子表；其生命周期与宿主表相同。 */
+    const YiCadReadApi* readApi;
 } YiCadHostApi;
 
 typedef struct YiCadPluginApi
@@ -1171,8 +1259,8 @@ typedef struct YiCadPluginApi
                 sizeof(((YiCadHostApi*)0)->entityIteratorDestroy)))
 /** @brief ABI v3 宿主表的冻结字节数。 */
 #define YICAD_HOST_API_V3_SIZE                                            \
-    ((uint32_t)(offsetof(YiCadHostApi, importApi) +                        \
-                sizeof(((YiCadHostApi*)0)->importApi)))
+    ((uint32_t)(offsetof(YiCadHostApi, readApi) +                          \
+                sizeof(((YiCadHostApi*)0)->readApi)))
 /** @brief ABI v3 导入子表的冻结字节数。 */
 #define YICAD_IMPORT_API_V3_SIZE                                          \
     ((uint32_t)(offsetof(YiCadImportApi, createImage) +                    \
@@ -1190,7 +1278,7 @@ typedef void (YICAD_PLUGIN_CALL *YiCadPluginShutdownFn)(void);
 /** @brief 返回插件实现的最高 C ABI 版本。 */
 YICAD_PLUGIN_API uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void);
-/** @brief 按宿主给出的协商版本初始化插件并填写输出表。 */
+/** @brief 使用 ABI v3 初始化插件并填写输出表。 */
 YICAD_PLUGIN_API YiCadResult YICAD_PLUGIN_CALL
 yicad_plugin_init(const YiCadHostApi* host, YiCadPluginApi* plugin);
 /** @brief 关闭插件；宿主保证成功调用 init 后至多调用一次。 */
@@ -1305,6 +1393,7 @@ YICAD_ABI_MIN_SIZE_IS(YICAD_CIRCLE_DATA_V3_MIN_SIZE, 40);
 YICAD_ABI_MIN_SIZE_IS(YICAD_ELLIPSE_DATA_V3_MIN_SIZE, 76);
 YICAD_ABI_MIN_SIZE_IS(YICAD_POLYLINE_DATA_V3_MIN_SIZE, 36);
 YICAD_ABI_MIN_SIZE_IS(YICAD_SPLINE_DATA_V3_MIN_SIZE, 104);
+YICAD_ABI_MIN_SIZE_IS(YICAD_SOLID_DATA_V3_MIN_SIZE, 84);
 YICAD_ABI_MIN_SIZE_IS(YICAD_TEXT_DATA_V3_MIN_SIZE, 112);
 YICAD_ABI_MIN_SIZE_IS(YICAD_MTEXT_BACKGROUND_DATA_V3_MIN_SIZE, 32);
 YICAD_ABI_MIN_SIZE_IS(YICAD_MTEXT_DATA_V3_MIN_SIZE, 112);
@@ -1373,6 +1462,7 @@ YICAD_ABI_MIN_SIZE_IS(YICAD_CIRCLE_DATA_V3_MIN_SIZE, 32);
 YICAD_ABI_MIN_SIZE_IS(YICAD_ELLIPSE_DATA_V3_MIN_SIZE, 68);
 YICAD_ABI_MIN_SIZE_IS(YICAD_POLYLINE_DATA_V3_MIN_SIZE, 20);
 YICAD_ABI_MIN_SIZE_IS(YICAD_SPLINE_DATA_V3_MIN_SIZE, 60);
+YICAD_ABI_MIN_SIZE_IS(YICAD_SOLID_DATA_V3_MIN_SIZE, 76);
 YICAD_ABI_MIN_SIZE_IS(YICAD_TEXT_DATA_V3_MIN_SIZE, 92);
 YICAD_ABI_MIN_SIZE_IS(YICAD_MTEXT_BACKGROUND_DATA_V3_MIN_SIZE, 32);
 YICAD_ABI_MIN_SIZE_IS(YICAD_MTEXT_DATA_V3_MIN_SIZE, 84);
@@ -1462,7 +1552,8 @@ YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createCircle, createArc);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createEllipse, createCircle);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createPolyline, createEllipse);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createSpline, createPolyline);
-YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createText, createSpline);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createSolid, createSpline);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createText, createSolid);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createMText, createText);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, beginBlock, createMText);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, endBlock, beginBlock);
@@ -1535,12 +1626,13 @@ YICAD_ABI_FIELD_FOLLOWS(
     entityIteratorDestroy,
     entityIteratorGetCircle);
 YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, importApi, entityIteratorDestroy);
+YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, readApi, importApi);
 YICAD_ABI_STATIC_ASSERT(
     offsetof(YiCadHostApi, importApi) == YICAD_HOST_API_V2_SIZE,
     "ABI v3 must append only one aligned host-table pointer");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_HOST_API_V3_SIZE ==
-        YICAD_HOST_API_V2_SIZE + sizeof(void*),
+    YICAD_HOST_API_V2_SIZE + 2 * sizeof(void*),
     "unexpected ABI v3 host-table growth");
 YICAD_ABI_STATIC_ASSERT(
     sizeof(YiCadImportApi) == YICAD_IMPORT_API_V3_SIZE,
@@ -1596,11 +1688,12 @@ YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetLine, 128);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetCircle, 136);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorDestroy, 144);
 YICAD_ABI_STATIC_ASSERT(
-    YICAD_HOST_API_V3_SIZE == 160,
+    YICAD_HOST_API_V3_SIZE == 168,
     "unexpected Win64 host ABI v3 size");
 YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 152);
+YICAD_ABI_FIELD_AT(YiCadHostApi, readApi, 160);
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadImportApi) == 248,
+    sizeof(YiCadImportApi) == 256,
     "unexpected Win64 import ABI v3 size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_ABI_ALIGNOF(YiCadImportApi) == 8,
@@ -1649,11 +1742,12 @@ YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetLine, 68);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorGetCircle, 72);
 YICAD_ABI_FIELD_AT(YiCadHostApi, entityIteratorDestroy, 76);
 YICAD_ABI_STATIC_ASSERT(
-    YICAD_HOST_API_V3_SIZE == 84,
+    YICAD_HOST_API_V3_SIZE == 88,
     "unexpected Win32 host ABI v3 size");
 YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 80);
+YICAD_ABI_FIELD_AT(YiCadHostApi, readApi, 84);
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadImportApi) == 128,
+    sizeof(YiCadImportApi) == 132,
     "unexpected Win32 import ABI v3 size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_ABI_ALIGNOF(YiCadImportApi) == 4,
@@ -1782,6 +1876,8 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createPolyline, YiCadImportCreatePolylineFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createSpline, YiCadImportCreateSplineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createSolid, YiCadImportCreateSolidFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createText, YiCadImportCreateTextFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createMText, YiCadImportCreateMTextFn);
@@ -1894,6 +1990,8 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createPolyline, YiCadImportCreatePolylineFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createSpline, YiCadImportCreateSplineFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createSolid, YiCadImportCreateSolidFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(YiCadImportApi, createText, YiCadImportCreateTextFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createMText, YiCadImportCreateMTextFn);

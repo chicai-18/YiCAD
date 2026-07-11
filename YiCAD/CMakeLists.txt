@@ -264,9 +264,8 @@ endif()
 use_visual_leak_detector(${PROJECT_NAME})
 
 # Link against Conan-generated imported targets.
-# GLEW、OpenGL、FreeType、ZLIB、pugixml、libdxfrw 和 CDT 由
-# dependencies.cmake 调用 find_package 导入。libdxfrw 暂不链接应用目标，
-# 后续 DXF 插件直接使用其导入目标。
+# GLEW、OpenGL、FreeType、ZLIB、pugixml 和 CDT 由
+# dependencies.cmake 调用 find_package 导入。
 
 # nlohmann_json is header-only and used by internal JSON serialization.
 if(TARGET nlohmann_json::nlohmann_json)

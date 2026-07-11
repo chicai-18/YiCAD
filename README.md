@@ -22,6 +22,8 @@ Current version: **v0.20.0**
 - **Undo / Redo**: Full undo/redo framework based on a command stack
 - **Office Ribbon UI**: Modern ribbon interface powered by SARibbonBar
 - **Command Line Input**: Quick command-line operations
+- **Plugin System**: ABI v3 SDK for commands, Ribbon actions, and file import/export filters
+- **DXF Import / Export**: Built-in runtime plugin powered by the bundled libdxfrw 2.2.0 source
 
 ## Build
 
@@ -152,6 +154,10 @@ After building, specify the install path in YiCAD's CMake configuration via `CDT
 
 Most third-party dependencies are installed via [Conan 2](https://conan.io/). Install Conan 2 first, then run:
 
+The DXF plugin's `libdxfrw 2.2.0` dependency is bundled in the repository and
+is not downloaded by Conan. CMake builds it together with `YiCadDxfPlugin` as
+the private `YiCadLibdxfrw220` shared library.
+
 ```powershell
 # Install Conan 2 (if not already installed)
 pip install conan
@@ -161,16 +167,6 @@ conan install . --output-folder=build/conan-release --profile=profiles/windows-m
 
 # Install Debug dependencies
 conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never --lockfile=conan.lock
-```
-
-ConanCenter currently does not provide `libdxfrw` binaries for the repository's
-MSVC 194 Release and Debug profiles. If `--build=never` reports only `libdxfrw`
-as missing, build that package once for the matching configuration while keeping
-all other dependencies binary-only:
-
-```powershell
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="missing:libdxfrw/*" --lockfile=conan.lock
-conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build="missing:libdxfrw/*" --lockfile=conan.lock
 ```
 
 When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/conan-<config>/build/generators/conan_toolchain.cmake`.
@@ -188,7 +184,7 @@ When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/c
 | [zlib 1.3](https://www.zlib.net/) | Compression | Conan |
 | [minizip-ng 4.0](https://github.com/nmoinvaz/minizip) | ZIP archive | Conan |
 | [muparser 2.3](https://beltoforion.de/en/muparser/) | Math expression parsing | Conan |
-| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for future file-format plugins | Conan |
+| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for the DXF plugin | Bundled source |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON serialization | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML parsing | Conan |
 
@@ -200,6 +196,9 @@ Before building, ensure the following dependencies are ready:
 2. **SARibbonBar** — Cloned, built, and installed to `external/SARibbonBar/install-release/` and `external/SARibbonBar/install-debug/` (see above)
 3. **CDT** — Cloned, built, and installed to `external/CDT/install-release/` and `external/CDT/install-debug/` (see above)
 4. **Conan dependencies** — Downloaded via `conan install` (see below)
+
+`libdxfrw` does not require a separate installation step. Its bundled source is
+configured and built automatically when the DXF plugin is enabled.
 
 The project provides CMake presets (`CMakePresets.json`) to simplify configuration:
 
@@ -252,8 +251,54 @@ Installing `Runtime` automatically copies the following dependencies to `build/<
 - SARibbonBar.dll
 - CDT.dll (if present)
 - Conan-managed third-party DLLs (GLEW, FreeType, zlib, etc.)
+- The DXF plugin manifest, `YiCadDxfPlugin.dll`, and its private `YiCadLibdxfrw220.dll` dependency
 
-This makes the install directory self-contained — no manual DLL copying needed.
+This makes the application runtime directory self-contained. Plugin activation
+still requires deploying its manifest and DLL directory to the discovery path
+described below.
+
+The DXF runtime files are produced as one deployable unit:
+
+```text
+build/<config>/bin/plugins/
+  dxf.xml
+  dxf/YiCadDxfPlugin.dll
+  dxf/YiCadLibdxfrw220.dll
+```
+
+Keep both DLLs together. The installed `bin/plugins` directory is the deployment
+source; the production application loads plugins only from:
+
+```text
+C:\ProgramData\YiCAD\plugins
+```
+
+Copy `dxf.xml` to the first level of that directory and copy the `dxf` directory
+beside it. YiCAD scans only first-level `*.xml` files and does not recursively
+search subdirectories. With the supplied relative path, the resulting layout is:
+
+```text
+C:\ProgramData\YiCAD\plugins\
+  dxf.xml
+  dxf\YiCadDxfPlugin.dll
+  dxf\YiCadLibdxfrw220.dll
+```
+
+Each manifest is UTF-8 XML with exactly one empty `plugin` root element and one
+unnamespaced `dll` attribute:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin dll="dxf/YiCadDxfPlugin.dll"/>
+```
+
+No other attributes, namespaces, child elements, text, or DTD are allowed. The
+`dll` value must identify an existing `.dll` file. It may be an absolute path,
+or a relative path resolved from the directory containing the manifest. The
+bundled libdxfrw source is a private DXF-plugin dependency and is not part of
+the public Plugin SDK. See the [Plugin SDK guide](doc/PLUGIN_SDK.md),
+[Demo plugin deployment guide](plugins/demo_plugin/README.md), and
+[DXF plugin notes](plugins/dxf_plugin/README.md).
 
 **Developing with CLion:**
 
@@ -330,6 +375,10 @@ Key modifications by YiCAD include:
 ### Third-Party Components
 
 Third-party components are subject to their own licenses. See the [`LICENSE`](LICENSE) file and [`licenses/`](licenses/) directory for details.
+The DXF plugin bundles modified libdxfrw 2.2.0 source under
+`plugins/dxf_plugin/third_party/libdxfrw` under GPL-2.0-or-later. Its upstream
+`COPYING` file is retained, and the GPLv2 text is also available at
+[`licenses/gpl-2.0.txt`](licenses/gpl-2.0.txt) and installed with the Runtime.
 
 ### Disclaimer
 
