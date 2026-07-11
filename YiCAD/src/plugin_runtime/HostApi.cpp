@@ -2709,7 +2709,21 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
         desired.isVertical =
             (input->generationFlags & YICAD_TEXT_GENERATION_VERTICAL) != 0;
 
-        auto* font = DMFONTLIST->requestFont(fontFile, false);
+        auto requestImportFont = [](QString& fileName) {
+            auto* font = DMFONTLIST->requestFont(fileName, false);
+            if (font == nullptr && QFileInfo(fileName).suffix().isEmpty())
+            {
+                const QString shxFileName = fileName + ".shx";
+                font = DMFONTLIST->requestFont(shxFileName, false);
+                if (font != nullptr)
+                {
+                    fileName = shxFileName;
+                }
+            }
+            return font;
+        };
+
+        auto* font = requestImportFont(fontFile);
         if (font != nullptr && font->getFontType() == FontType::System)
         {
             desired.isSystemFont = true;
@@ -2730,7 +2744,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
         {
             desired.isSystemFont = false;
             desired.isUseBigfont = true;
-            desired.pBigFont = DMFONTLIST->requestFont(bigFontFile, false);
+            desired.pBigFont = requestImportFont(bigFontFile);
             if (desired.pBigFont == nullptr)
             {
                 desired.invalidBigFont = bigFontFile;
