@@ -36,3 +36,9 @@ endif()
 
 set_target_properties(YiCadDxfLibdxfrw PROPERTIES
     OUTPUT_NAME "YiCadLibdxfrw220")
+
+# 与 DXF 插件安装到同一目录，供安全 DLL 搜索策略解析私有依赖。
+install(TARGETS YiCadDxfLibdxfrw
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/plugins/dxf"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_BINDIR}/plugins/dxf"
+        COMPONENT Runtime)
