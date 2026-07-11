@@ -165,15 +165,6 @@ conan install . --output-folder=build/conan-release --profile=profiles/windows-m
 conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never --lockfile=conan.lock
 ```
 
-ConanCenter 当前没有与仓库 MSVC 194 Release 和 Debug 配置匹配的
-`libdxfrw` 二进制包。如果 `--build=never` 仅报告缺少 `libdxfrw`，
-可针对对应配置从源码构建一次，其他依赖仍只使用二进制包：
-
-```powershell
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="missing:libdxfrw/*" --lockfile=conan.lock
-conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build="missing:libdxfrw/*" --lockfile=conan.lock
-```
-
 Conan 2 使用 `cmake_layout()` 时，CMake toolchain 会生成在 `build/conan-<config>/build/generators/conan_toolchain.cmake`。
 
 ### 其他第三方库
@@ -189,7 +180,7 @@ Conan 2 使用 `cmake_layout()` 时，CMake toolchain 会生成在 `build/conan-
 | [zlib 1.3](https://www.zlib.net/) | 压缩 | Conan |
 | [minizip-ng 4.0](https://github.com/nmoinvaz/minizip) | ZIP 归档 | Conan |
 | [muparser 2.3](https://beltoforion.de/en/muparser/) | 数学表达式解析 | Conan |
-| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | 供后续文件格式插件解析 DXF | Conan |
+| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | 供 DXF 插件解析 DXF | 内置源码 |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON 序列化 | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML 解析 | Conan |
 

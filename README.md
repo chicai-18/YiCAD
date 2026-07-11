@@ -163,16 +163,6 @@ conan install . --output-folder=build/conan-release --profile=profiles/windows-m
 conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build=never --lockfile=conan.lock
 ```
 
-ConanCenter currently does not provide `libdxfrw` binaries for the repository's
-MSVC 194 Release and Debug profiles. If `--build=never` reports only `libdxfrw`
-as missing, build that package once for the matching configuration while keeping
-all other dependencies binary-only:
-
-```powershell
-conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="missing:libdxfrw/*" --lockfile=conan.lock
-conan install . --output-folder=build/conan-debug --profile=profiles/windows-msvc-debug --build="missing:libdxfrw/*" --lockfile=conan.lock
-```
-
 When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/conan-<config>/build/generators/conan_toolchain.cmake`.
 
 ### Other Third-Party Libraries
@@ -188,7 +178,7 @@ When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/c
 | [zlib 1.3](https://www.zlib.net/) | Compression | Conan |
 | [minizip-ng 4.0](https://github.com/nmoinvaz/minizip) | ZIP archive | Conan |
 | [muparser 2.3](https://beltoforion.de/en/muparser/) | Math expression parsing | Conan |
-| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for future file-format plugins | Conan |
+| [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for the DXF plugin | Bundled source |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON serialization | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML parsing | Conan |
 
