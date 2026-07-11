@@ -238,7 +238,7 @@ void DxfImporter::addLType(const DRW_LType& source)
     yicad::plugin::ImportResource resource;
     const auto result = m_session.createLineType(
         dxf::toLineType(source),
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)
@@ -917,7 +917,7 @@ yicad::plugin::ImportResource DxfImporter::ensureLineType(
     yicad::plugin::ImportResource resource;
     const auto result = m_session.createLineType(
         yicad::plugin::LineTypeData(actualName),
-        YICAD_RESOURCE_CONFLICT_RENAME,
+        YICAD_RESOURCE_CONFLICT_REPLACE,
         resource);
     setFailed(result);
     if (result == YICAD_IMPORT_SUCCESS)

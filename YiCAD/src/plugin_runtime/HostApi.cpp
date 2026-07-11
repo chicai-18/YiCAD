@@ -2481,7 +2481,27 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
         }
 
         auto* table = session->document->getLineTypeTable();
-        auto* existing = table->find(name);
+        DmLineType* existing = nullptr;
+        if (name.compare(LineType::ByLayer, Qt::CaseInsensitive) == 0)
+        {
+            existing = table->find(LineType::ByLayer);
+        }
+        else if (name.compare(LineType::ByBlock, Qt::CaseInsensitive) == 0)
+        {
+            existing = table->find(LineType::ByBlock);
+        }
+        else if (name.compare(LineType::Continuous, Qt::CaseInsensitive) == 0)
+        {
+            existing = table->find(LineType::Continuous);
+        }
+        if (existing != nullptr)
+        {
+            // 内置线型仅建立导入引用，不使用外部定义覆盖。
+            *resource = publishResource(existing, ImportResourceLineType);
+            instance->clearImportError();
+            return YICAD_IMPORT_SUCCESS;
+        }
+        existing = table->find(name);
         const auto identical = existing != nullptr &&
             existing->getLineTypeDesp() == description &&
             existing->getLineTypeData() == elements;
