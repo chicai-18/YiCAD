@@ -21,41 +21,43 @@
 #ifndef GUIDOCUMENTVIEW_H
 #define GUIDOCUMENTVIEW_H
 
-#include <QAction>
-#include <QDateTime>
-#include <QMap>
-#include <memory>
-#include <tuple>
-
 #define GL_GLEXT_PROTOTYPES
 
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 
-#include <map>
-#include <set>
+#include <QColor>
+#include <QMap>
 #include <QOpenGLWidget>
-#include <QOpenGLContext>
-#include <QToolButton>
 #include <QPushButton>
+#include <QString>
+#include <QToolButton>
+#include <memory>
 
 #include "PainterCreator.h"
-#include "DmCachePainter.h"
 
-#include "DmEntityContainer.h"
 #include "DmRect.h"
 #include "Snapper.h"
 #include "CustomComboboxItem.h"
 
 class QMouseEvent;
 class QKeyEvent;
+class QCursor;
 class QLabel;
 class QTimer;
 class ActionInterface;
+class DmCachePainter;
+class DmDocument;
+class DmEntityContainer;
 class GuiEventHandler;
 class GuiCommandEvent;
 class GuiGrid;
+
+namespace opengl
+{
+class GLPainter;
+}
 
 /// @brief 文档的画布
 /// @details 包括4层：背景层，文档层，预览层，前景层
@@ -302,10 +304,10 @@ private:
     bool                                m_bIsCleanUp;           ///< 如果为 true 则清理 docView
 
     DmEntityContainer*                  m_pPreviewEntityContainer;  ///< 预览实体容器
-    GLPainter*                          m_pBackgroundPainter;       ///< 背景画笔
+    opengl::GLPainter*                  m_pBackgroundPainter;       ///< 背景画笔
     DmCachePainter*                     m_pDocumentPainter;         ///< 文档画笔
     DmCachePainter*                     m_pPreviewPainter;          ///< 预览画笔
-    GLPainter*                          m_pForegroundPainter;       ///< 前景画笔
+    opengl::GLPainter*                  m_pForegroundPainter;       ///< 前景画笔
 
     DmVector                            m_currentMousePt;           ///< 当前鼠标位置（世界坐标）
     DM::CursorType                      m_eCursorType;              ///< 当前鼠标类型
