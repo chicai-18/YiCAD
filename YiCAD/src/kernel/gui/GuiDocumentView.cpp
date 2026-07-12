@@ -29,6 +29,7 @@
 #include <QDesktopWidget>
 #include <QAction>
 #include <QMouseEvent>
+#include <QOpenGLContext>
 #include <QtAlgorithms>
 #include <QNativeGestureEvent>
 #include <QTimer>
@@ -36,6 +37,8 @@
 #include <QToolButton>
 
 #include "DmLine.h"
+#include "DmCachePainter.h"
+#include "DmEntityContainer.h"
 #include "GuiEventHandler.h"
 #include "DmDocument.h"
 #include "GuiGrid.h"

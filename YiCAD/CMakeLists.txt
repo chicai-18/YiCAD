@@ -161,9 +161,6 @@ QT5_WRAP_UI(ui_FILES ${UI_UIS_HEADERS})
 # 将.qrc转成.cpp
 qt5_add_resources(qrc_FILES ${qrc_DIRS})
 
-# 生成moc文件
-qt5_wrap_cpp(moc_FILES ${UI_HEADERS})
-
 # 将生成的uic文件夹添加到包含目录
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -199,10 +196,12 @@ set_target_properties(TS_YiCAD PROPERTIES FOLDER "CMakePredefinedTargets")
 add_executable(${PROJECT_NAME} ${ALL_RSC_FILES}                                 
                                 ${UI_HEADERS}                               
                                 ${ui_FILES}
-                                ${moc_FILES}
                                  ${qrc_DIRS}
                                  ${qrc_FILES}
                                 ${QM_FILES})
+
+target_precompile_headers(${PROJECT_NAME} PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/main/YiCadPch.h")
 
 # 支持linux相对路径库加载，参考：https://stackoverflow.com/questions/43330165/how-to-link-a-shared-library-with-cmake-with-relative-path/69707790#69707790
 # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
