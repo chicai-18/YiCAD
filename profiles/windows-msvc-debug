@@ -10,3 +10,6 @@ build_type=Debug
 [conf]
 tools.cmake.cmaketoolchain:generator=Visual Studio 17 2022
 tools.build:jobs=8
+# 不要回写源码根目录的 CMakeUserPresets.json：本项目自带 CMakePresets.json，
+# 多个 --output-folder 会追加重复的 conan-default/conan-release 预设名，导致预设整体读不出来
+tools.cmake.cmaketoolchain:user_presets=
