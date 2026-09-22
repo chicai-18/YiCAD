@@ -25,7 +25,38 @@ Name classes, structs, enums, and other user-defined types in PascalCase with th
 
 ## Testing Guidelines
 
-There is currently no committed CTest or unit-test tree. For changes, at minimum verify `cmake --build --preset <config>` and run the installed application. When adding tests, place them in a clear `tests/` tree or subsystem-specific test directory, name binaries/files with a `test_` prefix, and register them with CMake/CTest so CI can run them later.
+Unit tests live under `tests/`, use GoogleTest (provided by Conan), and run through CTest. The tree is split by subsystem, matching the target library boundaries in `doc/ARCHITECTURE_EVOLUTION_PLAN.md`: `tests/math/`, `tests/geometry/`, `tests/persistence/`. Run them with `ctest --test-dir build/<config> -C <config> --output-on-failure`; CI runs the same command. Tests are built by default and can be turned off with `-DYICAD_BUILD_TESTS=OFF`.
+
+Add a test by dropping a `.cpp` into the matching subsystem directory and listing it in that directory's `CMakeLists.txt`. Keep one test binary per subsystem — every test target links the whole `YiCadCore` object library, so splitting further only multiplies link time. Test binaries are named `test_<subsystem>`; the install rules exclude `test_*` from the runtime package. Test executables share `tests/support/yicad_test_main.cpp`, which brings up `QApplication` and `DmSystem` (the type system registration that persistence needs) before running the suite.
+
+Assert what the code actually does, not what a name or comment implies; when the two disagree, say so in a comment on the test. When a test uncovers a genuine defect that is out of scope to fix, keep the test with a `DISABLED_` prefix and a comment giving the file, line, mechanism, and reachability, so the defect stays visible and the test becomes the fix's acceptance check.
+
+For changes, at minimum verify `cmake --build --preset <config>`, run `ctest`, and run the installed application.
+
+Note that a plain build does not produce a runnable tree: shaders, `keyconfig.xml`, translations, SHX fonts and `SARibbonBar.dll` are copied by `cmake --install`, not by the build. Running `build/<config>/bin/YiCAD.exe` before installing starts the app but leaves the drawing area blank, because `GLPainterCommon` loads shaders from `<exe dir>/resources/shaders/`. Always install after building. Tests are unaffected — they do not render, and CTest puts the DLL directories on their `PATH`.
+
+A static check also runs in CI and should be run locally before pushing:
+
+```bash
+python tools/check_layering.py               # src/kernel/ 是否反向依赖 UI 层
+```
+
+## Source File Collection
+
+`YiCAD/CMakeLists.txt` collects sources with `yicad_collect_sources(<partition> <dir>...)`, one call per partition, using `file(GLOB ... CONFIGURE_DEPENDS)`. The partitions follow the target library boundaries in `doc/ARCHITECTURE_EVOLUTION_PLAN.md` section 6.3, so the phase 3 library split is a matter of feeding each partition's variables to its own `add_library`.
+
+**The directory is the boundary.** Put a file in a directory and it joins that partition — there is no list to keep in sync. `CONFIGURE_DEPENDS` makes the build system re-collect when files are added or removed, so a new file cannot silently miss the build. `yicad_collect_sources` errors out on a directory that does not exist, which keeps dead entries from accumulating the way they had before.
+
+Everything except `src/main/Main.cpp` compiles into the `YiCadCore` OBJECT library; the `YiCAD` executable and the test binaries both link it, so tests do not recompile the kernel. `main()` stays in the executable so test binaries can supply their own.
+
+## Logging and Profiling
+
+Use the facade in `YiCAD/src/kernel/debug/`, not `std::cout`:
+
+- `YICAD_LOG(category, level) << ...` (`YiCadLog.h`) — filtered by category and level; the right-hand side is not evaluated when filtered out. Default level is Warning, so nothing prints on hot paths. Configure at runtime with `YICAD_LOG=*:warning,render:debug`.
+- `YICAD_SCOPED_TIMER(counter)` (`ScopedTimer.h`) — off by default, costs one relaxed atomic read when off. Uses `steady_clock`; never `system_clock`, which can run backwards. Enable with `YICAD_PROFILE=1`, summarize with `yicad::Profiler::report()`.
+
+Never add per-frame printing to `paintGL` or other hot paths. See `doc/BASELINE.md` for how the counters feed the performance baseline.
 
 ## Commit & Pull Request Guidelines
 

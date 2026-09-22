@@ -50,6 +50,7 @@
 #include "DmLayer.h"
 #include "Math2d.h"
 #include "Debug.h"
+#include "ScopedTimer.h"
 #include "DmColor.h"
 #include "ActionZoomIn.h"
 #include "ActionZoomPan.h"
@@ -121,7 +122,9 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     QSurfaceFormat format;
     format.setSamples(MULTISAMPLE_COUNT);    // 设置多重采样的采样点数
     setFormat(format);
-    glEnable(GL_MULTISAMPLE);
+    // 此处原有一行 glEnable(GL_MULTISAMPLE)，已删除（P12）：构造函数里还没有
+    // current context，该调用不会生效。删除是安全的——GL_MULTISAMPLE 的默认值
+    // 本就是 GL_TRUE，上面 setFormat 请求的 4 重采样已经使多重采样生效。
 
     // 捕捉类型文字提示
     m_snapTooltip = new QLabel(this);
@@ -1336,7 +1339,10 @@ void GuiDocumentView::initializeGL()
 
 void GuiDocumentView::paintGL()
 {
-    auto start = std::chrono::system_clock::now();
+    // 帧耗时埋点。默认关闭，开启方式见 ScopedTimer.h；
+    // 此前这里是每帧一次 std::cout，既污染帧耗时又用 system_clock 测时长（P11）。
+    YICAD_SCOPED_TIMER(yicad::counters::paintGL());
+
     // 绘制背景层 背景网格等
     drawBackgroundLayer();
 
@@ -1348,10 +1354,6 @@ void GuiDocumentView::paintGL()
 
     // 绘制前景层
     drawForegroundLayer();
-
-    auto end = std::chrono::system_clock::now();
-    auto gap = end - start;
-    std::cout << "drawing cost: " << std::chrono::duration_cast<std::chrono::milliseconds>(gap).count() << std::endl;
 }
 
 void GuiDocumentView::resizeGL(int w, int h)

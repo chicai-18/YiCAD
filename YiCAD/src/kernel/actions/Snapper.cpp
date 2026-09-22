@@ -21,6 +21,7 @@
 #include <cmath>
 #include <QMouseEvent>
 #include "Snapper.h"
+#include "ScopedTimer.h"
 
 #include "DmPoint.h"
 #include "DmCircle.h"
@@ -641,6 +642,9 @@ DmVector Snapper::restrictVertical(const DmVector& coord)
 
 DmEntity* Snapper::catchEntity(const DmVector& pos, DM::ResolveLevel level)
 {
+    // 拾取耗时埋点，默认关闭，见 ScopedTimer.h
+    YICAD_SCOPED_TIMER(yicad::counters::catchEntity());
+
     // 获得鼠标包围框相交的实体
     DmVector res(false);
     DmVector min(true), max(true);
@@ -688,6 +692,9 @@ DmEntity* Snapper::catchEntity(const DmVector& pos, DM::ResolveLevel level)
 
 DmEntity* Snapper::catchEntity(const DmVector& pos, DM::EntityType enType, DM::ResolveLevel level)
 {
+    // 拾取耗时埋点，默认关闭，见 ScopedTimer.h
+    YICAD_SCOPED_TIMER(yicad::counters::catchEntity());
+
     // 获得鼠标包围框相交的实体
     DmVector res(false);
     DmVector min(true), max(true);

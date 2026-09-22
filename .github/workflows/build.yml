@@ -4,6 +4,16 @@
 # Uses Conan 2 prebuilt packages. The DXF plugin builds its bundled libdxfrw
 # source as a private runtime DLL.
 #
+# GoogleTest is the one Conan package this workflow builds locally
+# (--build="gtest/*"): ConanCenter has no prebuilt binary for msvc 194 with
+# cppstd=23. Once build-deps.yml has published it to the yicax remote this
+# becomes a cache hit. All other packages still come prebuilt.
+#
+# Pre-build static check:
+#   - src/kernel/ does not include UI headers (tools/check_layering.py)
+#
+# Unit tests run via ctest after the build.
+#
 # Post-install scanning checks for:
 #   - DLL completeness
 #   - License file presence
@@ -94,13 +104,19 @@ jobs:
       - name: Install Conan dependencies
         run: |
           conan profile detect
-          conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
+          conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="gtest/*" --lockfile=conan.lock
+
+      - name: Check kernel does not depend on UI
+        run: python tools/check_layering.py
 
       - name: Configure CMake
         run: cmake -G "Visual Studio 17 2022" -A x64 -S . -B build/Release -DCMAKE_TOOLCHAIN_FILE="build/conan-release/build/generators/conan_toolchain.cmake" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/${{ env.QT_VERSION }}/${{ env.QT_ARCH }};${{ github.workspace }}/external/SARibbonBar/install;${{ github.workspace }}/external/CDT/install" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/build/package/Release"
 
       - name: Build
         run: cmake --build build/Release --config Release
+
+      - name: Test
+        run: ctest --test-dir build/Release -C Release --output-on-failure
 
       - name: Install
         run: cmake --install build/Release --config Release

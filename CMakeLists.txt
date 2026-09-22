@@ -74,9 +74,20 @@ endif()
 OPTION(UPDATE_TRANSLATIONS "Update translations on compile" OFF)
 MESSAGE(STATUS "UPDATE TRANSLATIONS: ${UPDATE_TRANSLATIONS}")
 option(USE_VISUAL_LEAK_DETECTOR "Use visual leak detector to detect memory leakage" OFF)
+
+# 自动化测试（方案阶段 0）。默认开启；CI 之外若不想构建测试可用
+# -DYICAD_BUILD_TESTS=OFF 关闭。测试通过 GoogleTest 驱动，由 Conan 提供。
+option(YICAD_BUILD_TESTS "Build YiCAD unit tests" ON)
+if(YICAD_BUILD_TESTS)
+    enable_testing()
+endif()
+
 # 设置子项目
 add_subdirectory("YiCAD")
 add_subdirectory("plugins")
+if(YICAD_BUILD_TESTS)
+    add_subdirectory("tests")
+endif()
 
 # YiCADPluginSdk CMake package 的生成、安装和消费流程：
 # 1. 配置阶段：

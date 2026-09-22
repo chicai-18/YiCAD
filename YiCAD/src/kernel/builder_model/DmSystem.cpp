@@ -23,6 +23,8 @@
 /// @brief DmSystem 系统管理类的实现，包括路径查找、字体扫描、翻译加载等
 
 #include "DmSystem.h"
+#include "ScopedTimer.h"
+#include "YiCadLog.h"
 
 #include <iostream>
 
@@ -271,6 +273,11 @@ void DmSystem::init(const QString& appName, const QString& appVersion, const QSt
 	}
 
 	initialized = true;
+
+	// 日志分类与耗时埋点的开关来自环境变量 YICAD_LOG / YICAD_PROFILE，
+	// 必须在任何子系统输出日志之前配置好。
+	yicad::configureLoggingFromEnvironment();
+	yicad::Profiler::configureFromEnvironment();
 
 	Type::initialize();
 	MetaType::initialize();

@@ -19,6 +19,7 @@
 /// @brief 实体选择功能实现，提供单选、全选、窗口选择、图层选择
 
 #include "Selection.h"
+#include "ScopedTimer.h"
 
 #include "DmLine.h"
 #include "Information.h"
@@ -79,6 +80,10 @@ void Selection::selectAll(bool select)
 /// @param entityTypeList 限定实体类型列表
 void Selection::selectWindow(const DmVector& v1, const DmVector& v2, bool select, bool cross, std::list<DM::EntityType> const& entityTypeList)
 {
+	// 框选耗时埋点，默认关闭，见 ScopedTimer.h。
+	// 本函数目前仍是全表遍历（P10），阶段 9.1 改走 R 树候选集后可用同一计数器对比。
+	YICAD_SCOPED_TIMER(yicad::counters::selectWindow());
+
 	DmVector min(std::min(v1.x, v2.x), std::min(v1.y, v2.y));
 	DmVector max(std::max(v1.x, v2.x), std::max(v1.y, v2.y));
 

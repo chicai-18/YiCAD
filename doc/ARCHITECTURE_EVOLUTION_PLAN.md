@@ -148,6 +148,64 @@ flowchart TB
 
 - 低。此阶段几乎不修改产品代码路径，唯一的产品侧改动是删除调试输出和无效 GL 调用。
 
+### 3.5 执行结果
+
+已完成。落地内容与方案的差异，以及执行中发现的缺陷，记在这里。
+
+**与方案的偏差**
+
+| 项 | 方案 | 实际 | 理由 |
+|----|------|------|------|
+| 测试框架 | Catch2 或 GoogleTest | GoogleTest 1.15.0 | 阶段 2、4 引入 `ISnapService`、`IDocumentView`、`IExtension` 后要写替身，gmock 更顺手 |
+| 测试如何链接内核 | 未定 | 新建 `YiCadCore` OBJECT 库（除 `Main.cpp`），可执行目标与测试共享目标文件 | 单一 `add_executable` 下测试无法复用编译产物；OBJECT 而非 STATIC，避免静态库符号剥离丢掉 Qt 的自动注册符号 |
+| 源文件收集 | 阶段 3 才处理 | 阶段 0 就按阶段 3 的七个目标库分区收集，`file(GLOB ... CONFIGURE_DEPENDS)` | 建 OBJECT 库本来就要重排源文件组织，顺带补上 `CONFIGURE_DEPENDS`（P5 的一半）；阶段 3 拆库退化为把七个分区变量各自喂给一次 `add_library`。曾一度改成显式清单，但那要配生成脚本加 CI 校验，维护成本超过收益，已退回 GLOB |
+| 分层护栏 | 未列 | 新增 `tools/check_layering.py` 进 CI，P7 的三处进白名单 | 方向先锁住，库后建；白名单失效时脚本报错，防止腐化 |
+| 往返测试的接口 | `Persistence` 的流接口 | `OutputStream`/`InputStream` | `dumpToStream`/`restoreFromStream` 是死代码且有缺陷，见下 |
+
+**新增设施**
+
+- `YiCAD/src/kernel/debug/YiCadLog.{h,cpp}` —— 分类加分级的日志门面，
+  默认 Warning，过滤不通过时右侧不求值；`YICAD_LOG=*:warning,render:debug` 配置。
+- `YiCAD/src/kernel/debug/ScopedTimer.{h,cpp}` —— 可开关的耗时埋点，
+  `steady_clock`，按计数器累计而非逐次打印；`YICAD_PROFILE=1` 开启。
+- `tools/gen_benchmark_drawings.py` —— 生成 1k / 50k / 500k 三份基准图纸
+  （DXF R2000，含样条、填充、块引用、文字），确定性，零第三方依赖。
+- `YiCAD/CMakeLists.txt` 的 `yicad_collect_sources()` —— 按分区收集源文件，
+  对不存在的目录直接报错。启用后立刻发现原 GLOB 里挂着四个早已不存在的目录
+  （`builder_model/array`、`temp/entity_builders`、`temp/entity_data`、
+  `temp/geometry`），以及 include 路径里的 `kernel/engine`、`kernel/scripting`，
+  一并清理。
+- `tests/CMakeLists.txt` 里给测试进程加 PATH —— SARibbonBar 的 DLL 只在
+  `cmake --install` 时才就位，构建树里没有，测试二进制会以 0xc0000135
+  起不来。只改测试进程的环境变量，不往构建产物里复制任何文件。
+- `tools/measure_build.ps1` —— 采集附录 B 的构建指标。
+- `doc/BASELINE.md` —— 基线采集步骤与数据表。
+
+**执行中发现的缺陷**
+
+均为测试暴露、且**未在本阶段修复**（阶段 0 不改产品语义）。每一条都留了
+`DISABLED_` 测试，修复后去掉前缀即可作为验收。
+
+| # | 位置 | 问题 | 可达性 |
+|---|------|------|--------|
+| B1 | `Math2d.cpp:400` `cubicSolver` | 单实根分支在 `q > 0` 时取错辅助二次方程的根，对负数取立方根得到 NaN/inf。应取 `r[0]` 而非 `r[1]` | 经 `quarticSolver` → `simultaneousQuadraticSolver*` 被 `Information.cpp:621`（椭圆求交）与 `ActionDrawLineTangent2.cpp:392`（切线）使用 |
+| B2 | `Math2d.cpp:396` 同一段 | `r.size() == 0` 时只往 cerr 打一行，随后仍索引 `r[0]`/`r[1]`，越界读 | 同上 |
+| B3 | `Information.cpp:398` `getIntersectionLineArc` | 死代码：有完整的相切处理，但全仓无调用点。线与圆实际走通用二次曲线路径，**精确相切求不出切点** | 对切点做修剪、延伸、交点捕捉时失败 |
+| B4 | `Persistence.cpp` `restoreFromStream` | 违反 `Archive.h` 为 `ArchiveReader` 写明的契约——未调用 `nextEntry()` 就取 `stream()`，读到空流并抛异常 | 死代码，全仓无调用点。产品文档读写走 `FilterOcdIO`，不受影响 |
+
+另有两处注释与实现不符，已在测试里按实现的真实契约断言并注明：
+
+- `Math2d::correctAngle2` 注释写 `[-PI, +PI)`，实现是 `remainder`，区间是闭的。
+- `DmVector::flipXY` 注释未提及它会丢弃 z 分量。
+
+**验收对照**
+
+| 3.3 节的验收标准 | 状态 |
+|------------------|------|
+| `ctest` 绿灯，覆盖 `kernel/math`、`kernel/persistence` | 达成，另含 `geometry`，共 133 个用例 |
+| 三份基准图纸有书面基线数据 | 图纸与采集流程就绪；运行期数据需在有 GPU 的开发机上按 `doc/BASELINE.md` 手工采集 |
+| 主干上不再有每帧 `std::cout` | 达成 |
+
 ---
 
 ## 4. 阶段 1：视图解耦

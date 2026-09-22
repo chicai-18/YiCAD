@@ -19,6 +19,7 @@
 /// @brief 实体表实现
 
 #include "EntityTable.h"
+#include "ScopedTimer.h"
 #include "DmDocument.h"
 #include "DmIdManager.h"
 #include "EntityTableCmd.h"
@@ -337,6 +338,10 @@ DmVector EntityTable::getNearestSelectedRef(const DmVector& coord, double* dist 
 /// @return 最近的虚拟交点；若无交点或最近实体不存在，则返回 coord 本身
 DmVector EntityTable::getNearestVirtualIntersection(const DmVector& coord, const double& angle, double* dist)
 {
+    // 虚拟交点捕捉耗时埋点，默认关闭，见 ScopedTimer.h。
+    // 本函数目前对全容器求最近实体（P10），阶段 9.1 改走 R 树候选集。
+    YICAD_SCOPED_TIMER(yicad::counters::nearestVirtualIntersection());
+
     DmVector point;
 
     // 查找离起始坐标最近的实体（排除文本和图片实体）

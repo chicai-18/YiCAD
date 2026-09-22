@@ -75,6 +75,10 @@ class YiCADRecipe(ConanFile):
         # ---- XML 解析 ----
         self.requires("pugixml/1.14")
 
+        # ---- 测试框架（仅在 YICAD_BUILD_TESTS=ON 时链接） ----
+        # test_requires 不进入 package_id，也不污染下游消费者。
+        self.test_requires("gtest/1.15.0")
+
         # NOTE: SARibbonBar is NOT a Conan dependency. It is provided by the
         # user and found via find_package with SARIBBON_DIR. See README for
         # setup instructions.
@@ -109,6 +113,9 @@ class YiCADRecipe(ConanFile):
 
         # pugixml: static library (MIT license, replaces Xerces-C)
         self.options["pugixml"].shared = False
+
+        # GoogleTest: 静态库，且必须与 YiCAD 使用同一 MSVC 运行时（/MD、/MDd）
+        self.options["gtest"].shared = False
 
         # minizip-ng: static library, use zlib backend, no compat layer (we use mz_* API directly)
         self.options["minizip-ng"].shared = False
