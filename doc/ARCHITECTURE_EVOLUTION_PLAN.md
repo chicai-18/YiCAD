@@ -376,10 +376,12 @@ flowchart TB
 
 ### 5.7 执行结果
 
-分两轮落地。第一轮完成第 1（`IViewTool`/`ViewToolControl`）、2
+分三轮落地。第一轮完成第 1（`IViewTool`/`ViewToolControl`）、2
 （`PanZoomTool`）、4（光标仲裁，范围收窄）、5（Snap 组合化）项；第二轮
-补上第 3 项（`SelectTool`，`GripEditTool` 未单独拆分，理由见下）。第 6
-项（业务工具适配器）仍留作后续 PR。
+补上第 3 项（`SelectTool`，`GripEditTool` 未单独拆分，理由见下）；第三轮
+完成第 6 项（业务工具适配器，`LegacyActionTool`）。六项任务全部落地，
+剩下的只是第 6 项完成后才有意义的两处收尾（`SelectTool` 正式注册为
+选择层、删除 `ActionDefault` 里那次直接置光标的调用），见"后续"。
 
 **与方案的偏差**
 
@@ -387,8 +389,10 @@ flowchart TB
 |----|------|------|------|
 | 落地范围（第一轮） | 六项任务一次性完成 | 先完成第 1、2、4、5 项 | `ActionDefault` 与 `ActionInterface::finish()`（"拒绝退出默认 Action"的特判）、`GuiEventHandler::inSelectionMode()`、`GuiDocumentView::tabletEvent` 的橡皮擦手势深度耦合，拆解它是独立体量的工作，与第 5 项（改动面覆盖 106 个 Action）叠加会突破 10 节"禁止跨阶段大爆炸式 PR"的约束，故拆成两轮 |
 | `GripEditTool` 未单独拆分 | `Moving`/`MovingRef` "倾向拆为 GripEditTool" | 与 `Neutral`/`Dragging`/`SetCorner2` 一起留在同一个 `SelectTool` 里 | 这五个状态共享同一次拖拽手势：鼠标刚按下时（`Dragging` 状态）还不知道最终是框选还是拖动实体/夹点，要等移动超过阈值后才能判定，判定逻辑本身就要同时读取"有没有选中的参考点"和"有没有选中的实体"。拆成两个类需要在它们之间转移这次"未决"的拖拽状态，边界不清晰而收益有限；方案本身也把这个拆分标注为"评估后决定"，判断后选择保留在一起 |
-| `SelectTool` 未注册进 `ViewToolControl` 的选择层 | 三层栈里选择层由 `SelectTool` 担任 | `SelectTool` 已实现为独立的 `IViewTool`，但仍只由 `ActionDefault`（薄适配器）在内部持有和调用，未 `setSelectionTool()` 注册进 `ViewToolControl` | `GuiEventHandler` 对业务 Action 的分发语义是"只要活着就总是处理"，没有 `NotHandled` 概念；若现在就注册，`SelectTool` 会在业务 Action 之前抢先处理每个事件（因为 `ViewToolControl` 目前的业务工具栈是空的，选择层实质上变成最高优先级），画线、修改等由 `GuiEventHandler` 驱动的业务 Action 将再也收不到鼠标事件。必须先有第 6 项（把 `GuiEventHandler` 包成业务工具，参与统一优先级排序）才能安全注册，见"后续" |
-| 光标仲裁范围 | 移除各 Action 的 `updateMouseCursor()` 直接抢占，统一走 `IViewTool::GetCursor()` | 106 个 Action（含 `ActionDefault`）的 `updateMouseCursor()` 直接调用保持不变；`ViewToolControl` 仅在**全体工具都无偏好**时不触碰当前光标，只有 `PanZoomTool` 主动断言（平移进行中）时才覆盖 | 同上一条：`SelectTool` 未注册进仲裁链路，改光标的职责暂时还在 `ActionDefault::updateMouseCursor()`（读取 `SelectTool::getCursor()` 后直接调用 `docView->setMouseCursor()`）。等第 6 项把业务栈接进来、`SelectTool` 也注册为选择层之后，`ActionDefault` 这个直接调用点才能安全删除 |
+| `SelectTool` 未注册进 `ViewToolControl` 的选择层 | 三层栈里选择层由 `SelectTool` 担任 | `SelectTool` 已实现为独立的 `IViewTool`，业务工具适配器（`LegacyActionTool`）也已经落地，但 `SelectTool` 仍只由 `ActionDefault`（薄适配器）在内部持有和调用，未 `setSelectionTool()` 注册进 `ViewToolControl` | `LegacyActionTool` 转发规则是"没有业务 Action 活动、且不是中键/空闲态 Ctrl+左键时，一律转发给 `GuiEventHandler`"——这条规则本身涵盖了"转发给默认 Action（内部即 `SelectTool`）"的全部场景。若现在再把 `SelectTool` 注册成选择层，业务层会先于选择层拿到事件、并且总是转发成功，选择层将永远收不到事件，成为死代码。要让选择层真正生效，需要反过来让 `LegacyActionTool` 在"没有业务 Action 活动"时也主动让路（不转发给默认 Action），把这部分职责正式移交给注册进选择层的 `SelectTool`——这是比"包一层适配器"更深一层的收尾，留在下一步，见"后续" |
+| `LegacyActionTool` 对中键/空闲 Ctrl+左键的让路判断 | 未细化——方案只说"给它一个 NotHandled 语义" | 只在两种情况下声明 `NotHandled`：中键（任何时候）；Ctrl/Meta+左键且 `!eventHandler->hasAction()`。平移进行中（`PanZoomTool::isPanning()`）时对移动/释放也让路，避免业务层抢在导航层结束平移之前把事件转发给默认/业务 Action | `GuiEventHandler` 本身没有"这次事件我不关心"的概念——它的分发语义是"只要活着就总是处理"。这条规则原样承袭自第一轮的 `wantsPan`/`isPanning()` 判断（当时是 `GuiDocumentView` 里的外部判断），现在收进 `LegacyActionTool` 内部，让 `GuiDocumentView` 的三个鼠标事件处理函数能统一交给 `ViewToolControl` 分发，不用再各自判断"这次要不要问 ViewToolControl" |
+| `GuiDocumentView` 对 RightButton / XButton1 释放的特判保留在工具栈之外 | 未细化 | `mouseReleaseEvent` 的 `switch (e->button())` 结构原样保留：`RightButton`（`back()` 的合成事件回退）与 `XButton1`（`enter()` + `emit xbutton1_released()`）两个分支不经过 `ViewToolControl`；只有 `default` 分支（其余按钮，含中键/左键释放）改为统一调用 `m_pViewToolControl->mouseReleaseEvent(e)` | 这两个分支依赖的是 `GuiDocumentView` 自己的方法（`back()`、`enter()`）和信号（`xbutton1_released()`），不是"哪个 Action 处理这次事件"的问题，本质上是画布级的全局快捷手势，与 `zoomAuto()`（中键双击）、滚轮缩放等其它没有并入工具栈的全局手势同类。如果把它们也塞进 `LegacyActionTool`，要么反过来给 `IViewTool`/`IDocumentView` 增加这两个方法，要么让适配器直接依赖具体的 `GuiDocumentView`——两者都超出"包一层 GuiEventHandler"本身的范围，收益也不明显（没有其它工具需要与它们竞争优先级） |
+| 光标仲裁范围 | 移除各 Action 的 `updateMouseCursor()` 直接抢占，统一走 `IViewTool::GetCursor()` | 106 个 Action（含 `ActionDefault`）的 `updateMouseCursor()` 直接调用保持不变；`ViewToolControl` 仅在**全体工具都无偏好**时不触碰当前光标，只有 `PanZoomTool` 主动断言（平移进行中）时才覆盖 | `LegacyActionTool` 未覆盖 `getCursor()`（保持接口默认的 `nullopt`）——它包装的是 100 余个各自直接调用 `setMouseCursor()` 的 Action，没有单一、可查询的"当前光标偏好"可以汇报给仲裁链路。改光标的职责仍在 `ActionDefault::updateMouseCursor()`（读取 `SelectTool::getCursor()` 后直接调用 `docView->setMouseCursor()`）。等 `SelectTool` 也注册为选择层之后，`ActionDefault` 这个直接调用点才能安全删除 |
 | Ctrl+左键平移的适用范围 | 未细化 | 仅在 `!eventHandler->hasAction()`（无业务 Action 活动）时生效，与原 `ActionDefault::Panning` 完全一致 | 保持行为零回归：原实现里 Ctrl+拖拽只在 `ActionDefault::Neutral` 状态下响应；业务 Action 运行时左键另有含义（放置绘制点等），不应被导航层截获 |
 | 中键平移与活动 Action 的关系 | "在任意 Action 激活期间行为一致" | 中键平移不再通过 `setCurrentAction` 挂起当前 Action，而是在 `GuiDocumentView` 层直接分流给 `PanZoomTool`；平移过程中当前 Action（及其预览）保持活跃、不被挂起 | 与原实现（中键按下会 `setCurrentAction(new ActionZoomPan(...))`，通过挂起/恢复机制暂停前一个 Action）相比是行为上的小幅改善而非逐位复刻，判断为更贴合验收标准"一致且可预测"的本意，已在 `PanZoomTool.h` 顶部注明 |
 
@@ -424,10 +428,20 @@ flowchart TB
   `ActionDefault::Panning` 状态。显式的 Ribbon "Pan" 命令（`ActionZoomPan`
   类本身）不在改动范围内——那是用户主动进入的模态命令，与这里"随时中键一按
   就能平移"的导航手势语义不同，予以保留。
+- `kernel/actions/LegacyActionTool.{h,cpp}` —— 阶段2第6项的业务工具
+  适配器，把 `GuiEventHandler`（业务 Action 栈 + 默认 Action 的既有分发
+  逻辑，一行未改）包成一个 `IViewTool`，注册进 `ViewToolControl` 的
+  业务工具栈。只在两类场景声明 `NotHandled`：中键；以及没有业务 Action
+  活动时的 Ctrl/Meta+左键——把这两类事件让给导航层 `PanZoomTool`；平移
+  进行中时对移动/释放也主动让路，避免业务层抢在导航层结束平移之前
+  把事件转发出去。
 - `kernel/gui/GuiDocumentView.{h,cpp}` —— 持有 `ViewToolControl`/
-  `PanZoomTool`；`mousePressEvent` 按"是否为平移手势"（策略）分流，
-  `mouseMoveEvent`/`mouseReleaseEvent` 让 `ViewToolControl` 优先尝试，
-  未处理再退回旧版 `eventHandler`。
+  `PanZoomTool`/`LegacyActionTool`（第三轮新增）。`mousePressEvent`/
+  `mouseMoveEvent` 统一交给 `ViewToolControl` 分发，不再有 `GuiDocumentView`
+  自己判断"这次要不要问 ViewToolControl"的外部 `wantsPan` 逻辑——那部分
+  判断已经收进 `LegacyActionTool`。`mouseReleaseEvent` 保留 RightButton/
+  XButton1 两个全局手势分支在工具栈之外（原因见"与方案的偏差"表），其余
+  按钮的 `default` 分支统一交给 `ViewToolControl`。
 - `tests/support/FakeDocumentView.h` —— `IDocumentView` 的最小测试替身，
   交互层工具的单测因此不必依赖 `GuiDocumentView` 或任何 Qt 界面组件。
   `getGrid()`/`getOverlayContainer()`/`getPreviewContainer()` 用真实的
@@ -445,11 +459,13 @@ flowchart TB
   `ActionBlocksEdit`/`ActionModifyMText` 对
   `handler->getDefaultAction()->mouseXEvent(e)` 的直接复用都依赖一个
   仍然存活、行为不变的 `ActionDefault` 实例。
-- `tests/interaction/` —— 新增 `test_select_tool.cpp`（`SelectTool` 的
-  状态转换、按钮语义、`Escape`/`Shift` 处理，9 个用例，用真实的空
+- `tests/interaction/` —— `test_select_tool.cpp`（`SelectTool` 的状态
+  转换、按钮语义、`Escape`/`Shift` 处理，9 个用例，用真实的空
   `DmDocument` + `Snapper` + `FakeDocumentView` 构造，不需要
-  `GuiDocumentView`）。连同已有的 `ViewToolControl`/`PanZoomTool` 用例，
-  本目录共 25 个用例。
+  `GuiDocumentView`）；`test_legacy_action_tool.cpp`（`LegacyActionTool`
+  的转发/让路判断，7 个用例，用一个没有挂任何 Action 的空
+  `GuiEventHandler` 构造）。连同已有的 `ViewToolControl`/`PanZoomTool`
+  用例，本目录共 32 个用例。
 
 **影响面**
 
@@ -466,28 +482,28 @@ flowchart TB
   `getSnapMode()->...`。
 - 其余全部 100 余个 Action 子类文件未改动一行——`catchEntity`/
   `snapPoint`/`snapMode` 等调用点是到 `m_snapService` 的透明转发，
-  机械性由编译期验证（全量构建 + 133+25 个既有/新增用例全绿，Debug 与
-  Release 均已构建）。
+  机械性由编译期验证（全量构建 + 133+32 个既有/新增用例全绿，Debug 与
+  Release 均已构建，分层检查脚本无新增违规）。
 
 **验收对照**
 
 | 5.5 节的验收标准 | 状态 |
 |------------------|------|
 | `ActionDefault` 的 `Panning` 状态被删除，`GuiDocumentView` 内无 `new ActionZoomPan` | 达成 |
-| 中键平移、框选、点选在任意 Action 激活期间行为一致且可预测 | 中键平移达成；框选/点选的状态机已抽到 `SelectTool` 并独立单测，但尚未注册进 `ViewToolControl` 的统一分发（见上表），运行时行为与阶段1末尾等价，未回归也未扩大适用范围 |
-| 光标在叠加场景下有确定性结果 | 部分达成：平移进行中/结束后的光标切换已可预测；`SelectTool`/`ActionDefault` 与其余 105 个旧 Action 的光标仲裁化未做，等第 6 项落地后收尾 |
+| 中键平移、框选、点选在任意 Action 激活期间行为一致且可预测 | 中键平移达成，且现在经由统一的 `ViewToolControl` 分发（`LegacyActionTool` 主动让路），不再依赖 `GuiDocumentView` 里的外部判断；框选/点选的状态机已抽到 `SelectTool` 并独立单测，但仍只经 `ActionDefault` 触达，未注册为选择层参与统一优先级排序（见上表），运行时行为与前两轮等价，未回归也未扩大适用范围 |
+| 光标在叠加场景下有确定性结果 | 部分达成：平移进行中/结束后的光标切换已可预测；`SelectTool`/`ActionDefault` 与其余 105 个旧 Action 的光标仲裁化未做，等 `SelectTool` 正式注册为选择层后收尾 |
 | `ActionInterface` 不再继承 `Snapper` | 达成 |
-| 捕捉逻辑可脱离 Action 单独测试（补充单测） | 达成，并扩展到选择逻辑：`SelectTool` 已完全脱离 `ActionInterface`/`QObject`，用一个空 `DmDocument` + 真实 `Snapper` + `FakeDocumentView` 即可单测，不需要 `GuiDocumentView` |
+| 捕捉逻辑可脱离 Action 单独测试（补充单测） | 达成，并扩展到选择逻辑与业务工具适配器：`SelectTool` 已完全脱离 `ActionInterface`/`QObject`，用一个空 `DmDocument` + 真实 `Snapper` + `FakeDocumentView` 即可单测；`LegacyActionTool` 用一个没有挂任何 Action 的空 `GuiEventHandler` 即可单测其转发/让路判断，都不需要 `GuiDocumentView` |
 
-**后续（建议作为阶段 2 的下一个 PR）**
+**后续**
 
-- 业务工具适配器（方案第 6 项）：把 `GuiEventHandler` 包成 `IViewTool`
-  注册进 `ViewToolControl` 的业务栈，并给它一个能表达"这次事件我不关心"
-  的 `NotHandled` 语义（目前 `GuiEventHandler` 的分发是"活着就总是处理"，
-  没有这个概念，需要先补上，否则包上去也无法参与优先级排序）。
-- 做完上一条后，把 `SelectTool` 注册为 `ViewToolControl` 的选择层，
-  删除 `ActionDefault::updateMouseCursor()` 里那次直接 `setMouseCursor`
-  调用，光标仲裁改由 `ViewToolControl::refreshCursor()` 统一处理。
+- 把 `SelectTool` 正式注册为 `ViewToolControl` 的选择层。需要先让
+  `LegacyActionTool` 在"没有业务 Action 活动"时也主动让路（当前它只对
+  中键和空闲态 Ctrl+左键让路，其余情况——包括转发给默认 Action 的场景——
+  都会转发成功），把"转发给默认 Action"这部分职责正式移交给选择层的
+  `SelectTool`；之后即可删除 `ActionDefault::updateMouseCursor()` 里那次
+  直接 `setMouseCursor` 调用，光标仲裁改由 `ViewToolControl::
+  refreshCursor()` 统一处理。
 - `GripEditTool` 的拆分已评估并搁置（见上表"与方案的偏差"），除非后续
   出现新的、独立于点选/框选状态机的夹点交互需求，否则不再重新考虑。
 

@@ -60,6 +60,7 @@
 #include "ActionDefault.h"
 #include "ViewToolControl.h"
 #include "PanZoomTool.h"
+#include "LegacyActionTool.h"
 
 #ifdef Q_OS_WIN32
 #define CURSOR_SIZE 16
@@ -107,8 +108,10 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     setMouseTracking(true);
 
     m_pPanZoomTool = std::make_unique<PanZoomTool>(this);
+    m_pLegacyActionTool = std::make_unique<LegacyActionTool>(eventHandler, m_pPanZoomTool.get());
     m_pViewToolControl = std::make_unique<ViewToolControl>(this);
     m_pViewToolControl->setNavigationTool(m_pPanZoomTool.get());
+    m_pViewToolControl->activate(m_pLegacyActionTool.get());
 
     if (doc)
     {
@@ -1383,22 +1386,13 @@ void GuiDocumentView::resizeGL(int w, int h)
 
 void GuiDocumentView::mousePressEvent(QMouseEvent* e)
 {
-    // 是否算作导航层的平移手势：中键任何时候都算；Ctrl/Meta+左键仅在
-    // 没有业务 Action 活动时才算——与原 ActionDefault::Panning 状态
-    // （只在 Neutral 状态下响应 Ctrl+拖拽）的适用范围保持一致，见
-    // PanZoomTool.h 顶部说明。这条判断是"策略"，属于 GuiDocumentView，
-    // PanZoomTool 本身不依赖 eventHandler。
-    bool const wantsPan = (e->button() == Qt::MiddleButton)
-        || (e->button() == Qt::LeftButton
-            && (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))
-            && !eventHandler->hasAction());
-
-    if (wantsPan && m_pViewToolControl->mousePressEvent(e) == ViewToolResult::Handled)
-    {
-        e->accept();
-        return;
-    }
-    eventHandler->mousePressEvent(e);
+    // 是否要转发给旧版 Action 体系、还是留给导航层平移的判断，已经收进
+    // LegacyActionTool::wantsPress()（阶段2第6项的业务工具适配器），
+    // 这里只需要统一交给 ViewToolControl 分发：业务层（LegacyActionTool）
+    // 优先，它对中键、以及无业务 Action 活动时的 Ctrl/Meta+左键主动让路，
+    // 由导航层（PanZoomTool）接手。
+    e->accept();
+    m_pViewToolControl->mousePressEvent(e);
 }
 
 void GuiDocumentView::mouseDoubleClickEvent(QMouseEvent* e)
@@ -1421,20 +1415,6 @@ void GuiDocumentView::mouseReleaseEvent(QMouseEvent* e)
 {
     e->accept();
 
-    if (m_pPanZoomTool->isPanning()
-        && m_pViewToolControl->mouseReleaseEvent(e) == ViewToolResult::Handled)
-    {
-        // 平移刚结束：导航层的光标偏好回到 nullopt，而 ViewToolControl
-        // 在无偏好时不会主动改光标（见 ViewToolControl::refreshCursor），
-        // 需要让当前 Action 重新声明一次自己的光标，避免 ClosedHandCursor
-        // 残留在画布上。
-        if (ActionInterface* action = getCurrentAction())
-        {
-            action->updateMouseCursor();
-        }
-        return;
-    }
-
     switch (e->button())
     {
     case Qt::RightButton:
@@ -1451,8 +1431,25 @@ void GuiDocumentView::mouseReleaseEvent(QMouseEvent* e)
         break;
 
     default:
-        eventHandler->mouseReleaseEvent(e);
+    {
+        // ViewToolControl 统一分发：业务层（LegacyActionTool）优先，正常
+        // 释放转给 eventHandler（等价于原来直接调用
+        // eventHandler->mouseReleaseEvent(e)）；平移中的释放业务层主动让路
+        // （见 LegacyActionTool::mouseReleaseEvent），由导航层 PanZoomTool
+        // 处理并结束这次平移。
+        if (m_pViewToolControl->mouseReleaseEvent(e) == ViewToolResult::Handled)
+        {
+            // 无论是平移刚结束还是普通业务释放，都让当前 Action 重新声明
+            // 一次光标：平移结束时避免 ClosedHandCursor 残留在画布上（见
+            // ViewToolControl::refreshCursor"无偏好则不动"的策略）；
+            // 普通释放时这只是一次无害的重复刷新。
+            if (ActionInterface* action = getCurrentAction())
+            {
+                action->updateMouseCursor();
+            }
+        }
         break;
+    }
     }
 }
 
@@ -1462,14 +1459,17 @@ void GuiDocumentView::mouseMoveEvent(QMouseEvent* e)
 
     e->accept();
 
-    if (m_pViewToolControl->mouseMoveEvent(e) == ViewToolResult::Handled)
+    // ViewToolControl 统一分发：不在平移中时，业务层（LegacyActionTool）
+    // 把这次移动转发给 eventHandler，等价于原来单独调用
+    // eventHandler->mouseMoveEvent(e)；平移中则业务层主动让路（见
+    // LegacyActionTool::mouseMoveEvent），交给导航层 PanZoomTool 处理。
+    m_pViewToolControl->mouseMoveEvent(e);
+
+    if (m_pPanZoomTool->isPanning())
     {
-        // 平移中：导航层已经消费了这次移动，不再转发给旧版 Action 体系，
-        // 也跳过下面的捕捉提示（平移期间没有捕捉结果）。
+        // 平移期间没有捕捉结果，跳过下面的捕捉提示。
         return;
     }
-
-    eventHandler->mouseMoveEvent(e);
 
     // snap tooltip
     ActionInterface* action = getCurrentAction();
