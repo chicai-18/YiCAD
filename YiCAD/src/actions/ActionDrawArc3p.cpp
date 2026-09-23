@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawArc3p.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -246,3 +247,11 @@ void ActionDrawArc3P::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawArc3P, QStringLiteral("draw.arc_3p"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawArc3P(ctx.document, ctx.view); });
+}  // namespace

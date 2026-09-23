@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawCircle3p.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -222,3 +223,11 @@ void ActionDrawCircle3P::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawCircle3P, QStringLiteral("draw.circle_3p"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCircle3P(ctx.document, ctx.view); });
+}  // namespace

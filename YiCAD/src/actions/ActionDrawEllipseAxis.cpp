@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include "ActionDrawEllipseAxis.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -444,3 +445,24 @@ void ActionDrawEllipseAxis::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registeredAxis = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawEllipseAxis, QStringLiteral("draw.ellipse_axis"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    {
+        ActionInterface* a = new ActionDrawEllipseAxis(ctx.document, ctx.view, false);
+        a->setActionType(DM::ActionDrawEllipseAxis);
+        return a;
+    });
+
+const bool g_registeredArcAxis = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawEllipseArcAxis, QStringLiteral("draw.ellipse_arc_axis"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    {
+        ActionInterface* a = new ActionDrawEllipseAxis(ctx.document, ctx.view, true);
+        a->setActionType(DM::ActionDrawEllipseArcAxis);
+        return a;
+    });
+}  // namespace

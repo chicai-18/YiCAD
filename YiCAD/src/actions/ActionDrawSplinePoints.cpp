@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawSplinePoints.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -369,3 +370,11 @@ void ActionDrawSplinePoints::fitPoints(
     spline->fit();
     spline->update();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawSplinePoints, QStringLiteral("draw.spline_points"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawSplinePoints(ctx.document, ctx.view); });
+}  // namespace

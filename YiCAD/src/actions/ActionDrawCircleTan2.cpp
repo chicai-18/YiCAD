@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <vector>
 #include "ActionDrawCircleTan2.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -281,3 +282,11 @@ double ActionDrawCircleTan2::getRadius() const
 {
     return pPoints->cData.getRadius();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawCircleTan2, QStringLiteral("draw.circle_tan2"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCircleTan2(ctx.document, ctx.view); });
+}  // namespace

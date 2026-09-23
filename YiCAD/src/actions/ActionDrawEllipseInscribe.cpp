@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <QAction>
 #include "ActionDrawEllipseInscribe.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -276,3 +277,11 @@ void ActionDrawEllipseInscribe::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawEllipseInscribe, QStringLiteral("draw.ellipse_inscribe"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawEllipseInscribe(ctx.document, ctx.view); });
+}  // namespace

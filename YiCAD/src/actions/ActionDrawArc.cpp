@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include "ActionDrawArc.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -371,3 +372,11 @@ void ActionDrawArc::setEndAngle(const DmVector& mouse)
         tempArc->setEndAngle(angle);
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawArc, QStringLiteral("draw.arc"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawArc(ctx.document, ctx.view); });
+}  // namespace

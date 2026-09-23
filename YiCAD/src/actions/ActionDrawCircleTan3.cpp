@@ -24,6 +24,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /// @brief 绘制三个给定圆的公切圆（阿波罗尼奥斯问题）的交互动作实现
 
 #include "ActionDrawCircleTan3.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -474,3 +475,11 @@ void ActionDrawCircleTan3::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawCircleTan3, QStringLiteral("draw.circle_tan3"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCircleTan3(ctx.document, ctx.view); });
+}  // namespace

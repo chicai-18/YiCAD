@@ -48,21 +48,9 @@
 #include "ActionDimRadial.h"
 #include "ActionDimBaseline.h"
 #include "ActionDimStyle.h"
-#include "ActionDrawArc.h"
-#include "ActionDrawArc3p.h"
-#include "ActionDrawArcTangential.h"
-#include "ActionDrawCircle.h"
-#include "ActionDrawCircle2p.h"
-#include "ActionDrawCircle3p.h"
-#include "ActionDrawCircleTan2.h"
-#include "ActionDrawCircleTan3.h"
-#include "ActionDrawEllipseAxis.h"
-#include "ActionDrawEllipseInscribe.h"
 #include "ActionDrawHatch.h"
 #include "ActionDrawImage.h"
 #include "ActionDrawMText.h"
-#include "ActionDrawSpline.h"
-#include "ActionDrawSplinePoints.h"
 #include "ActionDrawText.h"
 #include "ActionTextStyle.h"
 
@@ -201,47 +189,8 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		//
 		// Draw 直线族（Line/Polyline/CloudLine/Ray/Xline）已迁移到
 		// CommandRegistry（阶段4第三部分）。
-	case DM::ActionDrawCircle:
-		a = new ActionDrawCircle(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawCircle2P:
-		a = new ActionDrawCircle2P(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawCircle3P:
-		a = new ActionDrawCircle3P(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawCircleTan2:
-		a = new ActionDrawCircleTan2(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawCircleTan3:
-		a = new ActionDrawCircleTan3(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawArc:
-		a = new ActionDrawArc(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawArc3P:
-		a = new ActionDrawArc3P(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawArcTangential:
-		a = new ActionDrawArcTangential(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawEllipseAxis:
-		a = new ActionDrawEllipseAxis(m_pDocument, m_pView, false);
-		a->setActionType(id);
-		break;
-	case DM::ActionDrawEllipseArcAxis:
-		a = new ActionDrawEllipseAxis(m_pDocument, m_pView, true);
-		a->setActionType(id);
-		break;
-	case DM::ActionDrawEllipseInscribe:
-		a = new ActionDrawEllipseInscribe(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawSpline:
-		a = new ActionDrawSpline(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawSplinePoints:
-		a = new ActionDrawSplinePoints(m_pDocument, m_pView);
-		break;
+		// Draw 曲线族（Circle/Arc/Ellipse/Spline）已迁移到 CommandRegistry
+		// （阶段4第四部分）。
 	case DM::ActionDrawMText:
 		a = new ActionDrawMText(m_pDocument, m_pView, false);
 		break;

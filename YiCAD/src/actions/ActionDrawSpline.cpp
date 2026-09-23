@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawSpline.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -423,3 +424,11 @@ void ActionDrawSpline::setControlPointsKnotsByClose(
     DmSpline::setControlPointsKnotsByClose(
         spline, isClosed, controlPts);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawSpline, QStringLiteral("draw.spline"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawSpline(ctx.document, ctx.view); });
+}  // namespace

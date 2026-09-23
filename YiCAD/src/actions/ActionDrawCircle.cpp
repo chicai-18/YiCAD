@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawCircle.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -227,3 +228,11 @@ void ActionDrawCircle::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawCircle, QStringLiteral("draw.circle"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCircle(ctx.document, ctx.view); });
+}  // namespace

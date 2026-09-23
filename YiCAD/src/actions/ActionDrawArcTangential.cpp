@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include "ActionDrawArcTangential.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -360,3 +361,11 @@ void ActionDrawArcTangential::setLockAngle(double angle)
 {
     m_dLockAngle = angle;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawArcTangential, QStringLiteral("draw.arc_tangential"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawArcTangential(ctx.document, ctx.view); });
+}  // namespace
