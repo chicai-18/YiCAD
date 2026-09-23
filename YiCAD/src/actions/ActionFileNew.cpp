@@ -27,6 +27,7 @@
 #include "UITabDrawWidget.h"
 #include <QAction>
 
+#include "CommandRegistry.h"
 #include "Debug.h"
 
 /// @brief 构造函数
@@ -80,3 +81,12 @@ void ActionFileNew::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+/// @brief 阶段4：向 CommandRegistry 自注册（doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionFileNew, QStringLiteral("file.new"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionFileNew(ctx.document, ctx.view); });
+}  // namespace

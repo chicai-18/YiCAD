@@ -26,6 +26,7 @@
 
 #include <QAction>
 
+#include "CommandRegistry.h"
 #include "IDocumentView.h"
 
 /// @brief 构造函数，初始化缩放参数
@@ -76,3 +77,16 @@ void ActionZoomIn::trigger()
     }
     finish(false);
 }
+
+namespace
+{
+const bool g_registeredIn = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionZoomIn, QStringLiteral("zoom.in"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionZoomIn(ctx.document, ctx.view, DM::In, DM::Both); });
+
+const bool g_registeredOut = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionZoomOut, QStringLiteral("zoom.out"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionZoomIn(ctx.document, ctx.view, DM::Out, DM::Both); });
+}  // namespace

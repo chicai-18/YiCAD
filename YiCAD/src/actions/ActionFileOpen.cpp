@@ -29,6 +29,7 @@
 #include "UIBottomWidget.h"
 #include <QAction>
 
+#include "CommandRegistry.h"
 #include "Debug.h"
 
 /// @brief 默认文件格式类型
@@ -66,3 +67,11 @@ void ActionFileOpen::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionFileOpen, QStringLiteral("file.open"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionFileOpen(ctx.document, ctx.view); });
+}  // namespace

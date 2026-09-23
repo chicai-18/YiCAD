@@ -27,6 +27,7 @@
 #include <QAction>
 #include <QMouseEvent>
 
+#include "CommandRegistry.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
@@ -125,3 +126,31 @@ void ActionEditCopy::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+// ActionEditCut 和 ActionEditCopy 在原 switch 里是"先选后建"的同形态 case，
+// 且共用同一个 ActionEditCopy 类（copy 参数区分剪切/复制），见
+// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4。
+const bool g_registeredCut = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditCut, QStringLiteral("edit.cut"),
+    makeSelectFirstFactory(DM::ActionEditCutNoSelect,
+                            [](const CommandContext& ctx) -> ActionInterface*
+                            { return new ActionEditCopy(false, ctx.document, ctx.view); }));
+
+const bool g_registeredCutNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditCutNoSelect, QStringLiteral("edit.cut_no_select"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionEditCopy(false, ctx.document, ctx.view); });
+
+const bool g_registeredCopy = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditCopy, QStringLiteral("edit.copy"),
+    makeSelectFirstFactory(DM::ActionEditCopyNoSelect,
+                            [](const CommandContext& ctx) -> ActionInterface*
+                            { return new ActionEditCopy(true, ctx.document, ctx.view); }));
+
+const bool g_registeredCopyNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditCopyNoSelect, QStringLiteral("edit.copy_no_select"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionEditCopy(true, ctx.document, ctx.view); });
+}  // namespace

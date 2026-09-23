@@ -27,6 +27,7 @@
 #include "UITabDrawWidget.h"
 #include <QAction>
 
+#include "CommandRegistry.h"
 #include "Debug.h"
 #include "IDocumentView.h"
 
@@ -63,3 +64,11 @@ void ActionFileSave::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionFileSave, QStringLiteral("file.save"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionFileSave(ctx.document, ctx.view); });
+}  // namespace

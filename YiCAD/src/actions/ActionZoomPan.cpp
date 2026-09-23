@@ -28,6 +28,7 @@
 #include <QMouseEvent>
 
 #include "Commands.h"
+#include "CommandRegistry.h"
 #include "Debug.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
@@ -155,3 +156,11 @@ void ActionZoomPan::updateMouseCursor()
             break;
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionZoomPan, QStringLiteral("zoom.pan"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionZoomPan(ctx.document, ctx.view); });
+}  // namespace

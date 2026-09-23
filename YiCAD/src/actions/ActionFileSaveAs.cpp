@@ -28,6 +28,7 @@
 
 #include <QAction>
 
+#include "CommandRegistry.h"
 #include "Debug.h"
 #include "DmDocument.h"
 
@@ -64,3 +65,11 @@ void ActionFileSaveAs::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionFileSaveAs, QStringLiteral("file.save_as"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionFileSaveAs(ctx.document, ctx.view); });
+}  // namespace

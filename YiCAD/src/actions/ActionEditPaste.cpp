@@ -28,6 +28,7 @@
 #include <QMouseEvent>
 #include <cmath>
 
+#include "CommandRegistry.h"
 #include "DmClipboard.h"
 #include "DmLayer.h"
 #include "DmUnits.h"
@@ -214,3 +215,11 @@ void ActionEditPaste::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditPaste, QStringLiteral("edit.paste"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionEditPaste(ctx.document, ctx.view); });
+}  // namespace

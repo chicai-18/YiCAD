@@ -26,6 +26,7 @@
 
 #include <QAction>
 
+#include "CommandRegistry.h"
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
@@ -69,3 +70,16 @@ void ActionEditUndo::trigger()
     finish(false);
     //GUIDIALOGFACTORY->updateSelectionWidget(pDocument->getEntityContainer()->countSelected(), pDocument->getEntityContainer()->totalSelectedLength());
 }
+
+namespace
+{
+const bool g_registeredUndo = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditUndo, QStringLiteral("edit.undo"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionEditUndo(true, ctx.document, ctx.view); });
+
+const bool g_registeredRedo = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionEditRedo, QStringLiteral("edit.redo"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionEditUndo(false, ctx.document, ctx.view); });
+}  // namespace

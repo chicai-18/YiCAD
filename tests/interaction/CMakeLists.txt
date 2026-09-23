@@ -8,4 +8,5 @@ yicad_add_test(interaction
         test_pan_zoom_tool.cpp
         test_select_tool.cpp
         test_legacy_action_tool.cpp
+        test_command_registry.cpp
     LABELS "interaction;unit")

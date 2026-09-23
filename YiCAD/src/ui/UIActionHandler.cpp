@@ -25,6 +25,7 @@
 #include "GuiDialogFactory.h"
 #include "GuiCommandEvent.h"
 #include "Commands.h"
+#include "CommandRegistry.h"
 
 #include <utility>
 
@@ -79,15 +80,7 @@
 #include "ActionTextStyle.h"
 #include "ActionDrawRay.h"
 #include "ActionDrawXline.h"
-#include "ActionEditCopy.h"
-#include "ActionEditPaste.h"
-#include "ActionEditUndo.h"
 
-#include "ActionFileExportImage.h"
-#include "ActionFileNew.h"
-#include "ActionFileOpen.h"
-#include "ActionFileSave.h"
-#include "ActionFileSaveAs.h"
 #include "ActionInfoAngle.h"
 #include "ActionInfoArea.h"
 #include "ActionInfoDist.h"
@@ -118,11 +111,8 @@
 #include "ActionOptionsGeneral.h"
 #include "ActionOptionsDrawing.h"
 #include "ActionSelect.h"
-#include "ActionSelectSingle.h"
 #include "ActionSetSnapMode.h"
 #include "ActionSetSnapRestriction.h"
-#include "ActionZoomIn.h"
-#include "ActionZoomPan.h"
 
 #include "ActionDrawPolyline.h"
 #include "ActionPolylineAdd.h"
@@ -187,29 +177,12 @@ ActionInterface* UIActionHandler::getCurrentAction()
 // @return Pointer to the created action or NULL.
 ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 {
-	ActionInterface* a = NULL;
-	switch (id)
+	// ActionEditKillAllActions 不构造任何 Action，只做副作用；killAllActions()
+	// 只在具体类 GuiDocumentView 上，不在 IDocumentView 接口上，没法进
+	// CommandRegistry 的工厂签名，原样保留为显式分支（阶段4第一部分，
+	// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。
+	if (id == DM::ActionEditKillAllActions)
 	{
-	case DM::ActionFileNew:
-		a = new ActionFileNew(m_pDocument, m_pView);
-		break;
-	case DM::ActionFileOpen:
-		a = new ActionFileOpen(m_pDocument, m_pView);
-		break;
-	case DM::ActionFileSave:
-		a = new ActionFileSave(m_pDocument, m_pView);
-		break;
-	case DM::ActionFileSaveAs:
-		a = new ActionFileSaveAs(m_pDocument, m_pView);
-		break;
-
-	case DM::ActionFileExportImage:
-		a = new ActionFileExportImage(m_pDocument, m_pView);
-		break;
-
-		// Editing actions:
-		//
-	case DM::ActionEditKillAllActions:
 		if (m_pView)
 		{
 			// DO we need to call some form of a 'clean' function?
@@ -219,61 +192,29 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 			s.selectAll(false);
 			GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
 		}
-		break;
-	case DM::ActionEditUndo:
-		a = new ActionEditUndo(true, m_pDocument, m_pView);
-		break;
-	case DM::ActionEditRedo:
-		a = new ActionEditUndo(false, m_pDocument, m_pView);
-		break;
-	case DM::ActionEditCut:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionEditCutNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionEditCutNoSelect:
-		a = new ActionEditCopy(false, m_pDocument, m_pView);
-		break;
-	case DM::ActionEditCopy:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionEditCopyNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionEditCopyNoSelect:
-		a = new ActionEditCopy(true, m_pDocument, m_pView);
-		break;
-	case DM::ActionEditPaste:
-		a = new ActionEditPaste(m_pDocument, m_pView);
-		break;
+		return nullptr;
+	}
 
-		// Selecting actions:
-		//
-	case DM::ActionSelectSingle:
-		if (getCurrentAction()->getEntityType() != DM::ActionSelectSingle)
-		{
-			a = new ActionSelectSingle(m_pDocument, m_pView, getCurrentAction());
-		}
-		else
-		{
-			a = NULL;
-		}
-		break;
+	// Snap/Restrict 类型直接调用 setCurrentAction 时的兜底：commandLineActions()
+	// 已经是这批类型的权威实现（command() 早就在调用它），这里只是让
+	// setCurrentAction 自身对这批类型保持定义行为，不需要再进注册表或 switch。
+	if (commandLineActions(id))
+	{
+		return nullptr;
+	}
 
-		// Zooming actions:
-		//
-	case DM::ActionZoomIn:
-		a = new ActionZoomIn(m_pDocument, m_pView, DM::In, DM::Both);
-		break;
-	case DM::ActionZoomOut:
-		a = new ActionZoomIn(m_pDocument, m_pView, DM::Out, DM::Both);
-		break;
-	case DM::ActionZoomPan:
-		a = new ActionZoomPan(m_pDocument, m_pView);
-		break;
+	ActionInterface* a = NULL;
+	if (CommandRegistry::instance().hasLegacyMapping(id))
+	{
+		a = CommandRegistry::instance().create(id, CommandContext{m_pDocument, m_pView, this, sender()});
+	}
+	else
+	{
+	switch (id)
+	{
+		// File / Edit / Select / Zoom 分组已迁移到 CommandRegistry
+		// （阶段4第一部分：doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4），
+		// 原 case 见该批次迁移前的历史版本。
 
 		// Drawing actions:
 		//
@@ -499,44 +440,9 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 	case DM::ActionModifySingleOffset:
 		a = new ActionModifySingleOffset(m_pDocument, m_pView);
 		break;
-		// Snapping actions:
+		// Snapping / Snap restriction actions:
+		// 已在函数开头交给 commandLineActions() 处理，见上。
 		//
-	case DM::ActionSnapFree:
-		slotSnapFree();
-		break;
-	case DM::ActionSnapCenter:
-		slotSnapCenter();
-		break;
-	case DM::ActionSnapEndpoint:
-		slotSnapEndpoint();
-		break;
-	case DM::ActionSnapGrid:
-		slotSnapGrid();
-		break;
-	case DM::ActionSnapIntersection:
-		slotSnapIntersection();
-		break;
-	case DM::ActionSnapMiddle:
-		slotSnapMiddle();
-		break;
-	case DM::ActionSnapOnEntity:
-		slotSnapOnEntity();
-		break;
-
-		// Snap restriction actions:
-		//
-	case DM::ActionRestrictNothing:
-		slotRestrictNothing();
-		break;
-	case DM::ActionRestrictOrthogonal:
-		slotRestrictOrthogonal();
-		break;
-	case DM::ActionRestrictHorizontal:
-		slotRestrictHorizontal();
-		break;
-	case DM::ActionRestrictVertical:
-		slotRestrictVertical();
-		break;
 
 		// Info actions:
 		//
@@ -708,6 +614,7 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		break;
 	default:
 		break;
+	}
 	}
 
 	if (a)

@@ -26,6 +26,8 @@
 #include "ApplicationWindow.h"
 #include "UITabDrawWidget.h"
 
+#include "CommandRegistry.h"
+
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
@@ -55,3 +57,11 @@ void ActionFileExportImage::trigger()
     ApplicationWindow::getAppWindow()->getTabDrawWidget()->slotFileExportImage();
     finish(false);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionFileExportImage, QStringLiteral("file.export_image"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionFileExportImage(ctx.document, ctx.view); });
+}  // namespace

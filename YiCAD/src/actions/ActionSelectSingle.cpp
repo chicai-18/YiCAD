@@ -27,8 +27,10 @@
 #include <QAction>
 #include <QMouseEvent>
 
+#include "CommandRegistry.h"
 #include "Debug.h"
 #include "GuiDialogFactory.h"
+#include "IDocumentView.h"
 #include "Selection.h"
 
 /// @brief 构造函数，初始化单选操作
@@ -128,3 +130,22 @@ void ActionSelectSingle::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+// 原 switch 里的既有行为：若当前没有活动 Action，getCurrentAction() 返回
+// nullptr，随即被无条件解引用——这是迁移前就存在的缺陷（见
+// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4"已确认的关键事实"），原样保留，
+// 不在本次迁移中顺手修复。
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionSelectSingle, QStringLiteral("select.single"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    {
+        ActionInterface* current = ctx.view->getCurrentAction();
+        if (current->getEntityType() != DM::ActionSelectSingle)
+        {
+            return new ActionSelectSingle(ctx.document, ctx.view, current);
+        }
+        return nullptr;
+    });
+}  // namespace
