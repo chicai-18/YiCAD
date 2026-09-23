@@ -23,6 +23,9 @@
 /// @brief 图层锁定动作类实现文件
 
 #include "ActionLayersLock.h"
+
+#include <QToolButton>
+
 #include "DmLayer.h"
 #include "DmDocument.h"
 #include "ApplicationWindow.h"

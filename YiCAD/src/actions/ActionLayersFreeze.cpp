@@ -24,6 +24,8 @@
 
 #include "ActionLayersFreeze.h"
 
+#include <QToolButton>
+
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
 #include "DmDocument.h"

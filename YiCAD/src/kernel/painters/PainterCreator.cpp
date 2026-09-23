@@ -20,6 +20,8 @@
 
 #include "PainterCreator.h"
 
+using namespace opengl;
+
 GLPainter* PainterCreator::createOpenGLPainter(const unsigned int width, const unsigned int height)
 {
     return new GLPainter();

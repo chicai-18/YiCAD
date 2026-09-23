@@ -23,6 +23,9 @@
 /// @brief 图层颜色 Action 类的实现
 
 #include "ActionLayersColor.h"
+
+#include <QToolButton>
+
 #include "DmLayer.h"
 #include "DmDocument.h"
 #include "ApplicationWindow.h"

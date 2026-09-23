@@ -23,6 +23,9 @@
 /// @brief 图层打印动作类实现文件
 
 #include "ActionLayersPrint.h"
+
+#include <QToolButton>
+
 #include "DmLayer.h"
 #include "DmDocument.h"
 #include "ApplicationWindow.h"

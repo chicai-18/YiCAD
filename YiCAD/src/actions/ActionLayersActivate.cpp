@@ -25,6 +25,7 @@
 #include "ActionLayersActivate.h"
 
 #include <QAbstractItemView>
+#include <QPushButton>
 
 #include "Debug.h"
 #include "DmLayer.h"

@@ -21,25 +21,23 @@
 #ifndef GUIDOCUMENTVIEW_H
 #define GUIDOCUMENTVIEW_H
 
+// GLEW 必须先于任何 gl.h 被包含（见 GL/glew.h 的 #error 保护），且这是整个
+// 翻译单元级别的约束，不是本文件内部的顺序问题：下面的 <QOpenGLWidget> 经由
+// Qt 的 qopengl.h 间接拉入系统 GL/gl.h。本文件被 100+ 个文件包含，一旦某个
+// 包含者后续还引入了需要 glew.h 的画笔代码（GLShader.h 等），如果 gl.h 已经
+// 在此之前被 Qt 拉入过，glew.h 就会报错。只保留 glew.h 本身（不再是完整的
+// GL/gl.h、GL/glu.h 与 PainterCreator.h），把这条不变量维持在尽量小的代价上。
 #define GL_GLEXT_PROTOTYPES
-
 #include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glu.h>
 
 #include <QColor>
 #include <QMap>
 #include <QOpenGLWidget>
-#include <QPushButton>
 #include <QString>
-#include <QToolButton>
 #include <memory>
-
-#include "PainterCreator.h"
 
 #include "DmRect.h"
 #include "Snapper.h"
-#include "CustomComboboxItem.h"
 
 class QMouseEvent;
 class QKeyEvent;

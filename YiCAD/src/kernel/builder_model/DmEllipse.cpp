@@ -24,6 +24,8 @@
 
 #include "DmEllipse.h"
 
+#include <glm/glm.hpp>
+
 #include "DmCircle.h"
 #include "DmLine.h"
 #include "DmDocument.h"

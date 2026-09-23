@@ -24,8 +24,6 @@
 #include "GLPainter.h"
 #include "GLCachePainter.h"
 
-using namespace opengl;
-
 /// @brief 画笔工厂类，负责创建不同后端的画笔实例
 class PainterCreator
 {
@@ -34,13 +32,13 @@ public:
     /// @param [in] width 设备宽度（像素）
     /// @param [in] height 设备高度（像素）
     /// @return OpenGL画笔实例
-    static GLPainter* createOpenGLPainter(const unsigned int width, const unsigned int height);
+    static opengl::GLPainter* createOpenGLPainter(const unsigned int width, const unsigned int height);
 
     /// @brief 创建带缓存的OpenGL画笔
     /// @param [in] width 设备宽度（像素）
     /// @param [in] height 设备高度（像素）
     /// @return 带缓存的OpenGL画笔实例
-    static GLCachePainter* createOpenGLCachePainter(const unsigned int width, const unsigned int height);
+    static opengl::GLCachePainter* createOpenGLCachePainter(const unsigned int width, const unsigned int height);
 
     /// @brief 创建Vulkan画笔（预留）
     /// @param [in] width 设备宽度（像素）

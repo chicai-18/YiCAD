@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <QMessageBox>
 #include <QListWidget>
+#include <QToolButton>
 
 /// @brief 构造函数
 /// @param sender 发送者对象指针

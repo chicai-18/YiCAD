@@ -35,6 +35,7 @@
 #include <QHeaderView>
 #include <QStandardItemModel>
 #include <QModelIndex>
+#include <QToolButton>
 
 UIBottomWindow::UIBottomWindow(QWidget* parent)
 	: m_pActionHandler(nullptr)

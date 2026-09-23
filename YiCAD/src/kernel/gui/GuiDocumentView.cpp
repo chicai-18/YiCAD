@@ -36,6 +36,8 @@
 #include <QLabel>
 #include <QToolButton>
 
+#include "PainterCreator.h"
+
 #include "DmLine.h"
 #include "DmCachePainter.h"
 #include "DmEntityContainer.h"
@@ -1650,7 +1652,7 @@ void GuiDocumentView::createPainters(unsigned int width, unsigned int height)
     m_pDocumentPainter->setHighlightColor(highlightColor);
     m_pPreviewPainter->setSelectedColor(selectedColor);
     m_pPreviewPainter->setHighlightColor(highlightColor);
-    m_pForegroundPainter = new GLPainter();
+    m_pForegroundPainter = new opengl::GLPainter();
 }
 
 void GuiDocumentView::deletePainters()
