@@ -23,6 +23,7 @@
 /// @brief 标注样式管理操作类实现
 
 #include "ActionDimStyle.h"
+#include "CommandRegistry.h"
 #include "ApplicationWindow.h"
 #include "GuiDialogFactory.h"
 #include "DmDocument.h"
@@ -47,3 +48,11 @@ void ActionDimStyle::trigger()
     finish(false);
 }
 
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDimStyle, QStringLiteral("dim.style"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDimStyle(ctx.document, ctx.view); });
+}  // namespace

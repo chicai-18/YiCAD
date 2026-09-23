@@ -23,6 +23,7 @@
 /// @brief 多行文字绘制与编辑动作类实现文件
 
 #include "ActionDrawMText.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 #include <QMessageBox>
@@ -985,3 +986,11 @@ void ActionDrawMTextContext::emitUndoToOption(bool undoable, bool redoable)
 	emit undoToOption(undoable, redoable);
 	m_bIsUpdatingToOption = false;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawMText, QStringLiteral("draw.mtext"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawMText(ctx.document, ctx.view, false); });
+}  // namespace

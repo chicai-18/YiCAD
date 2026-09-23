@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawText.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -382,3 +383,11 @@ void ActionDrawText::setDataWithOnePoint()
         }
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawText, QStringLiteral("draw.text"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawText(ctx.document, ctx.view); });
+}  // namespace

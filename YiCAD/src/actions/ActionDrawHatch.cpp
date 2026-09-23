@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include "ActionDrawHatch.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -217,3 +218,19 @@ void ActionDrawHatch::slotViewChanged()
         m_findMethod.addEntity(entity);
     }
 }
+
+namespace
+{
+// 原 switch 里 ActionDrawHatch 与 ActionDrawHatchNoSelect 映射到完全相同的
+// 构造调用（没有 select-first 分支），迁移后原样保留这一等价关系。
+ActionInterface* createDrawHatch(const CommandContext& ctx)
+{
+    return new ActionDrawHatch(ctx.document, ctx.view, false);
+}
+
+const bool g_registeredHatch = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawHatch, QStringLiteral("draw.hatch"), createDrawHatch);
+
+const bool g_registeredHatchNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawHatchNoSelect, QStringLiteral("draw.hatch_no_select"), createDrawHatch);
+}  // namespace

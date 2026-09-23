@@ -40,19 +40,6 @@
 #include "ActionBlockInsertPrepare.h"
 #include "ActionBlocksInsert.h"
 #include "ActionDefineAttributes.h"
-#include "ActionDimAligned.h"
-#include "ActionDimAngular.h"
-#include "ActionDimDiametric.h"
-#include "ActionDimLeader.h"
-#include "ActionDimLinear.h"
-#include "ActionDimRadial.h"
-#include "ActionDimBaseline.h"
-#include "ActionDimStyle.h"
-#include "ActionDrawHatch.h"
-#include "ActionDrawImage.h"
-#include "ActionDrawMText.h"
-#include "ActionDrawText.h"
-#include "ActionTextStyle.h"
 
 #include "ActionInfoAngle.h"
 #include "ActionInfoArea.h"
@@ -191,48 +178,8 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		// CommandRegistry（阶段4第三部分）。
 		// Draw 曲线族（Circle/Arc/Ellipse/Spline）已迁移到 CommandRegistry
 		// （阶段4第四部分）。
-	case DM::ActionDrawMText:
-		a = new ActionDrawMText(m_pDocument, m_pView, false);
-		break;
-	case DM::ActionDrawText:
-		a = new ActionDrawText(m_pDocument, m_pView);
-		break;
-	case DM::ActionTextStyle:
-		a = new ActionTextStyle(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawHatch:
-	case DM::ActionDrawHatchNoSelect:
-		a = new ActionDrawHatch(m_pDocument, m_pView, false);
-		break;
-	case DM::ActionDrawImage:
-		a = new ActionDrawImage(m_pDocument, m_pView);
-		break;
-		// Dimensioning actions:
-		//
-	case DM::ActionDimAligned:
-		a = new ActionDimAligned(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimLinear:
-		a = new ActionDimLinear(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimRadial:
-		a = new ActionDimRadial(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimDiametric:
-		a = new ActionDimDiametric(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimAngular:
-		a = new ActionDimAngular(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimLeader:
-		a = new ActionDimLeader(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimBaseline:
-		a = new ActionDimBaseline(m_pDocument, m_pView);
-		break;
-	case DM::ActionDimStyle:
-		a = new ActionDimStyle(m_pDocument, m_pView);
-		break;
+		// Draw 其余（MText/Text/Hatch/Image）与 Dim*/TextStyle/DimStyle
+		// 已迁移到 CommandRegistry（阶段4第五部分）。
 
 		// Modifying actions:
 	case DM::ActionModifyDelete:

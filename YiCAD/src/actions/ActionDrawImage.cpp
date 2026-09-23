@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include "ActionDrawImage.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QImage>
@@ -345,3 +346,11 @@ void ActionDrawImage::updateMouseButtonHints()
         break;
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawImage, QStringLiteral("draw.image"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawImage(ctx.document, ctx.view); });
+}  // namespace

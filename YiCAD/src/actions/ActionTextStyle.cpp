@@ -23,6 +23,7 @@
 /// @brief 文字样式设置Action实现
 
 #include "ActionTextStyle.h"
+#include "CommandRegistry.h"
 #include "ApplicationWindow.h"
 #include "GuiDialogFactory.h"
 #include "DmDocument.h"
@@ -51,3 +52,11 @@ void ActionTextStyle::trigger()
         pDocument->getTextStyleTable(), pDocument);
     finish(false);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionTextStyle, QStringLiteral("text.style"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionTextStyle(ctx.document, ctx.view); });
+}  // namespace

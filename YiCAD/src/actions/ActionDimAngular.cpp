@@ -23,6 +23,7 @@
 /// @brief 角度标注操作类实现文件
 
 #include "ActionDimAngular.h"
+#include "CommandRegistry.h"
 
 #include <cmath>
 
@@ -283,3 +284,11 @@ void ActionDimAngular::updateMouseButtonHints()
 		break;
 	}
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDimAngular, QStringLiteral("dim.angular"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDimAngular(ctx.document, ctx.view); });
+}  // namespace

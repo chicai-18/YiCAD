@@ -23,6 +23,7 @@
 /// @brief 基线标注操作类实现文件
 
 #include "ActionDimBaseline.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -343,3 +344,11 @@ DmDimAngular* ActionDimBaseline::createDimForAngular(DmVector pos)
 
 	return nullptr;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDimBaseline, QStringLiteral("dim.baseline"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDimBaseline(ctx.document, ctx.view); });
+}  // namespace
