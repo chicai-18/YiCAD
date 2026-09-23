@@ -157,15 +157,13 @@ yicad_collect_sources(UI
 
 # 对应阶段 3 的 YiCadApp（可执行目标）。
 #
-# 计划图未列出 src/ai/ 与 src/plugin_runtime/，二者均位于 UI 之上：
+# 计划图未列出 src/plugin_runtime/，它位于 UI 之上：
 #   plugin_runtime/   引用 UIActionHandler.h、UICommandWidget.h
-# 阶段 4 第一阶段已把 ai/AIAssistant.h 里"引用 ApplicationWindow /
-# MDIWindow"这条依赖去掉了（构造期只需要一个 QWidget*），第二阶段把
-# ai/ 抽成了首个 IExtension 试点扩展（见 src/ai/AIExtension.{h,cpp}）。
 #
-# src/main/extensions/（IExtension/IExtensionContext/ExtensionManager）
-# 是新增的进程内扩展框架，物理上和 ApplicationWindow 同属 src/main，
-# 只是单独开了个子目录；file(GLOB) 不递归，子目录必须显式列在这里。
+# kernel/extension/（IExtension/IExtensionContext/ExtensionManager）是
+# 进程内扩展框架本身，只依赖前置声明，归入本分区是因为宿主侧的
+# IExtensionContext 实现在 ApplicationWindow 里。各扩展的源码见下方
+# src/extensions/ 的收集规则。
 #
 # kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
 # getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
@@ -174,10 +172,43 @@ yicad_collect_sources(UI
 # 只是它决定了 Fileio.{h,cpp} 不能编进只应依赖 Model 的 YiCadPersistence。
 yicad_collect_sources(APP
     src/main
-    src/main/extensions
-    src/ai
+    src/kernel/extension
     src/plugin_runtime
     src/kernel/fileio)
+
+# 进程内扩展：src/extensions/ 下每个子目录是一个扩展，全部靠 glob 收集，
+# 构建系统里没有逐个扩展的登记。目录约定：
+#   <扩展>/**/*.h、*.cpp   源码，递归收集，编进 YiCadCore；含头文件的
+#                          每个目录自动成为 include 路径
+#   <扩展>/**/*.qrc        Qt 资源
+#   <扩展>/ts/<扩展>_<语言>.ts
+#                          扩展自己的翻译，lupdate 只扫本扩展源码，编译成
+#                          qm 与主程序翻译包装在一起，运行期由扩展调用
+#                          DmSystem::loadExtensionTranslation("<扩展>") 加载
+#   <扩展>/support/        运行期文件，安装到 bin/<扩展>/
+# 移除一个扩展 = 删除其目录 + 删除 ApplicationWindow::registerExtensions()
+# 里对应的 #include 与 Register 两行；CONFIGURE_DEPENDS 保证增删目录后
+# 自动重新配置。
+set(YICAD_EXTENSIONS_ROOT "${YICAD_SRC_ROOT}/src/extensions")
+file(GLOB _yicad_extension_entries LIST_DIRECTORIES true "${YICAD_EXTENSIONS_ROOT}/*")
+set(YICAD_EXTENSION_DIRS "")
+foreach(_entry IN LISTS _yicad_extension_entries)
+    if(IS_DIRECTORY "${_entry}")
+        list(APPEND YICAD_EXTENSION_DIRS "${_entry}")
+    endif()
+endforeach()
+file(GLOB_RECURSE YICAD_EXTENSION_HEADERS CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.h")
+file(GLOB_RECURSE YICAD_EXTENSION_SOURCES CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.cpp")
+file(GLOB_RECURSE YICAD_EXTENSION_QRCS CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.qrc")
+
+set(YICAD_EXTENSION_INCLUDE_DIRS "")
+foreach(_header IN LISTS YICAD_EXTENSION_HEADERS)
+    get_filename_component(_header_dir "${_header}" DIRECTORY)
+    list(APPEND YICAD_EXTENSION_INCLUDE_DIRS "${_header_dir}")
+endforeach()
+list(REMOVE_DUPLICATES YICAD_EXTENSION_INCLUDE_DIRS)
+
+list(APPEND qrc_DIRS ${YICAD_EXTENSION_QRCS})
 
 # src/ui 下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h。
 file(GLOB YICAD_UI_FORMS CONFIGURE_DEPENDS
@@ -239,6 +270,7 @@ qt5_add_resources(qrc_FILES ${qrc_DIRS})
 find_package(Qt5LinguistTools REQUIRED)
 
 # lupdate 扫描范围：与拆分前保持一致（七个分区的全部源文件，加上 Main.cpp 与 .rc）。
+# src/extensions/ 下的源码不在此列，由各扩展自己的 ts 覆盖（见下方）。
 set (ALL_RSC_FILES ${YICAD_MATH_HEADERS}        ${YICAD_MATH_SOURCES}
                    ${YICAD_MODEL_HEADERS}       ${YICAD_MODEL_SOURCES}
                    ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES}
@@ -255,6 +287,21 @@ if(UPDATE_TRANSLATIONS)
 else()
     QT5_ADD_TRANSLATION(QM_FILES ${TS_FILES})
 endif(UPDATE_TRANSLATIONS )
+
+# 扩展各自的翻译包，与主程序翻译包走同一套构建/安装路径。
+foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
+    file(GLOB _ext_ts CONFIGURE_DEPENDS "${_ext_dir}/ts/*.ts")
+    if(NOT _ext_ts)
+        continue()
+    endif()
+    if(UPDATE_TRANSLATIONS)
+        file(GLOB_RECURSE _ext_src "${_ext_dir}/*.h" "${_ext_dir}/*.cpp")
+        QT5_CREATE_TRANSLATION_Exclude_SubFolder(_ext_qm ${_ext_src} ${_ext_ts})
+    else()
+        QT5_ADD_TRANSLATION(_ext_qm ${_ext_ts})
+    endif()
+    list(APPEND QM_FILES ${_ext_qm})
+endforeach()
 
 SET(QM_FILES ${QM_FILES} PARENT_SCOPE)
 ADD_CUSTOM_TARGET (TS_YiCAD ALL DEPENDS ${QM_FILES})
@@ -397,6 +444,7 @@ add_library(YiCadCore OBJECT
     ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
     ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
+    ${YICAD_EXTENSION_HEADERS}   ${YICAD_EXTENSION_SOURCES}
     ${YICAD_UI_FORMS}
     ${ui_FILES}
     ${qrc_FILES})
@@ -416,11 +464,11 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters/opengl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/extensions
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/extension
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ai
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
+    ${YICAD_EXTENSION_INCLUDE_DIRS})
 
 target_precompile_headers(YiCadCore PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/main/YiCadPch.h")
@@ -572,14 +620,20 @@ INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/config/
         COMPONENT Runtime
         FILES_MATCHING PATTERN "*.*")
 
-# ai
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../README.md
-        DESTINATION ${CMAKE_INSTALL_BINDIR}/ai/
+        DESTINATION ${CMAKE_INSTALL_BINDIR}/
         COMPONENT Runtime)
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/ai/
-        DESTINATION ${CMAKE_INSTALL_BINDIR}/ai/
-        COMPONENT Runtime
-        FILES_MATCHING PATTERN "*.*")
+
+# 扩展的运行期文件：src/extensions/<扩展>/support/ -> bin/<扩展>/
+foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
+    if(IS_DIRECTORY "${_ext_dir}/support")
+        get_filename_component(_ext_name "${_ext_dir}" NAME)
+        INSTALL(DIRECTORY "${_ext_dir}/support/"
+                DESTINATION ${CMAKE_INSTALL_BINDIR}/${_ext_name}/
+                COMPONENT Runtime
+                FILES_MATCHING PATTERN "*.*")
+    endif()
+endforeach()
 
 # Install the deployed runtime bundle produced by the build. On Windows this
 # includes the files copied by windeployqt.

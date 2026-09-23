@@ -78,9 +78,6 @@ int App_Run(int argc, char* argv[])
     DMSETTINGS->init(
         app.organizationName(), app.applicationName());  // 初始应用程序设置
 
-    // LLMSettingsService::init() 已搬进 AIExtension::OnRegister（阶段4
-    // 第二阶段，ai/ 自包含）——ApplicationWindow 构造期间会调用它，早于
-    // 任何真正使用 LLM 的路径（用户点击 AI 按钮才会触发）。
     DMSYSTEM->init(app.applicationName(),
                    app.applicationVersion(),
                    XSTR(APPDIR),

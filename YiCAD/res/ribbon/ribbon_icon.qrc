@@ -154,7 +154,6 @@
 		<file>tabbar/new.svg</file>								<!--图纸标签新建        -->
 		<file>tabbar/close.svg</file>							<!--图纸标签关闭        -->
 		<file>tabbar/close-red.svg</file>						<!--图纸标签关闭，红色-->
-		<file>tabbar/ai.svg</file>								<!--AI助手按钮          -->
 		
 		<!-- cmd -->
 		<file>cmd/cmd.svg</file>								<!--cmd输入栏图标       -->

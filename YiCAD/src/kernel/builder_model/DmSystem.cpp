@@ -245,6 +245,8 @@ void DmSystem::deleteDmSystem()
 		delete m_pTranslatorPlugIns;
 		m_pTranslatorPlugIns = nullptr;
 	}
+	qDeleteAll(m_extensionTranslators);
+	m_extensionTranslators.clear();
 
 	if (m_pUniqueInstance)
 	{
@@ -294,6 +296,8 @@ void DmSystem::init(const QString& appName, const QString& appVersion, const QSt
 // Loads a different translation for the application GUI.
 void DmSystem::loadTranslation(const QString& lang)
 {
+	m_translationLang = lang;
+
 	QString langLower("");
 	QString langUpper("");
 	int i0 = lang.indexOf('_');
@@ -367,6 +371,43 @@ void DmSystem::loadTranslation(const QString& lang)
 	{
 		delete t;
 	}
+}
+
+bool DmSystem::loadExtensionTranslation(const QString& name)
+{
+	if (m_translationLang.isEmpty())
+	{
+		return false;
+	}
+
+	// 与 loadTranslation() 相同：先试区域码小写（zh_cn），再试大写（zh_CN）
+	QStringList fileNames;
+	const int i0 = m_translationLang.indexOf('_');
+	if (i0 >= 2 && m_translationLang.size() - i0 >= 2)
+	{
+		fileNames << name + '_' + m_translationLang.left(i0) + '_' + m_translationLang.mid(i0 + 1).toLower() + ".qm";
+		fileNames << name + '_' + m_translationLang.left(i0) + '_' + m_translationLang.mid(i0 + 1).toUpper() + ".qm";
+	}
+	else
+	{
+		fileNames << name + '_' + m_translationLang + ".qm";
+	}
+
+	for (const QString& dir : getDirectoryList("qm"))
+	{
+		for (const QString& fileName : fileNames)
+		{
+			auto* translator = new QTranslator(nullptr);
+			if (translator->load(fileName, dir))
+			{
+				qApp->installTranslator(translator);
+				m_extensionTranslators.append(translator);
+				return true;
+			}
+			delete translator;
+		}
+	}
+	return false;
 }
 
 void DmSystem::entityInitialize()

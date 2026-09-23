@@ -962,6 +962,41 @@ Options 分类新增的"AI Settings"按钮是否可点、`LLMSettingsPage` 是�
 
 任务③④完成；任务⑤（按领域推进后续扩展）留给未来会话。
 
+### 7.9 执行结果（阶段4第二阶段补充：扩展目录自包含）
+
+7.8 落地后 `ai/` 虽然已经是 `IExtension`，但代码仍散落在五处：`src/ai/`、
+`src/ui/AIDialog.*` 与 `src/ui/LLMSettingsPage.*`、`res/ribbon/tabbar/ai.svg`、
+`support/ai/`，以及 `YiCAD/CMakeLists.txt` 里硬编码的 `src/ai` 源码目录、
+include 路径与两条安装规则。"抽掉扩展"要改六七个地方，不符合"一个目录
+就是一个扩展"的直觉。本次把目录结构调整为：
+
+```
+YiCAD/src/kernel/extension/     IExtension / IExtensionContext / ExtensionManager（框架，原 src/main/extensions/）
+YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
+    **/*.h, *.cpp               源码（含扩展专用 UI，如 ai/ui/AIDialog、ai/ui/LLMSettingsPage）
+    **/*.qrc                    Qt 资源（ai/res/ai.qrc，资源路径 :/extensions/ai/ai.svg）
+    ts/<扩展>_<语言>.ts          扩展自己的翻译（ai/ts/ai_zh_cn.ts）
+    support/                    运行期文件，安装到 bin/<扩展>/（ai/support/*.md → bin/ai/）
+```
+
+**移除一个扩展 = 删除 `src/extensions/<扩展>/` + 删除
+`ApplicationWindow.cpp` 里的 `#include` 与 `registerExtensions()` 里的
+`Register` 两行**，构建系统无需任何改动。
+
+| 事项 | 做法 | 理由 |
+|------|------|------|
+| 构建系统收集扩展 | `YiCAD/CMakeLists.txt` 对 `src/extensions/` 做 `GLOB_RECURSE`（`CONFIGURE_DEPENDS`）收集 `.h/.cpp/.qrc`，含头文件的目录自动成为 include 路径；对每个子目录的 `ts/`、`support/` 分别生成翻译与安装规则。扩展源码单独进 `YiCadCore`，不并入 APP 分区 | 不设"每扩展一个 CMake 文件"，避免多一处注册点；扩展源码不并入 APP 分区，是为了主程序 lupdate 不再扫描扩展代码，扩展的字符串只落在扩展自己的 ts 里 |
+| 框架位置 | `src/kernel/extension/`，源码仍归 APP 分区（宿主侧 `IExtensionContext` 实现在 `ApplicationWindow`） | 框架头文件只有前置声明，不包含任何 `UI*` 头文件，`check_layering.py` 通过 |
+| 扩展翻译 | 从 `ts/YiCAD_zh_cn.ts` 拆出 8 个 AI 上下文（97 条）到 `ai/ts/ai_zh_cn.ts`；两个按钮文本的翻译上下文从借用的 `"ApplicationWindow"` 改为 `"AIExtension"`（新增"AI Settings"的译文）。新增通用接口 `DmSystem::loadExtensionTranslation(name)`：沿用 `loadTranslation()` 选定的语言与 qm 搜索目录，安装 `<name>_<语言>.qm`；`AIExtension::OnRegister` 开头调用 | 翻译包也随目录删除而消失；加载逻辑写在 `DmSystem` 里一次，后续扩展直接复用 |
+| 项目 README 的安装位置 | 从 `bin/ai/README.md` 改为 `bin/README.md`，`AIAssistant` 的 RAG 读取路径同步修改 | README 是项目级文件，放进扩展的 `support/` 需要复制一份；装到 bin 根目录后安装规则无需为 AI 特判 |
+| Qt Network | 仍保留在全局 `YICAD_USE_QT_MODULES` | 只有 `DeepSeekProvider` 使用，但留着无害；做成按扩展声明依赖需要额外约定，超出本次范围 |
+
+**验证**：Release 构建、安装、`ctest` 4/4、`check_layering.py` 通过；
+把 `src/extensions/ai/` 临时移走并删掉两行注册代码后，构建、`ctest`、
+启动均正常（验证"删目录即移除"）；恢复后实际点击 AI 按钮，`AIDialog`
+以中文界面弹出（其译文只存在于 `ai_zh_cn.qm`，证明扩展翻译加载生效），
+"设置"分类下的 AI 设置按钮存在。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移

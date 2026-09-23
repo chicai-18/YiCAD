@@ -25,6 +25,7 @@
 
 #include "AIAssistant.h"
 #include "DmDocument.h"
+#include "DmSystem.h"
 #include "GuiDocumentView.h"
 #include "IExtensionContext.h"
 #include "LLMSettingsPage.h"
@@ -40,19 +41,22 @@ void AIExtension::OnRegister(IExtensionContext& ctx)
     m_ctx = &ctx;
     m_mainWindow = ctx.mainWindow();
 
+    // 本扩展的翻译包（src/extensions/ai/ts/ → <exe 目录>/resources/qm/ai_*.qm），
+    // 必须早于下面任何 tr()/translate() 调用。
+    DMSYSTEM->loadExtensionTranslation(QStringLiteral("ai"));
+
     m_assistant = std::make_unique<AIAssistant>(m_mainWindow, m_mainWindow);
 
     // 从 Main.cpp 搬过来（阶段4第二阶段）：init() 自带重复调用防护，
-    // 不必赶在这里之前完成——ai/ 里真正用到它的路径都是首次点击 AI
+    // 不必赶在这里之前完成——本扩展里真正用到它的路径都是首次点击 AI
     // 按钮才惰性触发。
     LLMSettingsService::instance()->init(
         QCoreApplication::organizationName(), QCoreApplication::applicationName());
 
-    // 复刻原 ApplicationWindow.cpp 里 AI 按钮的文本/图标/objectName，
-    // 只是把常驻 rightButtonGroup() 的放置方式和点击回调搬到这里。
-    auto* action = new QAction(QCoreApplication::translate("ApplicationWindow", "AI Assistant"),
+    // AI 按钮放在常驻的 rightButtonGroup()（不属于任何 Ribbon 标签页）。
+    auto* action = new QAction(QCoreApplication::translate("AIExtension", "AI Assistant"),
                                 &ctx.ribbon());
-    action->setIcon(QIcon(":/ribbon/tabbar/ai.svg"));
+    action->setIcon(QIcon(":/extensions/ai/ai.svg"));
     action->setObjectName("ai-assistant");
     QObject::connect(action, &QAction::triggered, &ctx.ribbon(),
                       [this]()
@@ -65,7 +69,7 @@ void AIExtension::OnRegister(IExtensionContext& ctx)
 
     ctx.registerSettingsPage(
         QStringLiteral("ext.ai.llm_settings"),
-        QCoreApplication::translate("ApplicationWindow", "AI Settings"), QString(),
+        QCoreApplication::translate("AIExtension", "AI Settings"), QString(),
         [this]()
         {
             LLMSettingsPage dlg(m_mainWindow);

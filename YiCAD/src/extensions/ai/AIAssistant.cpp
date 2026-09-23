@@ -52,7 +52,7 @@ void AIAssistant::ensureCreated(DmDocument* doc, GuiDocumentView* docView)
 
     const QString appDir = DMSYSTEM->getAppDir();
     const QString docsDir = appDir + "/ai";
-    const QString readmePath = appDir + "/ai/README.md";
+    const QString readmePath = appDir + "/README.md";
 
     m_pipeline = new AIPipeline(docsDir, readmePath,
                                 doc, docView, this);

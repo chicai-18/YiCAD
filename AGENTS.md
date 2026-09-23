@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-YiCAD is a Windows-first C++23/Qt 5.15 CAD application built with CMake and Conan. The application target lives under `YiCAD/`. Source code is organized by subsystem: `YiCAD/src/actions/` for user interaction actions, `YiCAD/src/cmd/` for command parsing, `YiCAD/src/kernel/` for data model, geometry, rendering, persistence, history, and GUI abstractions, `YiCAD/src/ui/` for Qt widgets and `.ui` forms, `YiCAD/src/ai/` for assistant features, and `YiCAD/src/main/` for application entry points. Runtime assets are in `YiCAD/res/`, translations in `YiCAD/ts/`, support files in `YiCAD/support/`, build helpers in `cmake/`, Conan profiles in `profiles/`, and license texts in `licenses/`. External dependency sources and build outputs belong in `external/` and `build/` and should not be committed.
+YiCAD is a Windows-first C++23/Qt 5.15 CAD application built with CMake and Conan. The application target lives under `YiCAD/`. Source code is organized by subsystem: `YiCAD/src/actions/` for user interaction actions, `YiCAD/src/cmd/` for command parsing, `YiCAD/src/kernel/` for data model, geometry, rendering, persistence, history, and GUI abstractions, `YiCAD/src/ui/` for Qt widgets and `.ui` forms, `YiCAD/src/extensions/` for in-process extensions (one self-contained subdirectory per extension, such as `ai/` for the assistant; the extension framework lives in `YiCAD/src/kernel/extension/`), and `YiCAD/src/main/` for application entry points. Runtime assets are in `YiCAD/res/`, translations in `YiCAD/ts/`, support files in `YiCAD/support/`, build helpers in `cmake/`, Conan profiles in `profiles/`, and license texts in `licenses/`. External dependency sources and build outputs belong in `external/` and `build/` and should not be committed.
 
 ## Build, Test, and Development Commands
 
@@ -46,6 +46,8 @@ python tools/check_layering.py               # src/kernel/ 是否反向依赖 UI
 `YiCAD/CMakeLists.txt` collects sources with `yicad_collect_sources(<partition> <dir>...)`, one call per partition, using `file(GLOB ... CONFIGURE_DEPENDS)`. The partitions follow the target library boundaries in `doc/ARCHITECTURE_EVOLUTION_PLAN.md` section 6.3, so the phase 3 library split is a matter of feeding each partition's variables to its own `add_library`.
 
 **The directory is the boundary.** Put a file in a directory and it joins that partition — there is no list to keep in sync. `CONFIGURE_DEPENDS` makes the build system re-collect when files are added or removed, so a new file cannot silently miss the build. `yicad_collect_sources` errors out on a directory that does not exist, which keeps dead entries from accumulating the way they had before.
+
+Extensions are the exception to the one-call-per-partition rule: everything under `src/extensions/` is collected by `GLOB_RECURSE` (sources, `.qrc`, `ts/*.ts`, and `support/` install rules), so adding or removing an extension never touches CMake; only the `#include` and `Register` lines in `ApplicationWindow::registerExtensions()` name it.
 
 Everything except `src/main/Main.cpp` compiles into the `YiCadCore` OBJECT library; the `YiCAD` executable and the test binaries both link it, so tests do not recompile the kernel. `main()` stays in the executable so test binaries can supply their own.
 

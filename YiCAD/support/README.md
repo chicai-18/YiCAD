@@ -24,4 +24,3 @@ Third-party products and trademarks are the property of their respective owners.
 - `patterns/` - PAT hatch pattern files (user-provided, not tracked in version control)
 - `linetypes/` - LIN linetype definition files (user-provided, not tracked in version control)
 - `config/` - Application configuration files (project-owned)
-- `ai/` - AI assistant documentation (project-owned)

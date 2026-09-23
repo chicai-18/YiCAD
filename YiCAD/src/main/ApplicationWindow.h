@@ -319,8 +319,8 @@ private:
     SARibbonComboBox*               m_pViewportTable = nullptr;         ///< 视图下拉框
     QListWidget*                    m_pViewportWidget = nullptr;        ///< 视图下拉列表
 
-    // 进程内扩展框架（阶段4第二阶段）；ai/ 的 AI 助手按钮/设置页现在由
-    // AIExtension（注册进 ExtensionManager）持有，不再是本类的成员。
+    // 进程内扩展框架（阶段4第二阶段）；各扩展（src/extensions/）的按钮、
+    // 设置页等由扩展自己持有，不是本类的成员。
     std::unique_ptr<ApplicationWindowExtensionContext> m_extensionContext;
 
     /// @brief 新插件运行时；声明顺序保证 Manager 最先析构，宿主上下文最后析构。

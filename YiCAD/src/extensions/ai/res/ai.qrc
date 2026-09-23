@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/extensions/ai">
+        <file>ai.svg</file>
+    </qresource>
+</RCC>

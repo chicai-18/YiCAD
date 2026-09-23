@@ -80,9 +80,12 @@
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
 
-#include "AIExtension.h"
 #include "ExtensionManager.h"
 #include "IExtensionContext.h"
+
+// 进程内扩展（src/extensions/<扩展>/，构建系统自动 glob 收集）。移除一个扩展：
+// 删除其目录、这里的 #include，以及 registerExtensions() 里的 Register 一行。
+#include "AIExtension.h"
 
 #include "ActionLayersActivate.h"
 #include "ActionLayersFreeze.h"
@@ -404,9 +407,6 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	//Draw2d 作为缺省激活Tab
 	ribbonBar()->setCurrentIndex(iDraw2d);
 
-	// AI 助手按钮已随 registerExtensions() 迁移到 AIExtension（阶段4
-	// 第二阶段），不再在这里硬编码。
-
     /// @brief Ribbon、命令窗口和首个文档就绪后，接入唯一的新插件加载路径。
     m_pluginHostContext =
         std::make_unique<ApplicationPluginHostContext>(*this);
@@ -434,6 +434,8 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 
 /// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段，
 /// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4 §7.4任务③④）。
+///
+/// 每个扩展一行 Register，注册顺序即启动顺序、关闭的反序。
 void ApplicationWindow::registerExtensions()
 {
 	m_extensionContext = std::make_unique<ApplicationWindowExtensionContext>(*m_pRibbon, *this);

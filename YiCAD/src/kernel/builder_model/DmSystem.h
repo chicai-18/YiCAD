@@ -104,6 +104,14 @@ public:
 
 	void loadTranslation(const QString& lang);
 
+	/// @brief 加载进程内扩展自带的翻译包 <name>_<语言>.qm。
+	///
+	/// 语言沿用 loadTranslation() 选定的语言，搜索目录与主程序翻译包相同；
+	/// 扩展在 OnRegister 里调用，扩展被移除时不会有人调用它。
+	/// @param name 扩展目录名，如 "ai"
+	/// @return 找到并安装了翻译包时返回 true
+	bool loadExtensionTranslation(const QString& name);
+
 	/// @brief 获取导入格式集合
 	QMap<QString, QStringList> getImportTypes() const;
 	/// @brief 获取指定格式的导入文件集合
@@ -142,6 +150,8 @@ protected:
 	QTranslator*						m_pTranslatorQt;
 	QTranslator*						m_pTranslatorYiCAD;
 	QTranslator*						m_pTranslatorPlugIns;
+	QList<QTranslator*>					m_extensionTranslators;		// 各扩展的翻译包
+	QString								m_translationLang;			// loadTranslation() 选定的语言
 	QMap<QString, QStringList>			m_importFormatTypes;		// 导入格式集合
 	QMap<QString, QStringList>			m_exportFormatTypes;		// 导出格式集合
 	QString								m_currentFormatType;		// 当前文件格式
