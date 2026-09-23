@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawLineFree.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -201,3 +202,11 @@ void ActionDrawLineFree::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLineFree, QStringLiteral("draw.line_free"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLineFree(ctx.document, ctx.view); });
+}  // namespace

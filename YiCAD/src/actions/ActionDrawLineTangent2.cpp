@@ -23,6 +23,7 @@
 /// @brief 两圆/椭圆公切线绘制交互动作的实现
 
 #include "ActionDrawLineTangent2.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -451,3 +452,11 @@ DmLine* ActionDrawLineTangent2::createTangent2(const DmVector& coord,
 
     return ret;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLineTangent2, QStringLiteral("draw.line_tangent2"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLineTangent2(ctx.document, ctx.view); });
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 自由绘制云线（修订云线）的交互动作实现
 
 #include "ActionDrawCloudLineFree.h"
+#include "CommandRegistry.h"
 #include "DmPolyline.h"
 #include "DmVector.h"
 #include "DmArc.h"
@@ -341,3 +342,11 @@ void ActionDrawCloudLineFree::drawPoly(DmEntityContainer* host)
     Q_UNUSED(poly);
     drawPreview();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionCloudLineFree, QStringLiteral("draw.cloud_line_free"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCloudLineFree(ctx.document, ctx.view); });
+}  // namespace

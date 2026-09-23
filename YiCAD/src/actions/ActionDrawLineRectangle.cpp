@@ -23,6 +23,7 @@
 /// @brief 矩形绘制动作类的实现
 
 #include "ActionDrawLineRectangle.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -233,3 +234,11 @@ DmPolyline* ActionDrawLineRectangle::createRectangle(
 
     return polyline;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLineRectangle, QStringLiteral("draw.line_rectangle"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLineRectangle(ctx.document, ctx.view); });
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 矩形云线（修订云线）绘制交互动作实现
 
 #include "ActionDrawCloudLineRectangle.h"
+#include "CommandRegistry.h"
 #include "DmPolyline.h"
 #include "DmVector.h"
 #include "DmArc.h"
@@ -383,3 +384,11 @@ double ActionDrawCloudLineRectangle::getMinLength() const
 {
     return m_minArcLen;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionCloudLineRectangle, QStringLiteral("draw.cloud_line_rectangle"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCloudLineRectangle(ctx.document, ctx.view); });
+}  // namespace

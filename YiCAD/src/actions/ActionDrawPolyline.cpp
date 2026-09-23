@@ -24,6 +24,7 @@
 
 #include <cmath>
 #include "ActionDrawPolyline.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -705,3 +706,11 @@ void ActionDrawPolyline::undo()
 			tr("Cannot undo: Not enough entities defined yet."));
 	}
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawPolyline, QStringLiteral("draw.polyline"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawPolyline(ctx.document, ctx.view); });
+}  // namespace

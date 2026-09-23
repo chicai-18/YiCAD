@@ -23,6 +23,7 @@
 /// @brief 点到圆的切线绘制交互动作的实现
 
 #include "ActionDrawLineTangent1.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -273,3 +274,11 @@ void ActionDrawLineTangent1::updateMouseCursor()
             break;
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLineTangent1, QStringLiteral("draw.line_tangent1"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLineTangent1(ctx.document, ctx.view); });
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 中心-角点方式绘制正多边形 Action 实现
 
 #include "ActionDrawLinePolygon.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -284,3 +285,11 @@ std::vector<DmLine*> ActionDrawLinePolygonCenCor::createPolygon(DmEntityContaine
 
     return ret;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLinePolygonCenCor, QStringLiteral("draw.line_polygon_cen_cor"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLinePolygonCenCor(ctx.document, ctx.view); });
+}  // namespace

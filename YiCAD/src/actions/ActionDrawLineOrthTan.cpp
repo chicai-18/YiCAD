@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include <QAction>
 #include "ActionDrawLineOrthTan.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -264,3 +265,11 @@ void ActionDrawLineOrthTan::updateMouseCursor()
 }
 
 // EOF
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLineOrthTan, QStringLiteral("draw.line_orth_tan"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLineOrthTan(ctx.document, ctx.view); });
+}  // namespace

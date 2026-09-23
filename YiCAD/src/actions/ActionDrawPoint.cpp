@@ -23,6 +23,7 @@
 /// @brief 绘制点动作类的实现
 
 #include "ActionDrawPoint.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -127,3 +128,11 @@ void ActionDrawPoint::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawPoint, QStringLiteral("draw.point"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawPoint(ctx.document, ctx.view); });
+}  // namespace

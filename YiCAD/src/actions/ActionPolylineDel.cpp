@@ -23,6 +23,7 @@
 /// @brief 多段线删除节点操作实现
 
 #include "ActionPolylineDel.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -230,3 +231,11 @@ void ActionPolylineDel::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionPolylineDel, QStringLiteral("polyline.del"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionPolylineDel(ctx.document, ctx.view); });
+}  // namespace

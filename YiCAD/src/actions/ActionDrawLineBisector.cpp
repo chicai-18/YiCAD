@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionDrawLineBisector.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -466,3 +467,11 @@ void ActionDrawLineBisector::updateMouseCursor()
 }
 
 // EOF
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLineBisector, QStringLiteral("draw.line_bisector"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLineBisector(ctx.document, ctx.view); });
+}  // namespace

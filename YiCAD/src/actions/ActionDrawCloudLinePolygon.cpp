@@ -23,6 +23,7 @@
 /// @brief 通过控制点绘制多边形修订云线的交互动作实现
 
 #include "ActionDrawCloudLinePolygon.h"
+#include "CommandRegistry.h"
 #include "DmPolyline.h"
 #include "DmVector.h"
 #include "DmArc.h"
@@ -468,3 +469,11 @@ void ActionDrawCloudLinePolygon::drawPoly(DmEntityContainer* host)
     Q_UNUSED(poly);
     drawPreview();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionCloudLinePolygon, QStringLiteral("draw.cloud_line_polygon"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawCloudLinePolygon(ctx.document, ctx.view); });
+}  // namespace

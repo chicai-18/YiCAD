@@ -23,6 +23,7 @@
 /// @brief 多段线添加节点操作实现
 
 #include "ActionPolylineAdd.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -325,3 +326,11 @@ void ActionPolylineAdd::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionPolylineAdd, QStringLiteral("polyline.add"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionPolylineAdd(ctx.document, ctx.view); });
+}  // namespace

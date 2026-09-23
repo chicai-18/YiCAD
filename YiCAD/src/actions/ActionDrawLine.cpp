@@ -23,6 +23,7 @@
 /// @brief 直线绘制交互动作的实现
 
 #include "ActionDrawLine.h"
+#include "CommandRegistry.h"
 
 #include <cmath>
 #include <vector>
@@ -597,3 +598,11 @@ void ActionDrawLine::addLine(const DmVector& endPt)
         // 拒绝零长度直线，不做任何操作
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLine, QStringLiteral("draw.line"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLine(ctx.document, ctx.view); });
+}  // namespace

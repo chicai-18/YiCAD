@@ -23,6 +23,7 @@
 /// @brief 中心-切线法绘制正多边形 Action 类实现
 
 #include "ActionDrawLinePolygon3.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -351,3 +352,11 @@ std::vector<DmLine*> ActionDrawLinePolygonCenTan::createPolygon3(
 
     return ret;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawLinePolygonCenTan, QStringLiteral("draw.line_polygon_cen_tan"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawLinePolygonCenTan(ctx.document, ctx.view); });
+}  // namespace

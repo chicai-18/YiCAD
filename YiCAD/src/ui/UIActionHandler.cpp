@@ -56,30 +56,15 @@
 #include "ActionDrawCircle3p.h"
 #include "ActionDrawCircleTan2.h"
 #include "ActionDrawCircleTan3.h"
-#include "ActionDrawCloudLineRectangle.h"
-#include "ActionDrawCloudLinePolygon.h"
-#include "ActionDrawCloudLineFree.h"
 #include "ActionDrawEllipseAxis.h"
 #include "ActionDrawEllipseInscribe.h"
 #include "ActionDrawHatch.h"
 #include "ActionDrawImage.h"
-#include "ActionDrawLine.h"
-#include "ActionDrawLineBisector.h"
-#include "ActionDrawLineFree.h"
-#include "ActionDrawLinePolygon.h"
-#include "ActionDrawLinePolygon3.h"
-#include "ActionDrawLineRectangle.h"
-#include "ActionDrawLineOrthTan.h"
-#include "ActionDrawLineTangent1.h"
-#include "ActionDrawLineTangent2.h"
 #include "ActionDrawMText.h"
-#include "ActionDrawPoint.h"
 #include "ActionDrawSpline.h"
 #include "ActionDrawSplinePoints.h"
 #include "ActionDrawText.h"
 #include "ActionTextStyle.h"
-#include "ActionDrawRay.h"
-#include "ActionDrawXline.h"
 
 #include "ActionInfoAngle.h"
 #include "ActionInfoArea.h"
@@ -114,10 +99,6 @@
 #include "ActionSetSnapMode.h"
 #include "ActionSetSnapRestriction.h"
 
-#include "ActionDrawPolyline.h"
-#include "ActionPolylineAdd.h"
-#include "ActionPolylineAppend.h"
-#include "ActionPolylineDel.h"
 #include "Selection.h"
 
 #include "ActionSelectedChanged.h"
@@ -218,57 +199,8 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 
 		// Drawing actions:
 		//
-	case DM::ActionDrawPoint:
-		a = new ActionDrawPoint(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLine:
-		a = new ActionDrawLine(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLineFree:
-		a = new ActionDrawLineFree(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLineRectangle:
-		a = new ActionDrawLineRectangle(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLineBisector:
-		a = new ActionDrawLineBisector(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLineOrthTan:
-		a = new ActionDrawLineOrthTan(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLineTangent1:
-		a = new ActionDrawLineTangent1(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLineTangent2:
-		a = new ActionDrawLineTangent2(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawPolyline:
-		a = new ActionDrawPolyline(m_pDocument, m_pView);
-		break;
-	case DM::ActionPolylineAdd:
-		a = new ActionPolylineAdd(m_pDocument, m_pView);
-		break;
-	case DM::ActionPolylineAppend:
-		a = new ActionPolylineAppend(m_pDocument, m_pView);
-		break;
-	case DM::ActionPolylineDel:
-		a = new ActionPolylineDel(m_pDocument, m_pView);
-		break;
-	case DM::ActionCloudLineRectangle:
-		a = new ActionDrawCloudLineRectangle(m_pDocument, m_pView);
-		break;
-	case DM::ActionCloudLinePolygon:
-		a = new ActionDrawCloudLinePolygon(m_pDocument, m_pView);
-		break;
-	case DM::ActionCloudLineFree:
-		a = new ActionDrawCloudLineFree(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLinePolygonCenCor:
-		a = new ActionDrawLinePolygonCenCor(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawLinePolygonCenTan:
-		a = new ActionDrawLinePolygonCenTan(m_pDocument, m_pView);
-		break;
+		// Draw 直线族（Line/Polyline/CloudLine/Ray/Xline）已迁移到
+		// CommandRegistry（阶段4第三部分）。
 	case DM::ActionDrawCircle:
 		a = new ActionDrawCircle(m_pDocument, m_pView);
 		break;
@@ -304,9 +236,6 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 	case DM::ActionDrawEllipseInscribe:
 		a = new ActionDrawEllipseInscribe(m_pDocument, m_pView);
 		break;
-	case DM::ActionDrawRay:
-		a = new ActionDrawRay(m_pDocument, m_pView);
-		break;
 	case DM::ActionDrawSpline:
 		a = new ActionDrawSpline(m_pDocument, m_pView);
 		break;
@@ -328,9 +257,6 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		break;
 	case DM::ActionDrawImage:
 		a = new ActionDrawImage(m_pDocument, m_pView);
-		break;
-	case DM::ActionDrawXline:
-		a = new ActionDrawXline(m_pDocument, m_pView);
 		break;
 		// Dimensioning actions:
 		//

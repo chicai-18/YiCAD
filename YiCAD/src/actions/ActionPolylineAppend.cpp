@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionPolylineAppend.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -245,3 +246,11 @@ void ActionPolylineAppend::updateMouseButtonHints()
             break;
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionPolylineAppend, QStringLiteral("polyline.append"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionPolylineAppend(ctx.document, ctx.view); });
+}  // namespace

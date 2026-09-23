@@ -23,6 +23,7 @@
 /// @brief 射线绘制动作类实现
 
 #include "ActionDrawRay.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -223,3 +224,11 @@ void ActionDrawRay::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawRay, QStringLiteral("draw.ray"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawRay(ctx.document, ctx.view); });
+}  // namespace

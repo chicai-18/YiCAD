@@ -23,6 +23,7 @@
 /// @brief 构造线绘制 Action 类的实现
 
 #include "ActionDrawXline.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -205,3 +206,11 @@ void ActionDrawXline::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDrawXline, QStringLiteral("draw.xline"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDrawXline(ctx.document, ctx.view); });
+}  // namespace
