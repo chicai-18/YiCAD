@@ -23,6 +23,7 @@
 /// @brief 块插入动作类实现文件
 
 #include "ActionBlocksInsert.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 #include <QAction>
@@ -550,3 +551,11 @@ void ActionBlocksInsert::updateMouseCursor()
 }
 
 // 文件结束
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksInsert, QStringLiteral("blocks.insert"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionBlocksInsert(ctx.document, ctx.view); });
+}  // namespace

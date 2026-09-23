@@ -19,7 +19,6 @@
 /// @brief 核心动作分发器，负责根据命令类型创建和管理所有CAD操作动作（绘图、修改、标注、捕捉等）
 
 #include <cmath>
-#include <QMessageBox>
 #include "UIActionHandler.h"
 #include "UISnapWidget.h"
 #include "GuiDialogFactory.h"
@@ -29,25 +28,9 @@
 
 #include <utility>
 
-#include "ActionBlocksCreate.h"
-#include "ActionBlocksDelete.h"
 #include "ActionBlocksEdit.h"
-#include "ActionBlocksImport.h"
-#include "ActionBlocksSave.h"
-#include "ActionBlocksSaveAs.h"
-#include "ActionBlockInsertPrepare.h"
-#include "ActionBlocksInsert.h"
-#include "ActionDefineAttributes.h"
-
-#include "ActionOptionsGeneral.h"
-#include "ActionOptionsDrawing.h"
-#include "ActionSelect.h"
-#include "ActionSetSnapMode.h"
-#include "ActionSetSnapRestriction.h"
 
 #include "Selection.h"
-
-#include "ActionSelectedChanged.h"
 
 #include "Debug.h"
 #include "DmSettings.h"
@@ -56,7 +39,6 @@
 #include "GuiDocumentView.h"
 #include "GuiEventHandler.h"
 #include "UICurrentActivePen.h"
-#include "ActionCopyToLayer.h"
 
 UIActionHandler::UIActionHandler(QObject* parent)
 	:QObject(parent)
@@ -127,129 +109,13 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		return nullptr;
 	}
 
-	ActionInterface* a = NULL;
-	if (CommandRegistry::instance().hasLegacyMapping(id))
-	{
-		a = CommandRegistry::instance().create(id, CommandContext{m_pDocument, m_pView, this, sender()});
-	}
-	else
-	{
-	switch (id)
-	{
-		// File / Edit / Select / Zoom 分组已迁移到 CommandRegistry
-		// （阶段4第一部分：doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4），
-		// 原 case 见该批次迁移前的历史版本。
-
-		// Drawing actions:
-		//
-		// Draw 直线族（Line/Polyline/CloudLine/Ray/Xline）已迁移到
-		// CommandRegistry（阶段4第三部分）。
-		// Draw 曲线族（Circle/Arc/Ellipse/Spline）已迁移到 CommandRegistry
-		// （阶段4第四部分）。
-		// Draw 其余（MText/Text/Hatch/Image）与 Dim*/TextStyle/DimStyle
-		// 已迁移到 CommandRegistry（阶段4第五部分）。
-
-		// Modifying actions:
-		// Modify*（含 select-first 7 组、ActionModifyDelete 的不对称
-		// 变体、以及 8 个普通命令）已迁移到 CommandRegistry
-		// （阶段4第六部分）。
-		// Snapping / Snap restriction actions:
-		// 已在函数开头交给 commandLineActions() 处理，见上。
-		//
-
-		// Info actions:
-		//
-		// Info* / Layers* 已迁移到 CommandRegistry（阶段4第七部分）。
-	case DM::ActionBlocksSaveAs:
-		a = new ActionBlocksSaveAs(m_pDocument, m_pView);
-		break;
-	case DM::ActionBlocksSave:
-		a = new ActionBlocksSave(m_pDocument, m_pView);
-		break;
-	case DM::ActionBlockInsertPrepare:
-		a = new ActionBlockInsertPrepare(m_pDocument, m_pView);
-		break;
-	case DM::ActionBlocksInsert:
-		a = new ActionBlocksInsert(m_pDocument, m_pView);
-		break;
-	case DM::ActionBlocksCreate:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionBlocksCreateNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionBlocksCreateNoSelect:
-		a = new ActionBlocksCreate(m_pDocument, m_pView);
-		break;
-	case DM::ActionBlocksDelete:
-		a = new ActionBlocksDelete(m_pDocument, m_pView);
-		break;
-	case DM::ActionBlocksEdit:
-		if (m_pDocument->getEditingBlock() != nullptr)
-		{
-			QMessageBox::warning(nullptr,
-				tr("Block Edit"),
-				tr("Cannot edit block references while already editing a block."));
-			break;
-		}
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionBlocksEditNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionBlocksEditNoSelect:
-		{
-			if (m_pDocument->getEditingBlock() != nullptr)
-			{
-				QMessageBox::warning(nullptr,
-					tr("Block Edit"),
-					tr("Cannot edit block references while already editing a block."));
-				break;
-			}
-			DmBlockReference* selectedRef = nullptr;
-			for (auto e : *m_pDocument->getEntityTable())
-			{
-				if (e && e->isSelected() && e->getEntityType() == DM::EntityBlockReference)
-				{
-					selectedRef = static_cast<DmBlockReference*>(e);
-					break;
-				}
-			}
-			a = new ActionBlocksEdit(m_pDocument, m_pView, selectedRef);
-		}
-		break;
-	case DM::ActionBlocksImport:
-		a = new ActionBlocksImport(m_pDocument, m_pView);
-		break;
-	case DM::ActionDefineAttributes:
-		a = new ActionDefineAttributes(m_pDocument, m_pView);
-		break;
-		// ActionModifyExplode/Reverse 已随 Modify* 迁移到 CommandRegistry
-		// （阶段4第六部分）。
-	case DM::ActionOptionsGeneral:
-		a = new ActionOptionsGeneral(m_pDocument, m_pView);
-		break;
-	case DM::ActionOptionsDrawing:
-		a = new ActionOptionsDrawing(m_pDocument, m_pView);
-		break;
-	case DM::ActionCopyToLayer:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionNoSelectCopyToLayer);
-			break;
-		}
-	case DM::ActionNoSelectCopyToLayer:
-		a = new ActionCopyToLayer(m_pDocument, m_pView);
-		break;
-	case DM::ActionSelectedChanged:
-		a = new ActionSelectedChanged(m_pDocument, m_pView);
-		break;
-	default:
-		break;
-	}
-	}
+	// 全部 153 个原 case 已分批迁移到 CommandRegistry（阶段4第一至八部分，
+	// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。未命中注册表的类型
+	// （枚举里从未进入过这个 switch 的保留值，如 ActionFileExport/Print/
+	// Quit、ActionView* 系列等）维持原 default 行为：不构造任何 Action。
+	ActionInterface* a = CommandRegistry::instance().hasLegacyMapping(id)
+		? CommandRegistry::instance().create(id, CommandContext{m_pDocument, m_pView, this, sender()})
+		: nullptr;
 
 	if (a)
 	{

@@ -23,6 +23,7 @@
 /// @brief 从外部文件导入块定义到当前文档的动作类实现文件
 
 #include "ActionBlocksImport.h"
+#include "CommandRegistry.h"
 
 #include <QApplication>
 #include <QMessageBox>
@@ -325,3 +326,11 @@ void ActionBlocksImport::repointEntityStyles(DmEntity* entity)
 		repointEntityStyles(sub);
 	}
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksImport, QStringLiteral("blocks.import"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionBlocksImport(ctx.document, ctx.view); });
+}  // namespace

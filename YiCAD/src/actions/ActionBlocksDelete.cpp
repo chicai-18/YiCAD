@@ -23,6 +23,7 @@
 /// @brief 删除块定义的动作类实现文件
 
 #include "ActionBlocksDelete.h"
+#include "CommandRegistry.h"
 #include "DmDocument.h"
 #include "DmBlockTable.h"
 #include "UIBlockDelete.h"
@@ -60,3 +61,11 @@ void ActionBlocksDelete::trigger()
 
 	finish();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksDelete, QStringLiteral("blocks.delete"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionBlocksDelete(ctx.document, ctx.view); });
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 从现有实体创建块的动作类实现文件
 
 #include "ActionBlocksCreate.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 #include <QAction>
@@ -226,3 +227,19 @@ void ActionBlocksCreate::updateMouseCursor()
 }
 
 // 文件结束
+
+namespace
+{
+ActionInterface* createBlocksCreate(const CommandContext& ctx)
+{
+    return new ActionBlocksCreate(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksCreate, QStringLiteral("blocks.create"),
+    makeSelectFirstFactory(DM::ActionBlocksCreateNoSelect, createBlocksCreate));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksCreateNoSelect, QStringLiteral("blocks.create_no_select"),
+    createBlocksCreate);
+}  // namespace

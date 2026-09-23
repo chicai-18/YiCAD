@@ -23,6 +23,7 @@
 /// @brief 定义属性操作类实现文件
 
 #include "ActionDefineAttributes.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -303,3 +304,11 @@ void ActionDefineAttributes::setDataWithOnePoint()
 		}
 	}
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionDefineAttributes, QStringLiteral("blocks.define_attributes"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionDefineAttributes(ctx.document, ctx.view); });
+}  // namespace

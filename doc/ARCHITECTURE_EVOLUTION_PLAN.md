@@ -793,6 +793,84 @@ Debug/Release 全量构建与 `ctest` 验证。
   - 每批迁移后跑阶段 0 的测试加交互回归清单；
   - 先只做第 1、2 项（注册表），确认稳定后再做第 3 至 5 项（扩展框架）。
 
+### 7.7 执行结果
+
+按 7.6 节的缓解措施，只做了任务①②（命令注册表、消除 `UIActionHandler.cpp`
+的巨型 switch），任务③④⑤（扩展框架、`ai/` 试点、按领域推进后续扩展）留给
+后续会话。分八个批次落地（"阶段4（第一/三/四/五/六/七/八部分）"，第二部分
+的编号在执行中被第三部分的批次直接沿用，见下表说明），每批迁移后都跑
+`ctest`（Debug）与 `check_layering.py`，收尾额外跑了一次 Release 全量构建
+与 `ctest`。
+
+**与方案的偏差**
+
+| 项 | 方案 | 实际 | 理由 |
+|----|------|------|------|
+| switch 的真实规模 | "153 个 case"（1.2 节、7.2 节、附录 A 均引用此数） | `UIActionHandler::setCurrentAction` 的 switch 实际只有 **132** 个 `case DM::Action*` 标签 | 逐行核对后发现，"153" 是对整个文件里三个独立 switch（`setCurrentAction` 132 个、`keycode()` 11 个、`commandLineActions()` 10 个，132+11+10=153）的合计误记成了单一 switch 的规模。三个 switch 各自独立存在（`keycode()`/`commandLineActions()` 是历史遗留的重复实现，见 5.2/7.2 节已经指出的"三重复"问题），本次只处理 `setCurrentAction` 这一个——它才是 7.5 节验收标准里"无 switch 巨型分支"指代的对象。已用 `git show` 取迁移前版本、`sed`+`grep` 精确统计过，不是估算。 |
+| `CommandRegistry` 的键 | "以稳定字符串 ID……为键" | 字符串 ID 为主键，另加 `std::map<DM::ActionType, QString>` 的 legacy 桥接表，只给 132 个内置命令用 | 全字符串化需要同时改 `keyconfig.xml` 的格式、`Commands.cpp` 的既有 `std::map<QString, DM::ActionType>` 模型、以及 16+ 处直接引用 `DM::ActionXxx` 枚举值的调用点——这些都不是"注册表"任务本身要求的，会把改动面从"约100个 Action 文件"扩大到"CLI/快捷键子系统的数据格式"。桥接设计换来的是：`setCurrentAction(DM::ActionType)`、`Commands.cpp`、`ApplicationWindow.cpp` 的 92 处 `connect()` **一行都不用改**，`create(const QString&, ...)` 纯字符串路径已就绪、为后续任务③④的扩展框架预留，两头都不牺牲。 |
+| 削减 switch 后的残留结构 | 未细化 | `setCurrentAction` 开头保留两个显式分支：`ActionEditKillAllActions`（无法构造 Action，且要用只在具体类 `GuiDocumentView` 上的 `killAllActions()`，够不到 `IDocumentView` 接口）与转发给既有 `commandLineActions()` 的 11 个 Snap/Restrict 类型（该函数本就是这批类型的权威实现，`command()` 早就在调用它）；两者都**不进注册表**。除这两个分支外，函数体缩成"查表，查不到就是 nullptr"五行代码 | 12 个类型缺乏统一的 `CommandFactory` 签名（`(DmDocument*, IDocumentView*) -> ActionInterface*`）能表达的行为——前者不建任何 Action，后者根本不建 Action、只是转调 GUI 更新槽。硬套进注册表需要扩展 `CommandContext`/放宽接口，收益是"表面上看起来更统一"，成本是给 120 个正常命令的签名添加两个永远用不到的字段；判断为不值得，原样保留为独立分支，`UIActionHandler.cpp` 里"无 switch 巨型分支"这条验收标准仍然成立——12 个分支不是 switch，是两条 if。 |
+| `ActionModifyDelete` 的处理 | 未列为已知问题 | 未随其余 7 组"先选后建"用 `makeSelectFirstFactory` 统一处理，单独写了一个不检查 `hasSelect()`、无条件先建 `ActionSelect` 的专用工厂 | 逐 case 核对时发现原 switch 里它确实和其余 7 组（Copy/Move/Rotate/Scale/Mirror/Explode/Reverse）行为不一致——那 7 组都是"没选中才弹选择"，`ActionModifyDelete` 是"永远先弹选择"。这是原有行为差异（可能是有意的删除保护，也可能是历史遗留），照原样保留，不在迁移中"顺手对齐"，避免把一次机械重构变成一次隐藏的行为变更。 |
+| `ActionBlocksEdit` 的 `tr()` 上下文 | 未提及 | 两处 `QMessageBox::warning` 从 `UIActionHandler::tr(...)` 改成 `ActionBlocksEdit::tr(...)`（原字符串不变） | 这段逻辑从 `UIActionHandler.cpp` 搬进 `ActionBlocksEdit.cpp` 的匿名命名空间自由函数后，不再有 `UIActionHandler` 这个 `QObject` 子类的隐式 `tr()` 可用，只能显式指定一个 `Q_OBJECT` 类；选了逻辑上更贴切的 `ActionBlocksEdit` 而非 `QObject`。翻译文本本身没变，但 `.ts` 里的归属条目会从 `"UIActionHandler"` 变成 `"ActionBlocksEdit"`，下次 `lupdate` 需要人工核对，不是本次自动完成的。 |
+| 批次划分与命名 | 六个批次（阶段0任务1+2合并算一批，之后按领域拆分） | 实际八个批次（第一、三、四、五、六、七、八部分——"第二部分"编号被跳过，因为原计划的"File/Edit/Zoom/Select"那批在执行时直接沿用了"第一部分"里已经写好的 CommandRegistry 骨架验证，两者在同一次 commit 里一并落地，之后的批次继续按顺序编号，未回填"第二部分"这个空档） | 批次边界服务于"每批独立可编译可回退"，不是服务于编号连续性；重新编号需要改动前面已经提交的 commit message，收益不大，直接在这里注明空档原因即可 |
+
+**已知缺陷（既有代码，原样保留，未在本次迁移中修复）**
+
+| 位置 | 问题 | 说明 |
+|------|------|------|
+| `ActionSelectSingle.cpp` 的 `select.single` 工厂 | `ctx.view->getCurrentAction()` 返回值在没有活动 Action 时是 `nullptr`，随即被无条件解引用（`current->getEntityType()`） | 原 switch 里就是这个写法，迁移时原样保留。候选：加一条 `DISABLED_` 回归测试锁定这个可复现的崩溃条件，留给未来专门修 bug 的会话。 |
+
+**新增设施**
+
+- `YiCAD/src/kernel/actions/CommandRegistry.h`、`.cpp` —— 命令注册表本体。
+  `CommandContext{document, view, handler, sender}`、`CommandFactory =
+  std::function<ActionInterface*(const CommandContext&)>`、
+  `registerCommand(id, factory)` / `registerLegacyCommand(legacyType, id,
+  factory)` / `hasLegacyMapping(legacyType)` / `create(legacyType, ctx)` /
+  `create(id, ctx)`，以及复刻"先选后建"同形态 case 的
+  `makeSelectFirstFactory(noSelectType, buildReal)`。注册冲突（重复 ID、
+  重复 legacy 类型）用返回值 `false` 报告，不用 `assert()` 硬中断——这条
+  路径本身要可测试，`assert()` 在 Debug 测试里会直接杀掉进程，见
+  `tests/interaction/test_command_registry.cpp` 的"重复注册"用例。
+- `YiCAD/src/kernel/gui/GuiDocumentView.h` 一类的具体渲染类型不涉及本阶段；
+  `CommandRegistry.h` 只前置声明 `UIActionHandler`，不 `#include` 它，
+  `tools/check_layering.py` 的空白名单不受影响。
+- `tests/interaction/test_command_registry.cpp` —— 6 个用例：字符串 ID 注册、
+  legacy 桥接双路径查找、重复 ID/重复 legacy 类型被拒绝且不留半成品、
+  `makeSelectFirstFactory` 的两个分支（用 `EntityTable::add_direct` 直接
+  插入一个选中实体触发"已选中"分支，绕开需要完整应用上下文的
+  `EntityTable::add`）。
+
+**影响面**
+
+- `YiCAD/src/ui/UIActionHandler.cpp` —— `setCurrentAction` 从 132-case
+  switch 缩成"两个特判 + 一次注册表查找"；`keycode()`、`commandLineActions()`
+  两个历史遗留的重复小 switch **未改动**（各自 11/10 个 case，均非"巨型"，
+  不在本次任务范围，见上表"batch 划分"一行）；文件顶部约 90 处不再需要的
+  `#include "ActionXxx.h"` 一并清理，只保留仍有直接调用点的
+  `ActionBlocksEdit.h`（`slotCmdStateChanged()` 用）、`ActionSelect.h`
+  已随最后一批不再需要而移除。
+- `src/actions/` 下 **100** 个文件（132 个 legacy `ActionType` 里，
+  `ActionEditKillAllActions` 与 11 个 Snap/Restrict 类型不进注册表，
+  132-12=120 个类型分布在 100 个文件里自注册，一个文件常承载一对
+  `Xxx`/`XxxNoSelect` 或一个类映射两个枚举值的情形）——每个文件新增一个
+  `#include "CommandRegistry.h"` 和一个匿名命名空间里的静态注册对象，
+  函数体本身未改动一行。
+- `ApplicationWindow.cpp` 的 92 处 Ribbon `connect(...)`、`src/cmd/
+  Commands.{h,cpp}` 的 CLI 字符串映射、`keyconfig.xml` 的格式——均未改动。
+
+**验收对照**
+
+| 7.5 节的验收标准 | 状态 |
+|------------------|------|
+| 新增一条绘图命令不需要修改 `src/kernel/` 下的任何文件 | 机制就绪、未接线验证：`CommandRegistry::create(const QString&, ...)` 支持无 legacy 类型的纯字符串注册，新命令确实不需要碰 `Datamodel.h`；但目前没有任何调用方会以字符串 ID 发起命令（Ribbon/CLI 仍只认 `DM::ActionType`），要等任务③④的扩展框架把 Ribbon 注册接到字符串 ID 上才能端到端验证，如实记录为未完全达成 |
+| `UIActionHandler.cpp` 无 `switch (actionType)` 巨型分支 | 达成。`setCurrentAction` 的 132-case switch 已删空；`keycode()`/`commandLineActions()` 的两个小 switch（11/10 个 case）不算"巨型"，且是独立于本次任务的既有重复实现，留作已知的、非本次范围的清理项 |
+| `ai/` 作为独立扩展加载，关闭该扩展后应用正常启动与绘图 | 未做，留给任务④ |
+| 扩展的注册与卸载顺序可预测，`OnShutdown` 反序执行 | 未做，留给任务③ |
+
+四条验收标准中一条完全达成（无巨型 switch）、一条机制就绪但未接线验证、
+两条明确留给后续会话——诚实反映"任务①②完成，任务③④⑤未做"的实际状态，
+不写"阶段4已完成"。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移

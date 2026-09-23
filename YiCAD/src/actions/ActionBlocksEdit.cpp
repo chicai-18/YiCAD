@@ -23,6 +23,8 @@
 /// @brief 编辑块定义的动作类实现文件
 
 #include "ActionBlocksEdit.h"
+#include "ActionSelect.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -432,5 +434,60 @@ void ActionBlocksEdit::updateMouseCursor()
         docView->setMouseCursor(DM::CadCursor);
     }
 }
+
+namespace
+{
+// 原 switch 里最复杂的一组：两次 getEditingBlock() 判空警告（base 分支一次、
+// NoSelect 分支落到同一检查再一次）+ hasSelect() 分支 + 在 NoSelect 分支里
+// 扫描已选中的 DmBlockReference 传给构造函数。不复用 makeSelectFirstFactory，
+// 原样保留这套专属逻辑。
+//
+// tr() 上下文变化：这两个 QMessageBox::warning 调用原来跑在 UIActionHandler
+// 内部，翻译上下文是 "UIActionHandler"；搬到这里后改用
+// ActionBlocksEdit::tr()（本类本身是 Q_OBJECT），翻译上下文变为
+// "ActionBlocksEdit"——两条字符串本身不变，只是 .ts 里的归属条目要重新
+// lupdate，属于阶段4已知的、有意为之的行为变化，非本次引入的翻译丢失。
+ActionInterface* createBlocksEditNoSelect(const CommandContext& ctx)
+{
+    if (ctx.document->getEditingBlock() != nullptr)
+    {
+        QMessageBox::warning(nullptr,
+            ActionBlocksEdit::tr("Block Edit"),
+            ActionBlocksEdit::tr("Cannot edit block references while already editing a block."));
+        return nullptr;
+    }
+    DmBlockReference* selectedRef = nullptr;
+    for (auto e : *ctx.document->getEntityTable())
+    {
+        if (e && e->isSelected() && e->getEntityType() == DM::EntityBlockReference)
+        {
+            selectedRef = static_cast<DmBlockReference*>(e);
+            break;
+        }
+    }
+    return new ActionBlocksEdit(ctx.document, ctx.view, selectedRef);
+}
+
+const bool g_registeredEdit = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksEdit, QStringLiteral("blocks.edit"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    {
+        if (ctx.document->getEditingBlock() != nullptr)
+        {
+            QMessageBox::warning(nullptr,
+                ActionBlocksEdit::tr("Block Edit"),
+                ActionBlocksEdit::tr("Cannot edit block references while already editing a block."));
+            return nullptr;
+        }
+        if (!ctx.document->getEntityTable()->hasSelect())
+        {
+            return new ActionSelect(ctx.handler, ctx.document, ctx.view, DM::ActionBlocksEditNoSelect);
+        }
+        return createBlocksEditNoSelect(ctx);
+    });
+
+const bool g_registeredEditNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksEditNoSelect, QStringLiteral("blocks.edit_no_select"), createBlocksEditNoSelect);
+}  // namespace
 
 // EOF

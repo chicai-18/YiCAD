@@ -24,6 +24,7 @@
 
 #include <QDialog>
 #include "ActionBlockInsertPrepare.h"
+#include "CommandRegistry.h"
 #include "UIBlockListWidget.h"
 #include "ApplicationWindow.h"
 #include "DmDocument.h"
@@ -106,3 +107,11 @@ void ActionBlockInsertPrepare::mouseReleaseEvent(QMouseEvent* e)
 {
 	finish();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlockInsertPrepare, QStringLiteral("blocks.insert_prepare"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionBlockInsertPrepare(ctx.document, ctx.view); });
+}  // namespace

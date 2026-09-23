@@ -23,6 +23,7 @@
 /// @brief 块保存动作类实现文件
 
 #include "ActionBlocksSave.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QApplication>
@@ -195,3 +196,11 @@ void ActionBlocksSave::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionBlocksSave, QStringLiteral("blocks.save"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionBlocksSave(ctx.document, ctx.view); });
+}  // namespace

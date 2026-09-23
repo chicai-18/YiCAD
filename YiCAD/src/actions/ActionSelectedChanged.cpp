@@ -23,6 +23,7 @@
 /// @brief 选择变更Action实现
 
 #include "ActionSelectedChanged.h"
+#include "CommandRegistry.h"
 #include "DmLayer.h"
 #include "DmDocument.h"
 #include "DmMText.h"
@@ -121,3 +122,11 @@ void ActionSelectedChanged::triggleSingleSelectedAction()
         docView->setCurrentAction(action);
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionSelectedChanged, QStringLiteral("select.selection_changed"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionSelectedChanged(ctx.document, ctx.view); });
+}  // namespace

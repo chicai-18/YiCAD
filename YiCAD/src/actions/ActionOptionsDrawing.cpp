@@ -23,6 +23,7 @@
 /// @brief 绘图选项交互命令实现
 
 #include "ActionOptionsDrawing.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 
@@ -56,3 +57,11 @@ void ActionOptionsDrawing::trigger()
 
     finish(false);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionOptionsDrawing, QStringLiteral("options.drawing"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionOptionsDrawing(ctx.document, ctx.view); });
+}  // namespace

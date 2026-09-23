@@ -23,6 +23,7 @@
 /// @brief 通用选项交互命令实现
 
 #include "ActionOptionsGeneral.h"
+#include "CommandRegistry.h"
 
 #include "GuiDialogFactory.h"
 #include "DmSettings.h"
@@ -89,3 +90,11 @@ void ActionOptionsGeneral::trigger()
 
     finish();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionOptionsGeneral, QStringLiteral("options.general"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionOptionsGeneral(ctx.document, ctx.view); });
+}  // namespace

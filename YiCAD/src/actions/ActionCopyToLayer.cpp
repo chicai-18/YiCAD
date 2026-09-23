@@ -23,6 +23,7 @@
 /// @brief 复制实体到图层动作类实现文件
 
 #include "ActionCopyToLayer.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -255,3 +256,19 @@ void ActionCopyToLayer::preparePreview()
     preview->setVisible(true);
     drawPreview();
 }
+
+namespace
+{
+ActionInterface* createCopyToLayer(const CommandContext& ctx)
+{
+    return new ActionCopyToLayer(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionCopyToLayer, QStringLiteral("modify.copy_to_layer"),
+    makeSelectFirstFactory(DM::ActionNoSelectCopyToLayer, createCopyToLayer));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionNoSelectCopyToLayer, QStringLiteral("modify.copy_to_layer_no_select"),
+    createCopyToLayer);
+}  // namespace
