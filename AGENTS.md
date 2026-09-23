@@ -47,7 +47,7 @@ python tools/check_layering.py               # src/kernel/ 是否反向依赖 UI
 
 **The directory is the boundary.** Put a file in a directory and it joins that partition — there is no list to keep in sync. `CONFIGURE_DEPENDS` makes the build system re-collect when files are added or removed, so a new file cannot silently miss the build. `yicad_collect_sources` errors out on a directory that does not exist, which keeps dead entries from accumulating the way they had before.
 
-Extensions are the exception to the one-call-per-partition rule: everything under `src/extensions/` is collected by `GLOB_RECURSE` (sources, `.qrc`, `ts/*.ts`, and `support/` install rules), so adding or removing an extension never touches CMake; only the `#include` and `Register` lines in `ApplicationWindow::registerExtensions()` name it.
+Extensions are the exception to the one-call-per-partition rule: everything under `src/extensions/` is collected by `GLOB_RECURSE` (sources, `.ui` forms, `.qrc`, `ts/*.ts`, and `support/` install rules), so adding or removing an extension never touches CMake; only the `#include` and `Register` lines in `ApplicationWindow::registerExtensions()` name it. An extension registers its commands, Ribbon entries and settings pages through `IExtensionContext`, and every ID it registers must start with its own extension ID plus a dot (for example `ext.dim.linear`).
 
 Everything except `src/main/Main.cpp` compiles into the `YiCadCore` OBJECT library; the `YiCAD` executable and the test binaries both link it, so tests do not recompile the kernel. `main()` stays in the executable so test binaries can supply their own.
 

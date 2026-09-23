@@ -185,6 +185,7 @@ yicad_collect_sources(APP
 #   <扩展>/**/*.h、*.cpp   源码，递归收集，编进 YiCadCore；含头文件的
 #                          每个目录自动成为 include 路径
 #   <扩展>/**/*.qrc        Qt 资源
+#   <扩展>/**/*.ui         Qt Designer 表单，与 src/ui 的表单一起由 uic 生成 ui_*.h
 #   <扩展>/ts/<扩展>_<语言>.ts
 #                          扩展自己的翻译，lupdate 只扫本扩展源码，编译成
 #                          qm 与主程序翻译包装在一起，运行期由扩展调用
@@ -214,10 +215,11 @@ list(REMOVE_DUPLICATES YICAD_EXTENSION_INCLUDE_DIRS)
 
 list(APPEND qrc_DIRS ${YICAD_EXTENSION_QRCS})
 
-# src/ui 下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h。
+# src/ui 与各扩展下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h。
 file(GLOB YICAD_UI_FORMS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms/*.ui)
+file(GLOB_RECURSE YICAD_EXTENSION_FORMS CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.ui")
 
 # main() 必须留在可执行目标里，否则测试二进制无法提供自己的入口。
 set(YICAD_MAIN_ENTRY "${CMAKE_CURRENT_SOURCE_DIR}/src/main/Main.cpp")
@@ -265,7 +267,7 @@ install(FILES ${PLUGIN_SDK_HEADERS}
 file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/*.ts")
 
 # 将.ui转成.h
-QT5_WRAP_UI(ui_FILES ${YICAD_UI_FORMS})
+QT5_WRAP_UI(ui_FILES ${YICAD_UI_FORMS} ${YICAD_EXTENSION_FORMS})
 
 # 将.qrc转成.cpp
 qt5_add_resources(qrc_FILES ${qrc_DIRS})
@@ -449,7 +451,7 @@ add_library(YiCadCore OBJECT
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
     ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
     ${YICAD_EXTENSION_HEADERS}   ${YICAD_EXTENSION_SOURCES}
-    ${YICAD_UI_FORMS}
+    ${YICAD_UI_FORMS}            ${YICAD_EXTENSION_FORMS}
     ${ui_FILES}
     ${qrc_FILES})
 

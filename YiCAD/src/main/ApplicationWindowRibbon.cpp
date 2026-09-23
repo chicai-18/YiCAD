@@ -147,16 +147,8 @@ void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
     addCommand(r, kPanelDraw2dEllipse, QObject::tr("Ellipse Inscribed"), ":/ribbon/draw2d/ellipse_incrib.svg",
                "draw.ellipse_inscribe");
 
-    // 标注
+    // 标注：只占位，按钮由标注扩展（src/extensions/dim/）注册。
     r.addPanel({.id = kPanelDraw2dDimension, .categoryId = kCategoryDraw2d, .title = QObject::tr("Dimension")});
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Aligned"), ":/ribbon/draw2d/dim_align.svg", "dim.aligned");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Linear"), ":/ribbon/draw2d/dim_linear.svg", "dim.linear");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Radial"), ":/ribbon/draw2d/dim_radius.svg", "dim.radial");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Diametric"), ":/ribbon/draw2d/dim_diam.svg", "dim.diametric");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Angluar"), ":/ribbon/draw2d/dim_angle.svg", "dim.angular");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Leader"), ":/ribbon/draw2d/dim_leader.svg", "dim.leader");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Baseline"), ":/ribbon/draw2d/dim_baseline.svg", "dim.baseline");
-    addCommand(r, kPanelDraw2dDimension, QObject::tr("Dimension style"), ":/ribbon/draw2d/dim_style.svg", "dim.style");
 
     // 文字
     r.addPanel({.id = kPanelDraw2dText, .categoryId = kCategoryDraw2d, .title = QObject::tr("Text")});

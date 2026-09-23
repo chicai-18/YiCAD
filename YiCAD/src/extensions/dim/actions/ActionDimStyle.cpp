@@ -23,9 +23,8 @@
 /// @brief 标注样式管理操作类实现
 
 #include "ActionDimStyle.h"
-#include "CommandRegistry.h"
 #include "ApplicationWindow.h"
-#include "GuiDialogFactory.h"
+#include "UIDlgDimensionStyleMgr.h"
 #include "DmDocument.h"
 
 ActionDimStyle::ActionDimStyle(DmDocument* doc, IDocumentView* docView) :
@@ -43,16 +42,8 @@ void ActionDimStyle::trigger()
 {
     DmDocument* pDocument =
                 ApplicationWindow::getAppWindow()->getDocument();
-    GUIDIALOGFACTORY->requestDimStyleMgrDialog(
-                pDocument->getDimStyleTable(), pDocument);
+    UIDlgDimensionStyleMgr dlg(ApplicationWindow::getAppWindow(), true);
+    dlg.init(pDocument->getDimStyleTable(), pDocument);
+    dlg.exec();
     finish(false);
 }
-
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionDimStyle, QStringLiteral("dim.style"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDimStyle(ctx.document, ctx.view); });
-}  // namespace

@@ -1,0 +1,12 @@
+<RCC>
+    <qresource prefix="/extensions/dim">
+        <file>dim_align.svg</file>
+        <file>dim_linear.svg</file>
+        <file>dim_radius.svg</file>
+        <file>dim_diam.svg</file>
+        <file>dim_angle.svg</file>
+        <file>dim_leader.svg</file>
+        <file>dim_baseline.svg</file>
+        <file>dim_style.svg</file>
+    </qresource>
+</RCC>

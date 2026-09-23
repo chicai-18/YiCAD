@@ -23,7 +23,6 @@
 /// @brief 对齐标注操作类实现文件
 
 #include "ActionDimAligned.h"
-#include "CommandRegistry.h"
 
 #include <cmath>
 
@@ -302,11 +301,3 @@ void ActionDimAligned::showOptions()
 	ActionInterface::showOptions();
 	GUIDIALOGFACTORY->requestOptions(this, true);
 }
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionDimAligned, QStringLiteral("dim.aligned"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDimAligned(ctx.document, ctx.view); });
-}  // namespace

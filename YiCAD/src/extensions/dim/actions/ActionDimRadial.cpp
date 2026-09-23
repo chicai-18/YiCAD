@@ -24,7 +24,6 @@
 
 #include <QAction>
 #include "ActionDimRadial.h"
-#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -304,11 +303,3 @@ void ActionDimRadial::hideOptions()
 }
 
 // EOF
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionDimRadial, QStringLiteral("dim.radial"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDimRadial(ctx.document, ctx.view); });
-}  // namespace

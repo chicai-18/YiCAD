@@ -36,8 +36,6 @@ class DmAttribute;
 struct DmCircleData;
 struct DmDimLinearData;
 struct DmDimensionData;
-class DmDimensionStyleTable;
-class DmDimensionStyle;
 class DmEntity;
 class GuiEventHandler;
 class DmDocument;
@@ -181,17 +179,6 @@ public:
     /// @param document 当前文档
     /// @return 用户确定返回 true，取消返回 false
     virtual bool requestTextStyleDialog(DmTextStyleTable* textStyleTable, DmDocument* document) = 0;
-
-    /// @brief 显示标注样式管理窗口
-    /// @param dimStyles 文档原有的标注样式表
-    /// @param document 当前文档
-    virtual void requestDimStyleMgrDialog(DmDimensionStyleTable* dimStyles, DmDocument* document) = 0;
-
-    /// @brief 显示标注样式修改窗口
-    /// @param dimStyle 待修改的标注样式
-    /// @param document 当前文档
-    /// @return 用户确定返回 true，取消返回 false
-    virtual bool requestDimStyleModifyDialog(DmDimensionStyle* dimStyle, DmDocument* document) = 0;
 
     /// @brief 显示填充图案选择对话框
     /// @param hatch 填充实体

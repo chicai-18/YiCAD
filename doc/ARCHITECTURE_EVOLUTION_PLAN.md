@@ -997,6 +997,142 @@ YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
 以中文界面弹出（其译文只存在于 `ai_zh_cn.qm`，证明扩展翻译加载生效），
 "设置"分类下的 AI 设置按钮存在。
 
+### 7.10 执行结果（阶段4第三阶段：Ribbon 注册表、字符串命令 ID 贯通、标注扩展）
+
+7.9 之后阶段4还剩三块：7.5 第一条验收标准"新增绘图命令不需要修改
+`src/kernel/`"只做到"机制就绪"（Ribbon、命令行仍只认 `DM::ActionType`，
+扩展没有注册/启动命令的入口）；Ribbon 仍硬编码在 `ApplicationWindow`；
+任务⑤一个领域扩展也没有。本阶段参照 DS（DimX/Source/Ribbon/）把 Ribbon
+改成注册数据，同时把字符串命令 ID 从 Ribbon、命令行、扩展三个入口打通，
+最后拆出第一个领域扩展 `ext.dim`（标注）。原计划的"第1步：命令 ID 贯通"
+与"第2步：内置类目迁移"合并完成。
+
+**设计**
+
+- **Ribbon 注册表**（`src/ui/ribbon/UIRibbonRegistry`）：类目、面板、按钮、
+  自定义控件都是注册数据。按钮的响应是 `commandId`（点击经宿主按 ID 启动
+  `CommandRegistry` 里的命令）或 `trigger`（直接调用）二选一；可用条件是
+  `enableFn(UIRibbonContext)`，常用条件用 `UIRibbonRequires` 位标志组合
+  （`UIRibbonCondition::requireAll(DocumentOpen)`）。内置类目
+  （`ApplicationWindowRibbon.cpp`）与扩展走同一套入口，全部注册完成后
+  `finalize()` 校验并冻结。
+- **装配器**（`UIRibbonManager`）：按注册表建 `SARibbonCategory`/
+  `SARibbonPannel`/按钮组/`QAction`，没有条目的面板与类目不装配；切换或
+  关闭图纸时 `evaluateActivation()` 按快照重算全部可用状态，取代原
+  `enableButtons()` 里按 tooltip 文本 `tr("open")` 找按钮的做法。
+- **命令层**：`CommandRegistry` 增加 `CommandInfo`（说明、命令行别名、选项条
+  工厂）、`unregisterCommand`、按别名查 ID；`create(id)` 把 ID 记到
+  `ActionInterface::getCommandId()`。`UIActionHandler::activateCommand(id,
+  source)` 是 Ribbon、快捷键、扩展共用的启动入口，`setCurrentAction
+  (DM::ActionType)` 经 legacy 桥接也走它。命令行解析顺序：当前 Action >
+  keyconfig.xml 里有实现的内置命令 > 注册表别名（扩展命令）> keyconfig.xml
+  认领但没有实现的条目 > 插件 `pluginId/commandId`。
+- **扩展框架**：新增 `IExtensionHost`（宿主服务），`ExtensionManager::BootAll`
+  改收它，并为每个扩展构造专属的 `IExtensionContext`（`ExtensionScopedContext`）：
+  扩展注册的命令、设置页、Ribbon 条目的 ID 必须以 `"<扩展 ID>."` 开头
+  （`ExtensionNamespace.h`；命令由 ExtensionManager 校验，Ribbon 条目由宿主
+  构造的 `UIRibbonScopedRegistrar` 校验）；扩展注册的命令在它的 `OnShutdown`
+  之后注销；上下文保证有效到该扩展 `OnShutdown` 返回（写进 `IExtension.h`
+  的契约，取代 7.8 里"依赖具体实现的例外"）。扩展可以把按钮挂进内置面板
+  （引用 `UIRibbonIds` 常量），父级 ID 与命令 ID 不受命名空间限制。
+- **标注扩展**（`src/extensions/dim/`，`ext.dim`）：8 条命令 `ext.dim.aligned/
+  linear/radial/diametric/angular/leader/baseline/style`，按钮注册进宿主占位
+  的"绘图/标注"面板；线性标注的选项条随命令注册（`CommandInfo::optionsFactory`，
+  `UIDialogFactory::requestOptions` 先查注册表再走枚举 switch）。标注实体
+  `DmDim*`、标注样式表与持久化留在内核，打开含标注的图纸不依赖本扩展。
+
+**与方案/DS 的偏差**
+
+| 项 | 方案 / DS | 实际 | 理由 |
+|----|-----------|------|------|
+| 命令与按钮的关系 | DS 的按钮就是命令（trigger 里直接 `new OpXxx`） | 命令留在 `CommandRegistry`，Ribbon 条目只引用命令 ID | YiCAD 的命令还要能从命令行、keyconfig 别名、快捷键启动，DS 没有这些入口 |
+| 注册冲突 | DS 用 `Q_ASSERT` | 返回 `false` + `qWarning`；注册表不是单例，由 `ApplicationWindow` 持有 | 与 `CommandRegistry` 一致，便于测试 |
+| 勾选状态、单选组、下拉菜单、2D/3D 显隐 | DS 都有 | 未做 | YiCAD 目前用不到；勾选状态需要先给 `GuiDocumentView` 加"当前 Action 变化"信号 |
+| 命令 ID 命名空间 | 7.4 只写"以扩展 ID 为前缀" | 直接拼接：`ext.dim.linear`（原内置 `dim.*` 随迁移改名） | `ext.` 开头的一定来自扩展，内置命令不会撞名；此前没有任何地方持久化字符串 ID，改名无兼容成本 |
+| 标注命令的命令行别名 | 原在 keyconfig.xml，分"默认""拼音简写"两组 | 扩展按两组的并集声明别名，keyconfig.xml 删掉 12 条 `ActionDim*` | keyconfig.xml 以 `DM::ActionType` 为键，扩展命令没有枚举值；与有实现的内置命令重名的别名由内置命令优先（如"拼音简写"组里 `dd` 仍是打断），两组下原有别名的行为与迁移前一致，只是另一组的标注别名也同时生效。代价：扩展命令的别名暂不能在"命令设置"对话框里修改 |
+| 标注样式对话框的调用 | 经 `GuiDialogFactoryInterface::requestDimStyleMgrDialog/requestDimStyleModifyDialog` | 两个接口方法删除，对话框随扩展搬走，改由扩展内直接构造（`UIDlgDimensionStyle::editStyle`） | 唯一的调用方都在扩展内；修改对话框的父窗口从主窗口改为调用它的对话框，且改为栈上对象（原实现每次 `new` 且从不释放） |
+| 撤销按钮与 Ctrl+Z | 随其它按钮改为按 ID 启动 | 保留 `slotEditUndo` | 它在没有打开图纸时直接返回，改走 `activateCommand` 会在空文档上触发 `ActionEditUndo` |
+| 已无调用方的旧槽 | — | `slotZoomIn/Out/Pan`、`slotEditKillAllActions`、`slotDrawPoint`、`slotModifyDelete`、`slotIndoSelected`、`slotLayersFreezeAll/LockAll` 未删 | 本次之前就没有调用方，不属于迁移范围；删掉的是本次断开连接的 91 个槽 |
+| 死代码 | — | 删除从未调用的 `createCategorySolver()` 与构造函数里注释掉的视口/帮助类目、文件类目里注释掉的导入/打印/关闭面板 | 这些代码在 git 历史里可查；按注册表重写类目时不再保留注释掉的旧写法 |
+
+**新增设施**
+
+- `src/ui/ribbon/UIRibbonRegistry.{h,cpp}`：`UIRibbonContext`、`UIRibbonRequires`、
+  类目/面板/按钮/控件定义、`UIRibbonIds`（内置类目与面板的稳定 ID，含右侧常驻
+  按钮组 `ribbon.right_buttons`）、`UIRibbonRegistrar`/`UIRibbonRegistry`/
+  `UIRibbonScopedRegistrar`。
+- `src/ui/ribbon/UIRibbonManager.{h,cpp}`：装配与可用状态重算；
+  `createButtonGroup()` 供宿主自定义控件（图层面板）复用同样的边距。
+- `src/main/ApplicationWindowRibbon.cpp`：文件、绘图、设置三个内置类目的注册
+  （写成 `ApplicationWindow` 成员函数，`tr()` 上下文与迁移前一致，已有译文不受影响）。
+- `src/kernel/extension/IExtensionHost.h`、`ExtensionNamespace.h`。
+- `src/extensions/dim/`：`DimExtension`、`actions/`（9 个 Action）、`ui/`（线性
+  标注选项条、标注样式管理/修改/新建对话框、样式列表框）、`res/dim.qrc`
+  （8 个按钮图标）、`ts/dim_zh_cn.ts`（从主翻译拆出 12 个上下文 160 条，另加
+  `DimExtension` 上下文 8 条）。
+- 构建：`src/ui/ribbon` 加入 UI 分区；扩展下的 `*.ui` 与 `src/ui` 的表单一起
+  由 uic 生成（此前扩展不能带 Designer 表单）。
+- 测试（`tests/interaction/`）：`test_ribbon_registry.cpp`（7 例）、
+  `test_command_dispatch.cpp`（3 例），`test_command_registry.cpp` 新增 4 例、
+  `test_extension_manager.cpp` 新增 3 例（原 5 例改用假 `IExtensionHost`）。
+
+**影响面**
+
+- `ApplicationWindow.cpp` 2,376 → 1,680 行：93 处字符串形式的 `SLOT(slotXxx)`
+  连接只剩 2 处（`slotsTabChangeEvent` 与撤销）；
+  `enableButtons()` 只处理 Ribbon 之外的控件。
+- `UIActionHandler` 118 个 `slotXxx` → 27 个（`.cpp` 1,142 → 743 行）；
+  `UITabDrawWidget` 的"新建图纸"按钮改为按 ID 启动。
+- `GuiDialogFactoryInterface`/`GuiDialogFactoryAdapter`/`UIDialogFactory`：删掉
+  两个标注样式对话框方法与线性标注选项条的专用分支，新增按命令 ID 分发的
+  `requestRegisteredOptions`。
+- `AIExtension`：按钮改为注册到 `ribbon.right_buttons`，不再直接操作 `SARibbonBar`。
+- `support/config/keyconfig.xml`：删掉 12 条标注条目。
+- `DM::ActionDim*` 枚举值与 `Commands.cpp` 里的字符串映射保留（`ActionDimLinear`
+  等仍用作 `getEntityType()` 的类型标识），但不再有 legacy 桥接——用户目录下
+  旧 keyconfig 里残留的标注条目会按"认领但没有实现"处理，输入的文字若恰好
+  是扩展别名则转给扩展。
+
+**验证**
+
+- Debug 与 Release 全量构建、安装、`ctest` 4/4（`test_interaction` 含本阶段
+  新增 17 例）、`check_layering.py` 均通过；Release 安装后同样实测了下面的
+  标注按钮、选项条与标注样式管理器。
+- 安装后启动：Ribbon 与迁移前一致（"绘图"类目 12 个面板，标注面板由扩展
+  提供；AI 按钮在右上角；"设置"里 AI 设置入口排在两个内置按钮之后）。
+- 点击"线性标注"：命令启动，选项条"角度"出现（中文，来自 `dim_zh_cn.qm`）。
+  命令行输入 `dl`：提示 `[线性标注] 指定第一条尺寸界线原点`——别名分发、
+  注册表里的说明、扩展翻译三者都生效。
+- 点击"标注样式"：标注样式管理器弹出；其中"修改"经 `editStyle` 打开样式
+  修改对话框，关闭后程序正常。
+- 把 `src/extensions/dim/` 临时移走并删掉 `registerExtensions()` 里的两行：
+  构建、`ctest`、启动均正常，标注面板消失，`dl` 提示"未知命令"；恢复后
+  重新构建一切如前。注意：增删扩展目录后第一次 `cmake --build` 会先触发
+  重新配置，Visual Studio 生成器下本次构建仍用旧的工程文件，需要再构建一次。
+
+**验收对照**
+
+| 7.5 节的验收标准 | 状态 |
+|------------------|------|
+| 新增一条绘图命令不需要修改 `src/kernel/` 下的任何文件 | 达成。标注扩展的 8 条命令、按钮、别名、选项条全部在 `src/extensions/dim/` 注册，未新增枚举值；`test_command_dispatch.cpp` 覆盖按 ID 与按别名启动 |
+| `UIActionHandler.cpp` 无 `switch (actionType)` 巨型分支 | 维持达成 |
+| `ai/` 作为独立扩展加载，关闭该扩展后应用正常启动与绘图 | 维持达成；`dim/` 同样验证了"删目录即移除" |
+| 扩展的注册与卸载顺序可预测，`OnShutdown` 反序执行 | 维持达成，另测了命令在 `OnShutdown` 之后注销 |
+
+**遗留**
+
+- 任务⑤的其余领域扩展（文字、块、填充、打印）尚未拆分；标注扩展仍与内核
+  合编进 `YiCadCore`，"每个扩展独立成库"要等 6.7 节记录的 Action→UI/APP
+  双向依赖解开。
+- 插件入口（`PluginRegistry`/`PluginUiAdapter`）尚未接入 `CommandRegistry` 与
+  Ribbon 注册表，仍直接操作 `SARibbonBar`。
+- keyconfig.xml 与"命令设置"对话框仍以 `DM::ActionType` 为键，扩展命令的别名
+  不能由用户修改；`DM::ActionType` 降级未做。
+- 执行中发现、原样保留的既有缺陷：`UIDlgDimensionStyle.cpp` 用字符串形式
+  连接 `UILineTypeBox::lineTypeChanged(DM::LineType)`，该信号不存在（运行期
+  `QObject::connect: No such signal`），标注样式对话框里修改线型不会生效；
+  7.7 节记录的 `ActionSelectSingle` 空指针解引用仍在。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移

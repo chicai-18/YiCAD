@@ -40,7 +40,6 @@
 #include "UITabDrawWidget.h"
 #include "Fileio.h"
 
-#include "ActionDimLinear.h"
 
 #include "UIArcOptions.h"
 #include "UIArcTangentialOptions.h"
@@ -51,7 +50,6 @@
 #include "UICircleTan2Options.h"
 #include "UICloudLineOptions.h"
 #include "UICommandWidget.h"
-#include "UIDimLinearOptions.h"
 #include "UIDlgArc.h"
 #include "UIDlgCircle.h"
 #include "UIDlgDefineAttribute.h"
@@ -88,8 +86,6 @@
 #include "Debug.h"
 #include "UIBottomWidget.h"
 #include "UIDlgTextStyle.h"
-#include "UIDlgDimensionStyle.h"
-#include "UIDlgDimensionStyleMgr.h"
 #include "UIDlgLineType.h"
 #include "Transaction.h"
 
@@ -110,8 +106,6 @@ UIDialogFactory::UIDialogFactory(QWidget* parent, QWidget* ow)
 	m_pSnapDistOptions = nullptr;
 	m_pModifyOffsetOptions = nullptr;
 	m_pPrintPreviewOptions = nullptr;
-	m_pDimensionStyleMgr = nullptr;
-	m_pDimensionStyle = nullptr;
 	m_pTextStyle = nullptr;
 	m_pActionHandler = nullptr;
 	m_pTableStyle = nullptr;
@@ -455,10 +449,6 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 
 	case DM::ActionDrawImage:
 		requestImageOptions(action, on, update);
-		break;
-
-	case DM::ActionDimLinear:
-			requestDimLinearOptions(action, on, update);
 		break;
 
 	case DM::ActionModifyBevel:
@@ -812,29 +802,6 @@ void UIDialogFactory::requestImageOptions(ActionInterface* action, bool on, bool
 		if (on)
 		{
 			toolWidget = new UIImageOptions(optionWidget);
-			toolWidget->setAction(action, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for linear dimension options.
-void UIDialogFactory::requestDimLinearOptions(ActionInterface* action, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIDimLinearOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIDimLinearOptions(optionWidget);
 			toolWidget->setAction(action, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
@@ -1209,30 +1176,6 @@ bool UIDialogFactory::requestTextStyleDialog(DmTextStyleTable* textStyleTable, D
 	{
 		return false;
 	}
-}
-
-void UIDialogFactory::requestDimStyleMgrDialog(DmDimensionStyleTable* dimStyleTable, DmDocument* document)
-{
-	m_pDimensionStyleMgr = new UIDlgDimensionStyleMgr(parent, true);
-	m_pDimensionStyleMgr->init(dimStyleTable, document);
-	m_pDimensionStyleMgr->exec();
-}
-
-bool UIDialogFactory::requestDimStyleModifyDialog(DmDimensionStyle* dimStyle, DmDocument* document)
-{
-	m_pDimensionStyle = new UIDlgDimensionStyle(parent, this);
-	m_pDimensionStyle->init(dimStyle, document);
-	if (m_pDimensionStyle->exec())
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-
-	// 防止白屏或者黑白屏 刷新控件
-	m_pDimensionStyleMgr->update();
 }
 
 // Shows a dialog to edit pattern / hatch attributes of the given entity.

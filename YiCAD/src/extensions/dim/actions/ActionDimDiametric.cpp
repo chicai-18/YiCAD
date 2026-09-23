@@ -23,7 +23,6 @@
 /// @brief 直径标注操作类实现文件
 
 #include "ActionDimDiametric.h"
-#include "CommandRegistry.h"
 
 #include <cmath>
 
@@ -346,11 +345,3 @@ void ActionDimDiametric::hideOptions()
 {
 	ActionInterface::hideOptions();
 }
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionDimDiametric, QStringLiteral("dim.diametric"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDimDiametric(ctx.document, ctx.view); });
-}  // namespace

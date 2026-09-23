@@ -148,6 +148,8 @@ inline constexpr const char* kPanelDraw2dCurve = "draw2d.curve";
 inline constexpr const char* kPanelDraw2dPolyline = "draw2d.polyline";
 inline constexpr const char* kPanelDraw2dCircle = "draw2d.circle";
 inline constexpr const char* kPanelDraw2dEllipse = "draw2d.ellipse";
+/// @brief 标注面板：宿主只占位，按钮由标注扩展（ext.dim）注册；没有按钮的
+/// 面板不装配，移除扩展后这个面板随之消失。
 inline constexpr const char* kPanelDraw2dDimension = "draw2d.dimension";
 inline constexpr const char* kPanelDraw2dText = "draw2d.text";
 inline constexpr const char* kPanelDraw2dOther = "draw2d.other";

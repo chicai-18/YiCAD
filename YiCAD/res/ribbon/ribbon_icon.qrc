@@ -71,14 +71,6 @@
 		<file>draw2d/ellipe_2seg.svg</file>						<!--长短轴画椭圆      	-->
 		<file>draw2d/ellipse_incrib.svg</file>					<!--内切椭圆          	-->
 		<!-- dimension -->
-		<file>draw2d/dim_align.svg</file>						<!--对齐标注          	-->
-		<file>draw2d/dim_linear.svg</file>						<!--线性标注          	-->
-		<file>draw2d/dim_radius.svg</file>						<!--半径标注          	-->
-		<file>draw2d/dim_diam.svg</file>						<!--直径标注          	-->
-		<file>draw2d/dim_angle.svg</file>						<!--角度标注			-->
-		<file>draw2d/dim_leader.svg</file>						<!--引线标注			-->
-		<file>draw2d/dim_baseline.svg</file>					<!--基线标注			-->
-		<file>draw2d/dim_style.svg</file>						<!--标注样式          	-->
 		<!-- text -->
 		<file>draw2d/text.svg</file> 		 					<!--单行文字            -->
 		<file>draw2d/mtext.svg</file> 		 					<!--多行文字            -->

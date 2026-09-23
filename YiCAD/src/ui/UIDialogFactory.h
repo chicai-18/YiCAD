@@ -41,8 +41,6 @@ class DmDocument;
 class UILineAngleOptions;
 class DmVector;
 class DmTextStyleTable;
-class UIDlgDimensionStyleMgr;
-class UIDlgDimensionStyle;
 class UIDlgTextStyle;
 class DmAttributeDefinition;
 class DmViewport;
@@ -111,8 +109,6 @@ protected:
 
 	void requestTextOptions(ActionInterface* action, bool on, bool update);
 
-	void requestDimLinearOptions(ActionInterface* action, bool on, bool update);
-
 	void requestInsertOptions(ActionInterface* action, bool on, bool update);
 	void requestBlockEditOptions(ActionInterface* action, bool on);
 	void requestImageOptions(ActionInterface* action, bool on, bool update);
@@ -133,8 +129,6 @@ public:
 	void requestModifySingleOffsetOptions(double& dist, bool on, bool update = false) override;
 	bool requestTextDialog(DmText* text) override;
 	bool requestTextStyleDialog(DmTextStyleTable* textStyles, DmDocument* document) override;
-	void requestDimStyleMgrDialog(DmDimensionStyleTable* dimStyleTable, DmDocument* document) override;
-	bool requestDimStyleModifyDialog(DmDimensionStyle* dimStyle, DmDocument* document) override;
 	bool requestHatchDialog(DmHatch* hatch) override;
 	void requestOptionsGeneralDialog() override;
 	void requestOptionsDrawingDialog(DmDocument& document) override;
@@ -176,8 +170,6 @@ private:
 	UILineAngleOptions*				m_pLineAngleOptions = nullptr;
 	QPointer<QWidget>				m_pRegisteredOptions;					///< requestRegisteredOptions 当前显示的选项条
 
-	UIDlgDimensionStyleMgr*			m_pDimensionStyleMgr = nullptr;
-	UIDlgDimensionStyle*			m_pDimensionStyle = nullptr;
 	UIDlgTextStyle*					m_pTextStyle = nullptr;
 	UIDlgLineType*					m_pLineType = nullptr;
 	UIDlgTableStyle*				m_pTableStyle = nullptr;

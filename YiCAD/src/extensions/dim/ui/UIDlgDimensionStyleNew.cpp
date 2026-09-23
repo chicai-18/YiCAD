@@ -22,7 +22,7 @@
 
 #include "DmDocument.h"
 #include "DmDimensionStyle.h"
-#include "GuiDialogFactory.h"
+#include "UIDlgDimensionStyle.h"
 
 #include <QPushButton>
 #include <QMessageBox>
@@ -69,7 +69,7 @@ void UIDlgDimensionStyleNew::done(int r)
         }
         DmDimensionStyle* pNewStyle = new DmDimensionStyle(*ui->cbTemplateStyle->getStyle(), newStyle);
         pNewStyle->setDocument(m_pDocument);
-        bool res = GUIDIALOGFACTORY->requestDimStyleModifyDialog(pNewStyle, m_pDocument);
+        bool res = UIDlgDimensionStyle::editStyle(this, pNewStyle, m_pDocument);
         if (!res)
         {
             delete pNewStyle;

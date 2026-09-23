@@ -221,18 +221,6 @@ public:
         return false;
     }
 
-    /// @brief 请求标注样式管理对话框（空操作）
-    virtual void requestDimStyleMgrDialog(DmDimensionStyleTable* dimStyleTable, DmDocument* document) override
-    {
-    }
-
-    /// @brief 请求标注样式修改对话框
-    /// @return 始终返回 false
-    virtual bool requestDimStyleModifyDialog(DmDimensionStyle* dimStyleTable, DmDocument* document) override
-    {
-        return false;
-    }
-
     /// @brief 请求线型管理对话框
     /// @return 始终返回 false
     bool requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document) override

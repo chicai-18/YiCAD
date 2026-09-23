@@ -21,7 +21,7 @@
 #include "UIDimStyleListBox.h"
 #include "DmDimensionStyleTable.h"
 #include "DmDocument.h"
-#include "GuiDialogFactory.h"
+#include "UIDlgDimensionStyle.h"
 #include "UIDlgDimensionStyleNew.h"
 #include <QMenu>
 #include <QContextMenuEvent>
@@ -218,7 +218,7 @@ void UIDimStyleListBox::slotRenameDimStyle()
 
 void UIDimStyleListBox::slotModifyDimStyle()
 {
-	bool res = GUIDIALOGFACTORY->requestDimStyleModifyDialog(m_pSelectedStyle, m_pDocument);
+	bool res = UIDlgDimensionStyle::editStyle(window(), m_pSelectedStyle, m_pDocument);
 	if (res)
 	{
 		emit styleChanged();

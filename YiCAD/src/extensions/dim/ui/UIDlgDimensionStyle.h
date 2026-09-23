@@ -47,6 +47,13 @@ public:
     /// @param [in] pDocument 文档指针
     void init(DmDimensionStyle* pStyle, DmDocument* pDocument);
 
+    /// @brief 以模态对话框编辑（或新建）一个标注样式。
+    /// @param [in] parent 父窗口
+    /// @param [in] pStyle 标注样式；不在样式表里时，确认后加入样式表
+    /// @param [in] pDocument 文档指针
+    /// @return 用户确认返回 true
+    static bool editStyle(QWidget* parent, DmDimensionStyle* pStyle, DmDocument* pDocument);
+
 protected:
     /// @brief 显示事件
     /// @param [in] e 显示事件

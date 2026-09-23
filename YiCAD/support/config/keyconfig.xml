@@ -52,14 +52,6 @@
 		<item action="ActionDrawEllipseAxis" description="椭圆(轴)" keys=""/>
 		<item action="ActionDrawEllipseInscribe" description="内切椭圆" keys="ellipseinscribed, ei, ie"/>
 		
-		<!--标注-->
-		<item action="ActionDimAligned" description="对齐标注" keys="dimaligned, da"/>
-		<item action="ActionDimLinear" description="线性标注" keys="dimlinear, dl, dr"/>
-		<item action="ActionDimRadial" description="半径标注" keys="dimradial, dimradius"/>
-		<item action="ActionDimDiametric" description="直径标注" keys="dimdiametric, dimdiameter, dd"/>
-		<item action="ActionDimAngular" description="角度标注" keys="dimangular, dan"/>
-		<item action="ActionDimLeader" description="引线标注" keys="dimleader, ld"/>
-		
 		<!--文字-->
 		<item action="ActionDrawText" description="单行文字" keys="text, txt"/>
 		<item action="ActionDrawMText" description="多行文字" keys="mtext, mtxt"/>
@@ -157,14 +149,6 @@
 		<!--椭圆-->
 		<item action="ActionDrawEllipseAxis" description="椭圆(轴)" keys="ty"/>
 		<item action="ActionDrawEllipseInscribe" description="内切椭圆" keys="nqty"/>
-		
-		<!--标注-->
-		<item action="ActionDimAligned" description="对齐标注" keys="dqbx, dq"/>
-		<item action="ActionDimLinear" description="线性标注" keys="xxbz, xx"/>
-		<item action="ActionDimRadial" description="半径标注" keys="bjbz, bj"/>
-		<item action="ActionDimDiametric" description="直径标注" keys="zjbz, zj"/>
-		<item action="ActionDimAngular" description="角度标注" keys="jdbz, jd"/>
-		<item action="ActionDimLeader" description="引线标注" keys="yxbz, yx"/>
 		
 		<!--文字-->
 		<item action="ActionDrawText" description="单行文字" keys="d, dhwz"/>

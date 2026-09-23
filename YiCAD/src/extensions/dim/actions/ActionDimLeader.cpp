@@ -24,7 +24,6 @@
 
 #include <vector>
 #include "ActionDimLeader.h"
-#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -268,11 +267,3 @@ void ActionDimLeader::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionDimLeader, QStringLiteral("dim.leader"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDimLeader(ctx.document, ctx.view); });
-}  // namespace

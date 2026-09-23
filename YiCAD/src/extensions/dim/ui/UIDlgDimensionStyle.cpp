@@ -289,6 +289,13 @@ void UIDlgDimensionStyle::updatePreview()
     }
 }
 
+bool UIDlgDimensionStyle::editStyle(QWidget* parent, DmDimensionStyle* pStyle, DmDocument* pDocument)
+{
+    UIDlgDimensionStyle dlg(parent, true);
+    dlg.init(pStyle, pDocument);
+    return dlg.exec() != 0;
+}
+
 void UIDlgDimensionStyle::accept()
 {
     auto styleInTable = m_pDocument->getDimStyleTable()->find(m_pStyle->getName());

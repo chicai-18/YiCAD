@@ -24,7 +24,6 @@
 
 #include <cmath>
 #include "ActionDimLinear.h"
-#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -348,11 +347,3 @@ void ActionDimLinear::hideOptions()
 }
 
 // EOF
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionDimLinear, QStringLiteral("dim.linear"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDimLinear(ctx.document, ctx.view); });
-}  // namespace
