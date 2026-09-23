@@ -610,6 +610,115 @@ flowchart TB
 - 缓解：先做一次静态依赖分析（按 `#include` 构图），在动手前把循环依赖清单列全，
   评估后再决定是否调整库边界。
 
+### 6.7 执行结果
+
+按 6.6 节的缓解措施，先做了一次全量静态依赖分析（按 `#include` 逐文件构图，
+覆盖全部七个分区），再动手。分析发现的循环依赖规模远超"可能比已知三处更多"
+的预期，直接决定了库边界必须调整：详见下表第一行。落地顺序是先修分层
+违规与关系错位（6.4.1、6.4.3 部分），再拆库（6.4.3 其余部分），最后跑
+Debug/Release 全量构建与 `ctest` 验证。
+
+**与方案的偏差**
+
+| 项 | 方案 | 实际 | 理由 |
+|----|------|------|------|
+| 目标库结构 | 七个分区各自拆成独立静态库（6.3 节图） | 只有 `YiCadMath`/`YiCadModel`/`YiCadPersistence` 三层拆成独立静态库，依赖方向由 CMake 物理强制；`RENDER`/`INTERACTION`/`UI`/`APP` 四个分区仍合编进 `YiCadCore`（OBJECT 库，机制不变） | 静态依赖分析发现两处真实的双向依赖，都是阶段 1、2 与既有代码的既定设计而非本次拆库引入：(1) `GuiDocumentView`/`GuiEventHandler`（RENDER）在构造函数里直接 `new`/持有 `ViewToolControl`/`PanZoomTool`/`LegacyActionTool`/Action 栈（INTERACTION 的具体类型），阶段 2 就是这样设计的；(2) `src/actions/` 106 个 Action 里 40 余个直接包含 UI 对话框头文件与 `ApplicationWindow`/`MDIWindow`（APP），UI 组件反过来也有多处直接调用 `ApplicationWindow`/`MDIWindow` 取全局状态。这两对关系里任何一边都无法在不改变运行时行为的前提下只靠移动文件解耦，需要的是依赖注入式重构（比如把 `ViewToolControl` 的构造从 `GuiDocumentView` 构造函数搬到 `MDIWindow` 创建视图之后再注入），工作量与风险都超出"拆库"本身，作为独立事项留给未来（候选：与阶段 4 的 `IExtension` 框架一起做，那时本来就要重新设计 Ribbon/命令的注册路径） |
+| `kernel/persistence/` 的归属 | 整个目录连同 `Meta/`、`filters/`、`fileio/` 归 `YiCadPersistence` | 拆成两半：`Persistence`/`Stream`/`Reader`/`Writer`/`Archive`/`Tools`/`Base64`/`Swap`/`TimeInfo`/`Uuid`/`gzstream`/`MinizipNgArchive`/`FileInfo`（原 `persistence/` 根目录的大部分文件）与 `Meta/MetaType`、`Meta/Type`（RTTI 基础设施）物理迁到 `kernel/math`；`Meta/` 下各 `MetaXxx`（`MetaArcs`、`MetaCircles`……）、`MigratorBase`、`filters/`、`backuppolicy` 留在 `YiCadPersistence` | `DmFlags.h`（`DmObject`/`DmEntity` 的直接基类）本身就 `#include "Persistence.h"` 和 `"Stream.h"`——`Persistence` 是整个类型系统的根，`DmArc`/`DmCircle`/`DmEllipse`/`DmLine`/`DmPoint`/`DmRay`/`DmSolid` 等实体类的 `saveStream`/`restoreStream` 直接用到 `OutputStream`/`InputStream`。这些文件不含任何 `Dm*` 类型依赖（只用 `pugixml`/`boost`/标准库），是比 Model 更底层的基础设施，物理上放错了目录；`Meta/MetaArcs` 一类文件则相反，直接 `#include "DmEntity.h"`，是真正依赖 Model 的具体持久化实现，留在原位置 |
+| `kernel/math/` 的归属 | 整个目录归 `YiCadMath`，且不依赖任何上层 | `FindClosedRegion`、`ConstrainedDelaunayTriangulation`、`Quadratic`、`GeUtility` 迁出到 Model 分区（`FindClosedRegion`/`ConstrainedDelaunayTriangulation`/`Quadratic` 到 `kernel/information`，`GeUtility` 同去）；`SpacialSearchTree` 迁到 `kernel/history`。同时 `Datamodel.h`（`DM::` 命名空间的枚举与常量）与 `DmVector`/`DmRect`（几何值类型）从 `kernel/builder_model` 迁入 `kernel/math` | 前四者虽物理放在 `kernel/math/`，但直接操作 `DmArc`/`DmCircle`/`DmEllipse`/`DmLine`/`DmPolyline`/`DmSpline`/`DmTriangle`/`DmBlockReference`/`DmEntity` 等真实 CAD 实体（`DmTriangle` 本身 `: public DmEntity`），是实体感知的几何算法而非纯数学，应属 Model 层；`Datamodel.h` 反而是零依赖的纯枚举/常量头（没有一个 `#include`），`DmVector`/`DmRect` 只依赖 `Datamodel.h` 和标准库，却被几乎每一个数学算法文件用作最基础的坐标类型，本质上是 Math 层缺失的底座，留在 Model 会让 `YiCadMath` 无法独立编译 |
+| `IDocumentView`/`ISnapService` 的归属 | 阶段 1/2 已放在 `kernel/actions/`（INTERACTION），未在阶段 3 计划内变动 | 迁到 `kernel/builder_model/`（MODEL） | `kernel/modification/Selection.h`、`Modification.cpp`、`kernel/history/BlockEditCmd.cpp`（均为 Model 分区，阶段 1 就已让它们持有 `IDocumentView*`，见 4.6 节）与阶段 3 新增的 `DmDocument::m_documentView`（见下）都需要这个接口；接口必须落在消费方里最低的那一层，否则 Model 拆库时会反向依赖 Interaction。顺带修了 `IDocumentView.h` 一处遗留：它 `#include "Snapper.h"`（阶段2的具体实现类），实际只需要阶段2已经拆出的 `ISnapService.h`（`SnapMode`/`DM::SnapRestriction` 所在地） |
+| `DmCachePainter` 的归属 | 6.2 节已知问题，"阶段 3 拆库时需处置"，未定具体去向 | 迁到 `kernel/gui/`（RENDER） | 该类完整包装 `GLCachePainter`，成员方法叫 `create_resources()`（初始化 glew 及 shader），是纯 GL 渲染代码，只被 `GuiDocumentView`/`GuiPreviewWidget`（均 RENDER）使用，放在 `kernel/builder_model/` 纯属目录放错 |
+| `GuiDialogFactory`/`GuiDialogFactoryAdapter`/`GuiDialogFactoryInterface` 的归属 | 未提及；6.4.1 只说"或注入接口" | 三个文件从 `kernel/gui/`（RENDER）迁到 `kernel/builder_model/`（MODEL） | `GuiDialogFactoryInterface.h` 本身只 `#include <QString>` 与 `"Datamodel.h"`，对话框相关的具体类型（`GuiDocumentView`、`UICommandWidget` 等）全部只是形参里的前置声明，不产生真实编译依赖；但 `DmDocument.cpp`、`Modification.cpp` 等 Model 文件通过 `GUIDIALOGFACTORY` 宏直接调用它，物理放在 RENDER 目录下已构成 Model→Render 依赖。移下去之后 `DmEntityContainer.cpp`/`DmHatch.cpp` 两处死 include（见下一条）与 `Modification.cpp` 一处死 include 都不需要额外处理 |
+| 6.4.1 的三处 P7 违规修法 | `DmEntityContainer`/`DmHatch`：改返回值或注入 `IUserPrompt`；`DmDocument`：接口注入或信号解耦 | 前两处：`#include "UIDialogFactory.h"`（连同同时存在的 `#include "GuiDialogFactory.h"`）在文件里通篇未被引用，是死代码，直接删除，未新增任何接口；后一处：给 `GuiDialogFactoryInterface` 新增 `requestUntitledDocumentName(DmDocument*)`，`DmDocument::save()` 里原来直接 `ApplicationWindow::getAppWindow()->getTabDrawWidget()->getTabDrawDataOfDocument(this)` 取标签页名字的调用改走这个接口 | 逐文件核查每处违规的真实用途后发现，`UIDialogFactory.h` 从未被真正需要过，是历史遗留；只有 `DmDocument.cpp` 这一处是真实需求，套用已有的 `GuiDialogFactoryInterface` 单例注入模式（`ApplicationWindow` 启动时 `setFactoryObject`）即可，不需要新发明机制 |
+| `GuiDialogFactoryInterface` 的扩展面 | 未列出 | 除 `requestUntitledDocumentName` 外，另加 `requestActiveDocument()`、`requestFileExport()`、`requestFileImport()`、`requestConfirmDialog()` 四个方法 | 静态分析额外发现四类同类问题：(1) `DmDimAngular`/`DmDimDiametric`/`DmDimLinear`/`DmDimRadial`/`DmLeader` 共 9 处调用 `ApplicationWindow::getAppWindow()->getDocument()` 取"当前活动文档"；(2)(3) `DmDocument::save()`/`open()` 直接调 `FileIO::instance()->fileExport/fileImport()`（`kernel/fileio`，见下一条其物理位置本身也要挪走）；(4) `DmDocument::open()` 里两处 `QMessageBox::critical(...)` 直接弹 Qt Widgets 对话框。全部套用同一个已有的接口注入模式解决，具体实现（`UIDialogFactory`，`ui/`）里对 (1)(2)(3) 就是把原来的直接调用原样挪过去，行为不变 |
+| `DmDocument::m_documentView` 的类型 | 未提及（阶段 1 明确排除了 `kernel/builder_model`） | 从具体的 `GuiDocumentView*` 改为 `IDocumentView*`；`setDocumentView`/`getDocumentView` 的形参/返回类型同步改；`IDocumentView` 新增 `setDocumentPainterContainer(DmEntityContainer*)` | `DmDocument.cpp` 内部四处调用 `m_documentView->specifyDocumentModified()/redraw()/setDocumentPainterContainer()`，指针类型是 `GuiDocumentView*` 就必须完整定义该类型（哪怕只是调虚函数），无法只前置声明。三个被调方法均属"文档视图"能力，机械改造成接口调用；`kernel/actions/Preview.cpp` 原来正是因为 `DmDocument::getDocumentView()` 返回具体类型才特意 `#include "GuiDocumentView.h"`（代码里留了这条注释），改完接口返回类型后这处 include 也一并去掉，是意外的额外收益 |
+| `MTextEditCmd` 的归属 | 未提及（`kernel/history` 属 Model，未被列为已知问题） | 从 `kernel/history/` 迁到 `kernel/actions/`（INTERACTION） | 其中两个类（`MTextEdit_SetSelectBeginEndToNull_Cmd`、`MTextEdit_ResizeCmd`）直接读写 `ui/MTextEditWidget`（UI 层）的公开成员字段（选区字符指针、缩放边界），是编辑控件自身交互状态的撤销/重做，不是文档数据的撤销/重做；全仓唯一调用方是 `ui/MTextEditWidget.cpp`，`kernel/history` 下没有任何引用，迁移零风险。通用的 `MTextEditCmdManager`（不引用任何具体 Cmd 类或 `MTextEditWidget`）留在原地 |
+| `kernel/fileio` 的归属 | 计划图未列出，CMakeLists 阶段 0 起归 `PERSISTENCE` | 归 `APP` 分区（物理文件不动，只改 CMake 分区归属） | `Fileio.cpp` 除了 `kernel/filters` 的内置格式过滤器，还要 `setPluginRuntime()` 接入 `plugin_runtime/`（APP）的 `PluginRegistry`/`PluginManager`/`HostApi`，且直接 `#include` 这三个类的完整定义（不是前置声明）——这是已有的、通过 setter 显式注入的设计，但物理上决定了 `Fileio.{h,cpp}` 只能编进能看到 APP 分区头文件的目标。`DmDocument` 对它的调用已通过上一条的接口注入解耦，`YiCadPersistence` 不再需要它 |
+| 死 include 清理 | 未列为任务 | 顺手删除 Model 分区内约 30 处死 include：14 个 `Dm*.cpp` 里 `#include "GuiDocumentView.h"`（阶段 1 之前遗留，符号从未被引用）、`DmArc`/`DmCircle`/`DmEllipse`/`DmLine`/`DmPoint`/`DmRay`/`DmSolid` 的 `Writer.h`/`Reader.h`（`Stream.h` 才是真用到的）、`DmLineType`/`DmOverlayEntity`/`DmMTextParagraph`/`CircleData` 的 `Tools.h`、`DmTextStyle.cpp` 的 `ApplicationWindow.h`/`MDIWindow.h`、`DmSystem.cpp` 的 `<QApplication>`、`FilterJsonIO.cpp` 的 `GuiDocumentView.h` | 逐个 `#include` 核查真实用途是拆库前必须做的工作（否则库边界立在错误的地方），顺手做了清理；每一处删除都用"编译器是否报未定义符号"验证过，不是凭 grep 猜测 |
+| PCH-per-library 与 UNITY_BUILD（6.4.4） | 每个新库单独配置 PCH，大库启用 UNITY_BUILD | 均未实施，`YiCadCore` 的 PCH 保持原样，三个新静态库不加 PCH | 直接复用现有 `YiCadPch.h` 会把 `<QWidget>` 等重量级头带回 `YiCadMath`/`YiCadModel`，抵消拆库意义；另起炉灶配小型 PCH 需要新一轮"每个头是否安全"的分析，且 `YiCadModel` 达 200 余文件，盲开 `UNITY_BUILD` 有暴露匿名命名空间/静态变量重名等隐藏问题的真实风险。二者都不是"拆库"本身要求的，优先级低于把库边界立对，作为独立事项留给未来 |
+| `tools/check_layering.py` | 白名单三处违规修完后一并删除 | 白名单清空（`WHITELIST = {}`），脚本本体与扫描范围（整个 `src/kernel/`）保留 | 脚本检查的是"内核不得包含 `UI*` 头文件"，对 `YiCadMath`/`YiCadModel`/`YiCadPersistence` 这三层，CMake 的 `target_include_directories` 现在物理保证了这件事（想违规都编不过），脚本对它们而言是多余的；但 `kernel/actions`、`kernel/gui` 仍与 UI 合编（见第一条），这两个目录理论上仍可能新增对 `UI*` 头的直接包含，脚本继续作为比"重新配置+编译"更快的 CI 早期预警保留 |
+
+**执行中发现但未修复的问题**
+
+| 位置 | 问题 | 说明 |
+|------|------|------|
+| `DmDimAngular.cpp`、`DmDimDiametric.cpp`、`DmDimLinear.cpp`、`DmDimRadial.cpp`、`DmLeader.cpp` | 用"当前活动文档"（现改为 `GUIDIALOGFACTORY->requestActiveDocument()`）而非 `this->getDocument()`（实体自身所属文档，`DmObject` 已有此访问器）取 `DmDimStyleTable` | 多文档场景下，若这些标注实体所属的文档不是当前界面焦点文档（例如后台重算、非焦点标签页的撤销重放），会取错标注样式表。这是原有行为（阶段 3 只是把直接调用挪到接口后面，未改语义），修复需要验证这些方法被调用时 `this` 是否已可靠挂到文档树上，留给未来单独评估 |
+
+**新增设施**
+
+- `YiCAD/src/kernel/builder_model/GuiDialogFactoryInterface.h`（从 `kernel/gui/` 迁入）—— 新增
+  `requestConfirmDialog()`、`requestActiveDocument()`、`requestUntitledDocumentName()`、
+  `requestFileExport()`、`requestFileImport()` 五个方法，连同已有的 `requestWarningDialog()`/
+  `commandMessage()` 等，构成 Model 层"向 App/UI 层请求用户交互或宿主状态"的完整接口；
+  `GuiDialogFactoryAdapter.h` 同步加了默认空实现，`ui/UIDialogFactory.{h,cpp}` 同步加了
+  委托给既有 `ApplicationWindow`/`FileIO` 调用的具体实现。
+- `YiCAD/src/kernel/builder_model/IDocumentView.h`、`ISnapService.h`（从 `kernel/actions/` 迁入）——
+  `IDocumentView` 新增 `setDocumentPainterContainer(DmEntityContainer*)`；`IDocumentView.h`
+  的 `#include "Snapper.h"` 改为 `#include "ISnapService.h"`。
+- `YiCAD/src/kernel/gui/DmCachePainter.{h,cpp}`（从 `kernel/builder_model/` 迁入）。
+- `YiCAD/src/kernel/math/{Persistence,Stream,Reader,Writer,Archive,Tools,Base64,Swap,TimeInfo,Uuid,gzstream,MinizipNgArchive,FileInfo,MetaType,Type,Datamodel,DmVector,DmRect}.{h,cpp}`
+  （从 `kernel/persistence/`、`kernel/persistence/Meta/`、`kernel/builder_model/` 迁入）。
+- `YiCAD/src/kernel/information/{FindClosedRegion,ConstrainedDelaunayTriangulation,Quadratic,GeUtility}.{h,cpp}`、
+  `YiCAD/src/kernel/history/SpacialSearchTree.{h,cpp}`（从 `kernel/math/`、`kernel/utility/` 迁入）。
+- `YiCAD/src/kernel/actions/MTextEditCmd.{h,cpp}`（从 `kernel/history/` 迁入）。
+- `YiCAD/CMakeLists.txt` —— `YiCadMath`/`YiCadModel`/`YiCadPersistence` 三个新 `STATIC` 目标，
+  依赖方向 `YiCadPersistence -> YiCadModel -> YiCadMath`，全部用 `PUBLIC`
+  `target_link_libraries`/`target_include_directories`/`target_compile_definitions`
+  传播，公共编译选项（`_USE_MATH_DEFINES`、`/utf-8` 等）只在 `YiCadMath` 声明一次即可
+  沿依赖链传到 `YiCadCore` 与可执行/测试目标；`YiCadCore` 改为链接 `YiCadPersistence`
+  而非直接收纳七个分区的源文件。
+- `tests/CMakeLists.txt` 的 `yicad_add_test()` 新增 `LINK` 参数——`tests/math`、
+  `tests/geometry`、`tests/persistence` 分别改链接 `YiCadModel`（`tests/math` 的用例本身
+  只需要 `YiCadMath`，但共用入口 `yicad_test_main.cpp` 要先跑 `DmSystem::init`/
+  `DmSettings::init`，这两步是 `YiCadModel` 的符号，经 `PUBLIC` 依赖链带上 `YiCadMath`）、
+  `YiCadModel`、`YiCadPersistence`，不再链接完整的 `YiCadCore`；`tests/interaction`
+  未改动，继续链接 `YiCadCore`（其用例覆盖 `SelectTool`/`PanZoomTool` 等 INTERACTION
+  分区代码）。
+- `tools/measure_build.ps1` 的 `Datamodel.h` 目标路径同步改为 `kernel/math/Datamodel.h`；
+  `Invoke-Build` 补上 `-- -m`（见下一条与本节末尾的"验收对照"）。
+- `.github/workflows/build.yml` 的 Build 步骤同样补上 `-- -m`——拆库前只有
+  `YiCadCore` 一个大目标，`-m` 可有可无；拆库后 `YiCadMath -> YiCadModel ->
+  YiCadPersistence -> YiCadCore` 是一条有依赖顺序的项目链，Visual Studio
+  生成器默认不做解决方案级并行，实测无 `-m` 的全量构建比有 `-m` 慢约 10 秒
+  （189.7 秒 vs 179.2 秒，见 `doc/BASELINE.md` §5）。
+
+**影响面**
+
+- `kernel/builder_model/DmDocument.{h,cpp}` —— 移除 `Fileio.h`/`ApplicationWindow.h`/
+  `UITabDrawWidget.h`/`GuiDocumentView.h`/`<QMessageBox>` 五个跨层 include；`m_documentView`
+  改为 `IDocumentView*`；`save()`/`open()` 里的 `FileIO::instance()`/`QMessageBox::critical()`
+  调用改走 `GUIDIALOGFACTORY`。
+- `kernel/builder_model/dimension/{DmDimAngular,DmDimDiametric,DmDimLinear,DmDimRadial,DmLeader}.cpp` ——
+  移除 `ApplicationWindow.h`，`ApplicationWindow::getAppWindow()->getDocument()` 改为
+  `GUIDIALOGFACTORY->requestActiveDocument()`。
+- `kernel/builder_model/DmImage.cpp` —— 补上直接需要却一直靠 `GuiDocumentView.h` 间接带入的
+  `<QImage>`/`<QPolygonF>`（P8 式的隐藏依赖，模式与阶段 1 发现的 `DmEllipse.cpp`/glm
+  问题相同）。
+- `kernel/builder_model/DmSystem.cpp` —— 补上 `<QCoreApplication>`（`qApp` 宏所在地，同上）。
+- `kernel/actions/Preview.cpp` —— 移除不再需要的 `#include "GuiDocumentView.h"`，改
+  `#include "IDocumentView.h"`。
+- `tests/support/FakeDocumentView.h` —— 补上 `IDocumentView` 新增的
+  `setDocumentPainterContainer()` 空实现，否则该测试替身变成抽象类。
+- 其余约 20 个文件仅删除死 include，零行为变化（见上表"死 include 清理"）。
+
+**验收对照**
+
+| 6.5 节的验收标准 | 状态 |
+|------------------|------|
+| `YiCadModel` 的编译不需要 Qt Widgets 与 OpenGL | 达成。`YiCadModel` 只链接 `Qt5::Core`、`Qt5::Gui`、`CDT::CDT`、`Freetype::Freetype`（`DmFont` 直接用 FreeType 量取字形轮廓）与 `Dwrite.lib`（`DmSystem` 枚举系统字体路径），不含 `Qt5::Widgets`、`GLEW`、`OpenGL`；原有的一处 Widgets 依赖（`DmDocument::open()` 里两处 `QMessageBox::critical`）已改走接口注入 |
+| `src/kernel/` 下不再出现对 `UI*` 头文件的包含 | 部分达成，且比方案预期更严格：`YiCadMath`/`YiCadModel`/`YiCadPersistence` 三层现在是物理不可能（不在编译期 include 路径上）；`kernel/actions`/`kernel/gui`（仍与 UI 合编进 `YiCadCore`）目前实测同样不含 `UI*` 包含（`tools/check_layering.py` 全量扫描通过，白名单为空），但这两个目录未被禁止将来引入——如引入需在脚本白名单登记 |
+| 全量构建时间与「只改 `DmArc.cpp` 的增量构建时间」相对阶段 0 基线有明确改善数据 | 部分达成，且好坏两个方向都很明确，见 `doc/BASELINE.md` §5：`DmArc.cpp` 增量 19.3→9.7 秒（-50%），`GuiDocumentView.h` 增量 65.3→18.7 秒（-71%，两者都是"改一个文件"场景，日常开发的典型情况）；但全量构建 144.3→179.2 秒、`Datamodel.h` 增量 120.9→141.2 秒，两项聚合型指标反而变差。根因是 Visual Studio/MSBuild 按 `YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore` 的项目依赖顺序构建，无法把"只需要头文件"和"需要完整 .lib"两种依赖强度区分开，16 核机器上单个下层库文件不够多时反而并行度用不满；已补上 `cmake --build -- -m`（CI 与 `tools/measure_build.ps1` 同步），部分缓解但未消除，彻底解决预计要换生成器（如 Ninja），超出本阶段范围 |
+| 新增源文件无需手工重配 CMake，或有明确的显式清单维护流程 | 达成（阶段 0 已完成，本阶段延续，`CONFIGURE_DEPENDS` 覆盖全部七个分区外加三个新库） |
+
+6.5 节四条验收标准，第一、四条完全达成；第二条在物理可行的范围内（三层拆库
+部分）达成、在合编部分（Render/Interaction/UI/App）维持既有脚本检查——这一
+范围收窄本身是 6.7 节记录的核心偏差，不是遗漏；第三条喜忧参半——两项"改一个
+文件"的日常场景指标明显变好，两项"改动波及全树"的场景指标因生成器的项目级
+调度粒度反而变差，且已确认无法在不换生成器的前提下完全消除。目标库结构从
+七层降为"三层独立静态库 + 一个合编 OBJECT 库"，是本阶段对方案最大的一处修订；
+`Render`/`Interaction` 的双向依赖解耦、`UI`/`APP` 的双向依赖解耦、构建生成器
+选型、以及 PCH-per-library、`UNITY_BUILD`，都作为独立、有明确前置条件的事项
+留给未来，不是当前的遗留缺口。
+
 ---
 
 ## 7. 阶段 4：命令注册表与扩展化

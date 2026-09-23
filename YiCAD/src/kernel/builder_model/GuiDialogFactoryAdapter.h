@@ -36,6 +36,41 @@ public:
     {
     }
 
+    /// @brief 请求确认对话框
+    /// @return 始终返回 false
+    bool requestConfirmDialog(const QString&, const QString&) override
+    {
+        return false;
+    }
+
+    /// @brief 获取当前活动文档
+    /// @return 始终返回 nullptr
+    DmDocument* requestActiveDocument() override
+    {
+        return nullptr;
+    }
+
+    /// @brief 请求未命名文档的默认名称
+    /// @return 始终返回空字符串
+    QString requestUntitledDocumentName(DmDocument*) override
+    {
+        return {};
+    }
+
+    /// @brief 请求文件导出
+    /// @return 始终返回 false
+    bool requestFileExport(DmDocument&, const QString&, const QString&) override
+    {
+        return false;
+    }
+
+    /// @brief 请求文件导入
+    /// @return 始终返回 false
+    bool requestFileImport(DmDocument&, const QString&) override
+    {
+        return false;
+    }
+
     /// @brief 请求新建文档
     /// @return 始终返回 nullptr
     GuiDocumentView* requestNewDocument(const QString&, DmDocument*)

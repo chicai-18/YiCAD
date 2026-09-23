@@ -35,7 +35,6 @@
 #include "DmLayer.h"
 #include "DmLine.h"
 #include "DmVector.h"
-#include "GuiDocumentView.h"
 #include "Information.h"
 #include "Quadratic.h"
 

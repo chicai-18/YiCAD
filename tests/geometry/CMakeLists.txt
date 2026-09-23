@@ -8,4 +8,5 @@ yicad_add_test(geometry
         test_geometry_bounds.cpp
         test_geometry_arc.cpp
         test_geometry_intersection.cpp
+    LINK YiCadModel
     LABELS "geometry;unit")

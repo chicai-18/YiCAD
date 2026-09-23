@@ -36,6 +36,9 @@
 #include "DmDocument.h"
 #include "DmHatch.h"
 #include "DmDimLinear.h"
+#include "ApplicationWindow.h"
+#include "UITabDrawWidget.h"
+#include "Fileio.h"
 
 #include "ActionDimLinear.h"
 
@@ -143,6 +146,32 @@ void UIDialogFactory::setOptionWidget(QWidget* ow)
 void UIDialogFactory::requestWarningDialog(const QString& warning)
 {
 	QMessageBox::information(parent, QMessageBox::tr("Warning"), warning, QMessageBox::Ok);
+}
+
+bool UIDialogFactory::requestConfirmDialog(const QString& title, const QString& message)
+{
+	return QMessageBox::critical(parent, title, message, QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
+}
+
+DmDocument* UIDialogFactory::requestActiveDocument()
+{
+	return ApplicationWindow::getAppWindow()->getDocument();
+}
+
+QString UIDialogFactory::requestUntitledDocumentName(DmDocument* document)
+{
+	SingleTabDrawDataRibbon* drawData = ApplicationWindow::getAppWindow()->getTabDrawWidget()->getTabDrawDataOfDocument(document);
+	return drawData ? drawData->name : QString();
+}
+
+bool UIDialogFactory::requestFileExport(DmDocument& document, const QString& file, const QString& formatType)
+{
+	return FileIO::instance()->fileExport(document, file, formatType);
+}
+
+bool UIDialogFactory::requestFileImport(DmDocument& document, const QString& file)
+{
+	return FileIO::instance()->fileImport(document, file);
 }
 
 /// @brief Shows a dialog for adding a layer. Doesn't add the layer.This is up to the caller.

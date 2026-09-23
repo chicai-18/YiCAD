@@ -28,8 +28,8 @@
 
 #include <iostream>
 
+#include <QCoreApplication>
 #include <QMap>
-#include <QApplication>
 #include <QTextCodec>
 #include <QTranslator>
 #include <QFileInfo>

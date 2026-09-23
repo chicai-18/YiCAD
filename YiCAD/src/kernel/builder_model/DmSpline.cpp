@@ -36,7 +36,6 @@
 #include "Quadratic.h"
 
 #include "Debug.h"
-#include "GuiDocumentView.h"
 #include "DmDocument.h"
 #include "Math2d.h"
 #include "ConvexHull.h"

@@ -23,7 +23,6 @@
 /// @brief 线型类实现，管理线型的持久化和数据操作
 
 #include "DmLineType.h"
-#include "Tools.h"
 
 TYPESYSTEM_SOURCE(DmLineType, DmObject, 0)
 

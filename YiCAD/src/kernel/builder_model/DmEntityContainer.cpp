@@ -27,8 +27,6 @@
 #include <set>
 #include <QObject>
 
-#include "GuiDialogFactory.h"
-#include "UIDialogFactory.h"
 #include "DmEntityContainer.h"
 
 #include "Debug.h"
@@ -42,7 +40,6 @@
 #include "DmSolid.h"
 #include "DmTriangle.h"
 #include "Information.h"
-#include "GuiDocumentView.h"
 #include "DmConstructionLine.h"
 #include "DmSettings.h"
 #include "DmEntity.h"

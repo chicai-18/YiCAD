@@ -45,7 +45,6 @@
 #include "DmText.h"
 #include "DmAttributeDefinition.h"
 #include "DmAttribute.h"
-#include "GuiDocumentView.h"
 #include "GuiDialogFactory.h"
 #include "Math2d.h"
 #include "DmDimRadial.h"

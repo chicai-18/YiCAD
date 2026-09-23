@@ -245,7 +245,7 @@ public:
     /// @brief 指定预览模型矩阵的偏移量
     void setPreviewModelOffset(const DmVector& offset) override;
     /// @brief 切换文档画笔的实体容器（用于块编辑）
-    void setDocumentPainterContainer(DmEntityContainer* container);
+    void setDocumentPainterContainer(DmEntityContainer* container) override;
 
     /// @brief 获得视图范围（世界坐标）
     DmRect getViewRect() override;

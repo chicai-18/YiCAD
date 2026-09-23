@@ -29,13 +29,10 @@
 #include "DmLine.h"
 #include "Information.h"
 #include "Math2d.h"
-#include "GuiDocumentView.h"
 #include "Quadratic.h"
 #include "Debug.h"
 #include "DmRect.h"
 
-#include "Writer.h"
-#include "Reader.h"
 #include "Stream.h"
 
 TYPESYSTEM_SOURCE(DmArc, DmAtomicEntity, 0)

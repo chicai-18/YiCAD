@@ -30,8 +30,6 @@
 #include "DmCircle.h"
 #include "DmEllipse.h"
 #include "DmFontList.h"
-#include "ApplicationWindow.h"
-#include "MDIWindow.h"
 #include "DmDocument.h"
 #include "DmSettings.h"
 #include "DmText.h"

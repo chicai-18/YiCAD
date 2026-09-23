@@ -31,7 +31,6 @@
 #include "DmBlockReference.h"
 #include "Math2d.h"
 #include "Debug.h"
-#include "GuiDocumentView.h"
 #include "DmTextStyle.h"
 #include "DmTextStyleTable.h"
 #include "DmDocument.h"

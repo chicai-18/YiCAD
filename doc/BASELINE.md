@@ -140,15 +140,16 @@ powershell -ExecutionPolicy Bypass -File tools/measure_build.ps1
 
 采集环境：Windows 11 Pro 22621，MSVC 2022 (v194)，Visual Studio 17 2022 生成器，
 `/MP` 并行编译，Release 配置
-采集日期：2026-09-22（阶段 0）、2026-09-23（阶段 1）
-提交：阶段 0 完成时；阶段 1 完成时（`IDocumentView` 抽取落地后）
+采集日期：2026-09-22（阶段 0）、2026-09-23（阶段 1、阶段 3）
+提交：阶段 0 完成时；阶段 1 完成时（`IDocumentView` 抽取落地后）；
+阶段 3 完成时（三库拆分落地后，`cmake --build` 加 `-- -m` 后测得，理由见下）
 
 | 指标 | 阶段 0 | 阶段 1 | 阶段 3 |
 |------|-------:|-------:|-------:|
-| 全量构建耗时 (Release, 秒) | 144.3 | 129.5 | |
-| 改 `DmArc.cpp` 后增量 (秒) | 19.3 | 11.2 | |
-| 改 `GuiDocumentView.h` 后增量 (秒) | 65.3 | 25.4 | |
-| 改 `Datamodel.h` 后增量 (秒) | 120.9 | 90.3 | |
+| 全量构建耗时 (Release, 秒) | 144.3 | 129.5 | 179.2 |
+| 改 `DmArc.cpp` 后增量 (秒) | 19.3 | 11.2 | 9.7 |
+| 改 `GuiDocumentView.h` 后增量 (秒) | 65.3 | 25.4 | 18.7 |
+| 改 `Datamodel.h` 后增量 (秒) | 120.9 | 90.3 | 141.2 |
 
 几点值得注意：
 
@@ -169,6 +170,31 @@ powershell -ExecutionPolicy Bypass -File tools/measure_build.ps1
   改动对象，仅供参考）。`Datamodel.h` 增量从 120.9 秒降到 90.3 秒
   （-25%）算是意外收获——它间接包含 `GuiDocumentView.h` 的路径也变轻了，
   但这不是阶段 1 的目标，阶段 4 去中心化之后还会有更大空间。
+- **阶段 3 拆库后，两项"改一个文件"的增量指标按预期下降，但两项聚合型
+  指标反而上升，根因是同一件事。** `DmArc.cpp`（叶子 .cpp，现属
+  `YiCadModel`）增量从阶段 1 的 11.2 秒降到 9.7 秒，`GuiDocumentView.h`
+  （现属仍与 UI/APP 合编的 `YiCadCore`）从 25.4 秒降到 18.7 秒——这两个
+  文件改动后只需重编该文件所在的那一个目标再重链，不再像从前一样让
+  `YiCadCore` 这一个大 OBJECT 库整体过一遍增量检查。但全量构建从 129.5 秒
+  升到 179.2 秒，`Datamodel.h`（现属最底层的 `YiCadMath`，牵动
+  `YiCadModel`/`YiCadPersistence`/`YiCadCore` 全部四层）的增量从 90.3 秒
+  升到 141.2 秒，双双劣于阶段 1、逼近或超过阶段 0。
+  原因是 Visual Studio/MSBuild 生成器按 `ProjectReference` 的声明顺序构建
+  项目：`YiCadModel` 要等 `YiCadMath` 的 Lib 步骤完全结束才开始，即便
+  `YiCadModel` 自己的编译阶段其实只需要 `YiCadMath` 的头文件、并不需要它
+  已经归档成 `.lib`。16 核的机器上，`YiCadMath`（约几十个文件）不够填满
+  所有核心时，`YiCadModel`/`YiCadPersistence` 却因为这条强制顺序而不能提前
+  插空编译——这是把一个足够大的 OBJECT 库拆成一条有依赖顺序的静态库链后，
+  在这一个生成器上必然出现的代价，不是配置疏漏。
+  已确认并处理的一半：脚本原先调用 `cmake --build` 时没有 `-- -m`
+  （solution 级并行），阶段 0/1 因为当时只有一个大目标，这个参数可有可无；
+  拆库之后补上后，全量构建从未加时的 189.7 秒降到本表的 179.2 秒，
+  `tools/measure_build.ps1` 与 CI 的构建步骤都已同步加上。
+  剩下这部分差距（129.5 → 179.2、90.3 → 141.2）目前判断只能通过换生成器
+  （比如 Ninja，能做到指令级而非项目级的调度）解决，超出本阶段范围，留给
+  未来评估；日常开发里更常触发的是 `DmArc.cpp`/`GuiDocumentView.h` 这一类
+  改动而不是改 `Datamodel.h` 或者从空构建目录整个重建，所以两项确有改善的
+  指标更能代表典型的开发体验。
 
 ---
 
@@ -184,15 +210,15 @@ python tools/regen_source_lists.py --check
 python tools/check_layering.py
 ```
 
-| 指标 | 阶段 0 基线 | 目标阶段 |
-|------|------------:|---------|
-| 源文件总数 | 857 | — |
-| `GuiDocumentView.h` 被引用的文件数 | 122 | 阶段 1 降低 |
-| `DM::ActionType` 枚举项数 | 162 | 阶段 4 清零其命令 ID 职责 |
-| `UIActionHandler.cpp` 的 `case` 数 | 153 | 阶段 4 降到 0 |
-| kernel 反向依赖 ui 的文件数 | 3 | 阶段 3 降到 0 |
-| 库与可执行目标数（不含插件） | 2（YiCadCore + YiCAD） | 阶段 3 升到 8 |
-| 自动化测试用例数 | 133（130 启用 + 3 DISABLED） | 持续增加 |
+| 指标 | 阶段 0 基线 | 目标阶段 | 阶段 3 实际 |
+|------|------------:|---------|------------:|
+| 源文件总数 | 857 | — | — |
+| `GuiDocumentView.h` 被引用的文件数 | 122 | 阶段 1 降低 | — |
+| `DM::ActionType` 枚举项数 | 162 | 阶段 4 清零其命令 ID 职责 | — |
+| `UIActionHandler.cpp` 的 `case` 数 | 153 | 阶段 4 降到 0 | — |
+| kernel 反向依赖 ui 的文件数 | 3 | 阶段 3 降到 0 | 0（`tools/check_layering.py` 白名单已清空） |
+| 库与可执行目标数（不含插件） | 2（YiCadCore + YiCAD） | 阶段 3 升到 8 | 5（`YiCadMath`/`YiCadModel`/`YiCadPersistence`/`YiCadCore`/`YiCAD`）。未达 8：`Render`/`Interaction`/`UI`/`APP` 四个分区存在真实双向依赖，无法各自拆成独立库，详见 `doc/ARCHITECTURE_EVOLUTION_PLAN.md` 6.7 节 |
+| 自动化测试用例数 | 133（130 启用 + 3 DISABLED） | 持续增加 | 168（133 + `tests/interaction` 35 个，阶段 2 已引入，阶段 3 未新增用例） |
 
 几点口径说明：
 

@@ -29,8 +29,6 @@
 #include <QPainterPath>
 #include <QBrush>
 #include <QString>
-#include "GuiDocumentView.h"
-#include "GuiDialogFactory.h"
 #include "InfoArea.h"
 #include "Information.h"
 #include "DmPattern.h"
@@ -47,7 +45,6 @@
 #include "DmHatch.h"
 #include "DmSolid.h"
 #include "DmEntityHelper.h"
-#include "UIDialogFactory.h"
 #include "ConstrainedDelaunayTriangulation.h"
 #include "GeometryMethods.h"
 

@@ -24,11 +24,8 @@
 
 #include "DmRay.h"
 #include "DmRect.h"
-#include "GuiDocumentView.h"
 #include <cmath>
 
-#include "Writer.h"
-#include "Reader.h"
 #include "Stream.h"
 
 TYPESYSTEM_SOURCE(DmRay, DmAtomicEntity, 0)

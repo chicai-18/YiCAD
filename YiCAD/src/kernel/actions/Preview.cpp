@@ -22,10 +22,7 @@
 
 #include "DmEntityContainer.h"
 #include "DmLine.h"
-// DmDocument::getDocumentView() 返回具体的 GuiDocumentView*（Model 层持有
-// 指向视图的反向指针，非本阶段范围），下面三处只是把它当作 IDocumentView
-// 使用，但隐式上转型仍需要完整类型。
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "DmSettings.h"
 #include "DmDocument.h"

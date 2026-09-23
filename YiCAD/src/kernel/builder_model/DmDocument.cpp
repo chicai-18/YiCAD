@@ -27,13 +27,12 @@
 #include <iostream>
 #include <cmath>
 #include <QDir>
-#include <QMessageBox>
 #include <QStandardPaths>
 #include <unordered_map>
 
 #include "GuiDialogFactory.h"
+#include "IDocumentView.h"
 #include "Debug.h"
-#include "Fileio.h"
 #include "Math2d.h"
 #include "DmUnits.h"
 #include "DmSettings.h"
@@ -43,9 +42,6 @@
 #include "DmMText.h"
 #include "DmDimension.h"
 #include "MD5.h"
-#include "ApplicationWindow.h"
-#include "UITabDrawWidget.h"
-#include "GuiDocumentView.h"
 
 DmDocument::DmDocument()
     : m_idManager(DmIdManager())
@@ -231,9 +227,9 @@ bool DmDocument::save(bool isAutoSave, bool force)
         if (m_filename.isEmpty())   //从未保存过的文件
         {
             //获得选项卡的名字
-            SingleTabDrawDataRibbon* drawData = ApplicationWindow::getAppWindow()->getTabDrawWidget()->getTabDrawDataOfDocument(this);
-            QString sName = QString::fromStdString(MD5::getMD5(drawData->name.toStdString())).left(8);
-            actualName = QDir::cleanPath(tmpDir + QDir::separator() + drawData->name + "_" + sName + ".ycd");
+            QString tabName = GUIDIALOGFACTORY->requestUntitledDocumentName(this);
+            QString sName = QString::fromStdString(MD5::getMD5(tabName.toStdString())).left(8);
+            actualName = QDir::cleanPath(tmpDir + QDir::separator() + tabName + "_" + sName + ".ycd");
         }
         else
         {
@@ -267,7 +263,7 @@ bool DmDocument::save(bool isAutoSave, bool force)
         }
 
         QString tempFileName = actualName + ".tmp";
-        ret = FileIO::instance()->fileExport(*this, tempFileName, actualType);
+        ret = GUIDIALOGFACTORY->requestFileExport(*this, tempFileName, actualType);
         QFileInfo tempFileInfo(tempFileName);
         QFile tempFile(tempFileName);
         if (ret)
@@ -433,12 +429,12 @@ void DmDocument::enableAutoSave(bool enableAutoSave, int saveMinute)
     }
 }
 
-void DmDocument::setDocumentView(GuiDocumentView* docView)
+void DmDocument::setDocumentView(IDocumentView* docView)
 {
     m_documentView = docView;
 }
 
-GuiDocumentView* DmDocument::getDocumentView()
+IDocumentView* DmDocument::getDocumentView()
 {
     return m_documentView;
 }
@@ -545,7 +541,7 @@ bool DmDocument::open(const QString& filename)
 
     // 导入文件
     QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    ret = FileIO::instance()->fileImport(*this, filename);
+    ret = GUIDIALOGFACTORY->requestFileImport(*this, filename);
     if (!ret)
     {
         //导入失败(文件损坏等原因)，尝试打开备份文件
@@ -586,12 +582,11 @@ bool DmDocument::open(const QString& filename)
             //先读取最新备份文件，如果失败读取非最新备份文件
             if (!newestBakName.isEmpty())
             {
-                if (QMessageBox::Ok == QMessageBox::critical(nullptr, QObject::tr("Tips"), QObject::tr("Open failed, try to open backup file?"),
-                    QMessageBox::Ok, QMessageBox::Cancel))
+                if (GUIDIALOGFACTORY->requestConfirmDialog(QObject::tr("Tips"), QObject::tr("Open failed, try to open backup file?")))
                 {
                     QString curBakName;
                     initDoc();
-                    ret = FileIO::instance()->fileImport(*this, newestBakName);
+                    ret = GUIDIALOGFACTORY->requestFileImport(*this, newestBakName);
                     if (ret)
                     {
                         curBakName = newestBakName;
@@ -599,7 +594,7 @@ bool DmDocument::open(const QString& filename)
                     else if (!notNewbakName.isEmpty())
                     {
                         initDoc();
-                        ret = FileIO::instance()->fileImport(*this, notNewbakName);
+                        ret = GUIDIALOGFACTORY->requestFileImport(*this, notNewbakName);
                         if (ret)
                         {
                             curBakName = notNewbakName;
@@ -629,7 +624,7 @@ bool DmDocument::open(const QString& filename)
     }
     else
     {
-        QMessageBox::critical(nullptr, QObject::tr("Tips"), QObject::tr("Open failed, invalid file!"));
+        GUIDIALOGFACTORY->requestWarningDialog(QObject::tr("Open failed, invalid file!"));
     }
 
     return ret;

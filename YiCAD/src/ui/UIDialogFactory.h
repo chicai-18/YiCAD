@@ -68,6 +68,11 @@ public:
 
 	void setActionHandle(UIActionHandler* handle);
 	void requestWarningDialog(const QString& warning) override;
+	bool requestConfirmDialog(const QString& title, const QString& message) override;
+	DmDocument* requestActiveDocument() override;
+	QString requestUntitledDocumentName(DmDocument* document) override;
+	bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override;
+	bool requestFileImport(DmDocument& document, const QString& file) override;
 
 	DmLayer* requestNewLayerDialog(DmLayerTable* layerTable = nullptr) override;
 	DmLayer* requestEditLayerDialog(DmLayerTable* layerTable = nullptr) override;

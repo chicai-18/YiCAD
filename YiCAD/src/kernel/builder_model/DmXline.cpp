@@ -24,7 +24,6 @@
 
 #include "DmXline.h"
 #include "DmRect.h"
-#include "GuiDocumentView.h"
 
 #include "GeometryMethods.h"
 #include "Math2d.h"

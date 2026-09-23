@@ -79,6 +79,37 @@ public:
     /// @param warning 警告消息文本
     virtual void requestWarningDialog(const QString& warning) = 0;
 
+    /// @brief 显示确认对话框（确定/取消）
+    /// @param title 标题
+    /// @param message 提示文本
+    /// @return 用户选择确定返回 true，取消返回 false
+    virtual bool requestConfirmDialog(const QString& title, const QString& message) = 0;
+
+    /// @brief 获取当前活动文档
+    /// @details Model 层部分实体（如标注）在缺少自身文档上下文时，需要落回
+    /// 应用当前活动文档；该概念由 App/UI 层维护，此处仅做接口注入。
+    /// @return 当前活动文档指针，无则返回 nullptr
+    virtual DmDocument* requestActiveDocument() = 0;
+
+    /// @brief 为从未保存过的文档请求一个用于自动保存的默认名称
+    /// @details 默认实现里这个名称通常来自文档所在的界面标签页标题
+    /// @param document 待命名的文档
+    /// @return 建议的名称，无法获取时返回空字符串
+    virtual QString requestUntitledDocumentName(DmDocument* document) = 0;
+
+    /// @brief 请求执行文件导出（写盘）
+    /// @param document 待导出的文档
+    /// @param file 目标文件路径
+    /// @param formatType 导出格式
+    /// @return 导出是否成功
+    virtual bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) = 0;
+
+    /// @brief 请求执行文件导入（读盘）
+    /// @param document 承接导入内容的文档
+    /// @param file 源文件路径
+    /// @return 导入是否成功
+    virtual bool requestFileImport(DmDocument& document, const QString& file) = 0;
+
     /// @brief 请求新建图层对话框
     /// @param layerTable 图层表
     /// @return 新创建的图层或 nullptr

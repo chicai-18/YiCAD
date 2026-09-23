@@ -25,6 +25,10 @@
 /// Snapper.h，一并迁到这里：它们是接口契约的一部分，且不依赖 DmDocument.h，
 /// 迁出后 ActionInterface.h 不再需要拖入 Snapper 的完整实现头。
 /// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 第5.4节第5项。
+///
+/// 阶段 3 从 kernel/actions/ 移到本目录：IDocumentView（同批移动）的
+/// setDefaultSnapMode/setSnapRestriction 用到 SnapMode/DM::SnapRestriction，
+/// 而 IDocumentView 又是 Model 分区需要的接口，故本文件与它一起下沉。
 
 #ifndef ISNAPSERVICE_H
 #define ISNAPSERVICE_H

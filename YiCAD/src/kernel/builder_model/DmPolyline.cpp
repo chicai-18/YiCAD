@@ -30,7 +30,6 @@
 #include "Debug.h"
 #include "DmLine.h"
 #include "DmArc.h"
-#include "GuiDocumentView.h"
 #include "Math2d.h"
 #include "Information.h"
 #include "DmSolid.h"

@@ -25,15 +25,12 @@
 #include "DmLine.h"
 
 #include "Debug.h"
-#include "GuiDocumentView.h"
 #include "DmDocument.h"
 #include "Information.h"
 #include "Quadratic.h"
 #include "DmCircle.h"
 #include "DmRect.h"
 
-#include "Writer.h"
-#include "Reader.h"
 #include "Stream.h"
 
 TYPESYSTEM_SOURCE(DmLine, DmAtomicEntity, 0)

@@ -53,15 +53,19 @@ endif()
 # 那种场景直接调二进制加 --gtest_filter 更方便。
 
 # ---------------------------------------------------------------------------
-# yicad_add_test(<name> SOURCES <...> [LABELS <...>])
+# yicad_add_test(<name> SOURCES <...> [LINK <target>] [LABELS <...>])
 #
-# 建一个链接 YiCadCore 的 GoogleTest 目标并注册到 CTest。
+# 建一个 GoogleTest 目标并注册到 CTest，默认链接 YiCadCore；LINK 可指定
+# 更小的目标（YiCadMath/YiCadModel/YiCadPersistence）。
 # <name> 不带 test_ 前缀，函数会自动加上。
 # ---------------------------------------------------------------------------
 function(yicad_add_test name)
-    cmake_parse_arguments(ARG "" "" "SOURCES;LABELS" ${ARGN})
+    cmake_parse_arguments(ARG "" "LINK" "SOURCES;LABELS" ${ARGN})
     if(NOT ARG_SOURCES)
         message(FATAL_ERROR "yicad_add_test(${name}) 缺少 SOURCES")
+    endif()
+    if(NOT ARG_LINK)
+        set(ARG_LINK YiCadCore)
     endif()
 
     set(target "test_${name}")
@@ -70,9 +74,15 @@ function(yicad_add_test name)
     add_executable(${target} ${ARG_SOURCES}
         "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/support/yicad_test_main.cpp")
 
-    # YiCadCore 是 OBJECT 库：链接它会带入全部目标文件和使用要求
-    # （include 路径、编译定义、Qt 与第三方依赖），测试不必重复编译内核。
-    target_link_libraries(${target} PRIVATE YiCadCore GTest::gtest)
+    # LINK 指定测试实际依赖的那一层（阶段 3 拆库后默认为 YiCadCore，
+    # tests/math、tests/geometry、tests/persistence 改传更小的
+    # YiCadMath/YiCadModel/YiCadPersistence，链接目标文件从整个上层
+    # OBJECT 库降到对应分区，是本次拆库的核心增量构建收益）。
+    target_link_libraries(${target} PRIVATE ${ARG_LINK} GTest::gtest)
+
+    # yicad_test_main.cpp 无条件构造 QApplication（见其注释），与 LINK
+    # 目标是否本身需要 Qt Widgets 无关，测试可执行文件都要能解析到它。
+    target_link_libraries(${target} PRIVATE Qt5::Widgets)
 
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 

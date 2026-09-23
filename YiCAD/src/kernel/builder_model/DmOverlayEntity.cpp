@@ -23,7 +23,6 @@
 /// @brief 前景层覆盖实体实现：线、圆、点
 
 #include "DmOverlayEntity.h"
-#include "Tools.h"
 
 DmOverlayLine::DmOverlayLine(DmEntity* parent, const LineData& d)
     : DmLine(parent, d)

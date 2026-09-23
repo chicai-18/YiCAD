@@ -31,7 +31,7 @@
 #include "DmBlockReference.h"
 #include "Math2d.h"
 #include "DmUnits.h"
-#include "ApplicationWindow.h"
+#include "GuiDialogFactory.h"
 #include "Debug.h"
 
 TYPESYSTEM_SOURCE(DmDimDiametric, DmEntity, 0);
@@ -253,7 +253,7 @@ void DmDimDiametric::updateInnerDim(DmEntityContainer* pText, const DmVector& te
 	const DmVector dimLineDir = (edata.endPoint - data.definitionPoint).normalize();
 	DmVector dimLineStartPt = edata.endPoint - dimLineDir * leaderLen;
 	DmVector dimLineEndPt = edata.endPoint;
-	DmDocument* curDoc = static_cast<DmDocument*>(ApplicationWindow::getAppWindow()->getDocument());
+	DmDocument* curDoc = static_cast<DmDocument*>(GUIDIALOGFACTORY->requestActiveDocument());
 	DmBlockTable* arrowBlocks = curDoc->getDimStyleTable()->getArrowBlocks();
 	double arrowCutDist = DmDimensionStyle::getArrowCutDistance(data.secondArrow()) * data.arrowSize();
 
@@ -332,7 +332,7 @@ void DmDimDiametric::updateOuterDim(DmEntityContainer* pText, const DmVector& te
 	const DmVector dimLineDir = (edata.endPoint - data.definitionPoint).normalize();
 	DmVector dimLineStartPt = data.definitionPoint;
 	DmVector dimLineEndPt = edata.endPoint;
-	DmDocument* curDoc = static_cast<DmDocument*>(ApplicationWindow::getAppWindow()->getDocument());
+	DmDocument* curDoc = static_cast<DmDocument*>(GUIDIALOGFACTORY->requestActiveDocument());
 	DmBlockTable* arrowBlocks = curDoc->getDimStyleTable()->getArrowBlocks();
 	double arrowCutDist = DmDimensionStyle::getArrowCutDistance(data.secondArrow()) * data.arrowSize();
 

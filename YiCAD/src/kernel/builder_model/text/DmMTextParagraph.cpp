@@ -29,7 +29,6 @@
 #include "DmCharTemplate.h"
 #include "DmMText.h"
 #include "DmMTextLine.h"
-#include "Tools.h"
 
 DmMTextParagraph::DmMTextParagraph(DmEntity* parent)
     : DmEntity(parent), m_eAlign(DmMTextParagraph::Alignment::Default), m_leftTop(0.0, 0.0)

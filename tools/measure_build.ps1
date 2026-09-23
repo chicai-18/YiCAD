@@ -49,12 +49,18 @@ if (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
 $targets = @(
     @{ Name = "DmArc.cpp";          Path = "YiCAD/src/kernel/builder_model/DmArc.cpp" },
     @{ Name = "GuiDocumentView.h";  Path = "YiCAD/src/kernel/gui/GuiDocumentView.h" },
-    @{ Name = "Datamodel.h";        Path = "YiCAD/src/kernel/builder_model/Datamodel.h" }
+    @{ Name = "Datamodel.h";        Path = "YiCAD/src/kernel/math/Datamodel.h" }
 )
 
 function Invoke-Build {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    & cmake --build $BuildDir --config $Config 2>&1 | Out-Null
+    # `-- -m`：MSBuild 的解决方案级并行。阶段 3 把 YiCadCore 拆成
+    # YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore 一条依赖链后，
+    # 没有这个参数时 Visual Studio 生成器按项目依赖顺序逐个构建，各层内部的
+    # /MP 并行度用不满，全量构建反而比阶段 1 的单一 OBJECT 库更慢
+    # （实测无 -m 时 189.7 秒，比阶段 1 的 129.5 秒还慢）。CI 的构建步骤
+    # 同步加了这个参数，见 .github/workflows/build.yml。
+    & cmake --build $BuildDir --config $Config -- -m 2>&1 | Out-Null
     $sw.Stop()
     if ($LASTEXITCODE -ne 0) {
         throw "构建失败，退出码 $LASTEXITCODE"

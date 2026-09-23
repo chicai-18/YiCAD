@@ -32,8 +32,9 @@ set(qrc_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/res/ribbon/ribbon_icon.qrc)
 # 不会出现「文件建好了但没进构建」（方案 P5）。
 #
 # 阶段 0 里七个分区全部喂给同一个 YiCadCore OBJECT 库，依赖方向尚未由构建
-# 系统强制；阶段 3 拆库时每个分区直接变成一次 add_library，拆分退化为把
-# 下面的变量分别喂给七个目标。
+# 系统强制。阶段 3 拆库时发现 RENDER/INTERACTION/UI/APP 四个分区之间存在
+# 真实的双向依赖（见下方各分区注释与 6.7 节），只有 MATH/MODEL/PERSISTENCE
+# 三个分区能拆成三个独立静态库，其余四个分区仍合编进 YiCadCore。
 # #####################################################
 set(YICAD_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -63,9 +64,15 @@ endfunction()
 #
 # 计划图未列出 kernel/debug/：日志与调试门面被 143 处包含，必须位于最底层。
 #
-# 已知遗留：Math2d 的 QString 依赖全部集中在 eval()（muParser 表达式求值）
-# 与 doubleToString()，属于字符串格式化助手而非数学能力。阶段 3 拆
-# YiCadMath 时应把这两处搬到 utility，本层即可彻底摆脱 Qt。
+# 阶段 3 实际拆库时发现 kernel/persistence/ 里混杂着两类文件：Persistence
+# 类型系统本身（Persistence/Stream/Reader/Writer/Archive/Tools/Base64/Swap/
+# TimeInfo/Uuid/gzstream/MinizipNgArchive/FileInfo 与 Meta/MetaType、
+# Meta/Type）不依赖任何实体类型，是 DmFlags/DmObject 自身也要用到的底层
+# 设施；其余（Meta/ 下各 MetaXxx、MigratorBase、filters/、fileio/）才是
+# 真正依赖 Model 的具体持久化实现。前者已随本次拆库迁入本分区（物理文件
+# 从 kernel/persistence 移到 kernel/math，见 6.7 节「与方案的偏差」）。
+# 这也顺带使 Math2d 的 QString 依赖（eval()/doubleToString()，muParser
+# 表达式求值）不必再搬去 utility——本层反正已经需要 Qt Core。
 yicad_collect_sources(MATH
     src/kernel/math
     src/kernel/utility
@@ -80,12 +87,13 @@ yicad_collect_sources(MATH
 # GLOB 对不存在的目录静默返回空，所以一直没人察觉。这里已经删掉，
 # yicad_collect_sources 也加了目录存在性检查，避免再次积累死目录。
 #
-# 已知分层违规（P7，阶段 3 任务 6.4.1 修复），见 tools/check_layering.py
-# 的白名单：DmDocument.cpp -> UITabDrawWidget.h，
-# DmEntityContainer.cpp 与 DmHatch.cpp -> UIDialogFactory.h。
-#
-# 另有两对文件把 Qt Gui/Widgets 带进了模型层，阶段 3 拆库时需处置：
-# builder_model/DmCachePainter.{h,cpp}、builder_model/DmImage.{h,cpp}。
+# 阶段 3 任务 6.4.1 的三处已知 P7 违规（DmDocument.cpp -> UITabDrawWidget.h、
+# DmEntityContainer.cpp/DmHatch.cpp -> UIDialogFactory.h）均已修复：前者
+# 经 GuiDialogFactoryInterface 新增的 requestUntitledDocumentName() 接口注入
+# 解决；后两处的 include 本身就是死代码，直接删除。tools/check_layering.py
+# 的白名单已清空。DmCachePainter.{h,cpp} 已迁到 kernel/gui（本就是纯 GL
+# 封装，放错了目录）；DmImage.{h,cpp} 对 GuiDocumentView.h 的引用也是死
+# include，一并删除。详见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 节。
 yicad_collect_sources(MODEL
     src/kernel/builder_model
     src/kernel/builder_model/dimension
@@ -99,18 +107,25 @@ yicad_collect_sources(MODEL
     src/kernel/solver
     src/kernel/generators)
 
-# 对应阶段 3 的 YiCadPersistence。
+# 对应阶段 3 的 YiCadPersistence（依赖 YiCadModel）。
 #
-# 89 个文件中仅 1 个直接包含 Qt 头，是当前最接近「可独立成库」的子系统。
+# kernel/fileio/ 不在此列——见下方 APP 分区的说明，FileIO 对插件运行时的
+# 依赖使它物理上只能归 APP。DmDocument 对具体读写的调用已改为经
+# GuiDialogFactoryInterface 注入，不再直接依赖本分区。
 yicad_collect_sources(PERSISTENCE
     src/kernel/persistence
     src/kernel/persistence/Meta
-    src/kernel/filters
-    src/kernel/fileio)
+    src/kernel/filters)
 
 # 对应阶段 3 的 YiCadRender。计划图未列出 kernel/printing/，按依赖方向归此。
 #
 # 本分区内部实现不在本方案排期内（渲染专项另行规划），此处仅作层次边界。
+#
+# 与方案不同：本分区在实现上与 INTERACTION 分区互相持有对方的具体类型
+# （GuiDocumentView 构造并持有 ViewToolControl/PanZoomTool/LegacyActionTool，
+# GuiEventHandler 直接持有 Action 栈），是阶段 1、2 已落地设计的一部分，
+# 不是本次拆库引入的问题。这两个分区因此不能拆成两个独立静态库，仍与
+# INTERACTION/UI/APP 一起编入 YiCadCore。详见 6.7 节。
 yicad_collect_sources(RENDER
     src/kernel/painters
     src/kernel/painters/opengl
@@ -121,12 +136,21 @@ yicad_collect_sources(RENDER
 #
 # 计划图未列出 src/cmd/（命令行输入解析），它与 Ribbon 同为命令入口，归此。
 # 阶段 1（视图解耦）与阶段 2（交互层工具化）的改动集中在本分区。
+#
+# src/actions/ 下 106 个具体 Action 里有 40 余个直接包含 UI（对话框、
+# 文件选择器）与 APP（ApplicationWindow/MDIWindow）头文件——这是 Action
+# orchestrate 用户交互的正常需要，但意味着本分区不能反过来独立于 UI/APP
+# 之下。见上方 RENDER 分区说明与 6.7 节。
 yicad_collect_sources(INTERACTION
     src/kernel/actions
     src/actions
     src/cmd)
 
 # 对应阶段 3 的 YiCadUi。
+#
+# UI 组件里有多处（UIActionHandler、UIBottomWidget、UICurrentActivePen、
+# UILineTypeBox、UITabDrawWidget 等）直接调用 ApplicationWindow/MDIWindow
+# 取全局状态（当前文档、当前 MDI 标签），是与 APP 互相依赖的既有设计。
 yicad_collect_sources(UI
     src/ui
     src/ui/forms)
@@ -137,10 +161,17 @@ yicad_collect_sources(UI
 #   ai/AIAssistant.h  引用 ApplicationWindow / MDIWindow
 #   plugin_runtime/   引用 UIActionHandler.h、UICommandWidget.h
 # 阶段 4 会把 ai/ 抽成首个 IExtension 试点扩展。
+#
+# kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
+# getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
+# PluginRegistry/PluginManager/HostApi，物理上依赖 APP 分区。这是已有
+# 的、通过 setPluginRuntime() 显式注入的设计，不是本次拆库引入的问题；
+# 只是它决定了 Fileio.{h,cpp} 不能编进只应依赖 Model 的 YiCadPersistence。
 yicad_collect_sources(APP
     src/main
     src/ai
-    src/plugin_runtime)
+    src/plugin_runtime
+    src/kernel/fileio)
 
 # src/ui 下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h。
 file(GLOB YICAD_UI_FORMS CONFIGURE_DEPENDS
@@ -224,19 +255,138 @@ ADD_CUSTOM_TARGET (TS_YiCAD ALL DEPENDS ${QM_FILES})
 set_target_properties(TS_YiCAD PROPERTIES FOLDER "CMakePredefinedTargets")
 
 # #####################################################
+# ============ YiCadMath / YiCadModel / YiCadPersistence ============
+#
+# 阶段 3 把 MATH/MODEL/PERSISTENCE 三个分区拆成三个独立静态库，依赖方向由
+# CMake 强制：YiCadPersistence -> YiCadModel -> YiCadMath。RENDER/
+# INTERACTION/UI/APP 四个分区因 6.7 节所述的既有循环依赖，继续合编进
+# YiCadCore（见下）。
+#
+# 用 STATIC 而非 OBJECT：这三层不含任何 Qt 元对象类（Q_OBJECT），没有
+# YiCadCore 注释里提到的自动注册符号丢失问题；STATIC 让它们能被
+# tests/math、tests/geometry、tests/persistence 单独链接，不必拖入整个
+# YiCadCore（这也是本次拆库最主要的增量构建收益来源）。
+# #####################################################
+
+add_library(YiCadMath STATIC
+    ${YICAD_MATH_HEADERS} ${YICAD_MATH_SOURCES})
+set_target_properties(YiCadMath PROPERTIES FOLDER "YiCAD")
+
+target_include_directories(YiCadMath PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/math
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/utility
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/debug)
+
+# 公共编译定义与选项在最底层设置一次，经 PUBLIC 依赖链自动传播到
+# YiCadModel -> YiCadPersistence -> YiCadCore -> 可执行目标/测试目标，
+# 不必在每一层重复声明。
+target_compile_definitions(YiCadMath PUBLIC
+    _USE_MATH_DEFINES
+    _ENABLE_EXTENDED_ALIGNED_STORAGE
+    APPDIR="YiCAD")
+remove_definitions(-D_HAS_STD_BYTE)
+
+# MSVC: 强制源文件和执行字符集为 UTF-8，避免中文乱码。
+if(MSVC)
+    target_compile_options(YiCadMath PUBLIC /utf-8)
+endif()
+
+# Tools.h/Reader.h/Writer.h/gzstream.h/MinizipNgArchive.h 等原 persistence
+# 基础设施随本次拆库迁入本层（见上方分区注释），因此本层需要 Qt Core、
+# pugixml、minizip、zlib；muParser 用于 Math2d::eval() 的表达式求值。
+if(TARGET nlohmann_json::nlohmann_json)
+    target_link_libraries(YiCadMath PUBLIC nlohmann_json::nlohmann_json)
+endif()
+if(TARGET Eigen3::Eigen)
+    target_link_libraries(YiCadMath PUBLIC Eigen3::Eigen)
+endif()
+if(TARGET glm::glm)
+    target_link_libraries(YiCadMath PUBLIC glm::glm)
+endif()
+if(TARGET Boost::boost)
+    target_link_libraries(YiCadMath PUBLIC Boost::boost)
+endif()
+if(TARGET ZLIB::ZLIB)
+    target_link_libraries(YiCadMath PUBLIC ZLIB::ZLIB)
+endif()
+if(TARGET pugixml::pugixml)
+    target_link_libraries(YiCadMath PUBLIC pugixml::pugixml)
+endif()
+if(TARGET MINIZIP::minizip)
+    target_link_libraries(YiCadMath PUBLIC MINIZIP::minizip)
+endif()
+if(TARGET muparser::muparser)
+    target_link_libraries(YiCadMath PUBLIC muparser::muparser)
+else()
+    message(FATAL_ERROR "muparser::muparser target not found. "
+        "Run 'conan install' with --build=never before configuring CMake.")
+endif()
+target_link_libraries(YiCadMath PUBLIC Qt5::Core)
+
+add_library(YiCadModel STATIC
+    ${YICAD_MODEL_HEADERS} ${YICAD_MODEL_SOURCES})
+set_target_properties(YiCadModel PROPERTIES FOLDER "YiCAD")
+
+target_include_directories(YiCadModel PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model/dimension
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model/text
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model/dimension
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model/text
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/history
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/modification
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/information
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/solver
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/generators)
+
+target_link_libraries(YiCadModel PUBLIC YiCadMath)
+
+# ConstrainedDelaunayTriangulation（kernel/information，阶段 3 从 kernel/math
+# 迁入，见上）需要 CDT；DmPen/DmMText 等少量类型用到 QColor/QFont，需要 Qt Gui；
+# DmFont（builder_model/text/）直接用 FreeType 量取字形轮廓，需要 Freetype。
+if(TARGET CDT::CDT)
+    target_link_libraries(YiCadModel PUBLIC CDT::CDT)
+endif()
+if(TARGET Freetype::Freetype)
+    target_link_libraries(YiCadModel PUBLIC Freetype::Freetype)
+endif()
+target_link_libraries(YiCadModel PUBLIC Qt5::Gui)
+
+# DmSystem.cpp 在 Windows 上用 DirectWrite 枚举系统字体文件路径。
+if(WIN32)
+    target_link_libraries(YiCadModel PUBLIC Dwrite.lib)
+endif()
+
+add_library(YiCadPersistence STATIC
+    ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES})
+set_target_properties(YiCadPersistence PROPERTIES FOLDER "YiCAD")
+
+target_include_directories(YiCadPersistence PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/persistence
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/persistence/Meta
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/filters)
+
+target_link_libraries(YiCadPersistence PUBLIC YiCadModel)
+
+# #####################################################
 # ==================== YiCadCore ======================
 #
-# 除 main() 以外的全部代码编译进一个 OBJECT 库。可执行目标和测试二进制共享
-# 同一批目标文件，测试因此不必重新编译 19 万行代码，也不必为每个测试手工
+# RENDER + INTERACTION + UI + APP 四个分区。可执行目标和测试二进制共享
+# 同一批目标文件，测试因此不必重新编译这部分代码，也不必为每个测试手工
 # 维护源文件子集。
 #
 # 选 OBJECT 而非 STATIC：静态库的符号剥离会丢掉 Qt 的静态注册（资源初始化、
 # 插件注册宏等自动注册符号没有显式引用），OBJECT 库没有这个问题。
+#
+# 这四个分区未按方案拆成四个独立静态库：见上方 RENDER/INTERACTION/UI 分区
+# 注释与 6.7 节，GuiDocumentView/GuiEventHandler（RENDER）与
+# ViewToolControl/PanZoomTool/SelectTool/LegacyActionTool/ActionInterface
+# （INTERACTION）互相持有对方的具体类型，UI 与 APP 之间同样存在大量
+# ApplicationWindow/MDIWindow 互相调用，是阶段 1、2 与既有代码留下的真实
+# 双向依赖，不是本次拆库能靠移动文件解决的问题。
 # #####################################################
 add_library(YiCadCore OBJECT
-    ${YICAD_MATH_HEADERS}        ${YICAD_MATH_SOURCES}
-    ${YICAD_MODEL_HEADERS}       ${YICAD_MODEL_SOURCES}
-    ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES}
     ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
     ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
@@ -247,82 +397,34 @@ add_library(YiCadCore OBJECT
 
 set_target_properties(YiCadCore PROPERTIES FOLDER "YiCAD")
 
-# 头文件搜索路径改为挂在目标上（PUBLIC），测试目标通过链接 YiCadCore 继承。
-# 阶段 3 拆库时这一段按库拆开，并把多数条目降级为 PRIVATE。
+# 头文件搜索路径挂在目标上（PUBLIC），测试目标通过链接 YiCadCore 继承。
 target_include_directories(YiCadCore PUBLIC
     # uic 生成的 ui_*.h 落在构建目录
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/actions
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cmd
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model/dimension
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model/text
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model/dimension
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model/text
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/actions
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/debug
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/fileio
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/filters
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/generators
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/gui
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/history
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/information
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/math
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/modification
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/printing
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/solver
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters/opengl
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/utility
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/persistence
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/persistence/Meta
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ai
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms)
 
-# 预处理器定义同样挂到目标上（PUBLIC），使测试目标得到一致的编译环境。
-target_compile_definitions(YiCadCore PUBLIC
-    _USE_MATH_DEFINES
-    _ENABLE_EXTENDED_ALIGNED_STORAGE
-    APPDIR="YiCAD")
-remove_definitions(-D_HAS_STD_BYTE)
-
-# MSVC: 强制源文件和执行字符集为 UTF-8，避免中文乱码。
-# PUBLIC：测试源文件同样含中文注释与字符串。
-if(MSVC)
-    target_compile_options(YiCadCore PUBLIC /utf-8)
-endif()
-
 target_precompile_headers(YiCadCore PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/main/YiCadPch.h")
 
 # ---- YiCadCore 的依赖 ----
 # 全部用 PUBLIC：可执行目标与测试目标都需要这些库的头文件和符号。
-# 阶段 3 拆库后，多数条目可以按库降级为 PRIVATE。
+# YiCadMath/YiCadModel/YiCadPersistence 需要的第三方库已经在各自层级声明，
+# 经 PUBLIC 依赖链传播到这里，此处只声明 RENDER/INTERACTION/UI/APP
+# 自己新增的那些。
 
-# nlohmann_json is header-only and used by internal JSON serialization.
-if(TARGET nlohmann_json::nlohmann_json)
-    target_link_libraries(YiCadCore PUBLIC nlohmann_json::nlohmann_json)
-endif()
-
-# Eigen3 is header-only; INTERFACE propagation provides include directories.
-if(TARGET Eigen3::Eigen)
-    target_link_libraries(YiCadCore PUBLIC Eigen3::Eigen)
-endif()
-
-# GLM is header-only; INTERFACE propagation provides include directories.
-if(TARGET glm::glm)
-    target_link_libraries(YiCadCore PUBLIC glm::glm)
-endif()
-
-# Boost is header-only (signals2, math, uuid, ublas, algorithm).
-# Conan provides Boost::boost which transitively pulls Boost::headers.
-if(TARGET Boost::boost)
-    target_link_libraries(YiCadCore PUBLIC Boost::boost)
-endif()
+target_link_libraries(YiCadCore PUBLIC YiCadPersistence)
 
 if(TARGET GLEW::GLEW)
     target_link_libraries(YiCadCore PUBLIC GLEW::GLEW)
@@ -333,36 +435,10 @@ endif()
 if(TARGET Freetype::Freetype)
     target_link_libraries(YiCadCore PUBLIC Freetype::Freetype)
 endif()
-if(TARGET ZLIB::ZLIB)
-    target_link_libraries(YiCadCore PUBLIC ZLIB::ZLIB)
-endif()
-
-# pugixml：替代 Xerces-C，MIT 许可证与 GPLv3 兼容
-if(TARGET pugixml::pugixml)
-    target_link_libraries(YiCadCore PUBLIC pugixml::pugixml)
-endif()
-
-# minizip-ng: replaces zipios++ (zlib license)
-if(TARGET MINIZIP::minizip)
-    target_link_libraries(YiCadCore PUBLIC MINIZIP::minizip)
-endif()
-
-# CDT: replaces CGAL for constrained Delaunay triangulation (MPL-2.0)
-if(TARGET CDT::CDT)
-    target_link_libraries(YiCadCore PUBLIC CDT::CDT)
-endif()
 
 # Windows system libraries
 if(WIN32)
     target_link_libraries(YiCadCore PUBLIC Dwrite.lib crypt32.lib)
-endif()
-
-# muparser: consumed through Conan imported target (step 7)
-if(TARGET muparser::muparser)
-    target_link_libraries(YiCadCore PUBLIC muparser::muparser)
-else()
-    message(FATAL_ERROR "muparser::muparser target not found. "
-        "Run 'conan install' with --build=never before configuring CMake.")
 endif()
 
 # SARibbonBar: imported target from find_package (step 8)
@@ -509,3 +585,6 @@ INSTALL(DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
 #structure files
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/ui" PREFIX "UIs" FILES ${YICAD_UI_FORMS})
 GroupSourcesByFolder(YiCadCore)
+GroupSourcesByFolder(YiCadMath)
+GroupSourcesByFolder(YiCadModel)
+GroupSourcesByFolder(YiCadPersistence)

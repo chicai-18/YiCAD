@@ -27,10 +27,12 @@
 #include <iostream>
 #include <fstream>
 
+#include <QImage>
+#include <QPolygonF>
+
 #include "DmLine.h"
 #include "DmSettings.h"
 #include "Debug.h"
-#include "GuiDocumentView.h"
 #include "Math2d.h"
 
 DmImage::DmImage(DmEntity* parent, const ImageData& d)

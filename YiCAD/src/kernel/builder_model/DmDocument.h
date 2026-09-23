@@ -44,7 +44,7 @@ class DmVariableDict;
 class DmTextStyle;
 class DmLineTypeTable;
 class DmCacheDrawData;
-class GuiDocumentView;
+class IDocumentView;
 
 constexpr const char* DOCDEFAULTFORMAT = "Drawing Exchange YCD 2023 (*.ycd)";
 
@@ -161,11 +161,11 @@ public:
 
     /// @brief 给文档设置画布
     /// @param docView 画布视图指针
-    void setDocumentView(GuiDocumentView* docView);
+    void setDocumentView(IDocumentView* docView);
 
     /// @brief 获取文档的画布
     /// @return 画布视图指针
-    GuiDocumentView* getDocumentView();
+    IDocumentView* getDocumentView();
 
     /// @brief 获取文档当前画笔
     /// @return 当前画笔
@@ -274,7 +274,7 @@ private:
     size_t                              m_savedUndoCount = 0; ///< 保存时的 undo 栈大小，用于判断文档是否需要保存
     bool                                m_bHasAutoSaved = false; ///< 是否已自动保存
     std::shared_ptr<QTimer>             m_timer; ///< 用于自动保存文件的定时器   //不能用unique_ptr，否则编译不过
-    GuiDocumentView*                    m_documentView = nullptr; ///< 这个文档对应的画布
+    IDocumentView*                      m_documentView = nullptr; ///< 这个文档对应的画布
     DmPen                               m_activePen; ///< 文档当前的画笔
     QString                             m_filename; ///< 文档保存路径
     QString                             m_formatType; ///< 保存格式名

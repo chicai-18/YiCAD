@@ -28,10 +28,7 @@
 #include <cmath>
 
 #include "DmCircle.h"
-#include "GuiDocumentView.h"
 
-#include "Writer.h"
-#include "Reader.h"
 #include "Stream.h"
 
 TYPESYSTEM_SOURCE(DmPoint, DmAtomicEntity, 0)

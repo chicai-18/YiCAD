@@ -29,7 +29,6 @@
 #include "DmCircle.h"
 #include "DmLine.h"
 #include "DmDocument.h"
-#include "GuiDocumentView.h"
 #include "Information.h"
 #include "Math2d.h"
 #include <cmath>
@@ -50,8 +49,6 @@
 using std::isnormal;
 #endif
 
-#include "Writer.h"
-#include "Reader.h"
 #include "Stream.h"
 
 TYPESYSTEM_SOURCE(DmEllipse, DmAtomicEntity, 0)

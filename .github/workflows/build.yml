@@ -113,7 +113,13 @@ jobs:
         run: cmake -G "Visual Studio 17 2022" -A x64 -S . -B build/Release -DCMAKE_TOOLCHAIN_FILE="build/conan-release/build/generators/conan_toolchain.cmake" -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/${{ env.QT_VERSION }}/${{ env.QT_ARCH }};${{ github.workspace }}/external/SARibbonBar/install;${{ github.workspace }}/external/CDT/install" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/build/package/Release"
 
       - name: Build
-        run: cmake --build build/Release --config Release
+        # -m: MSBuild solution-level parallelism. Since stage 3 split YiCadCore
+        # into a YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore
+        # dependency chain, the Visual Studio generator builds those projects
+        # in dependency order; without -m each stage under-uses available
+        # cores. See doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 and
+        # tools/measure_build.ps1.
+        run: cmake --build build/Release --config Release -- -m
 
       - name: Test
         run: ctest --test-dir build/Release -C Release --output-on-failure

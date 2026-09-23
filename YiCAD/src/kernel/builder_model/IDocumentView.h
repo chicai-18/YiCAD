@@ -23,12 +23,17 @@
 /// 视口矩形等。GuiDocumentView 实现本接口；actions/ 与 kernel/actions/
 /// 只依赖本接口，不再需要包含拖有 OpenGL/Qt 具体渲染细节的
 /// GuiDocumentView.h。见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段1。
+///
+/// 阶段 3 从 kernel/actions/ 移到本目录：kernel/modification/（Selection、
+/// Modification）与 kernel/history/BlockEditCmd 同样持有 IDocumentView*，
+/// 二者物理位于 Model 分区，接口必须与最低的消费方同层或更低，
+/// 因此下沉到 Model。
 
 #ifndef IDOCUMENTVIEW_H
 #define IDOCUMENTVIEW_H
 
 #include "DmRect.h"
-#include "Snapper.h"
+#include "ISnapService.h"
 
 class QCursor;
 class QObject;
@@ -106,6 +111,9 @@ public:
     virtual void specifyDocumentModified() = 0;
     /// @brief 指定预览模型矩阵的偏移量
     virtual void setPreviewModelOffset(const DmVector& offset) = 0;
+
+    /// @brief 替换文档画布当前绘制的实体容器（如切换到块编辑态）并触发重绘
+    virtual void setDocumentPainterContainer(DmEntityContainer* container) = 0;
 
     /// @brief 获得视图范围（世界坐标）
     virtual DmRect getViewRect() = 0;
