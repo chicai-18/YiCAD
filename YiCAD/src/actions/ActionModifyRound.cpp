@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionModifyRound.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -528,3 +529,11 @@ void ActionModifyRound::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyRound, QStringLiteral("modify.round"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyRound(ctx.document, ctx.view); });
+}  // namespace

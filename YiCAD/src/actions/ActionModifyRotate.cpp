@@ -23,6 +23,7 @@
 /// @brief 旋转修改操作——处理用户鼠标事件以实现实体旋转功能
 
 #include "ActionModifyRotate.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -208,3 +209,18 @@ void ActionModifyRotate::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+ActionInterface* createActionModifyRotate(const CommandContext& ctx)
+{
+    return new ActionModifyRotate(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyRotate, QStringLiteral("modify.rotate"),
+    makeSelectFirstFactory(DM::ActionModifyRotateNoSelect, createActionModifyRotate));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyRotateNoSelect, QStringLiteral("modify.rotate_no_select"), createActionModifyRotate);
+}  // namespace

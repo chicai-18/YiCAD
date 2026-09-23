@@ -23,6 +23,7 @@
 /// @brief 缩放实体交互命令实现
 
 #include "ActionModifyScale.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -227,3 +228,18 @@ void ActionModifyScale::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+ActionInterface* createActionModifyScale(const CommandContext& ctx)
+{
+    return new ActionModifyScale(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyScale, QStringLiteral("modify.scale"),
+    makeSelectFirstFactory(DM::ActionModifyScaleNoSelect, createActionModifyScale));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyScaleNoSelect, QStringLiteral("modify.scale_no_select"), createActionModifyScale);
+}  // namespace

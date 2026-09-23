@@ -23,6 +23,8 @@
 /// @brief 删除选中实体的交互动作类实现
 
 #include "ActionModifyDelete.h"
+#include "CommandRegistry.h"
+#include "ActionSelect.h"
 
 #include <QAction>
 
@@ -71,3 +73,19 @@ void ActionModifyDelete::updateMouseCursor()
 {
     docView->setMouseCursor(DM::DelCursor);
 }
+
+namespace
+{
+// 与其余 7 组"先选后建"不同，ActionModifyDelete 在原 switch 里从不检查
+// hasSelect()，无条件先建 ActionSelect 收集选择——真实的行为差异，不是
+// 迁移疏漏，原样保留（不复用 makeSelectFirstFactory）。
+const bool g_registeredDelete = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyDelete, QStringLiteral("modify.delete"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionSelect(ctx.handler, ctx.document, ctx.view, DM::ActionModifyDeleteNoSelect); });
+
+const bool g_registeredDeleteNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyDeleteNoSelect, QStringLiteral("modify.delete_no_select"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyDelete(ctx.document, ctx.view); });
+}  // namespace

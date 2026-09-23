@@ -23,6 +23,7 @@
 /// @brief 单个实体偏移交互命令实现
 
 #include "ActionModifySingleOffset.h"
+#include "CommandRegistry.h"
 
 #include <cmath>
 #include <QAction>
@@ -248,3 +249,11 @@ void ActionModifySingleOffset::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifySingleOffset, QStringLiteral("modify.single_offset"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifySingleOffset(ctx.document, ctx.view); });
+}  // namespace

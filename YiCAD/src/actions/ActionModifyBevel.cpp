@@ -23,6 +23,7 @@
 /// @brief 倒角修改 Action 类的实现
 
 #include "ActionModifyBevel.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -596,3 +597,11 @@ void ActionModifyBevel::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyBevel, QStringLiteral("modify.bevel"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyBevel(ctx.document, ctx.view); });
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 延伸实体的交互动作类实现
 
 #include "ActionModifyExtend.h"
+#include "CommandRegistry.h"
 
 #include "DmArc.h"
 #include "DmCircle.h"
@@ -1028,3 +1029,11 @@ void ActionModifyExtend::slotViewChanged()
         updateEntitiesInView();
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyExtend, QStringLiteral("modify.extend"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyExtend(ctx.document, ctx.view); });
+}  // namespace

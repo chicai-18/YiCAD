@@ -35,8 +35,6 @@
 #include "ActionBlocksImport.h"
 #include "ActionBlocksSave.h"
 #include "ActionBlocksSaveAs.h"
-#include "ActionModifyExplode.h"
-#include "ActionModifyReverse.h"
 #include "ActionBlockInsertPrepare.h"
 #include "ActionBlocksInsert.h"
 #include "ActionDefineAttributes.h"
@@ -56,18 +54,6 @@
 #include "ActionLayersFreezeAll.h"
 #include "ActionLayersLockAll.h"
 #include "ActionLayersRename.h"
-#include "ActionModifyBevel.h"
-#include "ActionModifyCut.h"
-#include "ActionModifyDelete.h"
-#include "ActionModifyEntity.h"
-#include "ActionModifyMirror.h"
-#include "ActionModifyCopy.h"
-#include "ActionModifyMove.h"
-#include "ActionModifyRotate.h"
-#include "ActionModifyRound.h"
-#include "ActionModifySingleOffset.h"
-#include "ActionModifyScale.h"
-#include "ActionModifyTrim.h"
 #include "ActionOptionsGeneral.h"
 #include "ActionOptionsDrawing.h"
 #include "ActionSelect.h"
@@ -86,8 +72,6 @@
 #include "GuiDocumentView.h"
 #include "GuiEventHandler.h"
 #include "UICurrentActivePen.h"
-#include "ActionModifyCut2P.h"
-#include "ActionModifyExtend.h"
 #include "ActionCopyToLayer.h"
 
 UIActionHandler::UIActionHandler(QObject* parent)
@@ -182,86 +166,9 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 		// 已迁移到 CommandRegistry（阶段4第五部分）。
 
 		// Modifying actions:
-	case DM::ActionModifyDelete:
-		a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyDeleteNoSelect);
-		break;
-	case DM::ActionModifyDeleteNoSelect:
-		a = new ActionModifyDelete(m_pDocument, m_pView);
-		break;
-    case DM::ActionModifyCopy:
-        if (!m_pDocument->getEntityTable()->hasSelect())
-        {
-            a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyCopyNoSelect);
-            break;
-        }
-        // fall-through
-    case DM::ActionModifyCopyNoSelect:
-        a = new ActionModifyCopy(m_pDocument, m_pView);
-        break;
-	case DM::ActionModifyMove:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyMoveNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionModifyMoveNoSelect:
-		a = new ActionModifyMove(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyRotate:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyRotateNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionModifyRotateNoSelect:
-		a = new ActionModifyRotate(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyScale:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyScaleNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionModifyScaleNoSelect:
-		a = new ActionModifyScale(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyMirror:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyMirrorNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionModifyMirrorNoSelect:
-		a = new ActionModifyMirror(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyEntity:
-		a = new ActionModifyEntity(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyTrim:
-		a = new ActionModifyTrim(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyExtend:
-		a = new ActionModifyExtend(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyCut:
-		a = new ActionModifyCut(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyCut2P:
-		a = new ActionModifyCut2P(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyBevel:
-		a = new ActionModifyBevel(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifyRound:
-		a = new ActionModifyRound(m_pDocument, m_pView);
-		break;
-	case DM::ActionModifySingleOffset:
-		a = new ActionModifySingleOffset(m_pDocument, m_pView);
-		break;
+		// Modify*（含 select-first 7 组、ActionModifyDelete 的不对称
+		// 变体、以及 8 个普通命令）已迁移到 CommandRegistry
+		// （阶段4第六部分）。
 		// Snapping / Snap restriction actions:
 		// 已在函数开头交给 commandLineActions() 处理，见上。
 		//
@@ -396,26 +303,8 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 	case DM::ActionDefineAttributes:
 		a = new ActionDefineAttributes(m_pDocument, m_pView);
 		break;
-	case DM::ActionModifyExplode:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyExplodeNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionModifyExplodeNoSelect:
-		a = new ActionModifyExplode(m_pDocument, m_pView);
-		break;
-    case DM::ActionModifyReverse:
-        if (!m_pDocument->getEntityTable()->hasSelect())
-        {
-            a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionModifyReverseNoSelect);
-            break;
-        }
-        // fall-through
-    case DM::ActionModifyReverseNoSelect:
-        a = new ActionModifyReverse(m_pDocument, m_pView);
-        break;
+		// ActionModifyExplode/Reverse 已随 Modify* 迁移到 CommandRegistry
+		// （阶段4第六部分）。
 	case DM::ActionOptionsGeneral:
 		a = new ActionOptionsGeneral(m_pDocument, m_pView);
 		break;

@@ -23,6 +23,7 @@
 /// @brief 复制实体 Action 类的实现
 
 #include "ActionModifyCopy.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -273,3 +274,18 @@ std::vector<DmEntity*> ActionModifyCopy::getCloneEntities() const
     }
     return addedEnts;
 }
+
+namespace
+{
+ActionInterface* createActionModifyCopy(const CommandContext& ctx)
+{
+    return new ActionModifyCopy(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyCopy, QStringLiteral("modify.copy"),
+    makeSelectFirstFactory(DM::ActionModifyCopyNoSelect, createActionModifyCopy));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyCopyNoSelect, QStringLiteral("modify.copy_no_select"), createActionModifyCopy);
+}  // namespace

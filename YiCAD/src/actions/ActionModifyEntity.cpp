@@ -23,6 +23,7 @@
 /// @brief 修改实体属性的交互动作类实现
 
 #include "ActionModifyEntity.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -93,3 +94,11 @@ void ActionModifyEntity::updateMouseButtonHints()
 {
     GUIDIALOGFACTORY->updateMouseWidget(tr("Click on entity to modify"), tr("Cancel"));
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyEntity, QStringLiteral("modify.entity"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyEntity(ctx.document, ctx.view); });
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 修剪实体交互命令实现
 
 #include "ActionModifyTrim.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -285,3 +286,11 @@ void ActionModifyTrim::unhighlightLimitingEntity()
     docView->specifyDocumentModified();
     docView->redraw();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyTrim, QStringLiteral("modify.trim"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyTrim(ctx.document, ctx.view); });
+}  // namespace

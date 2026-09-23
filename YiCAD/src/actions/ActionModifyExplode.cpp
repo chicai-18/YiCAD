@@ -23,6 +23,7 @@
 /// @brief 分解实体（块、多段线、多行文字等）的交互动作类实现
 
 #include "ActionModifyExplode.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 
@@ -337,3 +338,18 @@ bool ActionModifyExplode::explodeMTextIntoLetters(DmMText* text, std::vector<DmE
 
     return true;
 }
+
+namespace
+{
+ActionInterface* createActionModifyExplode(const CommandContext& ctx)
+{
+    return new ActionModifyExplode(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyExplode, QStringLiteral("modify.explode"),
+    makeSelectFirstFactory(DM::ActionModifyExplodeNoSelect, createActionModifyExplode));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyExplodeNoSelect, QStringLiteral("modify.explode_no_select"), createActionModifyExplode);
+}  // namespace

@@ -23,6 +23,7 @@
 /// @brief 反向修改操作——将选中实体的方向反转
 
 #include "ActionModifyReverse.h"
+#include "CommandRegistry.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "DmLine.h"
@@ -122,3 +123,18 @@ void ActionModifyReverse::updateMouseButtonHints()
 {
     GUIDIALOGFACTORY->updateMouseWidget();
 }
+
+namespace
+{
+ActionInterface* createActionModifyReverse(const CommandContext& ctx)
+{
+    return new ActionModifyReverse(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyReverse, QStringLiteral("modify.reverse"),
+    makeSelectFirstFactory(DM::ActionModifyReverseNoSelect, createActionModifyReverse));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyReverseNoSelect, QStringLiteral("modify.reverse_no_select"), createActionModifyReverse);
+}  // namespace

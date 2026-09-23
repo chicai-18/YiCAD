@@ -23,6 +23,7 @@
 /// @brief 移动修改操作——处理用户鼠标事件以实现实体移动功能
 
 #include "ActionModifyMove.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -187,3 +188,18 @@ void ActionModifyMove::updateMouseCursor()
         docView->setMouseCursor(DM::CadCursor);
     }
 }
+
+namespace
+{
+ActionInterface* createActionModifyMove(const CommandContext& ctx)
+{
+    return new ActionModifyMove(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyMove, QStringLiteral("modify.move"),
+    makeSelectFirstFactory(DM::ActionModifyMoveNoSelect, createActionModifyMove));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyMoveNoSelect, QStringLiteral("modify.move_no_select"), createActionModifyMove);
+}  // namespace

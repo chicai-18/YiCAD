@@ -23,6 +23,7 @@
 /// @brief 裁剪实体操作实现 —— 选择实体并指定剪切点将其一分为二。
 
 #include "ActionModifyCut.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -214,3 +215,11 @@ void ActionModifyCut::updateMouseCursor()
         break;
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyCut, QStringLiteral("modify.cut"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyCut(ctx.document, ctx.view); });
+}  // namespace

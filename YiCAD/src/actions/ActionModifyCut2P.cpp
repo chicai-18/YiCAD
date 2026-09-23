@@ -23,6 +23,7 @@
 /// @brief 两点裁剪 Action 类的实现
 
 #include "ActionModifyCut2P.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -199,3 +200,11 @@ void ActionModifyCut2P::updateMouseCursor()
         break;
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyCut2P, QStringLiteral("modify.cut_2p"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionModifyCut2P(ctx.document, ctx.view); });
+}  // namespace

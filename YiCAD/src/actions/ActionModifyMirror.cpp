@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionModifyMirror.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -262,3 +263,18 @@ void ActionModifyMirror::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+ActionInterface* createActionModifyMirror(const CommandContext& ctx)
+{
+    return new ActionModifyMirror(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyMirror, QStringLiteral("modify.mirror"),
+    makeSelectFirstFactory(DM::ActionModifyMirrorNoSelect, createActionModifyMirror));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionModifyMirrorNoSelect, QStringLiteral("modify.mirror_no_select"), createActionModifyMirror);
+}  // namespace
