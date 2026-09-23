@@ -23,6 +23,7 @@
 /// @brief 图层全部锁定/解锁 Action 类的实现
 
 #include "ActionLayersLockAll.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 
@@ -78,3 +79,16 @@ void ActionLayersLockAll::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+const bool g_registeredUnlockAll = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersUnlockAll, QStringLiteral("layers.unlock_all"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersLockAll(false, ctx.document, ctx.view); });
+
+const bool g_registeredLockAll = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersLockAll, QStringLiteral("layers.lock_all"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersLockAll(true, ctx.document, ctx.view); });
+}  // namespace

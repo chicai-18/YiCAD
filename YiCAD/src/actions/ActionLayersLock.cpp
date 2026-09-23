@@ -23,6 +23,7 @@
 /// @brief 图层锁定动作类实现文件
 
 #include "ActionLayersLock.h"
+#include "CommandRegistry.h"
 
 #include <QToolButton>
 
@@ -120,3 +121,11 @@ void ActionLayersLock::setToLock(bool lock)
 {
 	toLock = lock;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersLock, QStringLiteral("layers.lock"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersLock(ctx.sender, ctx.document, ctx.view); });
+}  // namespace

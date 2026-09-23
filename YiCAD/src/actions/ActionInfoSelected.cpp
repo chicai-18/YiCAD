@@ -23,6 +23,7 @@
 /// @brief 选中实体信息 Action 类的实现
 
 #include "ActionInfoSelected.h"
+#include "CommandRegistry.h"
 #include "GuiDialogFactory.h"
 #include "DmSpline.h"
 #include "DmEntityHelper.h"
@@ -157,3 +158,11 @@ void ActionInfoSelected::getInfoForSpline(const DmSpline* spline, QString& info)
         }
     }
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionInfoSelected, QStringLiteral("info.selected"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionInfoSelected(ctx.document, ctx.view); });
+}  // namespace

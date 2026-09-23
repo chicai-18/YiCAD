@@ -39,21 +39,6 @@
 #include "ActionBlocksInsert.h"
 #include "ActionDefineAttributes.h"
 
-#include "ActionInfoAngle.h"
-#include "ActionInfoArea.h"
-#include "ActionInfoDist.h"
-#include "ActionInfoTotalLength.h"
-#include "ActionInfoSelected.h"
-#include "ActionLayersFreeze.h"
-#include "ActionLayersLock.h"
-#include "ActionLayersPrint.h"
-#include "ActionLayersColor.h"
-#include "ActionLayersActivate.h"
-#include "ActionLayersDelete.h"
-#include "ActionLayersAdd.h"
-#include "ActionLayersFreezeAll.h"
-#include "ActionLayersLockAll.h"
-#include "ActionLayersRename.h"
 #include "ActionOptionsGeneral.h"
 #include "ActionOptionsDrawing.h"
 #include "ActionSelect.h"
@@ -65,7 +50,6 @@
 #include "ActionSelectedChanged.h"
 
 #include "Debug.h"
-#include "DmLayer.h"
 #include "DmSettings.h"
 #include "MDIWindow.h"
 #include "QMdiArea"
@@ -175,68 +159,7 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 
 		// Info actions:
 		//
-	case DM::ActionInfoDist:
-		a = new ActionInfoDist(m_pDocument, m_pView);
-		break;
-	case DM::ActionInfoAngle:
-		a = new ActionInfoAngle(m_pDocument, m_pView);
-		break;
-	case DM::ActionInfoTotalLength:
-		if (!m_pDocument->getEntityTable()->hasSelect())
-		{
-			a = new ActionSelect(this, m_pDocument, m_pView, DM::ActionInfoTotalLengthNoSelect);
-			break;
-		}
-		// fall-through
-	case DM::ActionInfoTotalLengthNoSelect:
-		a = new ActionInfoTotalLength(m_pDocument, m_pView);
-		break;
-	case DM::ActionInfoArea:
-		a = new ActionInfoArea(m_pDocument, m_pView);
-		break;
-    case DM::ActionInfoSelected:
-        a = new ActionInfoSelected(m_pDocument, m_pView);
-            break;
-        break;
-
-		// Layer actions:
-		//
-	case DM::ActionLayersFreeze:
-		a = new ActionLayersFreeze(sender(), m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersLock:
-		a = new ActionLayersLock(sender(), m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersPrint:
-		a = new ActionLayersPrint(sender(), m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersColor:
-		a = new ActionLayersColor(sender(), m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersActivate:
-		a = new ActionLayersActivate(sender(), m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersDelete:
-		a = new ActionLayersDelete(sender(), m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersDefreezeAll:
-		a = new ActionLayersFreezeAll(false, m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersFreezeAll:
-		a = new ActionLayersFreezeAll(true, m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersUnlockAll:
-		a = new ActionLayersLockAll(false, m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersLockAll:
-		a = new ActionLayersLockAll(true, m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersRename:
-		a = new ActionLayersRename(m_pDocument, m_pView);
-		break;
-	case DM::ActionLayersAdd:
-		a = new ActionLayersAdd(m_pDocument, m_pView);
-		break;
+		// Info* / Layers* 已迁移到 CommandRegistry（阶段4第七部分）。
 	case DM::ActionBlocksSaveAs:
 		a = new ActionBlocksSaveAs(m_pDocument, m_pView);
 		break;

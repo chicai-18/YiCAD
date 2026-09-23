@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /// @brief 图层删除 Action 类的实现
 
 #include "ActionLayersDelete.h"
+#include "CommandRegistry.h"
 #include "DmLayer.h"
 #include "DmDocument.h"
 #include "ApplicationWindow.h"
@@ -160,3 +161,11 @@ bool ActionLayersDelete::canLayerRemove(DmLayer* layer)
     }
     return true;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersDelete, QStringLiteral("layers.delete"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersDelete(ctx.sender, ctx.document, ctx.view); });
+}  // namespace

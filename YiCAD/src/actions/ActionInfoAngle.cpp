@@ -23,6 +23,7 @@
 /// @brief 角度测量 Action 类的实现
 
 #include "ActionInfoAngle.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 #include <QMouseEvent>
@@ -238,3 +239,11 @@ void ActionInfoAngle::updateMouseCursor()
 {
     docView->setMouseCursor(DM::SelectCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionInfoAngle, QStringLiteral("info.angle"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionInfoAngle(ctx.document, ctx.view); });
+}  // namespace

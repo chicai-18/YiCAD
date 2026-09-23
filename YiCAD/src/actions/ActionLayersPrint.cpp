@@ -23,6 +23,7 @@
 /// @brief 图层打印动作类实现文件
 
 #include "ActionLayersPrint.h"
+#include "CommandRegistry.h"
 
 #include <QToolButton>
 
@@ -111,3 +112,11 @@ void ActionLayersPrint::setToPrint(bool print)
 {
 	toPrint = print;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersPrint, QStringLiteral("layers.print"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersPrint(ctx.sender, ctx.document, ctx.view); });
+}  // namespace

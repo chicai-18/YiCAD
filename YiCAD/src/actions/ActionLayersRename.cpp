@@ -23,6 +23,7 @@
 /// @brief 图层重命名 Action 类的实现
 
 #include "ActionLayersRename.h"
+#include "CommandRegistry.h"
 
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
@@ -74,3 +75,11 @@ void ActionLayersRename::trigger()
     }
     finish(false);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersRename, QStringLiteral("layers.rename"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersRename(ctx.document, ctx.view); });
+}  // namespace

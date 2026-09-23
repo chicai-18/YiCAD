@@ -23,6 +23,7 @@
 /// @brief 图层添加 Action 类的实现
 
 #include "ActionLayersAdd.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 
@@ -64,3 +65,11 @@ void ActionLayersAdd::init(int status)
     ActionInterface::init(status);
     trigger();
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersAdd, QStringLiteral("layers.add"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersAdd(ctx.document, ctx.view); });
+}  // namespace

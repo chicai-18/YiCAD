@@ -23,6 +23,7 @@
 /// @brief 图层颜色 Action 类的实现
 
 #include "ActionLayersColor.h"
+#include "CommandRegistry.h"
 
 #include <QToolButton>
 
@@ -112,3 +113,11 @@ void ActionLayersColor::setLayer(const QString& layerName)
 {
     layer = pDocument->getLayerTable()->find(layerName);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersColor, QStringLiteral("layers.color"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersColor(ctx.sender, ctx.document, ctx.view); });
+}  // namespace

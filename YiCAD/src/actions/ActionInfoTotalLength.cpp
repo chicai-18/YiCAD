@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionInfoTotalLength.h"
+#include "CommandRegistry.h"
 
 #include "Debug.h"
 #include "DmDocument.h"
@@ -70,3 +71,19 @@ void ActionInfoTotalLength::trigger()
 
     finish(false);
 }
+
+namespace
+{
+ActionInterface* createInfoTotalLength(const CommandContext& ctx)
+{
+    return new ActionInfoTotalLength(ctx.document, ctx.view);
+}
+
+const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionInfoTotalLength, QStringLiteral("info.total_length"),
+    makeSelectFirstFactory(DM::ActionInfoTotalLengthNoSelect, createInfoTotalLength));
+
+const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionInfoTotalLengthNoSelect, QStringLiteral("info.total_length_no_select"),
+    createInfoTotalLength);
+}  // namespace

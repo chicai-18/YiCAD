@@ -23,6 +23,7 @@
 /// @brief 图层激活 Action 类的实现
 
 #include "ActionLayersActivate.h"
+#include "CommandRegistry.h"
 
 #include <QAbstractItemView>
 #include <QPushButton>
@@ -131,3 +132,11 @@ void ActionLayersActivate::setComboBoxData(ComboBoxData* data)
 {
     cbxData = data;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersActivate, QStringLiteral("layers.activate"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersActivate(ctx.sender, ctx.document, ctx.view); });
+}  // namespace

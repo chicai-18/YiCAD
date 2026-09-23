@@ -23,6 +23,7 @@
 /// @brief 冻结/解冻所有图层交互动作的实现
 
 #include "ActionLayersFreezeAll.h"
+#include "CommandRegistry.h"
 
 #include <QAction>
 
@@ -63,3 +64,16 @@ void ActionLayersFreezeAll::trigger()
 }
 
 // EOF
+
+namespace
+{
+const bool g_registeredDefreezeAll = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersDefreezeAll, QStringLiteral("layers.defreeze_all"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersFreezeAll(false, ctx.document, ctx.view); });
+
+const bool g_registeredFreezeAll = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersFreezeAll, QStringLiteral("layers.freeze_all"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersFreezeAll(true, ctx.document, ctx.view); });
+}  // namespace

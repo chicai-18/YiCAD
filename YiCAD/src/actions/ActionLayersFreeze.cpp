@@ -23,6 +23,7 @@
 /// @brief 图层冻结/解冻动作类实现文件
 
 #include "ActionLayersFreeze.h"
+#include "CommandRegistry.h"
 
 #include <QToolButton>
 
@@ -112,3 +113,11 @@ void ActionLayersFreeze::setToBeOn(bool on)
 {
     toBeOn = on;
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionLayersFreeze, QStringLiteral("layers.freeze"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionLayersFreeze(ctx.sender, ctx.document, ctx.view); });
+}  // namespace

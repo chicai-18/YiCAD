@@ -24,6 +24,7 @@
 
 #include <QAction>
 #include "ActionInfoArea.h"
+#include "CommandRegistry.h"
 
 #include <QMouseEvent>
 
@@ -180,3 +181,11 @@ void ActionInfoArea::updateMouseCursor()
 {
     docView->setMouseCursor(DM::CadCursor);
 }
+
+namespace
+{
+const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+    DM::ActionInfoArea, QStringLiteral("info.area"),
+    [](const CommandContext& ctx) -> ActionInterface*
+    { return new ActionInfoArea(ctx.document, ctx.view); });
+}  // namespace
