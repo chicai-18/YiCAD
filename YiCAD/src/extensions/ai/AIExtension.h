@@ -53,10 +53,8 @@ public:
 
 private:
     /// @brief OnRegister 期间存下来的上下文指针，供后续（点击回调、
-    /// 设置页回调）现场取当前文档/视图。安全性依赖
-    /// ApplicationWindowExtensionContext 的具体生命周期保证（活到
-    /// ExtensionManager::Shutdown() 为止），不是 IExtensionContext
-    /// 接口本身的通用契约——见 IExtension.h 的说明。
+    /// 设置页回调）现场取当前文档/视图。上下文由 ExtensionManager 持有，
+    /// 保证有效到本扩展的 OnShutdown 返回为止（见 IExtension.h）。
     IExtensionContext* m_ctx = nullptr;
     QWidget* m_mainWindow = nullptr;
     std::unique_ptr<AIAssistant> m_assistant;

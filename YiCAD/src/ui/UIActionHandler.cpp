@@ -420,33 +420,6 @@ bool UIActionHandler::executeExternalCommand(const QString& command)
 		command.mid(separator + 1));
 }
 
-void UIActionHandler::slotFileNew()
-{
-	setCurrentAction(DM::ActionFileNew);
-}
-
-void UIActionHandler::slotFileOpen() 
-{
-	setCurrentAction(DM::ActionFileOpen);
-}
-
-void UIActionHandler::slotFileSave()
-{
-	setCurrentAction(DM::ActionFileSave);
-}
-
-void UIActionHandler::slotFileSaveAs() 
-{
-	setCurrentAction(DM::ActionFileSaveAs);
-}
-
-
-
-void UIActionHandler::slotFileExportImage()
-{
-	setCurrentAction(DM::ActionFileExportImage);
-}
-
 void UIActionHandler::slotZoomIn() 
 {
 	setCurrentAction(DM::ActionZoomIn);
@@ -478,317 +451,14 @@ void UIActionHandler::slotEditUndo()
 	setCurrentAction(DM::ActionEditUndo);
 }
 
-void UIActionHandler::slotEditRedo() 
-{
-	setCurrentAction(DM::ActionEditRedo);
-}
-
-void UIActionHandler::slotEditCut() 
-{
-	setCurrentAction(DM::ActionEditCut);
-}
-
-void UIActionHandler::slotEditCopy() 
-{
-	setCurrentAction(DM::ActionEditCopy);
-}
-
-void UIActionHandler::slotEditPaste() 
-{
-	setCurrentAction(DM::ActionEditPaste);
-}
-
 void UIActionHandler::slotDrawPoint() 
 {
 	setCurrentAction(DM::ActionDrawPoint);
 }
 
-void UIActionHandler::slotDrawLine() 
-{
-	setCurrentAction(DM::ActionDrawLine);
-}
-
-void UIActionHandler::slotDrawLineFree() 
-{
-	setCurrentAction(DM::ActionDrawLineFree);
-}
-
-void UIActionHandler::slotDrawLineRectangle() 
-{
-	setCurrentAction(DM::ActionDrawLineRectangle);
-}
-
-void UIActionHandler::slotDrawLineBisector() 
-{
-	setCurrentAction(DM::ActionDrawLineBisector);
-}
-
-void UIActionHandler::slotDrawLineTangent1() 
-{
-	setCurrentAction(DM::ActionDrawLineTangent1);
-}
-
-void UIActionHandler::slotDrawLineTangent2() 
-{
-	setCurrentAction(DM::ActionDrawLineTangent2);
-}
-
-void UIActionHandler::slotDrawLineOrthTan() 
-{
-	setCurrentAction(DM::ActionDrawLineOrthTan);
-}
-
-void UIActionHandler::slotDrawPolyline() 
-{
-	setCurrentAction(DM::ActionDrawPolyline);
-}
-
-void UIActionHandler::slotPolylineAdd() 
-{
-	setCurrentAction(DM::ActionPolylineAdd);
-}
-
-void UIActionHandler::slotPolylineAppend() 
-{
-	setCurrentAction(DM::ActionPolylineAppend);
-}
-
-void UIActionHandler::slotPolylineDel() 
-{
-	setCurrentAction(DM::ActionPolylineDel);
-}
-
-void UIActionHandler::slotCloudLineRectangle()
-{
-	setCurrentAction(DM::ActionCloudLineRectangle);
-}
-
-void UIActionHandler::slotCloudLinePolygon()
-{
-	setCurrentAction(DM::ActionCloudLinePolygon);
-}
-
-void UIActionHandler::slotCloudLineFree()
-{
-	setCurrentAction(DM::ActionCloudLineFree);
-}
-
-void UIActionHandler::slotDrawLinePolygon() 
-{
-	setCurrentAction(DM::ActionDrawLinePolygonCenCor);
-}
-
-void UIActionHandler::slotDrawLinePolygon3() 
-{
-	setCurrentAction(DM::ActionDrawLinePolygonCenTan);
-}
-
-void UIActionHandler::slotDrawCircle() 
-{
-	setCurrentAction(DM::ActionDrawCircle);
-}
-
-void UIActionHandler::slotDrawCircle2P() 
-{
-	setCurrentAction(DM::ActionDrawCircle2P);
-}
-
-void UIActionHandler::slotDrawCircle3P() 
-{
-	setCurrentAction(DM::ActionDrawCircle3P);
-}
-
-void UIActionHandler::slotDrawCircleTan2() 
-{
-	setCurrentAction(DM::ActionDrawCircleTan2);
-}
-void UIActionHandler::slotDrawCircleTan3() 
-{
-	setCurrentAction(DM::ActionDrawCircleTan3);
-}
-void UIActionHandler::slotDrawArc() 
-{
-	setCurrentAction(DM::ActionDrawArc);
-}
-
-void UIActionHandler::slotDrawArc3P() 
-{
-	setCurrentAction(DM::ActionDrawArc3P);
-}
-
-void UIActionHandler::slotDrawArcTangential() 
-{
-	setCurrentAction(DM::ActionDrawArcTangential);
-}
-
-void UIActionHandler::slotDrawEllipseAxis() 
-{
-	setCurrentAction(DM::ActionDrawEllipseAxis);
-}
-
-void UIActionHandler::slotDrawEllipseInscribe() 
-{
-	setCurrentAction(DM::ActionDrawEllipseInscribe);
-}
-
-void UIActionHandler::slotDrawRay()
-{
-	setCurrentAction(DM::ActionDrawRay);
-}
-
-void UIActionHandler::slotDrawXline()
-{
-	setCurrentAction(DM::ActionDrawXline);
-}
-
-void UIActionHandler::slotDrawSpline() 
-{
-	setCurrentAction(DM::ActionDrawSpline);
-}
-
-void UIActionHandler::slotDrawSplinePoints() 
-{
-	setCurrentAction(DM::ActionDrawSplinePoints);
-}
-
-void UIActionHandler::slotDrawMText() 
-{
-	setCurrentAction(DM::ActionDrawMText);
-}
-
-void UIActionHandler::slotDrawText() 
-{
-	setCurrentAction(DM::ActionDrawText);
-}
-
-void UIActionHandler::slotDrawHatch() 
-{
-	setCurrentAction(DM::ActionDrawHatch);
-}
-
-void UIActionHandler::slotDrawImage() 
-{
-	setCurrentAction(DM::ActionDrawImage);
-}
-
-void UIActionHandler::slotDimAligned() 
-{
-	setCurrentAction(DM::ActionDimAligned);
-}
-
-void UIActionHandler::slotDimLinear() 
-{
-	setCurrentAction(DM::ActionDimLinear);
-}
-
-void UIActionHandler::slotDimRadial() 
-{
-	setCurrentAction(DM::ActionDimRadial);
-}
-
-void UIActionHandler::slotDimDiametric() 
-{
-	setCurrentAction(DM::ActionDimDiametric);
-}
-
-void UIActionHandler::slotDimAngular() 
-{
-	setCurrentAction(DM::ActionDimAngular);
-}
-
-void UIActionHandler::slotDimLeader() 
-{
-	setCurrentAction(DM::ActionDimLeader);
-}
-
-void UIActionHandler::slotDimBaseline()
-{
-	setCurrentAction(DM::ActionDimBaseline);
-}
-
-void UIActionHandler::slotDimStyle()
-{
-	setCurrentAction(DM::ActionDimStyle);
-}
-
-void UIActionHandler::slotTextStyle()
-{
-	setCurrentAction(DM::ActionTextStyle);
-}
-
 void UIActionHandler::slotModifyDelete() 
 {
 	setCurrentAction(DM::ActionModifyDelete);
-}
-
-void UIActionHandler::slotModifyDeleteNoSelect()
-{
-	setCurrentAction(DM::ActionModifyDeleteNoSelect);
-}
-
-void UIActionHandler::slotModifyCopy()
-{
-    setCurrentAction(DM::ActionModifyCopy);
-}
-
-void UIActionHandler::slotModifyMove() 
-{
-	setCurrentAction(DM::ActionModifyMove);
-}
-
-void UIActionHandler::slotModifyRotate() 
-{
-	setCurrentAction(DM::ActionModifyRotate);
-}
-
-void UIActionHandler::slotModifyScale() 
-{
-	setCurrentAction(DM::ActionModifyScale);
-}
-
-void UIActionHandler::slotModifyBevel() 
-{
-	setCurrentAction(DM::ActionModifyBevel);
-}
-
-void UIActionHandler::slotModifyRound() 
-{
-	setCurrentAction(DM::ActionModifyRound);
-}
-
-void UIActionHandler::slotModifySingleOffset()
-{
-	setCurrentAction(DM::ActionModifySingleOffset);
-}
-
-void UIActionHandler::slotModifyMirror() 
-{
-	setCurrentAction(DM::ActionModifyMirror);
-}
-
-void UIActionHandler::slotModifyEntity() 
-{
-	setCurrentAction(DM::ActionModifyEntity);
-}
-
-void UIActionHandler::slotModifyTrim() 
-{
-	setCurrentAction(DM::ActionModifyTrim);
-}
-
-void UIActionHandler::slotModifyExtend()
-{
-	setCurrentAction(DM::ActionModifyExtend);
-}
-
-void UIActionHandler::slotModifyCut() 
-{
-	setCurrentAction(DM::ActionModifyCut);
-}
-
-void UIActionHandler::slotModifyCut_2P()
-{
-	setCurrentAction(DM::ActionModifyCut2P);
 }
 
 void UIActionHandler::slotSetSnaps(SnapMode const& s) 
@@ -902,64 +572,9 @@ void UIActionHandler::disableRestrictions()
 	slotSetSnaps(s);
 }
 
-void UIActionHandler::slotInfoDist() 
-{
-	setCurrentAction(DM::ActionInfoDist);
-}
-
-void UIActionHandler::slotInfoAngle() 
-{
-	setCurrentAction(DM::ActionInfoAngle);
-}
-
-void UIActionHandler::slotInfoTotalLength() 
-{
-	setCurrentAction(DM::ActionInfoTotalLength);
-}
-
-void UIActionHandler::slotInfoArea() 
-{
-	setCurrentAction(DM::ActionInfoArea);
-}
-
 void UIActionHandler::slotIndoSelected()
 {
     setCurrentAction(DM::ActionInfoSelected);
-}
-
-void UIActionHandler::slotLayersFreeze()
-{
-	setCurrentAction(DM::ActionLayersFreeze);
-}
-
-void UIActionHandler::slotLayersLock()
-{
-	setCurrentAction(DM::ActionLayersLock);
-}
-
-void UIActionHandler::slotLayersPrint()
-{
-	setCurrentAction(DM::ActionLayersPrint);
-}
-
-void UIActionHandler::slotLayersColor()
-{
-	setCurrentAction(DM::ActionLayersColor);
-}
-
-void UIActionHandler::slotLayersActivate()
-{
-	setCurrentAction(DM::ActionLayersActivate);
-}
-
-void UIActionHandler::slotLayersDelete()
-{
-	setCurrentAction(DM::ActionLayersDelete);
-}
-
-void UIActionHandler::slotLayersDefreezeAll()
-{
-	setCurrentAction(DM::ActionLayersDefreezeAll);
 }
 
 void UIActionHandler::slotLayersFreezeAll() 
@@ -967,24 +582,9 @@ void UIActionHandler::slotLayersFreezeAll()
 	setCurrentAction(DM::ActionLayersFreezeAll);
 }
 
-void UIActionHandler::slotLayersUnlockAll() 
-{
-	setCurrentAction(DM::ActionLayersUnlockAll);
-}
-
 void UIActionHandler::slotLayersLockAll() 
 {
 	setCurrentAction(DM::ActionLayersLockAll);
-}
-
-void UIActionHandler::slotLayersRename()
-{
-	setCurrentAction(DM::ActionLayersRename);
-}
-
-void UIActionHandler::slotLayersAdd() 
-{
-	setCurrentAction(DM::ActionLayersAdd);
 }
 
 void UIActionHandler::slotBlocksSave() 
@@ -992,64 +592,9 @@ void UIActionHandler::slotBlocksSave()
 	setCurrentAction(DM::ActionBlocksSave);
 }
 
-void UIActionHandler::slotBlocksSaveAs()
-{
-	setCurrentAction(DM::ActionBlocksSaveAs);
-}
-
-void UIActionHandler::slotBlocksInsertPrepare()
-{
-	setCurrentAction(DM::ActionBlockInsertPrepare);
-}
-
 void UIActionHandler::slotBlocksInsert() 
 {
 	setCurrentAction(DM::ActionBlocksInsert);
-}
-
-void UIActionHandler::slotBlocksCreate()
-{
-	setCurrentAction(DM::ActionBlocksCreate);
-}
-
-void UIActionHandler::slotBlocksDelete()
-{
-	setCurrentAction(DM::ActionBlocksDelete);
-}
-
-void UIActionHandler::slotBlocksEdit()
-{
-	setCurrentAction(DM::ActionBlocksEdit);
-}
-
-void UIActionHandler::slotBlocksImport()
-{
-	setCurrentAction(DM::ActionBlocksImport);
-}
-
-void UIActionHandler::slotModifyExplode()
-{
-	setCurrentAction(DM::ActionModifyExplode);
-}
-
-void UIActionHandler::slotDefineAttributes()
-{
-	setCurrentAction(DM::ActionDefineAttributes);
-}
-
-void UIActionHandler::slotOptionsGeneral()
-{
-	setCurrentAction(DM::ActionOptionsGeneral);
-}
-
-void UIActionHandler::slotOptionsDrawing() 
-{
-	setCurrentAction(DM::ActionOptionsDrawing);
-}
-
-void UIActionHandler::slotCopyToLayer()
-{
-	setCurrentAction(DM::ActionCopyToLayer);
 }
 
 void UIActionHandler::slotSecectedChanged()

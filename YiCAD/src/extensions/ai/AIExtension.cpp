@@ -19,9 +19,7 @@
 
 #include "AIExtension.h"
 
-#include <QAction>
 #include <QCoreApplication>
-#include <QIcon>
 
 #include "AIAssistant.h"
 #include "DmDocument.h"
@@ -30,8 +28,7 @@
 #include "IExtensionContext.h"
 #include "LLMSettingsPage.h"
 #include "LLMSettingsService.h"
-#include "SARibbonBar.h"
-#include "SARibbonButtonGroupWidget.h"
+#include "UIRibbonRegistry.h"
 
 AIExtension::AIExtension() = default;
 AIExtension::~AIExtension() = default;
@@ -53,19 +50,21 @@ void AIExtension::OnRegister(IExtensionContext& ctx)
     LLMSettingsService::instance()->init(
         QCoreApplication::organizationName(), QCoreApplication::applicationName());
 
-    // AI 按钮放在常驻的 rightButtonGroup()（不属于任何 Ribbon 标签页）。
-    auto* action = new QAction(QCoreApplication::translate("AIExtension", "AI Assistant"),
-                                &ctx.ribbon());
-    action->setIcon(QIcon(":/extensions/ai/ai.svg"));
-    action->setObjectName("ai-assistant");
-    QObject::connect(action, &QAction::triggered, &ctx.ribbon(),
-                      [this]()
-                      {
-                          DmDocument* doc = m_ctx->currentDocument();
-                          GuiDocumentView* docView = m_ctx->currentDocumentView();
-                          m_assistant->show(doc, docView);
-                      });
-    ctx.ribbon().rightButtonGroup()->addAction(action);
+    // AI 按钮放在 Ribbon 栏右侧常驻按钮组（不属于任何 Ribbon 标签页）。
+    ctx.ribbon().addAction(UIRibbonActionDef{
+        .id = QStringLiteral("ext.ai.assistant"),
+        .panelId = UIRibbonIds::kPanelRightButtons,
+        .text = QCoreApplication::translate("AIExtension", "AI Assistant"),
+        .iconPath = QStringLiteral(":/extensions/ai/ai.svg"),
+        .trigger =
+            [this]()
+            {
+                DmDocument* doc = m_ctx->currentDocument();
+                GuiDocumentView* docView = m_ctx->currentDocumentView();
+                m_assistant->show(doc, docView);
+            },
+        .objectName = QStringLiteral("ai-assistant"),
+    });
 
     ctx.registerSettingsPage(
         QStringLiteral("ext.ai.llm_settings"),

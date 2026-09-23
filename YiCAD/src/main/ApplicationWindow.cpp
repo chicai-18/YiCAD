@@ -80,8 +80,11 @@
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
 
+#include "CommandRegistry.h"
 #include "ExtensionManager.h"
-#include "IExtensionContext.h"
+#include "IExtensionHost.h"
+#include "UIRibbonManager.h"
+#include "UIRibbonRegistry.h"
 
 // 进程内扩展（src/extensions/<扩展>/，构建系统自动 glob 收集）。移除一个扩展：
 // 删除其目录、这里的 #include，以及 registerExtensions() 里的 Register 一行。
@@ -175,51 +178,62 @@ private:
     ApplicationWindow& m_window;
 };
 
-/// @brief 一个已注册的设置页入口（阶段4第二阶段，IExtensionContext::
-/// registerSettingsPage 收集的数据）。
-struct ApplicationWindowSettingsPageEntry
-{
-    QString id;
-    QString title;
-    QString iconPath;
-    std::function<void()> open;
-};
-
-/// @brief ApplicationWindow 侧的 IExtensionContext 具体实现。
+/// @brief ApplicationWindow 侧的扩展宿主服务。
 ///
-/// 作为 ApplicationWindow 的成员长期存活（不是 registerExtensions() 里的
-/// 栈上临时对象）——registerSettingsPage() 收集的列表要活到
-/// createCategoryOptions() 读取它的那一刻，AIExtension 也会在 OnRegister
-/// 之后继续保留指向本对象的指针，用于点击回调里现场取当前文档/视图
-/// （见 IExtension.h 关于这条例外的说明）。
-class ApplicationWindowExtensionContext final : public IExtensionContext
+/// 作为 ApplicationWindow 的成员，存活到 ExtensionManager::Shutdown() 之后。
+/// 设置页入口与扩展的 Ribbon 条目都进同一个 Ribbon 注册表，扩展拿到的
+/// Ribbon 入口按扩展 ID 限定命名空间。
+///
+/// 不放进匿名命名空间：要与 ApplicationWindow.h 里的前置声明是同一个类型
+/// （与 ApplicationPluginHostContext 同一做法）。
+class ApplicationWindowExtensionHost final : public IExtensionHost
 {
 public:
-    ApplicationWindowExtensionContext(SARibbonBar& ribbon, ApplicationWindow& window)
+    ApplicationWindowExtensionHost(UIRibbonRegistry& ribbon, ApplicationWindow& window)
         : m_ribbon(ribbon), m_window(window)
     {
     }
 
-    SARibbonBar& ribbon() override { return m_ribbon; }
+    UIRibbonRegistrar& ribbonFor(std::string_view extensionId) override
+    {
+        auto& registrar = m_scopedRibbons[std::string(extensionId)];
+        if (!registrar)
+        {
+            registrar = std::make_unique<UIRibbonScopedRegistrar>(m_ribbon, extensionId);
+        }
+        return *registrar;
+    }
+
     QWidget* mainWindow() override { return &m_window; }
     DmDocument* currentDocument() const override { return m_window.getDocument(); }
     GuiDocumentView* currentDocumentView() const override { return m_window.getDocumentView(); }
 
-    void registerSettingsPage(const QString& id, const QString& title, const QString& iconPath,
-                               std::function<void()> open) override
+    bool registerSettingsPage(const QString& id, const QString& title, const QString& iconPath,
+                              std::function<void()> open) override
     {
-        m_settingsPages.push_back({id, title, iconPath, std::move(open)});
+        return m_ribbon.addAction(UIRibbonActionDef{
+            .id = id,
+            .panelId = UIRibbonIds::kPanelOptionsSettings,
+            .text = title,
+            .iconPath = iconPath.isEmpty() ? QStringLiteral(":/ribbon/options/settings.svg") : iconPath,
+            .trigger = std::move(open),
+        });
     }
 
-    const QVector<ApplicationWindowSettingsPageEntry>& settingsPages() const
+    bool activateCommand(const QString& commandId) override
     {
-        return m_settingsPages;
+        if (!CommandRegistry::instance().hasCommand(commandId))
+        {
+            return false;
+        }
+        m_window.getActionHandler()->activateCommand(commandId);
+        return true;
     }
 
 private:
-    SARibbonBar& m_ribbon;
+    UIRibbonRegistry& m_ribbon;
     ApplicationWindow& m_window;
-    QVector<ApplicationWindowSettingsPageEntry> m_settingsPages;
+    std::map<std::string, std::unique_ptr<UIRibbonScopedRegistrar>> m_scopedRibbons;
 };
 
 // TODO: 以下宏为性能调试用函数式宏，无法直接转换为constexpr，建议后续改为内联函数
@@ -236,9 +250,6 @@ private:
 
 namespace
 {
-constexpr int kRibbonButtonGroupMargin = 5;
-constexpr int kRibbonButtonGroupSpacing = 5;
-
 void applyLightThemeStyle(QWidget* rootWidget)
 {
 	QFile styleFile(QStringLiteral(":/styles/light.qss"));
@@ -253,25 +264,6 @@ void applyLightThemeStyle(QWidget* rootWidget)
 	{
 		rootWidget->setStyleSheet(rootWidget->styleSheet() + QStringLiteral("\n") + styleSheet);
 	}
-}
-
-SARibbonButtonGroupWidget* createRibbonButtonGroup(QWidget* parent, int rowNumber = 2)
-{
-	SARibbonButtonGroupWidget* group = new SARibbonButtonGroupWidget(parent);
-	if (parent && parent->inherits("SARibbonPannel"))
-	{
-		delete group->layout();
-		QGridLayout* layout = new QGridLayout(group);
-		layout->setDefaultPositioning(rowNumber, Qt::Vertical);
-		layout->setContentsMargins(
-			kRibbonButtonGroupMargin,
-			kRibbonButtonGroupMargin,
-			kRibbonButtonGroupMargin,
-			kRibbonButtonGroupMargin);
-		layout->setSpacing(kRibbonButtonGroupSpacing);
-		group->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-	}
-	return group;
 }
 }
 
@@ -348,64 +340,30 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	createQuickAccessBar(quickAccessBar);
 	PRINT_COST("add quick access bar");
 
-	// 进程内扩展（阶段4第二阶段）：必须在 createCategoryOptions() 之前
-	// 完成，因为该分类要读取扩展注册的设置页列表来建按钮。
+	// Ribbon：内置类目先注册，扩展在 OnRegister 里接着注册（类目按注册顺序
+	// 排列，扩展的设置页排在内置设置按钮之后），全部注册完再冻结并装配。
+	m_ribbonRegistry = std::make_unique<UIRibbonRegistry>();
+	registerBuiltinRibbon(*m_ribbonRegistry);
 	registerExtensions();
-	PRINT_COST("register extensions");
-
-	//添加文件标签页 - 通过addCategoryPage工厂函数添加
-	SARibbonCategory* categoryFile = m_pRibbon->addCategoryPage(QObject::tr("File"));
-	categoryFile->setObjectName("categoryFile");
-	createCategoryFile(categoryFile);
-	PRINT_COST("new file page");
-
-	//添加绘图标签页
-	SARibbonCategory* categoryDraw2d = new SARibbonCategory();
-	categoryDraw2d->setCategoryName(QObject::tr("Draw2d"));
-	categoryDraw2d->setObjectName("categoryDraw2d");
-	m_pRibbon->addCategoryPage(categoryDraw2d);
-	createCategoryDraw2d(categoryDraw2d);
-	auto iDraw2d = ribbonBar()->categoryIndex(categoryDraw2d) ;
-	PRINT_COST("add category draw2d page");
-
-	//添加参数化
-	/*SARibbonCategory* categorySolver = new SARibbonCategory();
-	categorySolver->setCategoryName(QObject::tr("Solver"));
-	categorySolver->setObjectName("categorySolver");
-	m_pRibbon->addCategoryPage(categorySolver);
-	createCategorySolver(categorySolver);
-	PRINT_COST("add category solver page");*/
-
-
-	////添加视图标签页
-	//SARibbonCategory* categoryViewport = new SARibbonCategory();
-	//categoryViewport->setCategoryName(QObject::tr("Viewport"));
-	//categoryViewport->setObjectName("categoryViewport");
-	//createCategoryViewport(categoryViewport);
-	//m_pRibbon->addCategoryPage(categoryViewport);
-	//PRINT_COST("add viewport page");
-
-	//添加设置标签页 - 直接new SARibbonCategory添加
-	SARibbonCategory* categoryOptions = new SARibbonCategory();
-	categoryOptions->setCategoryName(QObject::tr("Options"));
-	categoryOptions->setObjectName("categoryOptions");
-	createCategoryOptions(categoryOptions);
-	m_pRibbon->addCategoryPage(categoryOptions);
-	PRINT_COST("add options page");
-
-	//// 帮助
-	//SARibbonCategory* categoryHelp = new SARibbonCategory();
-	//categoryHelp->setCategoryName("Help");
-	//categoryHelp->setObjectName("categoryHelp");
-	//ribbon->addCategoryPage(categoryHelp);
-	//PRINT_COST("add category help page");
+	m_ribbonRegistry->finalize();
+	m_ribbonManager = std::make_unique<UIRibbonManager>(
+		*m_pRibbon, *m_ribbonRegistry,
+		[this](const QString& commandId, QObject* source) { m_pActionHandler->activateCommand(commandId, source); },
+		[this]() { return UIRibbonContext{getDocument()}; });
+	m_ribbonManager->install();
+	// 扩展命令的别名在 registerExtensions() 里才注册，补全列表要重建一次。
+	m_cmdWin->refreshCompleter();
+	PRINT_COST("register ribbon and extensions");
 
 	// 主窗体最小尺寸
 	this->setMinimumSize(900, 700);
 	showMaximized();
 
 	//Draw2d 作为缺省激活Tab
-	ribbonBar()->setCurrentIndex(iDraw2d);
+	if (SARibbonCategory* categoryDraw2d = m_ribbonManager->category(UIRibbonIds::kCategoryDraw2d))
+	{
+		ribbonBar()->setCurrentIndex(ribbonBar()->categoryIndex(categoryDraw2d));
+	}
 
     /// @brief Ribbon、命令窗口和首个文档就绪后，接入唯一的新插件加载路径。
     m_pluginHostContext =
@@ -438,9 +396,9 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 /// 每个扩展一行 Register，注册顺序即启动顺序、关闭的反序。
 void ApplicationWindow::registerExtensions()
 {
-	m_extensionContext = std::make_unique<ApplicationWindowExtensionContext>(*m_pRibbon, *this);
+	m_extensionHost = std::make_unique<ApplicationWindowExtensionHost>(*m_ribbonRegistry, *this);
 	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
-	ExtensionManager::instance().BootAll(*m_extensionContext);
+	ExtensionManager::instance().BootAll(*m_extensionHost);
 }
 
 void ApplicationWindow::onStyleClicked(int id)
@@ -575,27 +533,27 @@ void ApplicationWindow::keyPressEvent(QKeyEvent* e)
 {
 	if (e->matches(QKeySequence::Cut))
 	{
-		m_pActionHandler->slotEditCut();
+		m_pActionHandler->activateCommand(QStringLiteral("edit.cut"));
 	}
 	else if (e->matches(QKeySequence::Copy))
 	{
-		m_pActionHandler->slotEditCopy();
+		m_pActionHandler->activateCommand(QStringLiteral("edit.copy"));
 	}
 	else if (e->matches(QKeySequence::Paste))
 	{
-		m_pActionHandler->slotEditPaste();
+		m_pActionHandler->activateCommand(QStringLiteral("edit.paste"));
 	}
 	else if (e->matches(QKeySequence::New))
 	{
-		m_pActionHandler->slotFileNew();
+		m_pActionHandler->activateCommand(QStringLiteral("file.new"));
 	}
 	else if (e->matches(QKeySequence::Open))
 	{
-		m_pActionHandler->slotFileOpen();
+		m_pActionHandler->activateCommand(QStringLiteral("file.open"));
 	}
 	else if (e->matches(QKeySequence::Save))
 	{
-		m_pActionHandler->slotFileSave();
+		m_pActionHandler->activateCommand(QStringLiteral("file.save"));
 	}
 	else if (e->matches(QKeySequence::Undo))
 	{
@@ -603,7 +561,7 @@ void ApplicationWindow::keyPressEvent(QKeyEvent* e)
 	}
 	else if (e->matches(QKeySequence::Redo))
 	{
-		m_pActionHandler->slotEditRedo();
+		m_pActionHandler->activateCommand(QStringLiteral("edit.redo"));
 	}
 	else
 	{
@@ -758,7 +716,7 @@ void ApplicationWindow::slotEnter()
 
 void ApplicationWindow::slotDelete()
 {
-	m_pActionHandler->slotModifyDeleteNoSelect();
+	m_pActionHandler->activateCommand(QStringLiteral("modify.delete_no_select"));
 }
 
 void ApplicationWindow::resizeEvent(QResizeEvent* event)
@@ -925,7 +883,11 @@ void ApplicationWindow::slotsTabChangeEvent()
 	{
 		enableButtons(true);
 	}
-	
+	if (m_ribbonManager)
+	{
+		m_ribbonManager->evaluateActivation();
+	}
+
 	updateLayerTable();
 	//updateViewportTable();
     updateCurrentPenWidget();
@@ -1191,647 +1153,11 @@ ApplicationWindow* ApplicationWindow::getAppWindow()
 	return appWindow;
 }
 
-void ApplicationWindow::createCategoryFile(SARibbonCategory* page)
-{
-	//使用addPannel函数来创建SARibbonPannel，效果和new SARibbonPannel再addPannel一样
-	SARibbonPannel* pannel1 = page->addPannel(QObject::tr("File"));
-
-	SARibbonButtonGroupWidget* fileGroup = createRibbonButtonGroup(pannel1, 1);
-
-	// 新建文件
-	QToolButton* btnNew = new QToolButton();
-	btnNew->setIcon(QIcon(":/ribbon/file/new.svg"));
-	btnNew->setToolTip(QObject::tr("new"));
-	btnNew->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnNew, SIGNAL(clicked()), m_pActionHandler, SLOT(slotFileNew()));
-	fileGroup->addWidget(btnNew);
-
-	// 打开文件
-	QToolButton* btnOpen = new QToolButton();
-	btnOpen->setIcon(QIcon(":/ribbon/file/open.svg"));
-	btnOpen->setToolTip(QObject::tr("open"));
-	btnOpen->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnOpen, SIGNAL(clicked()), m_pActionHandler, SLOT(slotFileOpen()));
-	fileGroup->addWidget(btnOpen);
-
-	// 保存文件
-	QToolButton* btnSave = new QToolButton();
-	btnSave->setIcon(QIcon(":/ribbon/file/save.svg"));
-	btnSave->setToolTip(QObject::tr("save"));
-	btnSave->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnSave, SIGNAL(clicked()), m_pActionHandler, SLOT(slotFileSave()));
-	fileGroup->addWidget(btnSave);
-
-	// 另存为
-	QToolButton* btnSaveAs = new QToolButton();
-	btnSaveAs->setIcon(QIcon(":/ribbon/file/save_as.svg"));
-	btnSaveAs->setToolTip(QObject::tr("save as"));
-	btnSaveAs->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnSaveAs, SIGNAL(clicked()), m_pActionHandler, SLOT(slotFileSaveAs()));
-	fileGroup->addWidget(btnSaveAs);
-
-	//// 保存全部
-	//QToolButton* btnSaveAll = new QToolButton();
-	//btnSaveAll->setIcon(QIcon(":/ribbon/file/save_all.svg"));
-	//btnSaveAll->setToolTip(QObject::tr("save all"));
-	//connect(btnSaveAll, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotFileSaveAll();
-	//});
-	//fileGroup->addWidget(btnSaveAll);
-
-	pannel1->addLargeWidget(fileGroup);
-
-
-	SARibbonPannel* pannel2 = page->addPannel(QObject::tr("Export"));
-
-	//SARibbonButtonGroupWidget* importGroup = createRibbonButtonGroup(pannel2, 1);
-
-	//// 导入图片
-	//QToolButton* btnImportImage = new QToolButton();
-	//btnImportImage->setIcon(QIcon(":/ribbon/file/import_image.svg"));
-	//btnImportImage->setToolTip(QObject::tr("Import Image"));
-	//connect(btnImportImage, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pActionHandler->slotDrawImage();
-	//});
-	//importGroup->addWidget(btnImportImage);
-
-	//// 导入图块
-	//QToolButton* btnImportBlock = new QToolButton();
-	//btnImportBlock->setIcon(QIcon(":/ribbon/file/import_block.svg"));
-	//btnImportBlock->setToolTip(QObject::tr("Import Block"));
-	//connect(btnImportBlock, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotImportBlock();
-	//});
-	//importGroup->addWidget(btnImportBlock);
-
-	//pannel2->addLargeWidget(importGroup);
-
-	SARibbonButtonGroupWidget* exportGroup = createRibbonButtonGroup(pannel2, 1);
-
-	// 导出图片
-	QToolButton* btnExportImage = new QToolButton();
-	btnExportImage->setIcon(QIcon(":/ribbon/file/export_image.svg"));
-	btnExportImage->setToolTip(QObject::tr("Export Image"));
-	btnExportImage->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnExportImage, SIGNAL(clicked()), m_pActionHandler, SLOT(slotFileExportImage()));
-	exportGroup->addWidget(btnExportImage);
-
-	//// 导出PDF
-	//QToolButton* btnExportPDF = new QToolButton();
-	//btnExportPDF->setIcon(QIcon(":/ribbon/file/export_pdf.svg"));
-	//btnExportPDF->setToolTip(QObject::tr("Export PDF"));
-	//connect(btnExportPDF, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotFilePrintPDF();
-	//});
-	//exportGroup->addWidget(btnExportPDF);
-
-	pannel2->addLargeWidget(exportGroup);
-
-
-
-	//SARibbonPannel* pannel3 = page->addPannel(QObject::tr("Print"));
-
-	//SARibbonButtonGroupWidget* printGroup = createRibbonButtonGroup(pannel3, 1);
-
-	//// 打印
-	//QToolButton* btnPrint = new QToolButton();
-	//btnPrint->setIcon(QIcon(":/ribbon/file/print.svg"));
-	//btnPrint->setToolTip(QObject::tr("Print"));
-	//connect(btnPrint, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotFilePrint();
-	//});
-	//printGroup->addWidget(btnPrint);
-
-	//// 打印预览
-	//QToolButton* btnPrintPreview = new QToolButton();
-	//btnPrintPreview->setIcon(QIcon(":/ribbon/file/print_preview.svg"));
-	//btnPrintPreview->setToolTip(QObject::tr("Print Preview"));
-	//connect(btnPrintPreview, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotFilePrintPreview();
-	//});
-	//printGroup->addWidget(btnPrintPreview);
-
-	//pannel3->addLargeWidget(printGroup);
-
-
-	//SARibbonPannel* pannel4 = page->addPannel(QObject::tr("Close"));
-
-	//SARibbonButtonGroupWidget* closeGroup = createRibbonButtonGroup(pannel4, 1);
-
-	//// 关闭所有图纸
-	//QToolButton* btnCloseAll = new QToolButton();
-	//btnCloseAll->setIcon(QIcon(":/ribbon/file/close_all.svg"));
-	//btnCloseAll->setToolTip(QObject::tr("Close All"));
-	//connect(btnCloseAll, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotFileCloseAll();
-	//});
-	//closeGroup->addWidget(btnCloseAll);
-
-	//// 退出
-	//QToolButton* btnQuit = new QToolButton();
-	//btnQuit->setIcon(QIcon(":/ribbon/file/quit.svg"));
-	//btnQuit->setToolTip(QObject::tr("Quit"));
-	//connect(btnQuit, &QToolButton::clicked, this, [this](bool b) {
-	//	Q_UNUSED(b);
-	//	m_pTabDrawWidget->slotFileCloseAll();
-	//	if (m_pTabDrawWidget->getTabDrawList()->size() == 0)
-	//	{
-	//		close();
-	//	}
-	//});
-	//closeGroup->addWidget(btnQuit);
-
-	//pannel4->addLargeWidget(closeGroup);
-}
-
-void ApplicationWindow::createCategoryOptions(SARibbonCategory* page)
-{
-	SARibbonPannel* pannel1 = new SARibbonPannel(QObject::tr("Options"));
-	pannel1->setObjectName("CategoryOptions-pannel1");
-	page->addPannel(pannel1);
-
-	SARibbonButtonGroupWidget* settingGroup = createRibbonButtonGroup(pannel1, 1);
-
-	//系统设置
-	QToolButton* btnApplicationSettings = new QToolButton();
-	btnApplicationSettings->setIcon(QIcon(":/ribbon/options/settings.svg"));
-	btnApplicationSettings->setToolTip(QObject::tr("System Setting"));
-	btnApplicationSettings->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnApplicationSettings, SIGNAL(clicked()), m_pActionHandler, SLOT(slotOptionsGeneral()));
-	settingGroup->addWidget(btnApplicationSettings);
-
-	//图纸设置
-	QToolButton* btnDrawSettings = new QToolButton();
-	btnDrawSettings->setIcon(QIcon(":/ribbon/options/draw_settings.svg"));
-	btnDrawSettings->setToolTip(QObject::tr("Draw Setting"));
-	btnDrawSettings->setProperty("yiCadStandaloneRibbonButton", true);
-	connect(btnDrawSettings, &QToolButton::clicked, this, [this](bool b) {
-		Q_UNUSED(b);
-		m_pActionHandler->slotOptionsDrawing();
-	});
-	settingGroup->addWidget(btnDrawSettings);
-
-	// 扩展注册的设置页（阶段4第二阶段，IExtensionContext::
-	// registerSettingsPage）——与上面两个内置按钮同款外观，唯一的区别是
-	// 点击回调来自注册表而不是硬编码的 UIActionHandler 槽。
-	// registerExtensions() 在构造函数里保证跑在本方法之前，这里读到的
-	// 列表已经是完整的。
-	if (m_extensionContext)
-	{
-		for (const auto& entry : m_extensionContext->settingsPages())
-		{
-			QToolButton* btnExtensionSettings = new QToolButton();
-			if (!entry.iconPath.isEmpty())
-			{
-				btnExtensionSettings->setIcon(QIcon(entry.iconPath));
-			}
-			else
-			{
-				btnExtensionSettings->setIcon(QIcon(":/ribbon/options/settings.svg"));
-			}
-			btnExtensionSettings->setToolTip(entry.title);
-			btnExtensionSettings->setProperty("yiCadStandaloneRibbonButton", true);
-			const auto open = entry.open;
-			connect(btnExtensionSettings, &QToolButton::clicked, this, [open](bool b) {
-				Q_UNUSED(b);
-				open();
-			});
-			settingGroup->addWidget(btnExtensionSettings);
-		}
-	}
-
-	pannel1->addLargeWidget(settingGroup);
-
-	//// 关于菜单
-	//SARibbonPannel* pannel2 = new SARibbonPannel(QObject::tr("About"));
-	//pannel2->setObjectName("CategoryOptions-pannel2");
-	//page->addPannel(pannel2);
-
-	//SARibbonButtonGroupWidget* aboutGroup = createRibbonButtonGroup(pannel2, 1);
-
-	//QToolButton* about = new QToolButton();
-	//about->setIcon(QIcon(":/ribbon/options/about.svg"));
-	//about->setToolTip(QObject::tr("About"));
-	//connect(about, &QToolButton::clicked, this, [this](bool b) {
-	//	QMessageBox::information(this, QString::fromLocal8Bit("关于"), QString::fromLocal8Bit("<pre>易CAD(禁止转售)</pre><pre>版本 0.5(x64)</pre><pre>版权由易设计CAD所有</pre>"));
-	//});
-	//aboutGroup->addWidget(about);
-
-	//pannel2->addLargeWidget(aboutGroup);
-}
-
-/// @brief 构建绘图标签页
-void ApplicationWindow::createCategoryDraw2d(SARibbonCategory* page)
-{
-	// 画线
-	SARibbonPannel* line = page->addPannel(QObject::tr("Line"));
-	SARibbonButtonGroupWidget* lineGroup = createRibbonButtonGroup(line);
-	auto point2p_l = createAction(tr("2 Points"), ":/ribbon/draw2d/line_2p.svg");
-	connect(point2p_l, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLine()));
-	lineGroup->addAction(point2p_l);																				// 两点画线
-
-	auto rectangle = createAction(QObject::tr("Rectangle"), ":/ribbon/draw2d/line_square.svg");
-	connect(rectangle, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLineRectangle()));
-	lineGroup->addAction(rectangle);																				// 矩形
-
-	auto bisector = createAction(QObject::tr("Bisector"), ":/ribbon/draw2d/line_bi_angle.svg");
-	connect(bisector, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLineBisector()));
-	lineGroup->addAction(bisector);																					// 角平分线
-
-	auto tangent_p_c = createAction(QObject::tr("Tangent (P,C)"), ":/ribbon/draw2d/line_tangent_pt_circle.svg");
-	connect(tangent_p_c, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLineTangent1()));
-	lineGroup->addAction(tangent_p_c);																				// 切线(点、圆)
-
-	auto tangent_c_c = createAction(QObject::tr("Tangent (C,C)"), ":/ribbon/draw2d/line_tangent_c_c.svg");
-	connect(tangent_c_c, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLineTangent2()));
-	lineGroup->addAction(tangent_c_c);																				// 切线(圆、圆)
-
-	auto tangent_orth = createAction(QObject::tr("Tangent Orthogonal"), ":/ribbon/draw2d/line_tan_orthognal.svg");
-	connect(tangent_orth, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLineOrthTan()));
-	lineGroup->addAction(tangent_orth);																				// 正交切线
-
-	auto polygon_cen_cor = createAction(QObject::tr("Polygon (Cen,Cor)"), ":/ribbon/draw2d/line_polygon_cen_cor.svg");
-	connect(polygon_cen_cor, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLinePolygon()));
-	lineGroup->addAction(polygon_cen_cor);																			// 多边形(中心、角点)
-
-	auto polygon_cen_tan = createAction(QObject::tr("Polygon (Cen,Tan)"), ":/ribbon/draw2d/line_polygon_cen_tan.svg");
-	connect(polygon_cen_tan, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLinePolygon3()));
-	lineGroup->addAction(polygon_cen_tan);																			// 多边形(中心、切点)
-
-	//auto point = createAction(QObject::tr("Points"), ":/ribbon/draw2d/point.svg");
-	//connect(point, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawPoint()));
-	//lineGroup->addAction(point);																					// 点
-
-	auto ray = createAction(QObject::tr("Ray"), ":/ribbon/draw2d/line_ray.svg");									// 射线
-	connect(ray, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawRay()));
-	lineGroup->addAction(ray);
-
-	auto xline = createAction(QObject::tr("Xline"), ":/ribbon/draw2d/line_xline.svg");								// 构造线
-	connect(xline, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawXline()));
-	lineGroup->addAction(xline);
-
-	line->addLargeWidget(lineGroup);
-
-	// 曲线
-	SARibbonPannel* curve = page->addPannel(QObject::tr("Curve"));
-	SARibbonButtonGroupWidget* curveGroup = createRibbonButtonGroup(curve);
-
-	auto curve_cpa = createAction(QObject::tr("Center, Point, Angles"), ":/ribbon/draw2d/curve_arc_center_angle.svg");
-	connect(curve_cpa, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawArc()));
-	curveGroup->addAction(curve_cpa);																					// 中心起点角度
-
-	auto curve_3p = createAction(QObject::tr("3 Points"), ":/ribbon/draw2d/curve_arc_3p.svg");
-	connect(curve_3p, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawArc3P()));
-	curveGroup->addAction(curve_3p);																					// 三点画弧
-
-	auto curve_at = createAction(QObject::tr("Arc Tangential"), ":/ribbon/draw2d/curve_arc_tang.svg");
-	connect(curve_at, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawArcTangential()));
-	curveGroup->addAction(curve_at);																					// 相切弧
-
-	auto spline = createAction(QObject::tr("Spline"), ":/ribbon/draw2d/curve_spline.svg");
-	connect(spline, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawSpline()));
-	curveGroup->addAction(spline);																						// 控制点样条
-
-	auto spline_through_points = createAction(QObject::tr("Spline through points"), ":/ribbon/draw2d/curve_spline_ft_pt.svg");
-	connect(spline_through_points, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawSplinePoints()));
-	curveGroup->addAction(spline_through_points);																		// 拟合点样条
-
-	//auto ellipse_arc = createAction(QObject::tr("Ellipse Arc(Axis)"), ":/ribbon/draw2d/curve_ellipse_arc.svg");
-	//connect(ellipse_arc, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawEllipseArcAxis()));
-	//curveGroup->addAction(ellipse_arc);																					// 椭圆弧(轴)
-
-	auto freehand = createAction(QObject::tr("Freehand Line"), ":/ribbon/draw2d/curve_freehand_line.svg");
-	connect(freehand, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawLineFree()));
-	curveGroup->addAction(freehand);																					// 徒手画线
-
-	curve->addLargeWidget(curveGroup);
-
-	// 多段线
-	SARibbonPannel* polyline = page->addPannel(QObject::tr("Polyline"));
-	SARibbonButtonGroupWidget* polylineGroup = createRibbonButtonGroup(polyline);
-
-	auto polylinedraw = createAction(QObject::tr("Polyline"), ":/ribbon/draw2d/polyline.svg");
-	connect(polylinedraw, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawPolyline()));
-	polylineGroup->addAction(polylinedraw);																					// 多段线
-
-	auto polyline_add_node = createAction(QObject::tr("Add node"), ":/ribbon/draw2d/polyline_add_node.svg");
-	connect(polyline_add_node, SIGNAL(triggered()), m_pActionHandler, SLOT(slotPolylineAdd()));
-	polylineGroup->addAction(polyline_add_node);																			// 添加节点
-
-	auto polyline_app_node = createAction(QObject::tr("Append node"), ":/ribbon/draw2d/polyline_append_node.svg");
-	connect(polyline_app_node, SIGNAL(triggered()), m_pActionHandler, SLOT(slotPolylineAppend()));
-	polylineGroup->addAction(polyline_app_node);																			// 追加节点
-
-	auto polyline_delete_node = createAction(QObject::tr("Delete node"), ":/ribbon/draw2d/polyline_delete_node.svg");
-	connect(polyline_delete_node, SIGNAL(triggered()), m_pActionHandler, SLOT(slotPolylineDel()));
-	polylineGroup->addAction(polyline_delete_node);																			// 删除节点
-
-	auto cloudline_rectangle_cpfe = createAction(QObject::tr("Create cloud line by rectangle"), ":/ribbon/draw2d/cloudline_rectangle.svg");
-	connect(cloudline_rectangle_cpfe, SIGNAL(triggered()), m_pActionHandler, SLOT(slotCloudLineRectangle()));
-	polylineGroup->addAction(cloudline_rectangle_cpfe);																		// 矩形创建云线
-
-	auto cloudline_polygon_cpfe = createAction(QObject::tr("Create cloud line by polygon"), ":/ribbon/draw2d/cloudline_polygon.svg");
-	connect(cloudline_polygon_cpfe, SIGNAL(triggered()), m_pActionHandler, SLOT(slotCloudLinePolygon()));
-	polylineGroup->addAction(cloudline_polygon_cpfe);																		// 多边形创建云线
-
-	auto cloudline_free_cpfe = createAction(QObject::tr("Create cloud line by free"), ":/ribbon/draw2d/cloudline_free.svg");
-	connect(cloudline_free_cpfe, SIGNAL(triggered()), m_pActionHandler, SLOT(slotCloudLineFree()));
-	polylineGroup->addAction(cloudline_free_cpfe);																			// 自由创建云线
-
-	polyline->addLargeWidget(polylineGroup);
-
-	// 画圆
-	SARibbonPannel* circle = page->addPannel(QObject::tr("Circle"));
-	SARibbonButtonGroupWidget* circleGroup = createRibbonButtonGroup(circle);
-
-	auto circle_c_p = createAction(QObject::tr("Center, Point"), ":/ribbon/draw2d/circle_center_pt.svg");
-	connect(circle_c_p, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawCircle()));
-	circleGroup->addAction(circle_c_p);																					// 圆心到点
-
-	auto point2p_c = createAction(QObject::tr("2 Points"), ":/ribbon/draw2d/circle_2p.svg");
-	connect(point2p_c, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawCircle2P()));
-	circleGroup->addAction(point2p_c);																					// 两点画圆
-
-	auto point3p = createAction(QObject::tr("3 Points"), ":/ribbon/draw2d/circle_3p.svg");
-	connect(point3p, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawCircle3P()));
-	circleGroup->addAction(point3p);																					// 三点画圆
-
-	auto circle_t2cr = createAction(QObject::tr("Tangential 2 Circles, Radius"), ":/ribbon/draw2d/circle_tan_radius.svg");
-	connect(circle_t2cr, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawCircleTan2()));
-	circleGroup->addAction(circle_t2cr);																				// 相切两圆半径画圆
-
-	auto circle_t3c = createAction(QObject::tr("Tangential 3 Circles"), ":/ribbon/draw2d/circle_tan_3c.svg");
-	connect(circle_t3c, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawCircleTan3()));
-	circleGroup->addAction(circle_t3c);																					// 相切三圆
-
-	circle->addLargeWidget(circleGroup);
-
-	// 椭圆
-	SARibbonPannel* ellipse = page->addPannel(QObject::tr("Ellipse"));
-	SARibbonButtonGroupWidget* ellipseGroup = createRibbonButtonGroup(ellipse);
-
-	auto ellipse_a = createAction(QObject::tr("Ellipse(Axis)"), ":/ribbon/draw2d/ellipe_2seg.svg");
-	connect(ellipse_a, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawEllipseAxis()));
-	ellipseGroup->addAction(ellipse_a);																						// 椭圆(长短轴)
-
-	auto ellipse_i = createAction(QObject::tr("Ellipse Inscribed"), ":/ribbon/draw2d/ellipse_incrib.svg");
-	connect(ellipse_i, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawEllipseInscribe()));
-	ellipseGroup->addAction(ellipse_i);																						// 内切椭圆
-
-	ellipse->addLargeWidget(ellipseGroup);
-
-	// 标注
-	SARibbonPannel* dimension = page->addPannel(QObject::tr("Dimension"));
-	SARibbonButtonGroupWidget* dimensionGroup = createRibbonButtonGroup(dimension);
-
-	auto dim_aligned = createAction(QObject::tr("Aligned"), ":/ribbon/draw2d/dim_align.svg");
-	connect(dim_aligned, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimAligned()));
-	dimensionGroup->addAction(dim_aligned);																					// 对齐标注
-
-	auto dim_linear = createAction(QObject::tr("Linear"), ":/ribbon/draw2d/dim_linear.svg");
-	connect(dim_linear, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimLinear()));
-	dimensionGroup->addAction(dim_linear);																					// 线性标注
-
-	auto dim_radial = createAction(QObject::tr("Radial"), ":/ribbon/draw2d/dim_radius.svg");
-	connect(dim_radial, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimRadial()));
-	dimensionGroup->addAction(dim_radial);																					// 半径标注
-
-	auto dim_diametric = createAction(QObject::tr("Diametric"), ":/ribbon/draw2d/dim_diam.svg");
-	connect(dim_diametric, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimDiametric()));
-	dimensionGroup->addAction(dim_diametric);																				// 直径标注
-
-	auto dim_angluar = createAction(QObject::tr("Angluar"), ":/ribbon/draw2d/dim_angle.svg");
-	connect(dim_angluar, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimAngular()));
-	dimensionGroup->addAction(dim_angluar);																					// 角度标注
-
-	auto dim_leader = createAction(QObject::tr("Leader"), ":/ribbon/draw2d/dim_leader.svg");
-	connect(dim_leader, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimLeader()));
-	dimensionGroup->addAction(dim_leader);																					// 引线标注
-
-	auto dim_baseline = createAction(QObject::tr("Baseline"), ":/ribbon/draw2d/dim_baseline.svg");
-	connect(dim_baseline, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimBaseline()));
-	dimensionGroup->addAction(dim_baseline);																					// 基线标注
-
-	QAction* dim_style = createAction(QObject::tr("Dimension style"), ":/ribbon/draw2d/dim_style.svg");
-	connect(dim_style, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDimStyle()));
-	dimensionGroup->addAction(dim_style);														//标注样式
-
-	dimension->addLargeWidget(dimensionGroup);
-
-	// 文字
-	SARibbonPannel* text = page->addPannel(QObject::tr("Text"));
-	SARibbonButtonGroupWidget* textGroup = createRibbonButtonGroup(text);
-
-	auto other_singl_texe = createAction(QObject::tr("Single line text"), ":/ribbon/draw2d/text.svg");
-	connect(other_singl_texe, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawText()));
-	textGroup->addAction(other_singl_texe);																						// 单行文字
-
-	auto other_multiline_text = createAction(QObject::tr("Multiline text"), ":/ribbon/draw2d/mtext.svg");
-	connect(other_multiline_text, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawMText()));
-	textGroup->addAction(other_multiline_text);																					// 多行文字
-
-	QAction* other_text_style = createAction(QObject::tr("Text style"), ":/ribbon/draw2d/text_style.svg");
-	connect(other_text_style, SIGNAL(triggered()), m_pActionHandler, SLOT(slotTextStyle()));
-	textGroup->addAction(other_text_style);																						// 文字样式
-
-	text->addLargeWidget(textGroup);
-
-	// 其他
-	SARibbonPannel* other = page->addPannel(QObject::tr("Other"));
-	SARibbonButtonGroupWidget* otherGroup = createRibbonButtonGroup(other);
-
-	auto other_hatch = createAction(QObject::tr("Hatch"), ":/ribbon/draw2d/hatch.svg");
-	connect(other_hatch, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawHatch()));
-	otherGroup->addAction(other_hatch);																							// 填充
-
-	auto other_ins_image = createAction(QObject::tr("Insert Image"), ":/ribbon/draw2d/insert_image.svg");
-	connect(other_ins_image, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDrawImage()));
-	otherGroup->addAction(other_ins_image);																						// 插入图片
-
-	other->addLargeWidget(otherGroup);
-
-	//! --- 修改 ---
-	SARibbonPannel* modify = page->addPannel(QObject::tr("Modify"));
-	SARibbonButtonGroupWidget* modifyGroup = createRibbonButtonGroup(modify);
-    auto modify_copy = createAction(QObject::tr("Copy"), ":/ribbon/draw2d/modify_copy.svg");
-    connect(modify_copy, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyCopy()));
-    modifyGroup->addAction(modify_copy);																					// 复制
-
-	auto modify_move = createAction(QObject::tr("Move"), ":/ribbon/draw2d/modify_move.svg");
-	connect(modify_move, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyMove()));
-	modifyGroup->addAction(modify_move);																					// 移动
-
-	auto modify_rotate = createAction(QObject::tr("Rotate"), ":/ribbon/draw2d/modify_rotate.svg");
-	connect(modify_rotate, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyRotate()));
-	modifyGroup->addAction(modify_rotate);																				// 旋转
-
-	auto modify_select = createAction(QObject::tr("Scale"), ":/ribbon/draw2d/modify_zoom.svg");
-	connect(modify_select, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyScale()));
-	modifyGroup->addAction(modify_select);																				// 放缩
-
-	auto modify_mirror = createAction(QObject::tr("Mirror"), ":/ribbon/draw2d/modify_mirror.svg");
-	connect(modify_mirror, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyMirror()));
-	modifyGroup->addAction(modify_mirror);																				// 镜像
-
-	auto modify_t = createAction(QObject::tr("Trim"), ":/ribbon/draw2d/modify_trim.svg");
-	connect(modify_t, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyTrim()));
-	modifyGroup->addAction(modify_t);																					// 修剪
-
-	auto modify_len = createAction(QObject::tr("Lengthen"), ":/ribbon/draw2d/modify_lengthen.svg");						// 延伸
-	connect(modify_len, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyExtend()));
-	modifyGroup->addAction(modify_len);
-
-	auto modify_offset = createAction(QObject::tr("Offset"), ":/ribbon/draw2d/modify_offset.svg");
-	connect(modify_offset, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifySingleOffset()));
-	modifyGroup->addAction(modify_offset);																				// 偏移
-
-	auto modify_bevel = createAction(QObject::tr("Bevel"), ":/ribbon/draw2d/modify_bevel.svg");
-	connect(modify_bevel, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyBevel()));
-	modifyGroup->addAction(modify_bevel);																				// 倒角
-
-	auto modify_fillet = createAction(QObject::tr("Fillet"), ":/ribbon/draw2d/modify_fillet.svg");
-	connect(modify_fillet, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyRound()));
-	modifyGroup->addAction(modify_fillet);																				// 圆角
-
-	auto modify_divide = createAction(QObject::tr("Divide"), ":/ribbon/draw2d/modify_divide.svg");
-	connect(modify_divide, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyCut()));
-	modifyGroup->addAction(modify_divide);																				// 打断
-
-	auto modify_divide_2p = createAction(QObject::tr("Divide_2P"), ":/ribbon/draw2d/modify_twopoints_break.svg");
-	connect(modify_divide_2p, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyCut_2P()));                        //两点打断
-	modifyGroup->addAction(modify_divide_2p);
-
-	auto modify_properties = createAction(QObject::tr("Properties"), ":/ribbon/draw2d/modify_attributes.svg");
-	connect(modify_properties, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyEntity()));
-	modifyGroup->addAction(modify_properties);																			// 特性
-
-	auto modify_ex = createAction(QObject::tr("Explode"), ":/ribbon/draw2d/modify_explode.svg");
-	connect(modify_ex, SIGNAL(triggered()), m_pActionHandler, SLOT(slotModifyExplode()));
-	modifyGroup->addAction(modify_ex);																					// 分解
-
-	modify->addLargeWidget(modifyGroup);
-
-	// 测量
-	SARibbonPannel* info = page->addPannel(QObject::tr("Measure"));
-	SARibbonButtonGroupWidget* infoGroup = createRibbonButtonGroup(info);
-
-	auto info_dis_pp = createAction(QObject::tr("Distance Point to Point"), ":/ribbon/draw2d/info_dist_pt_pt.svg");
-	connect(info_dis_pp, SIGNAL(triggered()), m_pActionHandler, SLOT(slotInfoDist()));
-	infoGroup->addAction(info_dis_pp);																							// 点到点距离
-
-	auto info_angle_lines = createAction(QObject::tr("Angle between two lines"), ":/ribbon/draw2d/info_angle_2lines.svg");
-	connect(info_angle_lines, SIGNAL(triggered()), m_pActionHandler, SLOT(slotInfoAngle()));
-	infoGroup->addAction(info_angle_lines);																						// 两线夹角
-
-	auto info_total = createAction(QObject::tr("Total length of selected entities"), ":/ribbon/draw2d/info_length_entity.svg");
-	connect(info_total, SIGNAL(triggered()), m_pActionHandler, SLOT(slotInfoTotalLength()));
-	infoGroup->addAction(info_total);																							// 选中实体总长
-
-	auto info_polygon_area = createAction(QObject::tr("Polygonal Area"), ":/ribbon/draw2d/info_area_polygon.svg");
-	connect(info_polygon_area, SIGNAL(triggered()), m_pActionHandler, SLOT(slotInfoArea()));
-	infoGroup->addAction(info_polygon_area);																					// 多边形面积
-
-	info->addLargeWidget(infoGroup);
-
-
-	// 图层
-	SARibbonPannel* layer = page->addPannel(QObject::tr("Layer"));
-	// 创建图层列表
-	createLayerTable(layer);
-	
-	// 图块
-	SARibbonPannel* block = page->addPannel(QObject::tr("Block"));
-	SARibbonButtonGroupWidget* blockGroup = createRibbonButtonGroup(block);
-
-	// 创建图块
-	auto createBlock = createAction(QObject::tr("Create Block"), ":/ribbon/block/block_create.svg");
-	blockGroup->addAction(createBlock);
-	connect(createBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksCreate()));
-	
-	// 插入图块
-	auto insertBlock = createAction(QObject::tr("Insert the active block"), ":/ribbon/block/block_insert.svg");
-	blockGroup->addAction(insertBlock);
-	connect(insertBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksInsertPrepare()));
-
-	// 图块另存为
-	auto exportBlock = createAction(QObject::tr("save the block to a file"), ":/ribbon/block/block_save.svg");
-	blockGroup->addAction(exportBlock);
-	connect(exportBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksSaveAs()));
-
-	//属性定义
-	auto defineAttributes = createAction(QObject::tr("Define attributes"), ":/ribbon/block/define_attribute.svg");
-	connect(defineAttributes, SIGNAL(triggered()), m_pActionHandler, SLOT(slotDefineAttributes()));
-	blockGroup->addAction(defineAttributes);																					// 属性定义
-
-	// 删除图块
-	auto deleteBlock = createAction(QObject::tr("Delete Block"), ":/ribbon/block/block_delete.svg");
-	blockGroup->addAction(deleteBlock);
-	connect(deleteBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksDelete()));
-
-	// 编辑图块
-	auto editBlock = createAction(QObject::tr("Edit Block"), ":/ribbon/block/block_edit.svg");
-	blockGroup->addAction(editBlock);
-	connect(editBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksEdit()));
-
-	// 导入图块
-	auto importBlock = createAction(QObject::tr("Import Block"), ":/ribbon/file/import_block.svg");
-	blockGroup->addAction(importBlock);
-	connect(importBlock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotBlocksImport()));
-
-	block->addLargeWidget(blockGroup);
-}
-
-void ApplicationWindow::createCategorySolver(SARibbonCategory* page)
-{
-	// 约束
-	SARibbonPannel* solver = page->addPannel(QObject::tr("Geometry"));
-	SARibbonButtonGroupWidget* solverGroup = createRibbonButtonGroup(solver);
-
-	auto solver_vertical = createAction(QObject::tr("Solver Vertical(p)"), ":/ribbon/solver/solver_vertical_p.svg");
-	solverGroup->addAction(solver_vertical);															// 垂直
-
-	auto solver_smooth = createAction(QObject::tr("Solver Smooth"), ":/ribbon/solver/solver_smooth.svg");
-	solverGroup->addAction(solver_smooth);																// 平滑
-
-	auto solver_parallel = createAction(QObject::tr("Solver Parallel"), ":/ribbon/solver/solver_parallel.svg");
-	solverGroup->addAction(solver_parallel);															// 平行
-
-	auto solver_vertical_v = createAction(QObject::tr("Solver Vertical(v)"), ":/ribbon/solver/solver_vertical_v.svg");
-	solverGroup->addAction(solver_vertical_v);															// 竖直
-
-	auto solver_horizontal = createAction(QObject::tr("Solver Horizontal"), ":/ribbon/solver/solver_horizontal.svg");
-	solverGroup->addAction(solver_horizontal);															// 水平
-
-	auto solver_concentric = createAction(QObject::tr("Solver Concentric"), ":/ribbon/solver/solver_concentric.svg");
-	solverGroup->addAction(solver_concentric);															// 同心
-
-	auto solver_equal = createAction(QObject::tr("Solver Equal"), ":/ribbon/solver/solver_equal.svg");
-	solverGroup->addAction(solver_equal);																// 相等
-
-	auto solver_tangent = createAction(QObject::tr("Solver Tangent"), ":/ribbon/solver/solver_tangent.svg");
-	solverGroup->addAction(solver_tangent);																// 相切
-
-	auto solver_right_angle = createAction(QObject::tr("Solver Right Angle"), ":/ribbon/solver/solver_right_angle.svg");
-	solverGroup->addAction(solver_right_angle);															// 直角
-
-	auto solver_coincide = createAction(QObject::tr("Solver Coincide"), ":/ribbon/solver/solver_coincide.svg");
-	solverGroup->addAction(solver_coincide);															// 重合
-
-	solver->addLargeWidget(solverGroup);
-}
-
 /// @brief 顶部导航条
 void ApplicationWindow::createQuickAccessBar(SARibbonQuickAccessBar* quickAccessBar)
 {
 	auto actNew = createAction(QObject::tr("new"), ":/ribbon/file/new.svg", "new-quickbar");
-	connect(actNew, SIGNAL(triggered()), m_pActionHandler, SLOT(slotFileNew()));
+	connect(actNew, &QAction::triggered, this, [this, actNew]() { m_pActionHandler->activateCommand(QStringLiteral("file.new"), actNew); });
 	quickAccessBar->addAction(actNew);																		// 新建
 
 	auto actOpen = createAction(QObject::tr("open"), ":/ribbon/file/open.svg", "open-quickbar");
@@ -1844,24 +1170,25 @@ void ApplicationWindow::createQuickAccessBar(SARibbonQuickAccessBar* quickAccess
 	quickAccessBar->addAction(actOpen);																		// 打开
 
 	auto actSave = createAction(QObject::tr("save"), ":/ribbon/file/save.svg", "save-quickbar");
-	connect(actSave, SIGNAL(triggered()), m_pActionHandler, SLOT(slotFileSave()));
+	connect(actSave, &QAction::triggered, this, [this, actSave]() { m_pActionHandler->activateCommand(QStringLiteral("file.save"), actSave); });
 	quickAccessBar->addAction(actSave);																		// 保存
 
 	auto actSaveas = createAction(QObject::tr("save as"), ":/ribbon/file/save_as.svg", "saveas-quickbar");
-	connect(actSaveas, SIGNAL(triggered()), m_pActionHandler, SLOT(slotFileSaveAs()));
+	connect(actSaveas, &QAction::triggered, this, [this, actSaveas]() { m_pActionHandler->activateCommand(QStringLiteral("file.save_as"), actSaveas); });
 	quickAccessBar->addAction(actSaveas);																	// 另存为
 	quickAccessBar->addSeparator();																			// 分割条
 
 	// undo/redo
 	// 撤销
 	m_pActUndo = createAction(QObject::tr("Undo"), ":/ribbon/undo.svg");
+	// 撤销保留 slotEditUndo：没有打开的图纸时它直接返回，不构造 ActionEditUndo。
 	connect(m_pActUndo, SIGNAL(triggered()), m_pActionHandler, SLOT(slotEditUndo()));
     m_pActUndo->setEnabled(false);
 	quickAccessBar->addAction(m_pActUndo);																	// 回退
 
 	// 重做
 	m_pActRedo = createAction(QObject::tr("Redo"), ":/ribbon/redo.svg");
-	connect(m_pActRedo, SIGNAL(triggered()), m_pActionHandler, SLOT(slotEditRedo()));
+	connect(m_pActRedo, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("edit.redo"), m_pActRedo); });
     m_pActRedo->setEnabled(false);
 	quickAccessBar->addAction(m_pActRedo);																	// 重做
 	quickAccessBar->addSeparator();                                                                         // 分割条
@@ -1892,9 +1219,9 @@ QAction* ApplicationWindow::createAction(const QString& text, const QString& ico
 	return act;
 }
 
-void ApplicationWindow::createLayerTable(SARibbonPannel* layerPannel)
+QWidget* ApplicationWindow::createLayerTable(QWidget* parent)
 {
- 	SARibbonButtonGroupWidget* allGroup = createRibbonButtonGroup(layerPannel);
+	SARibbonButtonGroupWidget* allGroup = UIRibbonManager::createButtonGroup(parent, 2);
 
 	// 图层列表
 	m_pLayerTable = new SARibbonComboBox(allGroup);
@@ -1921,23 +1248,23 @@ void ApplicationWindow::createLayerTable(SARibbonPannel* layerPannel)
 
 	// 打开所有图层
 	m_pActOnOff = createAction(QObject::tr("on all"), ":/ribbon/layer/layer_all_visible.svg");
-	connect(m_pActOnOff, SIGNAL(triggered()), m_pActionHandler, SLOT(slotLayersDefreezeAll()));
+	connect(m_pActOnOff, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("layers.defreeze_all"), m_pActOnOff); });
 	
 	// 解锁所有图层
 	m_pActLock = createAction(QObject::tr("unlock all"), ":/ribbon/layer/layer_all_unlock.svg");
-	connect(m_pActLock, SIGNAL(triggered()), m_pActionHandler, SLOT(slotLayersUnlockAll()));
+	connect(m_pActLock, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("layers.unlock_all"), m_pActLock); });
 	
 	// 新增图层
 	QAction* actNewLayer = createAction(QObject::tr("new layer"), ":/ribbon/layer/add_layer.svg");
-	connect(actNewLayer, SIGNAL(triggered()), m_pActionHandler, SLOT(slotLayersAdd()));
+	connect(actNewLayer, &QAction::triggered, this, [this, actNewLayer]() { m_pActionHandler->activateCommand(QStringLiteral("layers.add"), actNewLayer); });
 
 	//复制实体到图层
 	QAction* actCopyLayer = createAction(QObject::tr("copy to layer"), ":/ribbon/layer/copy_entity_to_layer.svg");
-	connect(actCopyLayer, SIGNAL(triggered()), m_pActionHandler, SLOT(slotCopyToLayer()));
+	connect(actCopyLayer, &QAction::triggered, this, [this, actCopyLayer]() { m_pActionHandler->activateCommand(QStringLiteral("modify.copy_to_layer"), actCopyLayer); });
 
 	// 修改图层
 	QAction* actRenameLayer = createAction(QObject::tr("rename layer"), ":/ribbon/layer/rename_layer.svg");
-	connect(actRenameLayer, SIGNAL(triggered()), m_pActionHandler, SLOT(slotLayersRename()));
+	connect(actRenameLayer, &QAction::triggered, this, [this, actRenameLayer]() { m_pActionHandler->activateCommand(QStringLiteral("layers.rename"), actRenameLayer); });
 
 	// 下面这排使用 Ribbon 按钮控件，但用自定义等分布局，确保图标尽量铺满且整行平铺。
 	QWidget* layerActionRow = new QWidget(allGroup);
@@ -1976,7 +1303,7 @@ void ApplicationWindow::createLayerTable(SARibbonPannel* layerPannel)
 
 	allGroup->addWidget(layerActionRow);
 	allGroup->setMinimumWidth(200);
-	layerPannel->addLargeWidget(allGroup);
+	return allGroup;
 }
 
 ComboBoxData* ApplicationWindow::newLayer(DmLayer* layer, QListWidget* plistWidget)
@@ -2002,23 +1329,23 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 	// 显示、隐藏
 	data->btnOn = new QToolButton(parent);
 	data->setIsOn(!layer->isFrozen());
-	connect(data->btnOn, SIGNAL(clicked()), m_pActionHandler, SLOT(slotLayersFreeze()));
+	connect(data->btnOn, &QAbstractButton::clicked, this, [this, source = data->btnOn]() { m_pActionHandler->activateCommand(QStringLiteral("layers.freeze"), source); });
 
 	// 锁定、解锁
 	data->btnLock = new QToolButton(parent);		
 	data->setIsLock(layer->isLocked());
-	connect(data->btnLock, SIGNAL(clicked()), m_pActionHandler, SLOT(slotLayersLock()));
+	connect(data->btnLock, &QAbstractButton::clicked, this, [this, source = data->btnLock]() { m_pActionHandler->activateCommand(QStringLiteral("layers.lock"), source); });
 
 	// 打印、不打印
 	data->btnPrint = new QToolButton(parent);
 	data->setIsPrint(layer->isPrint());
-	connect(data->btnPrint, SIGNAL(clicked()), m_pActionHandler, SLOT(slotLayersPrint()));
+	connect(data->btnPrint, &QAbstractButton::clicked, this, [this, source = data->btnPrint]() { m_pActionHandler->activateCommand(QStringLiteral("layers.print"), source); });
 
 	// 颜色
 	data->btnColor = new QToolButton(parent);
 	DmColor layerColor = layer->getPen().getColor();
 	data->setColor(QColor(layerColor.red(), layerColor.green(), layerColor.blue(), layerColor.alpha()));
-	connect(data->btnColor, SIGNAL(clicked()), m_pActionHandler, SLOT(slotLayersColor()));
+	connect(data->btnColor, &QAbstractButton::clicked, this, [this, source = data->btnColor]() { m_pActionHandler->activateCommand(QStringLiteral("layers.color"), source); });
 
 	// 名字
 	data->labelName = new QPushButton(parent);
@@ -2038,7 +1365,7 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 	}
 	else
 	{
-		connect(data->labelName, SIGNAL(clicked()), m_pActionHandler, SLOT(slotLayersActivate()));
+		connect(data->labelName, &QAbstractButton::clicked, this, [this, source = data->labelName]() { m_pActionHandler->activateCommand(QStringLiteral("layers.activate"), source); });
 	}
 
 	// 删除
@@ -2046,7 +1373,7 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 	{
 		data->btnDelete = new QToolButton(parent);
 		data->btnDelete->setIcon(QIcon(":/ribbon/layer/delete_layer.svg"));
-		connect(data->btnDelete, SIGNAL(clicked()), m_pActionHandler, SLOT(slotLayersDelete()));
+		connect(data->btnDelete, &QAbstractButton::clicked, this, [this, source = data->btnDelete]() { m_pActionHandler->activateCommand(QStringLiteral("layers.delete"), source); });
 	}
 	else
 	{
@@ -2117,9 +1444,8 @@ int ApplicationWindow::countLine(QPoint p, int width)
 
 void ApplicationWindow::enableButtons(const bool enable)
 {
-	// ribbon按钮
-	ribbonBar()->categoryByObjectName("categoryDraw2d")->setEnabled(enable);
-	ribbonBar()->categoryByObjectName("categoryOptions")->setEnabled(enable);
+	// Ribbon 按钮的可用状态由 m_ribbonManager 按注册时声明的可用条件重算
+	// （见 slotsTabChangeEvent），这里只处理 Ribbon 之外的控件。
 	m_pActRedo->setEnabled(enable);
 	m_pActUndo->setEnabled(enable);
 	for (auto act : ribbonBar()->quickAccessBar()->actions())
@@ -2127,30 +1453,6 @@ void ApplicationWindow::enableButtons(const bool enable)
 		if (act->objectName() == "save-quickbar" || act->objectName() == "saveas-quickbar")
 		{
 			act->setEnabled(enable);
-		}
-	}
-	auto pannels = ribbonBar()->categoryByObjectName("categoryFile")->pannelList();
-	for (auto& pannel : pannels)
-	{
-		if (pannel->windowTitle() == QObject::tr("File"))
-		{
-			QList<QAction*> acts = pannel->actions();
-			QWidgetAction* wAct = dynamic_cast<QWidgetAction*>(acts.front());
-			SARibbonButtonGroupWidget* groupWidget = dynamic_cast<SARibbonButtonGroupWidget*>(wAct->defaultWidget());
-			for (auto& act : groupWidget->actions())
-			{
-				wAct = dynamic_cast<QWidgetAction*>(act);
-				QToolButton* btn = dynamic_cast<QToolButton*>(wAct->defaultWidget());
-				QString tooltip = btn->toolTip();
-				if (tooltip != QObject::tr("open") && tooltip != QObject::tr("new"))
-				{
-					btn->setEnabled(enable);
-				}
-			}
-		}
-		else
-		{
-			pannel->setEnabled(enable);
 		}
 	}
 

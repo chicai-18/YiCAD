@@ -83,86 +83,16 @@ public:
     void updateGrids();
 
 public slots:
-    void slotFileNew();
-    void slotFileOpen();
-    void slotFileSave();
-    void slotFileSaveAs();
-
-    void slotFileExportImage();
-
     void slotZoomIn();
     void slotZoomOut();
     void slotZoomPan();
 
     void slotEditKillAllActions();
     void slotEditUndo();
-    void slotEditRedo();
-    void slotEditCut();
-    void slotEditCopy();
-    void slotEditPaste();
 
     void slotDrawPoint();
-    void slotDrawLine();
-    void slotDrawLineFree();
-    void slotDrawLineRectangle();
-    void slotDrawLineBisector();
-    void slotDrawLineTangent1();
-    void slotDrawLineTangent2();
-    void slotDrawLineOrthTan();
-    void slotDrawLinePolygon();
-    void slotDrawLinePolygon3();
-    void slotDrawCircle();
-    void slotDrawCircle2P();
-    void slotDrawCircle3P();
-    void slotDrawCircleTan2();
-    void slotDrawCircleTan3();
-    void slotDrawArc();
-    void slotDrawArc3P();
-    void slotDrawArcTangential();
-    void slotDrawEllipseAxis();
-    void slotDrawEllipseInscribe();
-    void slotDrawRay();
-    void slotDrawSpline();
-    void slotDrawSplinePoints();
-    void slotDrawMText();
-    void slotDrawText();
-    void slotDrawHatch();
-    void slotDrawImage();
-    void slotDrawXline();
-    void slotDrawPolyline();
-    void slotPolylineAdd();
-    void slotPolylineAppend();
-    void slotPolylineDel();
-    void slotCloudLineRectangle();
-    void slotCloudLinePolygon();
-    void slotCloudLineFree();
-
-    void slotDimAligned();
-    void slotDimLinear();
-    void slotDimRadial();
-    void slotDimDiametric();
-    void slotDimAngular();
-    void slotDimLeader();
-    void slotDimBaseline();
-    void slotDimStyle();
-    void slotTextStyle();
 
     void slotModifyDelete();
-    void slotModifyDeleteNoSelect();     // 已在Ribbon菜单入口屏蔽此功能
-    void slotModifyCopy();
-    void slotModifyMove();
-    void slotModifyScale();
-    void slotModifyRotate();
-    void slotModifyMirror();
-    void slotModifyEntity();
-    void slotModifyTrim();
-    void slotModifyExtend();
-    void slotModifyCut();
-    void slotModifyCut_2P();
-    void slotModifyBevel();
-    void slotModifyRound();
-    void slotModifySingleOffset();
-    void slotModifyExplode();
 
     void slotSetSnaps(SnapMode const& s);
     void slotSnapFree();
@@ -181,39 +111,15 @@ public slots:
     void disableSnaps();
     void disableRestrictions();
 
-    void slotInfoDist();
-    void slotInfoAngle();
-    void slotInfoTotalLength();
-    void slotInfoArea();
     void slotIndoSelected();
 
-    void slotLayersFreeze();
-    void slotLayersLock();
-    void slotLayersPrint();
-    void slotLayersColor();
-    void slotLayersActivate();
-    void slotLayersDelete();
-    void slotLayersDefreezeAll();
     void slotLayersFreezeAll();
-    void slotLayersUnlockAll();
     void slotLayersLockAll();
-    void slotLayersRename();
-    void slotLayersAdd();
 
     void slotBlocksSave();
-    void slotBlocksSaveAs();
-    void slotBlocksInsertPrepare();
     void slotBlocksInsert();
-    void slotBlocksCreate();
-    void slotBlocksDelete();
-    void slotBlocksEdit();
-    void slotBlocksImport();
-    void slotDefineAttributes();
-    void slotOptionsGeneral();
-    void slotOptionsDrawing();
 
     void slotViewGrid();
-    void slotCopyToLayer();
 
     void slotSecectedChanged();
 

@@ -151,19 +151,23 @@ yicad_collect_sources(INTERACTION
 # UI 组件里有多处（UIActionHandler、UIBottomWidget、UICurrentActivePen、
 # UILineTypeBox、UITabDrawWidget 等）直接调用 ApplicationWindow/MDIWindow
 # 取全局状态（当前文档、当前 MDI 标签），是与 APP 互相依赖的既有设计。
+#
+# src/ui/ribbon/ 是 Ribbon 注册表与装配器（UIRibbonRegistry/UIRibbonManager），
+# 内置类目与扩展共用。
 yicad_collect_sources(UI
     src/ui
-    src/ui/forms)
+    src/ui/forms
+    src/ui/ribbon)
 
 # 对应阶段 3 的 YiCadApp（可执行目标）。
 #
 # 计划图未列出 src/plugin_runtime/，它位于 UI 之上：
 #   plugin_runtime/   引用 UIActionHandler.h、UICommandWidget.h
 #
-# kernel/extension/（IExtension/IExtensionContext/ExtensionManager）是
-# 进程内扩展框架本身，只依赖前置声明，归入本分区是因为宿主侧的
-# IExtensionContext 实现在 ApplicationWindow 里。各扩展的源码见下方
-# src/extensions/ 的收集规则。
+# kernel/extension/（IExtension/IExtensionContext/IExtensionHost/
+# ExtensionManager）是进程内扩展框架本身，只依赖前置声明，归入本分区是
+# 因为宿主侧的 IExtensionHost 实现在 ApplicationWindow 里。各扩展的源码
+# 见下方 src/extensions/ 的收集规则。
 #
 # kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
 # getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
@@ -468,6 +472,7 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon
     ${YICAD_EXTENSION_INCLUDE_DIRS})
 
 target_precompile_headers(YiCadCore PRIVATE

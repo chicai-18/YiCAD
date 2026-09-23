@@ -19,8 +19,11 @@
 /// @brief 扩展的注册、启动与关闭。
 ///
 /// 生命周期约束：注册顺序 == 启动顺序 == 关闭的反序；`BootAll` 只能成功
-/// 调用一次；`Shutdown` 幂等。参考 `E:\dev\DS` 的
-/// `Application/Framework/ExtensionManager.h`。
+/// 调用一次；`Shutdown` 幂等。参考 DS 的 `Application/Framework/ExtensionManager.h`。
+///
+/// 启动时为每个扩展构造一个专属的 IExtensionContext（见 ExtensionManager.cpp
+/// 的 ExtensionScopedContext）：校验该扩展注册的 ID 是否在它的命名空间内，
+/// 记录它注册的命令，并在它的 OnShutdown 之后注销这些命令。
 /// @note 仅限 UI 主线程访问，无内部同步。
 
 #ifndef EXTENSIONMANAGER_H
@@ -30,8 +33,9 @@
 #include <string_view>
 #include <vector>
 
+class ExtensionScopedContext;
 class IExtension;
-class IExtensionContext;
+class IExtensionHost;
 
 class ExtensionManager
 {
@@ -43,13 +47,14 @@ public:
     /// `BootAll` 过之后再调用，均返回 false。
     bool Register(std::unique_ptr<IExtension> ext);
 
-    /// @brief 按注册顺序调用每个扩展的 `OnRegister(ctx)`。已经启动过时
-    /// 再次调用是空操作（不会重新触发任何扩展的 `OnRegister`）。
-    void BootAll(IExtensionContext& ctx);
+    /// @brief 按注册顺序为每个扩展构造上下文并调用其 `OnRegister`。已经启动
+    /// 过时再次调用是空操作（不会重新触发任何扩展的 `OnRegister`）。
+    /// @param host 宿主服务，必须存活到 `Shutdown()` 返回。
+    void BootAll(IExtensionHost& host);
 
-    /// @brief 若已启动，按注册顺序的反序调用每个扩展的 `OnShutdown()`；
-    /// 随后清空已持有的扩展，并把管理器恢复到初始状态（可以重新
-    /// `Register`/`BootAll`）。幂等——重复调用是空操作。若从未
+    /// @brief 若已启动，按注册顺序的反序调用每个扩展的 `OnShutdown()` 并
+    /// 注销它注册的命令；随后清空已持有的扩展，并把管理器恢复到初始状态
+    /// （可以重新 `Register`/`BootAll`）。幂等——重复调用是空操作。若从未
     /// `BootAll` 过就调用本方法，只清空已注册但从未 `OnRegister`
     /// 过的扩展，不调用它们的 `OnShutdown()`（没有配对的 `OnRegister`）。
     void Shutdown();
@@ -64,7 +69,13 @@ private:
     ExtensionManager(const ExtensionManager&) = delete;
     ExtensionManager& operator=(const ExtensionManager&) = delete;
 
-    std::vector<std::unique_ptr<IExtension>> m_extensions;
+    struct Slot
+    {
+        std::unique_ptr<IExtension> extension;
+        std::unique_ptr<ExtensionScopedContext> context;  ///< BootAll 时构造
+    };
+
+    std::vector<Slot> m_extensions;
     bool m_booted = false;
 };
 

@@ -57,7 +57,10 @@ class UICommandWidget;
 class UIBlockListWidget;
 class UIBlockSaveAs;
 class ApplicationPluginHostContext;
-class ApplicationWindowExtensionContext;
+class ApplicationWindowExtensionHost;
+class UIRibbonManager;
+class UIRibbonRegistrar;
+class UIRibbonRegistry;
 class HostApi;
 class PluginManager;
 class PluginRegistry;
@@ -200,16 +203,21 @@ private:
     /// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段）。
     void registerExtensions();
 
-    void createCategoryFile(SARibbonCategory* page);
-    void createCategoryOptions(SARibbonCategory* page);
-    void createCategoryDraw2d(SARibbonCategory* page);
-    void createCategorySolver(SARibbonCategory* page);
+    /// @brief 注册内置 Ribbon 类目（文件、绘图、设置）。
+    /// 以下四个方法实现在 ApplicationWindowRibbon.cpp。
+    void registerBuiltinRibbon(UIRibbonRegistrar& r);
+    void registerRibbonFile(UIRibbonRegistrar& r);
+    void registerRibbonDraw2d(UIRibbonRegistrar& r);
+    void registerRibbonOptions(UIRibbonRegistrar& r);
+
     void createQuickAccessBar(SARibbonQuickAccessBar* quickAccessBar);
     QAction* createAction(const QString& text, const QString& iconurl, const QString& objName);
     QAction* createAction(const QString& text, const QString& iconurl);
 
-    /// @brief 创建图层列表
-    void createLayerTable(SARibbonPannel* layerPannel);
+    /// @brief 创建图层面板里的图层下拉框与图层操作按钮
+    /// @param [in] parent 图层面板
+    /// @return 放进面板的控件
+    QWidget* createLayerTable(QWidget* parent);
 
     /// @brief 计算鼠标所在行区域
     /// @param [in] p 鼠标位置
@@ -224,7 +232,8 @@ private:
     /// @return 编码后的区域值
     int countLine(QPoint p, int width);
 
-    /// @brief 设置UI是否可用（除"打开""新建"）
+    /// @brief 设置 Ribbon 之外的控件是否可用（快速访问栏、画笔、命令框、
+    /// 状态栏）；Ribbon 按钮的可用状态由 UIRibbonManager 按注册的可用条件重算。
     /// @param [in] enable true=启用
     void enableButtons(const bool enable);
 
@@ -319,9 +328,13 @@ private:
     SARibbonComboBox*               m_pViewportTable = nullptr;         ///< 视图下拉框
     QListWidget*                    m_pViewportWidget = nullptr;        ///< 视图下拉列表
 
-    // 进程内扩展框架（阶段4第二阶段）；各扩展（src/extensions/）的按钮、
-    // 设置页等由扩展自己持有，不是本类的成员。
-    std::unique_ptr<ApplicationWindowExtensionContext> m_extensionContext;
+    // Ribbon 注册表与装配器：内置类目与扩展都注册到 m_ribbonRegistry，
+    // 由 m_ribbonManager 装配并按上下文重算可用状态。
+    std::unique_ptr<UIRibbonRegistry>               m_ribbonRegistry;
+    std::unique_ptr<UIRibbonManager>                m_ribbonManager;
+
+    // 进程内扩展的宿主服务（阶段4）；引用 m_ribbonRegistry，声明在其后以先于它析构。
+    std::unique_ptr<ApplicationWindowExtensionHost> m_extensionHost;
 
     /// @brief 新插件运行时；声明顺序保证 Manager 最先析构，宿主上下文最后析构。
     std::unique_ptr<ApplicationPluginHostContext> m_pluginHostContext;

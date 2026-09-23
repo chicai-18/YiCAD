@@ -125,7 +125,9 @@ QWidget* UITabDrawWidget::createTabDrawWidget(QMdiArea* drawBackWidget, UIAction
 	newDraw->setFocusPolicy(Qt::NoFocus);
 	newDraw->setIcon(QIcon(":/ribbon/tabbar/new.svg"));
 	newDraw->setIconSize(QSize(13, 13));
-	connect(newDraw, SIGNAL(clicked()), m_pActionHandler, SLOT(slotFileNew()));
+	connect(newDraw, &QToolButton::clicked, this, [this, newDraw]() {
+		m_pActionHandler->activateCommand(QStringLiteral("file.new"), newDraw);
+	});
 
 	// docView绘图区域的当前画笔栏
 	m_pPenWidget = new QWidget(m_pWidget);

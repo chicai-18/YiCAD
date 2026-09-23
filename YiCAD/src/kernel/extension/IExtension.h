@@ -38,13 +38,9 @@ public:
     virtual ~IExtension() = default;
 
     /// @brief 注册期回调，由 `ExtensionManager::BootAll` 按注册顺序调用。
-    /// @param ctx 本次调用期间有效的扩展上下文。
-    /// @note `ctx` 参数本身只在调用期间保证有效；扩展需要在调用之后继续
-    /// 使用的东西必须自己存成员，不能默认保留 `ctx` 引用/指针到调用结束
-    /// 之后。例外：如果调用方交给你的具体 `IExtensionContext` 实现在自己
-    /// 的文档里说明了更长的生命周期保证（例如它存活到 `Shutdown()` 为止），
-    /// 扩展可以按那份实现自己的保证保留指针——这是否安全取决于具体实现，
-    /// 不是本接口的通用契约。
+    /// @param ctx 本扩展专属的上下文，由 ExtensionManager 持有，保证有效到
+    /// 本扩展的 `OnShutdown()` 返回为止——扩展可以保留指向它的指针，供点击
+    /// 回调等在 OnRegister 之后使用。Ribbon 注册只能在本回调期间进行。
     virtual void OnRegister(IExtensionContext& ctx) = 0;
 
     /// @brief 关闭期回调，由 `ExtensionManager::Shutdown` 按注册顺序的
