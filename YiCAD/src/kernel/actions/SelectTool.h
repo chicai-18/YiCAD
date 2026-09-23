@@ -29,12 +29,25 @@
 /// 类需要在它们之间转移这次"未决"的拖拽状态，边界不清晰而收益有限，
 /// 遂保留在同一个类里；方案本身也把这个拆分标注为"评估后决定"。
 ///
-/// 尚未注册进 `ViewToolControl` 的选择层：那需要先完成方案第6项——把
-/// `GuiEventHandler` 的业务 Action 栈包成业务工具参与统一分发。当前
-/// `GuiEventHandler` 对业务 Action 的分发语义是"只要活着就总是处理"
-/// （没有 NotHandled 的概念），若现在就把本类注册为选择层，会在导航层
-/// 之前抢先"处理"每个事件，业务 Action（画线、修改等）将再也收不到
-/// 鼠标事件。见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 5.7 节。
+/// 现已注册为 `ViewToolControl` 的选择层（阶段2第6项 `LegacyActionTool`
+/// 落地之后）。这带来两处必须的额外判断，都是"选择层现在要直接与导航层、
+/// 业务层竞争优先级"的自然结果：
+///   - `mousePressEvent` 的 `Neutral` 分支要在 Ctrl/Meta+左键时让路给
+///     导航层（`PanZoomTool` 的平移手势）——这个判断在阶段2第一轮里被
+///     挪到了 `GuiDocumentView`/`LegacyActionTool`，选择层若不重新声明，
+///     会在导航层之前把这次按下错当成框选/点选的起点抢走。
+///   - `mouseMoveEvent`/`mouseReleaseEvent` 在导航层正在平移
+///     （`PanZoomTool::isPanning()`）时也要主动让路，否则会在平移的
+///     移动/释放事件上抢在导航层结束这次平移之前把事件处理掉。
+///
+/// `getCursor()` 在"有其它业务 Action 正活动"（`docView->getEventHandler()
+/// ->hasAction()`）时返回 `nullopt`：那些 Action 仍然通过
+/// `updateMouseCursor()` 直接调用 `setMouseCursor()`（105 个未改造，见
+/// 5.7 节"与方案的偏差"），选择层不应该用自己的偏好覆盖它们。
+/// `setStatus()`/`init()` 仍然保留直接调用 `setMouseCursor()`——这是
+/// `ActionBlocksEdit`/`ActionModifyMText` 通过 `getDefaultAction()`
+/// 复用本类时唯一还在起作用的光标更新路径（那时 `hasAction()` 为真，
+/// `getCursor()` 的仲裁通道按上一条规则保持沉默）。
 
 #ifndef SELECTTOOL_H
 #define SELECTTOOL_H
@@ -47,6 +60,7 @@ class DmEntity;
 class IDocumentView;
 class ISnapService;
 class Preview;
+class PanZoomTool;
 class QKeyEvent;
 class QMouseEvent;
 
@@ -68,7 +82,10 @@ public:
     /// @param snapService 非持有指针，与拥有者（`ActionDefault`）共享
     ///                     同一个捕捉器实例，保证捕捉模式/捕捉结果一致
     /// @param preview 非持有指针，与拥有者共享同一个预览容器
-    SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview);
+    /// @param panTool 非持有指针，可为空；用于查询导航层是否正在平移中，
+    ///                 为空时视为"从不平移"（当前语义不变）
+    SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
+               PanZoomTool* panTool = nullptr);
 
     /// @brief 复位到 Neutral，供 `ActionDefault::init()` 调用
     void init();
@@ -101,10 +118,17 @@ private:
     void deletePreview();
     void drawPreview();
 
+    /// @brief 状态到光标的原始映射，不考虑是否有其它业务 Action 活动。
+    /// `setStatus()`/`init()` 的直接调用用这个（不受 `getCursor()` 的
+    /// `hasAction()` 让路判断影响，见头部说明）；`getCursor()` 在此基础上
+    /// 叠加让路判断。
+    std::optional<DM::CursorType> cursorForStatus() const;
+
     DmDocument* m_pDocument = nullptr;
     IDocumentView* m_docView = nullptr;
     ISnapService* m_snapService = nullptr;
     Preview* m_preview = nullptr;
+    PanZoomTool* m_panTool = nullptr;
 
     int m_status = Neutral;
     bool m_hasPreview = false;

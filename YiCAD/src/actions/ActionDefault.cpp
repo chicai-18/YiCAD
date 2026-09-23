@@ -31,10 +31,11 @@
 /// @brief 构造函数
 /// @param[in] doc 文档指针
 /// @param[in] docView 文档视图指针
-ActionDefault::ActionDefault(DmDocument* doc, IDocumentView* docView)
+/// @param[in] panTool 转交给内部的 SelectTool
+ActionDefault::ActionDefault(DmDocument* doc, IDocumentView* docView, PanZoomTool* panTool)
     : ActionInterface("Default", doc, docView)
     , m_preview(std::make_unique<Preview>(doc))
-    , m_selectTool(std::make_unique<SelectTool>(doc, docView, snapService(), m_preview.get()))
+    , m_selectTool(std::make_unique<SelectTool>(doc, docView, snapService(), m_preview.get(), panTool))
 {
     actionType = DM::ActionDefault;
 }
@@ -117,15 +118,6 @@ QStringList ActionDefault::getAvailableCommands()
 void ActionDefault::updateMouseButtonHints()
 {
     m_selectTool->updateButtonHints();
-}
-
-/// @brief 更新鼠标光标
-void ActionDefault::updateMouseCursor()
-{
-    if (auto cursor = m_selectTool->getCursor())
-    {
-        docView->setMouseCursor(*cursor);
-    }
 }
 
 // EOF

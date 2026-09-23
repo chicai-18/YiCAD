@@ -13,7 +13,10 @@
 #include <QMouseEvent>
 #include <QPointF>
 
+#include "ActionInterface.h"
 #include "DmDocument.h"
+#include "GuiEventHandler.h"
+#include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
 #include "Snapper.h"
@@ -38,13 +41,18 @@ QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button, Q
 /// 键盘处理——它们都不触碰 m_preview；Moving/MovingRef（拖拽实体/夹点）
 /// 会调用 preview->addSelectionFromDocument() 等方法，这些需要一个真正
 /// 关联了文档的 Preview，本轮未覆盖，是本次测试的已知边界。
+///
+/// panTool 用真实的 PanZoomTool 构造（而非默认的 nullptr）：SelectTool
+/// 现在需要在导航层平移中时让路，这里的多数用例仍然从不触发平移，
+/// panTool.isPanning() 始终为 false，行为与旧版完全一致。
 struct SelectToolFixture : ::testing::Test
 {
     DmDocument doc;
     FakeDocumentView view;
     Preview preview{nullptr};
     Snapper snapper{&doc, &view};
-    SelectTool tool{&doc, &view, &snapper, &preview};
+    PanZoomTool panTool{&view};
+    SelectTool tool{&doc, &view, &snapper, &preview, &panTool};
 };
 }  // namespace
 
@@ -148,4 +156,44 @@ TEST_F(SelectToolFixture, 未知按键返回NotHandled)
 {
     QKeyEvent other(QEvent::KeyPress, Qt::Key_A, Qt::NoModifier);
     EXPECT_EQ(tool.keyPressEvent(&other), ViewToolResult::NotHandled);
+}
+
+TEST_F(SelectToolFixture, Ctrl左键从Neutral按下时让给导航层)
+{
+    // 阶段2第6项落地、SelectTool 注册为选择层之后新增的判断：Neutral
+    // 状态下的 Ctrl/Meta+左键是导航层的平移手势（见 PanZoomTool），
+    // 选择层不应该抢先当成框选/点选的起点。
+    QMouseEvent e = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton, Qt::ControlModifier);
+    EXPECT_EQ(tool.mousePressEvent(&e), ViewToolResult::NotHandled);
+    EXPECT_EQ(tool.getStatus(), SelectTool::Neutral);
+}
+
+TEST_F(SelectToolFixture, 导航层平移中时移动和释放主动让路)
+{
+    QMouseEvent panPress = makeMouse(QEvent::MouseButtonPress, 0, 0, Qt::MiddleButton);
+    panTool.mousePressEvent(&panPress);
+    ASSERT_TRUE(panTool.isPanning());
+
+    QMouseEvent move = makeMouse(QEvent::MouseMove, 30, 30, Qt::NoButton);
+    EXPECT_EQ(tool.mouseMoveEvent(&move), ViewToolResult::NotHandled);
+
+    QMouseEvent release = makeMouse(QEvent::MouseButtonRelease, 30, 30, Qt::MiddleButton);
+    EXPECT_EQ(tool.mouseReleaseEvent(&release), ViewToolResult::NotHandled);
+}
+
+TEST_F(SelectToolFixture, 有其它业务Action活动时getCursor保持沉默)
+{
+    // SelectTool 注册为选择层后，若有其它业务 Action（画线、修改等）正在
+    // 活动，它们仍然通过 updateMouseCursor() 直接调用 setMouseCursor()
+    // （105 个未改造），选择层不能用自己在 Neutral 下的 Arrow 偏好覆盖
+    // 它们，否则每次仲裁都会把光标错误地重置成箭头。
+    GuiEventHandler handler(nullptr);
+    view.eventHandler = &handler;
+
+    // GuiEventHandler 的业务栈拥有并负责删除压入的 Action。
+    handler.setCurrentAction(new ActionInterface("test-business-action", &doc, &view));
+    ASSERT_TRUE(handler.hasAction());
+
+    EXPECT_EQ(tool.getStatus(), SelectTool::Neutral);
+    EXPECT_FALSE(tool.getCursor().has_value());
 }

@@ -61,6 +61,7 @@
 #include "ViewToolControl.h"
 #include "PanZoomTool.h"
 #include "LegacyActionTool.h"
+#include "SelectTool.h"
 
 #ifdef Q_OS_WIN32
 #define CURSOR_SIZE 16
@@ -117,7 +118,12 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     {
         setDocument(doc);
         doc->setDocumentView(this);
-        setDefaultAction(new ActionDefault(doc, this));
+        ActionDefault* defaultAction = new ActionDefault(doc, this, m_pPanZoomTool.get());
+        setDefaultAction(defaultAction);
+        // 把 ActionDefault 内部持有的 SelectTool 注册为选择层，让空闲态
+        // （没有业务 Action 活动）的光标经由 ViewToolControl::refreshCursor()
+        // 统一仲裁，见 SelectTool.h 顶部说明与阶段2 5.7 节。
+        m_pViewToolControl->setSelectionTool(defaultAction->getSelectTool());
     }
 
     DMSETTINGS->beginGroup("Colors");
@@ -152,6 +158,18 @@ GuiDocumentView::~GuiDocumentView()
     cleanUp();
     qDeleteAll(m_overlayEntities);
     deletePainters();
+
+    // 必须先于 eventHandler 被清空：ViewToolControl 的选择层引用了
+    // ActionDefault（eventHandler 的默认Action）内部持有的 SelectTool，
+    // eventHandler 一旦被删除，SelectTool 也随之析构。m_pViewToolControl
+    // 是 unique_ptr 成员，会在本函数体结束后才自动析构；若等到那时候，
+    // 会经一个已经悬空的指针调用 SelectTool::onDeactivate()。这里手动
+    // 断开引用（触发一次正常的 onDeactivate()，此时 eventHandler 还活着，
+    // 是安全的）。
+    if (m_pViewToolControl)
+    {
+        m_pViewToolControl->setSelectionTool(nullptr);
+    }
 
     if (eventHandler)
     {

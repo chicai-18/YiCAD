@@ -35,6 +35,7 @@
 
 class Preview;
 class SelectTool;
+class PanZoomTool;
 
 /// @brief 处理默认用户交互事件（选择、拖拽等），转发给内部的 SelectTool
 class ActionDefault : public ActionInterface
@@ -44,7 +45,9 @@ public:
     /// @brief 构造函数
     /// @param[in] doc 文档指针
     /// @param[in] docView 文档视图指针
-    ActionDefault(DmDocument* doc, IDocumentView* docView);
+    /// @param[in] panTool 非持有指针，可为空；转交给内部的 SelectTool，
+    ///                     用于在导航层平移时让路，见 SelectTool.h 说明
+    ActionDefault(DmDocument* doc, IDocumentView* docView, PanZoomTool* panTool = nullptr);
 
     /// @brief 析构函数
     ~ActionDefault() override;
@@ -94,8 +97,18 @@ public:
     /// @brief 更新鼠标按钮提示
     void updateMouseButtonHints() override;
 
-    /// @brief 更新鼠标光标
-    void updateMouseCursor() override;
+    // 注意：不再覆盖 updateMouseCursor()，落回 ActionInterface 的空实现。
+    // SelectTool 现已注册为 ViewToolControl 的选择层（阶段2第6项落地
+    // 之后），空闲态的光标改由 ViewToolControl::refreshCursor() 通过
+    // SelectTool::getCursor() 统一仲裁；SelectTool::setStatus()/init()
+    // 仍保留直接调用 setMouseCursor()，服务于 ActionBlocksEdit/
+    // ActionModifyMText 复用 getDefaultAction() 时的场景（那时有其它业务
+    // Action 活动，getCursor() 的仲裁通道按约定保持沉默）。见 SelectTool.h
+    // 顶部说明与 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 5.7 节。
+
+    /// @brief 获取内部持有的 SelectTool，供 GuiDocumentView 注册为
+    /// ViewToolControl 的选择层
+    SelectTool* getSelectTool() const { return m_selectTool.get(); }
 
 private:
     std::unique_ptr<Preview> m_preview;        ///< 与 SelectTool 共享的预览容器

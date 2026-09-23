@@ -29,9 +29,11 @@
 #include "DmLine.h"
 #include "DmMText.h"
 #include "GuiDialogFactory.h"
+#include "GuiEventHandler.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
+#include "PanZoomTool.h"
 #include "Preview.h"
 #include "Selection.h"
 
@@ -45,11 +47,13 @@ constexpr double kRefSnapGuiDist = 8.0;
 constexpr double kAngleSnapStep = 15.0;
 }  // namespace
 
-SelectTool::SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview)
+SelectTool::SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
+                       PanZoomTool* panTool)
     : m_pDocument(doc)
     , m_docView(docView)
     , m_snapService(snapService)
     , m_preview(preview)
+    , m_panTool(panTool)
 {
 }
 
@@ -61,7 +65,7 @@ void SelectTool::init()
     m_points = Points{};
     m_status = Neutral;
     updateButtonHints();
-    if (auto cursor = getCursor())
+    if (auto cursor = cursorForStatus())
     {
         m_docView->setMouseCursor(*cursor);
     }
@@ -75,7 +79,7 @@ void SelectTool::setStatus(int status)
     }
     m_status = status;
     updateButtonHints();
-    if (auto cursor = getCursor())
+    if (auto cursor = cursorForStatus())
     {
         m_docView->setMouseCursor(*cursor);
     }
@@ -126,7 +130,7 @@ void SelectTool::updateButtonHints() const
     }
 }
 
-std::optional<DM::CursorType> SelectTool::getCursor() const
+std::optional<DM::CursorType> SelectTool::cursorForStatus() const
 {
     switch (m_status)
     {
@@ -138,6 +142,25 @@ std::optional<DM::CursorType> SelectTool::getCursor() const
     default:
         return std::nullopt;
     }
+}
+
+std::optional<DM::CursorType> SelectTool::getCursor() const
+{
+    // 有其它业务 Action 正活动时，光标由它自己直接调用 setMouseCursor()
+    // 决定（105 个 Action 尚未改造，见阶段2 5.7 节），选择层在仲裁通道里
+    // 保持沉默，不能用自己的偏好覆盖它们。这次查询不影响 setStatus()/
+    // init() 的直接调用——那两处用的是不受这条限制约束的 cursorForStatus()。
+    if (m_docView)
+    {
+        if (GuiEventHandler* handler = m_docView->getEventHandler())
+        {
+            if (handler->hasAction())
+            {
+                return std::nullopt;
+            }
+        }
+    }
+    return cursorForStatus();
 }
 
 ViewToolResult SelectTool::keyPressEvent(QKeyEvent* e)
@@ -180,6 +203,14 @@ ViewToolResult SelectTool::keyReleaseEvent(QKeyEvent* e)
 
 ViewToolResult SelectTool::mouseMoveEvent(QMouseEvent* e)
 {
+    if (m_panTool && m_panTool->isPanning())
+    {
+        // 导航层正在平移中，让路——否则选择层会在移动事件上抢在导航层
+        // 结束这次平移之前把事件处理掉。见头部说明与 LegacyActionTool
+        // 里同样的判断。
+        return ViewToolResult::NotHandled;
+    }
+
     DmVector mouse = m_docView->toGraph(e->x(), e->y());
     DmVector relMouse = mouse - m_docView->getRelativeZero();
 
@@ -295,6 +326,14 @@ ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
         switch (m_status)
         {
         case Neutral:
+            if (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))
+            {
+                // Ctrl/Meta+左键从 Neutral 状态发起是导航层的平移手势
+                // （见 PanZoomTool），选择层让路。业务层已经在没有业务
+                // Action 活动时对这个组合让过一次路（LegacyActionTool::
+                // wantsPress），本类只有在那之后才可能真正收到这次按下。
+                return ViewToolResult::NotHandled;
+            }
             m_points.v1 = m_docView->toGraph(e->x(), e->y());
             setStatus(Dragging);
             break;
@@ -349,6 +388,12 @@ ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
 
 ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
 {
+    if (m_panTool && m_panTool->isPanning())
+    {
+        // 见 mouseMoveEvent 顶部的说明：导航层正在平移中，让路。
+        return ViewToolResult::NotHandled;
+    }
+
     if (e->button() == Qt::LeftButton)
     {
         m_points.v2 = m_docView->toGraph(e->x(), e->y());
