@@ -376,18 +376,27 @@ flowchart TB
 
 ### 5.7 执行结果
 
-第 5.4 节六项任务中，第 1（`IViewTool`/`ViewToolControl`）、2（`PanZoomTool`）、
-4（光标仲裁，范围收窄）、5（Snap 组合化）项已落地；第 3 项（`SelectTool`/
-`GripEditTool`）与第 6 项（业务工具适配器）留作后续 PR，理由见下。
+分两轮落地。第一轮完成第 1（`IViewTool`/`ViewToolControl`）、2
+（`PanZoomTool`）、4（光标仲裁，范围收窄）、5（Snap 组合化）项；第二轮
+补上第 3 项（`SelectTool`，`GripEditTool` 未单独拆分，理由见下）。第 6
+项（业务工具适配器）仍留作后续 PR。
 
 **与方案的偏差**
 
 | 项 | 方案 | 实际 | 理由 |
 |----|------|------|------|
-| 落地范围 | 六项任务一次性完成 | 只完成第 1、2、4、5 项 | 第 3 项本身在方案里就标注"评估后决定"，且 `ActionDefault` 与 `ActionInterface::finish()`（"拒绝退出默认 Action"的特判）、`GuiEventHandler::inSelectionMode()`、`GuiDocumentView::tabletEvent` 的橡皮擦手势深度耦合，拆解它是独立体量的工作；第 6 项（业务工具适配器）要求先有第 3 项才有意义。三者与第 5 项（改动面覆盖 106 个 Action）叠加会突破 10 节"禁止跨阶段大爆炸式 PR"的约束，故拆分 |
-| 光标仲裁范围 | 移除各 Action 的 `updateMouseCursor()` 直接抢占，统一走 `IViewTool::GetCursor()` | 106 个 Action 的 `updateMouseCursor()` 直接调用保持不变；`ViewToolControl` 仅在**全体工具都无偏好**时不触碰当前光标，只有 `PanZoomTool` 主动断言（平移进行中）时才覆盖 | 移除 Action 直接置光标是第 3 项（`SelectTool` 取代 `ActionDefault`）完成之后才有意义的收尾——旧 Action 体系仍在场时，若原样照搬 DS 参考实现"无偏好即恢复默认箭头"，会造成两个新回归：平移结束后光标不会自动跳回、以及每次鼠标移动都把旧 Action 自绘的光标重置成箭头。"无偏好则不动"是让新旧两套机制在本阶段内安全共存的必要收窄 |
+| 落地范围（第一轮） | 六项任务一次性完成 | 先完成第 1、2、4、5 项 | `ActionDefault` 与 `ActionInterface::finish()`（"拒绝退出默认 Action"的特判）、`GuiEventHandler::inSelectionMode()`、`GuiDocumentView::tabletEvent` 的橡皮擦手势深度耦合，拆解它是独立体量的工作，与第 5 项（改动面覆盖 106 个 Action）叠加会突破 10 节"禁止跨阶段大爆炸式 PR"的约束，故拆成两轮 |
+| `GripEditTool` 未单独拆分 | `Moving`/`MovingRef` "倾向拆为 GripEditTool" | 与 `Neutral`/`Dragging`/`SetCorner2` 一起留在同一个 `SelectTool` 里 | 这五个状态共享同一次拖拽手势：鼠标刚按下时（`Dragging` 状态）还不知道最终是框选还是拖动实体/夹点，要等移动超过阈值后才能判定，判定逻辑本身就要同时读取"有没有选中的参考点"和"有没有选中的实体"。拆成两个类需要在它们之间转移这次"未决"的拖拽状态，边界不清晰而收益有限；方案本身也把这个拆分标注为"评估后决定"，判断后选择保留在一起 |
+| `SelectTool` 未注册进 `ViewToolControl` 的选择层 | 三层栈里选择层由 `SelectTool` 担任 | `SelectTool` 已实现为独立的 `IViewTool`，但仍只由 `ActionDefault`（薄适配器）在内部持有和调用，未 `setSelectionTool()` 注册进 `ViewToolControl` | `GuiEventHandler` 对业务 Action 的分发语义是"只要活着就总是处理"，没有 `NotHandled` 概念；若现在就注册，`SelectTool` 会在业务 Action 之前抢先处理每个事件（因为 `ViewToolControl` 目前的业务工具栈是空的，选择层实质上变成最高优先级），画线、修改等由 `GuiEventHandler` 驱动的业务 Action 将再也收不到鼠标事件。必须先有第 6 项（把 `GuiEventHandler` 包成业务工具，参与统一优先级排序）才能安全注册，见"后续" |
+| 光标仲裁范围 | 移除各 Action 的 `updateMouseCursor()` 直接抢占，统一走 `IViewTool::GetCursor()` | 106 个 Action（含 `ActionDefault`）的 `updateMouseCursor()` 直接调用保持不变；`ViewToolControl` 仅在**全体工具都无偏好**时不触碰当前光标，只有 `PanZoomTool` 主动断言（平移进行中）时才覆盖 | 同上一条：`SelectTool` 未注册进仲裁链路，改光标的职责暂时还在 `ActionDefault::updateMouseCursor()`（读取 `SelectTool::getCursor()` 后直接调用 `docView->setMouseCursor()`）。等第 6 项把业务栈接进来、`SelectTool` 也注册为选择层之后，`ActionDefault` 这个直接调用点才能安全删除 |
 | Ctrl+左键平移的适用范围 | 未细化 | 仅在 `!eventHandler->hasAction()`（无业务 Action 活动）时生效，与原 `ActionDefault::Panning` 完全一致 | 保持行为零回归：原实现里 Ctrl+拖拽只在 `ActionDefault::Neutral` 状态下响应；业务 Action 运行时左键另有含义（放置绘制点等），不应被导航层截获 |
 | 中键平移与活动 Action 的关系 | "在任意 Action 激活期间行为一致" | 中键平移不再通过 `setCurrentAction` 挂起当前 Action，而是在 `GuiDocumentView` 层直接分流给 `PanZoomTool`；平移过程中当前 Action（及其预览）保持活跃、不被挂起 | 与原实现（中键按下会 `setCurrentAction(new ActionZoomPan(...))`，通过挂起/恢复机制暂停前一个 Action）相比是行为上的小幅改善而非逐位复刻，判断为更贴合验收标准"一致且可预测"的本意，已在 `PanZoomTool.h` 顶部注明 |
+
+**执行中发现的缺陷（既有代码，本阶段未修复）**
+
+| 位置 | 问题 | 可达性 |
+|------|------|--------|
+| `Snapper::setSnapRestriction`（`Snapper.cpp`） | 空实现，从未给 `snapMode.restriction` 赋值——`restriction` 字段只有 `SnapMode::fromInt`/`clear()` 会写。`ActionDefault`（现为 `SelectTool::keyPressEvent`）按 Shift 键临时切到正交捕捉的调用因此从未真正生效 | 原样从 `ActionDefault` 搬到 `SelectTool`，为 `tests/interaction/test_select_tool.cpp` 的单测暴露；不在阶段2范围内修复，测试里已注明不对 `restriction` 取值断言 |
 
 **新增设施**
 
@@ -421,51 +430,66 @@ flowchart TB
   未处理再退回旧版 `eventHandler`。
 - `tests/support/FakeDocumentView.h` —— `IDocumentView` 的最小测试替身，
   交互层工具的单测因此不必依赖 `GuiDocumentView` 或任何 Qt 界面组件。
-- `tests/interaction/` —— `ViewToolControl`（分发顺序、栈语义、光标仲裁
-  去重）与 `PanZoomTool`（阈值判定、按钮匹配、光标断言）的单测，共 17 个
-  用例。
+  `getGrid()`/`getOverlayContainer()`/`getPreviewContainer()` 用真实的
+  `GuiGrid`/`DmEntityContainer` 成员兜底（而非 `nullptr`）——`Snapper` 的
+  `init()`/`deleteSnapper()` 等方法会无条件解引用它们的返回值。
+- `kernel/actions/SelectTool.{h,cpp}` —— 从 `ActionDefault` 抽出的选择/
+  拖拽状态机，吸收原来的 `Neutral`/`Dragging`/`SetCorner2`/`Moving`/
+  `MovingRef` 五个状态；不继承 `QObject`/`ActionInterface`，构造时接收
+  非持有的 `ISnapService*`/`Preview*`（与拥有者共享同一个捕捉器与预览
+  容器实例，保证捕捉模式、预览内容一致）。
+- `actions/ActionDefault.{h,cpp}` —— 由完整的状态机改为薄适配器：
+  持有 `std::unique_ptr<Preview>` 与 `std::unique_ptr<SelectTool>`，把
+  `ActionInterface` 的全部虚方法转发给 `SelectTool`。保留下来是因为
+  `GuiEventHandler::m_pDefaultAction`/`DM::ActionDefault` 类型身份、以及
+  `ActionBlocksEdit`/`ActionModifyMText` 对
+  `handler->getDefaultAction()->mouseXEvent(e)` 的直接复用都依赖一个
+  仍然存活、行为不变的 `ActionDefault` 实例。
+- `tests/interaction/` —— 新增 `test_select_tool.cpp`（`SelectTool` 的
+  状态转换、按钮语义、`Escape`/`Shift` 处理，9 个用例，用真实的空
+  `DmDocument` + `Snapper` + `FakeDocumentView` 构造，不需要
+  `GuiDocumentView`）。连同已有的 `ViewToolControl`/`PanZoomTool` 用例，
+  本目录共 25 个用例。
 
 **影响面**
 
-- `actions/ActionDefault.{h,cpp}` —— 删除 `Panning` 状态与相关分支
-  （`mousePressEvent` 的 Ctrl 分支、`mouseMoveEvent`/`mouseReleaseEvent`/
-  `updateMouseCursor` 的 `Panning` case）。
+- `actions/ActionDefault.{h,cpp}` —— 第一轮删除 `Panning` 状态；第二轮
+  整体重写为薄适配器（见上）。
 - `actions/ActionDimAngular.cpp`、`ActionDimDiametric.cpp`、
   `ActionDimRadial.cpp`、`ActionDrawEllipseInscribe.cpp`、
   `ActionDrawLineBisector.cpp` —— 原先绕开虚函数分派、显式调用
   `Snapper::finish()`/`Snapper::suspend()` 的 5 处基类调用，改为
   `snapService()->finish()`/`suspend()`。
 - `actions/ActionModifyBevel.cpp`、`ActionModifyRound.cpp`、
-  `ActionModifyTrim.cpp`、`ActionZoomPan.cpp`、`ActionDefault.cpp` —— 6 处
-  直接读写 `snapMode` 字段（原继承自 `Snapper` 的 protected 成员）的代码，
-  改为 `getSnapMode()->...`。
+  `ActionModifyTrim.cpp`、`ActionZoomPan.cpp` —— 4 处直接读写 `snapMode`
+  字段（原继承自 `Snapper` 的 protected 成员）的代码，改为
+  `getSnapMode()->...`。
 - 其余全部 100 余个 Action 子类文件未改动一行——`catchEntity`/
   `snapPoint`/`snapMode` 等调用点是到 `m_snapService` 的透明转发，
-  机械性由编译期验证（全量构建 + 133+17 个既有/新增用例全绿）。
+  机械性由编译期验证（全量构建 + 133+25 个既有/新增用例全绿，Debug 与
+  Release 均已构建）。
 
 **验收对照**
 
 | 5.5 节的验收标准 | 状态 |
 |------------------|------|
 | `ActionDefault` 的 `Panning` 状态被删除，`GuiDocumentView` 内无 `new ActionZoomPan` | 达成 |
-| 中键平移、框选、点选在任意 Action 激活期间行为一致且可预测 | 中键平移达成；框选/点选的语义统一属于 `SelectTool`（第 3 项），未在本次范围内 |
-| 光标在叠加场景下有确定性结果 | 部分达成：平移进行中/结束后的光标切换已可预测；106 个旧 Action 各自 `updateMouseCursor()` 的光标仲裁化未做，是第 3 项完成后的收尾工作 |
+| 中键平移、框选、点选在任意 Action 激活期间行为一致且可预测 | 中键平移达成；框选/点选的状态机已抽到 `SelectTool` 并独立单测，但尚未注册进 `ViewToolControl` 的统一分发（见上表），运行时行为与阶段1末尾等价，未回归也未扩大适用范围 |
+| 光标在叠加场景下有确定性结果 | 部分达成：平移进行中/结束后的光标切换已可预测；`SelectTool`/`ActionDefault` 与其余 105 个旧 Action 的光标仲裁化未做，等第 6 项落地后收尾 |
 | `ActionInterface` 不再继承 `Snapper` | 达成 |
-| 捕捉逻辑可脱离 Action 单独测试（补充单测） | 结构上达成（`ISnapService` 可注入假实现）；本次未新增 `Snapper` 自身的行为单测，交互层新增代码（`ViewToolControl`/`PanZoomTool`）已用 `FakeDocumentView` 单测覆盖 |
+| 捕捉逻辑可脱离 Action 单独测试（补充单测） | 达成，并扩展到选择逻辑：`SelectTool` 已完全脱离 `ActionInterface`/`QObject`，用一个空 `DmDocument` + 真实 `Snapper` + `FakeDocumentView` 即可单测，不需要 `GuiDocumentView` |
 
 **后续（建议作为阶段 2 的下一个 PR）**
 
-- `SelectTool`：吸收 `ActionDefault` 的 `Neutral`/`Dragging`/`SetCorner2`
-  （点选/框选/交叉选）。需要先解开 `ActionDefault` 与以下几处的耦合：
-  `ActionInterface::finish()` "拒绝退出默认 Action" 的特判、
-  `GuiEventHandler::inSelectionMode()`、`GuiDocumentView::tabletEvent`
-  里橡皮擦手势构造 `ActionSelectSingle` + `ActionModifyDelete` 的流程。
-- `GripEditTool`：`ActionDefault` 的 `Moving`/`MovingRef`（拖拽实体/
-  夹点），方案倾向拆出独立工具，待 `SelectTool` 落地后一并评估。
-- 业务工具适配器：把 `GuiEventHandler` 的 Action 栈包成
-  `ViewToolControl` 业务栈的一项，实现渐进迁移；目前 `GuiDocumentView`
-  是"先问 `ViewToolControl`（只挂载了导航层），未处理再问 `eventHandler`"
-  的两段式，尚未把 `eventHandler` 本身纳入统一的三层栈。
+- 业务工具适配器（方案第 6 项）：把 `GuiEventHandler` 包成 `IViewTool`
+  注册进 `ViewToolControl` 的业务栈，并给它一个能表达"这次事件我不关心"
+  的 `NotHandled` 语义（目前 `GuiEventHandler` 的分发是"活着就总是处理"，
+  没有这个概念，需要先补上，否则包上去也无法参与优先级排序）。
+- 做完上一条后，把 `SelectTool` 注册为 `ViewToolControl` 的选择层，
+  删除 `ActionDefault::updateMouseCursor()` 里那次直接 `setMouseCursor`
+  调用，光标仲裁改由 `ViewToolControl::refreshCursor()` 统一处理。
+- `GripEditTool` 的拆分已评估并搁置（见上表"与方案的偏差"），除非后续
+  出现新的、独立于点选/框选状态机的夹点交互需求，否则不再重新考虑。
 
 ---
 

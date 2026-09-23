@@ -6,4 +6,5 @@ yicad_add_test(interaction
     SOURCES
         test_view_tool_control.cpp
         test_pan_zoom_tool.cpp
+        test_select_tool.cpp
     LABELS "interaction;unit")

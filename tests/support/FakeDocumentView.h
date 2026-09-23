@@ -14,6 +14,8 @@
 #include <optional>
 #include <vector>
 
+#include "DmEntityContainer.h"
+#include "GuiGrid.h"
 #include "IDocumentView.h"
 
 class FakeDocumentView : public IDocumentView
@@ -50,7 +52,9 @@ public:
     void setOverlayCorners(const DmVector&, const DmVector&) override {}
     void disableOverlayBox() override {}
 
-    GuiGrid* getGrid() const override { return nullptr; }
+    // Snapper::getSnapRange()/init() 无条件解引用 getGrid() 的返回值，
+    // 不能给 nullptr；用一个真实的默认构造 GuiGrid 满足它。
+    GuiGrid* getGrid() const override { return &m_grid; }
 
     void setDefaultSnapMode(SnapMode) override {}
     SnapMode getDefaultSnapMode() const override { return SnapMode{}; }
@@ -75,8 +79,10 @@ public:
 
     bool isCleanUp() const override { return false; }
 
-    DmEntityContainer* getOverlayContainer(DM::OverlayDocument) override { return nullptr; }
-    DmEntityContainer* getPreviewContainer() override { return nullptr; }
+    // Snapper::deleteSnapper() 等无条件解引用返回值；同一个容器复用于
+    // 所有 overlay 位置，测试不关心不同图层之间的隔离。
+    DmEntityContainer* getOverlayContainer(DM::OverlayDocument) override { return &m_overlayContainer; }
+    DmEntityContainer* getPreviewContainer() override { return &m_overlayContainer; }
     void specifyPreviewModified() override {}
     void specifyDocumentModified() override {}
     void setPreviewModelOffset(const DmVector&) override {}
@@ -99,6 +105,8 @@ public:
 private:
     DmVector m_relativeZero{false};
     DmVector m_orthogonalZero{false};
+    mutable GuiGrid m_grid;               ///< getGrid() 是 const，需要 mutable 才能返回非 const 指针
+    DmEntityContainer m_overlayContainer;
 };
 
 #endif  // YICAD_TEST_FAKE_DOCUMENT_VIEW_H
