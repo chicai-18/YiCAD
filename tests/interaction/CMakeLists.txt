@@ -1,0 +1,9 @@
+# tests/interaction —— 对应阶段2引入的交互层工具化
+# （IViewTool / ViewToolControl / PanZoomTool），落在阶段3的 YiCadInteraction
+# 分区（kernel/actions/）。
+
+yicad_add_test(interaction
+    SOURCES
+        test_view_tool_control.cpp
+        test_pan_zoom_tool.cpp
+    LABELS "interaction;unit")

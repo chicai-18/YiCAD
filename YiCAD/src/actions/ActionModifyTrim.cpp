@@ -49,8 +49,8 @@ ActionModifyTrim::~ActionModifyTrim()
 
 void ActionModifyTrim::init(int status)
 {
-    snapMode.clear();
-    snapMode.restriction = DM::RestrictNothing;
+    getSnapMode()->clear();
+    getSnapMode()->restriction = DM::RestrictNothing;
     PreviewActionInterface::init(status);
 }
 

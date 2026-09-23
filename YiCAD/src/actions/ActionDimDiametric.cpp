@@ -84,7 +84,7 @@ void ActionDimDiametric::trigger()
 
 		DmVector rz = docView->getRelativeZero();
 		docView->moveRelativeZero(rz);
-		Snapper::finish();
+		snapService()->finish();
 	}
 }
 

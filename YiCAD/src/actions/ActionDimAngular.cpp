@@ -81,7 +81,7 @@ void ActionDimAngular::trigger()
 		DmVector rz{docView->getRelativeZero()};
 		setStatus(SetLine1);
 		docView->moveRelativeZero(rz);
-		Snapper::finish();
+		snapService()->finish();
 	}
 }
 

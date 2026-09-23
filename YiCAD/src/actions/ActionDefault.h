@@ -39,8 +39,9 @@ public:
         Dragging,   /**< 拖拽中（实体或选择窗口） */
         SetCorner2, /**< 设置选择窗口的第二个角点 */
         Moving,     /**< 移动实体 */
-        MovingRef,  /**< 移动选中实体的参考点 */
-        Panning     /**< 视图平移（Ctrl+鼠标拖拽） */
+        MovingRef   /**< 移动选中实体的参考点 */
+        // 视图平移（原 Panning 状态，Ctrl+鼠标拖拽）已移至导航层 PanZoomTool，
+        // 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2、kernel/actions/PanZoomTool.h
     };
 
 public:

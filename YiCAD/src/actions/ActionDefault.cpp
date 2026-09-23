@@ -47,9 +47,6 @@ static constexpr double REF_SNAP_GUI_DIST = 8.0;
 /// @brief 角度吸附步进（度）
 static constexpr double ANGLE_SNAP_STEP = 15.0;
 
-/// @brief 平移触发的最小平方距离
-static constexpr double PAN_SQUARED_THRESHOLD = 64.0;
-
 /// @brief 内部点数据结构
 struct ActionDefault::Points
 {
@@ -92,7 +89,7 @@ void ActionDefault::keyPressEvent(QKeyEvent * e)
     switch (e->key())
     {
     case Qt::Key_Shift:
-        restrBak = snapMode.restriction;
+        restrBak = getSnapMode()->restriction;
         setSnapRestriction(DM::RestrictOrthogonal);
         e->accept();
         break;  // avoid clearing command line at shift key
@@ -227,16 +224,6 @@ void ActionDefault::mouseMoveEvent(QMouseEvent * e)
             docView->redraw();
         }
         break;
-    case Panning: {
-        DmVector const vTarget(e->x(), e->y());
-        DmVector const v01 = vTarget - pPoints->v1;
-        if (v01.squared() >= PAN_SQUARED_THRESHOLD)
-        {
-            docView->zoomPan((int)v01.x, (int)v01.y);
-            pPoints->v1 = vTarget;
-        }
-    }
-                break;
 
     default:
         break;
@@ -252,17 +239,10 @@ void ActionDefault::mousePressEvent(QMouseEvent * e)
         switch (getStatus())
         {
         case Neutral: {
-            auto const m = e->modifiers();
-            if (m & (Qt::ControlModifier | Qt::MetaModifier))
-            {
-                pPoints->v1 = DmVector(e->x(), e->y());
-                setStatus(Panning);
-            }
-            else
-            {
-                pPoints->v1 = docView->toGraph(e->x(), e->y());
-                setStatus(Dragging);
-            }
+            // Ctrl+左键平移已移至导航层 PanZoomTool，在事件到达这里之前
+            // 由 GuiDocumentView 截获，见 PanZoomTool.h。
+            pPoints->v1 = docView->toGraph(e->x(), e->y());
+            setStatus(Dragging);
         }
                     break;
 
@@ -360,10 +340,6 @@ void ActionDefault::mouseReleaseEvent(QMouseEvent * e)
         }
         break;
 
-        case Panning:
-            setStatus(Neutral);
-            break;
-
         default:
             break;
         }
@@ -458,9 +434,6 @@ void ActionDefault::updateMouseCursor()
     case Moving:
     case MovingRef:
         docView->setMouseCursor(DM::SelectCursor);
-        break;
-    case Panning:
-        docView->setMouseCursor(DM::ClosedHandCursor);
         break;
     default:
         break;

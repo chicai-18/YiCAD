@@ -52,6 +52,8 @@ class DmEntityContainer;
 class GuiEventHandler;
 class GuiCommandEvent;
 class GuiGrid;
+class ViewToolControl;
+class PanZoomTool;
 
 namespace opengl
 {
@@ -278,6 +280,12 @@ private:
 protected:
     DmDocument*                         pDocument;              ///< 文档实体容器
     GuiEventHandler*                    eventHandler;           ///< 事件处理器
+    // 注意声明顺序：成员按声明的逆序析构。m_pViewToolControl 析构时会
+    // 向 m_pPanZoomTool 发 onDeactivate() 通知，因此 m_pPanZoomTool
+    // 必须先声明（从而后析构），m_pViewToolControl 后声明（从而先
+    // 析构），这样 ViewToolControl 析构时 PanZoomTool 还活着。
+    std::unique_ptr<PanZoomTool>        m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
+    std::unique_ptr<ViewToolControl>    m_pViewToolControl;     ///< 交互层工具控制器（阶段2）
 
     QColor                              background;             ///< 背景色
     QColor                              foreground;             ///< 前景色

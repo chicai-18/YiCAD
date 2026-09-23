@@ -46,8 +46,8 @@ ActionZoomPan::ActionZoomPan(DmDocument* doc, IDocumentView* docView) :
 void ActionZoomPan::init(int status)
 {
     ActionInterface::init(status);
-    snapMode.clear();
-    snapMode.restriction = DM::RestrictNothing;
+    getSnapMode()->clear();
+    getSnapMode()->restriction = DM::RestrictNothing;
     x1 = 0;
     y1 = 0;
     x2 = 0;

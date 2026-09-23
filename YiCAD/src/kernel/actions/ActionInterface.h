@@ -21,8 +21,17 @@
 #ifndef ACTIONINTERFACE_H
 #define ACTIONINTERFACE_H
 
+#include <memory>
+
 #include <QObject>
 
+// 保留 Snapper.h（而非只include更轻的 ISnapService.h）：大量 Action
+// 头文件/源文件历史上一直依赖它间接带入的 DmDocument.h 一整条链
+// （DmEntityContainer、DmAtomicEntity、DmLayer、DmTextStyleTable 等），
+// 从未自己直接 #include 过。这是 P8 的老问题（重头文件扩散掩盖了缺失的
+// 直接依赖），本阶段的目标是交互层工具化与捕捉组合化，不是二次头文件
+// 瘦身，因此维持这条既有的传递包含，避免把改动面扩大到与本阶段目标
+// 无关的几十个文件。
 #include "Snapper.h"
 
 class QKeyEvent;
@@ -35,7 +44,14 @@ class IDocumentView;
 /// @brief Action接口基类，所有Action类必须实现此接口
 /// Action类处理如画线、移动实体或缩放等操作
 /// 继承自QObject以支持Qt翻译功能
-class ActionInterface : public QObject, public Snapper
+///
+/// 捕捉能力（原 `public Snapper` 继承）已改为组合：本类持有一个
+/// ISnapService，构造时以 Snapper 作为其唯一实现。以下 catchEntity /
+/// snapPoint / snapMode 等一组方法是到 m_snapService 的机械转发——
+/// 保留与 Snapper 完全相同的名字与签名，是为了让全部 106 个 Action
+/// 子类里既有的、把它们当作"继承来的方法"直接调用的代码不必改动。
+/// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 第5.4节第5项。
+class ActionInterface : public QObject
 {
     Q_OBJECT
 
@@ -184,17 +200,100 @@ public:
     /// @return 可用命令消息字符串
     QString msgAvailableCommands();
 
+    // ---- 以下为供外部（GuiEventHandler、GuiDocumentView）持 ActionInterface*
+    // 调用的捕捉能力转发，Snapper 时代它们经公有继承获得 ----
+
+    /// @brief 设置新的捕捉模式（转发至 ISnapService）
+    void setSnapMode(const SnapMode& snapMode);
+    /// @brief 设置新的捕捉限制（转发至 ISnapService）
+    void setSnapRestriction(DM::SnapRestriction snapRes);
+    /// @brief 获取当前捕捉结果类型（转发至 ISnapService）
+    SnapResultType getSnapResult() const;
+    /// @brief 获取当前捕捉点坐标（转发至 ISnapService）
+    DmVector getSnapSpot() const;
+
 private:
     /// @brief 当前状态，-2为未初始化，-1为已终止，>=0为操作步骤
     /// 其他正数值可用于描述操作的不同阶段
     /// 例如窗口缩放：选择第一角(status 0)，选择第二角(status 1)
     int m_status = -2;
 
+    /// @brief 捕捉能力的具体实现，构造时创建为 Snapper
+    std::unique_ptr<ISnapService> m_snapService;
+
 protected:
     QString name;               ///< Action名称
     bool finished = false;       ///< 是否已完成
     DM::ActionType actionType;   ///< Action类型标识
     // TODO: actionType未初始化，需在构造函数中设置
+
+    DmDocument*    pDocument = nullptr;  ///< 关联文档，构造参数 doc 的直接留存
+    IDocumentView* docView = nullptr;    ///< 文档视图，构造参数 docView 的直接留存
+
+    /// @brief 访问底层 ISnapService，供需要绕过 ActionInterface 自身
+    /// finish()/suspend() 语义、直接调用捕捉器原始实现的少数子类使用
+    /// （对应原来的 `Snapper::finish()` / `Snapper::suspend()` 显式调用）。
+    ISnapService* snapService() const { return m_snapService.get(); }
+
+    // ---- 以下为到 m_snapService 的机械转发，名字与签名与原 Snapper
+    // 公开 API 完全一致，让既有 106 个 Action 子类的调用点保持不变 ----
+
+    void deleteSnapper() { m_snapService->deleteSnapper(); }
+    void drawSnapper() { m_snapService->drawSnapper(); }
+
+    DmEntity* getKeyEntity() const { return m_snapService->getKeyEntity(); }
+
+    SnapMode const* getSnapMode() const { return m_snapService->getSnapMode(); }
+    SnapMode* getSnapMode() { return m_snapService->getSnapMode(); }
+
+    DmVector getSnapCoord() const { return m_snapService->getSnapCoord(); }
+
+    void finishOrthogonal() { m_snapService->finishOrthogonal(); }
+
+    DmVector snapPoint(const DmVector& coord, bool setSpot = false) { return m_snapService->snapPoint(coord, setSpot); }
+    DmVector snapPoint(QMouseEvent* e) { return m_snapService->snapPoint(e); }
+    DmVector snapFree(QMouseEvent* e) { return m_snapService->snapFree(e); }
+    DmVector snapFree(const DmVector& coord) { return m_snapService->snapFree(coord); }
+    DmVector snapGrid(const DmVector& coord) { return m_snapService->snapGrid(coord); }
+    DmVector snapEndpoint(const DmVector& coord) { return m_snapService->snapEndpoint(coord); }
+    DmVector snapOnEntity(const DmVector& coord) { return m_snapService->snapOnEntity(coord); }
+    DmVector snapCenter(const DmVector& coord) { return m_snapService->snapCenter(coord); }
+    DmVector snapMiddle(const DmVector& coord) { return m_snapService->snapMiddle(coord); }
+    DmVector snapSubsection(const DmVector& coord) { return m_snapService->snapSubsection(coord); }
+    DmVector snapIntersection(const DmVector& coord) { return m_snapService->snapIntersection(coord); }
+    DmVector snapToAngle(const DmVector& coord, const DmVector& ref_coord, double ang_res)
+    {
+        return m_snapService->snapToAngle(coord, ref_coord, ang_res);
+    }
+    DmVector snapByFunc(const DmVector& coord, const std::function<DmVector(DmEntity*, const DmVector&, double*)>& func)
+    {
+        return m_snapService->snapByFunc(coord, func);
+    }
+
+    DmVector restrictOrthogonal(const DmVector& coord) { return m_snapService->restrictOrthogonal(coord); }
+    DmVector restrictHorizontal(const DmVector& coord) { return m_snapService->restrictHorizontal(coord); }
+    DmVector restrictVertical(const DmVector& coord) { return m_snapService->restrictVertical(coord); }
+
+    DmEntity* catchEntity(const DmVector& pos, DM::ResolveLevel level = DM::ResolveNone)
+    {
+        return m_snapService->catchEntity(pos, level);
+    }
+    DmEntity* catchEntity(QMouseEvent* e, DM::ResolveLevel level = DM::ResolveNone)
+    {
+        return m_snapService->catchEntity(e, level);
+    }
+    DmEntity* catchEntity(const DmVector& pos, DM::EntityType enType, DM::ResolveLevel level = DM::ResolveNone)
+    {
+        return m_snapService->catchEntity(pos, enType, level);
+    }
+    DmEntity* catchEntity(QMouseEvent* e, DM::EntityType enType, DM::ResolveLevel level = DM::ResolveNone)
+    {
+        return m_snapService->catchEntity(e, enType, level);
+    }
+    DmEntity* catchEntity(QMouseEvent* e, const EntityTypeList& enTypeList, DM::ResolveLevel level = DM::ResolveNone)
+    {
+        return m_snapService->catchEntity(e, enTypeList, level);
+    }
 };
 
 #endif // ACTIONINTERFACE_H

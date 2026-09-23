@@ -23,6 +23,7 @@
 #include <QKeyEvent>
 
 #include "IDocumentView.h"
+#include "Snapper.h"
 #include "Commands.h"
 #include "GuiDialogFactory.h"
 #include "GuiCoordinateEvent.h"
@@ -34,7 +35,9 @@
 /// @param [in] docView 文档视图实例，Action归属于此视图
 ActionInterface::ActionInterface(const char* name, DmDocument* doc,
                                  IDocumentView* docView)
-    : Snapper(doc, docView)
+    : m_snapService(std::make_unique<Snapper>(doc, docView))
+    , pDocument(doc)
+    , docView(docView)
 {
     this->name = name;
     m_status = 0;
@@ -70,7 +73,7 @@ void ActionInterface::init(int status)
     setStatus(status);
     if (status >= 0)
     {
-        Snapper::init();
+        m_snapService->init();
     }
     else
     {
@@ -204,19 +207,19 @@ void ActionInterface::finish(bool /*updateTB*/)
         m_status = -1;
         finished = true;
         hideOptions();
-        Snapper::finish();
+        m_snapService->finish();
     }
 
     if (getEntityType() != DM::ActionNone)
     {
-        Snapper::resetOrthogonal();
+        m_snapService->resetOrthogonal();
     }
 }
 
 /// @brief 挂起此Action，允许其他Action执行
 void ActionInterface::suspend()
 {
-    Snapper::suspend();
+    m_snapService->suspend();
 }
 
 /// @brief 从挂起状态恢复Action
@@ -224,7 +227,7 @@ void ActionInterface::resume()
 {
     updateMouseCursor();
     updateMouseButtonHints();
-    Snapper::resume();
+    m_snapService->resume();
 }
 
 /// @brief 是否可以被打断
@@ -258,13 +261,13 @@ bool ActionInterface::isSubAction()
 /// @brief 隐藏工具选项
 void ActionInterface::hideOptions()
 {
-    Snapper::hideOptions();
+    m_snapService->hideOptions();
 }
 
 /// @brief 显示工具选项
 void ActionInterface::showOptions()
 {
-    Snapper::showOptions();
+    m_snapService->showOptions();
 }
 
 /// @brief 设置Action类型
@@ -298,4 +301,31 @@ QString ActionInterface::command(const QString& cmd)
 QString ActionInterface::msgAvailableCommands()
 {
     return COMMANDS->msgAvailableCommands();
+}
+
+/// @brief 设置新的捕捉模式（转发至 ISnapService）
+/// GuiEventHandler::setSnapMode 会持 ActionInterface* 对活动操作调用本方法，
+/// 因此必须是公开方法，不能只在子类内部以受保护转发的形式存在。
+void ActionInterface::setSnapMode(const SnapMode& snapMode)
+{
+    m_snapService->setSnapMode(snapMode);
+}
+
+/// @brief 设置新的捕捉限制（转发至 ISnapService）
+void ActionInterface::setSnapRestriction(DM::SnapRestriction snapRes)
+{
+    m_snapService->setSnapRestriction(snapRes);
+}
+
+/// @brief 获取当前捕捉结果类型（转发至 ISnapService）
+/// GuiDocumentView::mouseMoveEvent 用它决定捕捉提示文字。
+SnapResultType ActionInterface::getSnapResult() const
+{
+    return m_snapService->getSnapResult();
+}
+
+/// @brief 获取当前捕捉点坐标（转发至 ISnapService）
+DmVector ActionInterface::getSnapSpot() const
+{
+    return m_snapService->getSnapSpot();
 }

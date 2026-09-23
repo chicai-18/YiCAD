@@ -55,10 +55,11 @@
 #include "ScopedTimer.h"
 #include "DmColor.h"
 #include "ActionZoomIn.h"
-#include "ActionZoomPan.h"
 #include "ActionModifyDelete.h"
 #include "ActionSelectSingle.h"
 #include "ActionDefault.h"
+#include "ViewToolControl.h"
+#include "PanZoomTool.h"
 
 #ifdef Q_OS_WIN32
 #define CURSOR_SIZE 16
@@ -104,6 +105,10 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     , m_snapTooltipTimer(nullptr)
 {
     setMouseTracking(true);
+
+    m_pPanZoomTool = std::make_unique<PanZoomTool>(this);
+    m_pViewToolControl = std::make_unique<ViewToolControl>(this);
+    m_pViewToolControl->setNavigationTool(m_pPanZoomTool.get());
 
     if (doc)
     {
@@ -1378,10 +1383,20 @@ void GuiDocumentView::resizeGL(int w, int h)
 
 void GuiDocumentView::mousePressEvent(QMouseEvent* e)
 {
-    // pan zoom with middle mouse button
-    if (e->button() == Qt::MiddleButton)
+    // 是否算作导航层的平移手势：中键任何时候都算；Ctrl/Meta+左键仅在
+    // 没有业务 Action 活动时才算——与原 ActionDefault::Panning 状态
+    // （只在 Neutral 状态下响应 Ctrl+拖拽）的适用范围保持一致，见
+    // PanZoomTool.h 顶部说明。这条判断是"策略"，属于 GuiDocumentView，
+    // PanZoomTool 本身不依赖 eventHandler。
+    bool const wantsPan = (e->button() == Qt::MiddleButton)
+        || (e->button() == Qt::LeftButton
+            && (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))
+            && !eventHandler->hasAction());
+
+    if (wantsPan && m_pViewToolControl->mousePressEvent(e) == ViewToolResult::Handled)
     {
-        setCurrentAction(new ActionZoomPan(pDocument, this));
+        e->accept();
+        return;
     }
     eventHandler->mousePressEvent(e);
 }
@@ -1405,6 +1420,20 @@ void GuiDocumentView::mouseDoubleClickEvent(QMouseEvent* e)
 void GuiDocumentView::mouseReleaseEvent(QMouseEvent* e)
 {
     e->accept();
+
+    if (m_pPanZoomTool->isPanning()
+        && m_pViewToolControl->mouseReleaseEvent(e) == ViewToolResult::Handled)
+    {
+        // 平移刚结束：导航层的光标偏好回到 nullopt，而 ViewToolControl
+        // 在无偏好时不会主动改光标（见 ViewToolControl::refreshCursor），
+        // 需要让当前 Action 重新声明一次自己的光标，避免 ClosedHandCursor
+        // 残留在画布上。
+        if (ActionInterface* action = getCurrentAction())
+        {
+            action->updateMouseCursor();
+        }
+        return;
+    }
 
     switch (e->button())
     {
@@ -1432,6 +1461,14 @@ void GuiDocumentView::mouseMoveEvent(QMouseEvent* e)
     m_currentMousePt = toGraph(DmVector(e->pos().x(), e->pos().y()));
 
     e->accept();
+
+    if (m_pViewToolControl->mouseMoveEvent(e) == ViewToolResult::Handled)
+    {
+        // 平移中：导航层已经消费了这次移动，不再转发给旧版 Action 体系，
+        // 也跳过下面的捕捉提示（平移期间没有捕捉结果）。
+        return;
+    }
+
     eventHandler->mouseMoveEvent(e);
 
     // snap tooltip

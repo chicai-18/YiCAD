@@ -82,8 +82,8 @@ void ActionModifyRound::init(int status)
 {
     ActionInterface::init(status);
 
-    snapMode.clear();
-    snapMode.restriction = DM::RestrictNothing;
+    getSnapMode()->clear();
+    getSnapMode()->restriction = DM::RestrictNothing;
 }
 
 ActionModifyRound::FilletResult ActionModifyRound::computeFillet(

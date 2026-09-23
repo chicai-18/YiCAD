@@ -147,7 +147,7 @@ void ActionDrawLineBisector::init(int status)
     PreviewActionInterface::init(status);
     if (status >= 0)
     {
-        Snapper::suspend();
+        snapService()->suspend();
     }
 
     if (status < SetLine2)
