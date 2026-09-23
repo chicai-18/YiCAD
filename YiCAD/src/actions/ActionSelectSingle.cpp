@@ -37,7 +37,7 @@
 /// @param [in] action_select 调用此选择动作的父Action指针
 /// @param [in] entityTypeList 允许选择的实体类型列表
 ActionSelectSingle::ActionSelectSingle(DmDocument* doc,
-                                       GuiDocumentView* docView,
+                                       IDocumentView* docView,
                                        ActionInterface* action_select,
                                        std::list<DM::EntityType> const& entityTypeList)
     : ActionInterface("Select Entities", doc, docView)

@@ -24,14 +24,14 @@
 
 #include "ActionSetSnapMode.h"
 
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数，设置新的捕捉模式
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
 /// @param [in] snapMode 新的捕捉模式
 ActionSetSnapMode::ActionSetSnapMode(DmDocument* doc,
-                                     GuiDocumentView* docView,
+                                     IDocumentView* docView,
                                      DM::SnapMode snapMode) :
     ActionInterface("Set Snap Mode", doc, docView)
 {

@@ -47,7 +47,7 @@ public:
 	/// @brief 构造函数
 	/// @param [in] doc 文档对象
 	/// @param [in] docView 文档视图对象
-	ActionDimDiametric(DmDocument* doc, GuiDocumentView* docView);
+	ActionDimDiametric(DmDocument* doc, IDocumentView* docView);
 
 	/// @brief 析构函数
 	~ActionDimDiametric() override;

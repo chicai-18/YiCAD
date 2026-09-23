@@ -140,15 +140,15 @@ powershell -ExecutionPolicy Bypass -File tools/measure_build.ps1
 
 采集环境：Windows 11 Pro 22621，MSVC 2022 (v194)，Visual Studio 17 2022 生成器，
 `/MP` 并行编译，Release 配置
-采集日期：2026-09-22
-提交：阶段 0 完成时
+采集日期：2026-09-22（阶段 0）、2026-09-23（阶段 1）
+提交：阶段 0 完成时；阶段 1 完成时（`IDocumentView` 抽取落地后）
 
 | 指标 | 阶段 0 | 阶段 1 | 阶段 3 |
 |------|-------:|-------:|-------:|
-| 全量构建耗时 (Release, 秒) | 144.3 | | |
-| 改 `DmArc.cpp` 后增量 (秒) | 19.3 | | |
-| 改 `GuiDocumentView.h` 后增量 (秒) | 65.3 | | |
-| 改 `Datamodel.h` 后增量 (秒) | 120.9 | | |
+| 全量构建耗时 (Release, 秒) | 144.3 | 129.5 | |
+| 改 `DmArc.cpp` 后增量 (秒) | 19.3 | 11.2 | |
+| 改 `GuiDocumentView.h` 后增量 (秒) | 65.3 | 25.4 | |
+| 改 `Datamodel.h` 后增量 (秒) | 120.9 | 90.3 | |
 
 几点值得注意：
 
@@ -161,6 +161,14 @@ powershell -ExecutionPolicy Bypass -File tools/measure_build.ps1
 - **改一个叶子 .cpp 要 19.3 秒。** 单文件编译只占其中一小部分，其余是
   YiCAD.exe 与三个测试二进制的链接。阶段 3 拆库后，改 `DmArc.cpp` 只需
   重链 `YiCadModel`，这个数字应当明显下降。
+- **阶段 1 落地后，`GuiDocumentView.h` 的增量从 65.3 秒降到 25.4 秒
+  （-61%）。** 这是本阶段头文件瘦身 + `IDocumentView` 抽取的直接收益：
+  106 个 Action 不再因为这一个头文件的改动而触发对 GL/Qt-OpenGL 重头文件的
+  重新解析。全量构建也从 144.3 秒降到 129.5 秒（-10%），`DmArc.cpp` 增量从
+  19.3 秒降到 11.2 秒（-42%，同一台机器上重复测量的噪声，不是阶段 1 的
+  改动对象，仅供参考）。`Datamodel.h` 增量从 120.9 秒降到 90.3 秒
+  （-25%）算是意外收获——它间接包含 `GuiDocumentView.h` 的路径也变轻了，
+  但这不是阶段 1 的目标，阶段 4 去中心化之后还会有更大空间。
 
 ---
 

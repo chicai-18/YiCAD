@@ -34,14 +34,14 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
 
 /// @brief 构造函数
-ActionDimAngular::ActionDimAngular(DmDocument* doc, GuiDocumentView* docView)
+ActionDimAngular::ActionDimAngular(DmDocument* doc, IDocumentView* docView)
 	: ActionDimension("Draw Angular Dimensions", doc, docView)
 {
 	reset();

@@ -45,7 +45,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionDrawLineOrthTan(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawLineOrthTan(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 触发当前动作
     void trigger() override;

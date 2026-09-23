@@ -34,7 +34,7 @@ class ActionBlocksSave : public ActionInterface
 {
     Q_OBJECT
 public:
-    ActionBlocksSave(DmDocument* doc, GuiDocumentView* docView);
+    ActionBlocksSave(DmDocument* doc, IDocumentView* docView);
 
     void init(int status = 0) override;
     void trigger() override;

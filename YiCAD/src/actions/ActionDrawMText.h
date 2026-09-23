@@ -55,7 +55,7 @@ public:
 	/// @param doc 文档指针
 	/// @param docView 文档视图指针
 	/// @param isModify 是否为修改模式
-	ActionDrawMText(DmDocument* doc, GuiDocumentView* docView, bool isModify);
+	ActionDrawMText(DmDocument* doc, IDocumentView* docView, bool isModify);
 
 	/// @brief 析构函数
 	~ActionDrawMText() = default;

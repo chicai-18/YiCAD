@@ -56,7 +56,7 @@ namespace
 /// @brief 构造函数
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionModifyExplode::ActionModifyExplode(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyExplode::ActionModifyExplode(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Entity Explode", doc, docView)
 {
     actionType = DM::ActionModifyExplode;

@@ -31,7 +31,7 @@
 #include "DmLine.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Information.h"
@@ -48,7 +48,7 @@ struct ActionDrawLineBisector::Points
 /// @brief 构造函数
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionDrawLineBisector::ActionDrawLineBisector(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawLineBisector::ActionDrawLineBisector(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw Bisectors", doc, docView), bisector(nullptr), line1(nullptr), line2(nullptr),
     length(10.0), number(1), pPoints(new Points{}), lastStatus(SetLine1)
 {

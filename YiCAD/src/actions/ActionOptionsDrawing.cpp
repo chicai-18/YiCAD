@@ -27,9 +27,9 @@
 #include <QAction>
 
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
-ActionOptionsDrawing::ActionOptionsDrawing(DmDocument* doc, GuiDocumentView* docView) :
+ActionOptionsDrawing::ActionOptionsDrawing(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Drawing Options", doc, docView)
 {
     actionType = DM::ActionOptionsDrawing;

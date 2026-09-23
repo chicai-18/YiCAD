@@ -26,7 +26,7 @@
 
 #include <QAction>
 
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数，初始化缩放参数
 /// @param [in] doc 文档指针
@@ -35,7 +35,7 @@
 /// @param [in] axis 受影响的轴向
 /// @param [in] pCenter 缩放中心点
 /// @param [in] factor 缩放因子
-ActionZoomIn::ActionZoomIn(DmDocument* doc, GuiDocumentView* docView,
+ActionZoomIn::ActionZoomIn(DmDocument* doc, IDocumentView* docView,
                            DM::ZoomDirection direction,
                            DM::Axis axis, DmVector const* pCenter,
                            double factor) :

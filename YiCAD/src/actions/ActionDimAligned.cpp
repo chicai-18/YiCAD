@@ -36,13 +36,13 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "DmDocument.h"
 #include "Transaction.h"
 
 /// @brief 构造函数
-ActionDimAligned::ActionDimAligned(DmDocument* doc, GuiDocumentView* docView)
+ActionDimAligned::ActionDimAligned(DmDocument* doc, IDocumentView* docView)
 	: ActionDimension("Draw aligned dimensions", doc, docView)
 {
 	actionType = DM::ActionDimAligned;

@@ -33,7 +33,7 @@
 #include "DmUnits.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -41,7 +41,7 @@
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionEditPaste::ActionEditPaste(DmDocument* doc, GuiDocumentView* docView) :
+ActionEditPaste::ActionEditPaste(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Edit Paste", doc, docView), targetPoint(new DmVector{})
 {
 }

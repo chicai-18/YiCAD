@@ -26,7 +26,7 @@
 #include "DmPolyline.h"
 #include "DmVector.h"
 #include "DmArc.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Debug.h"
 #include "Preview.h"
 #include "GuiCoordinateEvent.h"
@@ -55,7 +55,7 @@ struct ActionDrawCloudLinePolygon::Points
     bool isError{ false }; ///< 是否发生错误（如：线太短）导致无法生成云线
 };
 
-ActionDrawCloudLinePolygon::ActionDrawCloudLinePolygon(DmDocument* doc, GuiDocumentView* docView):
+ActionDrawCloudLinePolygon::ActionDrawCloudLinePolygon(DmDocument* doc, IDocumentView* docView):
     PreviewActionInterface("Draw cloud line polygon", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionCloudLinePolygon;

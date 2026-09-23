@@ -40,7 +40,7 @@
 
 /// @brief 构造函数
 ActionBlocksSave::ActionBlocksSave(
-    DmDocument* doc, GuiDocumentView* docView)
+    DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Block Save", doc, docView)
 {
 }

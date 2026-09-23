@@ -37,7 +37,7 @@
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "LineData.h"
 #include "Math2d.h"
@@ -58,7 +58,7 @@ struct ActionModifyBevel::Points
     bool trim = true;
 };
 
-ActionModifyBevel::ActionModifyBevel(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyBevel::ActionModifyBevel(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Bevel Entities", doc, docView)
     , entity1(nullptr)
     , entity2(nullptr)

@@ -37,13 +37,13 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
 
 /// @brief 构造函数
-ActionDimDiametric::ActionDimDiametric(DmDocument* doc, GuiDocumentView* docView)
+ActionDimDiametric::ActionDimDiametric(DmDocument* doc, IDocumentView* docView)
 	: ActionDimension("Draw Diametric Dimensions", doc, docView)
 	, pos(new DmVector())
 {

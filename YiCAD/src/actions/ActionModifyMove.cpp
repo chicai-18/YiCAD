@@ -32,7 +32,7 @@
 #include "DmLine.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -46,7 +46,7 @@ struct ActionModifyMove::Points
     DmVector targetPoint;
 };
 
-ActionModifyMove::ActionModifyMove(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyMove::ActionModifyMove(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Move Entities", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionModifyMove;

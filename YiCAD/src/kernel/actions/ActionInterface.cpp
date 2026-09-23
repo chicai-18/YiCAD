@@ -22,7 +22,7 @@
 
 #include <QKeyEvent>
 
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Commands.h"
 #include "GuiDialogFactory.h"
 #include "GuiCoordinateEvent.h"
@@ -33,7 +33,7 @@
 /// @param [in] doc 文档指针，Action操作的对象
 /// @param [in] docView 文档视图实例，Action归属于此视图
 ActionInterface::ActionInterface(const char* name, DmDocument* doc,
-                                 GuiDocumentView* docView)
+                                 IDocumentView* docView)
     : Snapper(doc, docView)
 {
     this->name = name;

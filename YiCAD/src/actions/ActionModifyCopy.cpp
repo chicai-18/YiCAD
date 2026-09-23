@@ -33,7 +33,7 @@
 #include "DmBlockReference.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "GuiCommandEvent.h"
 #include "Modification.h"
 #include "Preview.h"
@@ -58,7 +58,7 @@ struct ActionModifyCopy::Points
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionModifyCopy::ActionModifyCopy(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyCopy::ActionModifyCopy(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Copy Entities", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionModifyCopy;

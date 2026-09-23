@@ -28,7 +28,7 @@
 #include "DmDocument.h"
 
 class DmEntity;
-class GuiDocumentView;
+class IDocumentView;
 class DmVector;
 class QMouseEvent;
 
@@ -96,7 +96,7 @@ class Snapper
 {
 public:
     Snapper() = delete;
-    Snapper(DmDocument* doc, GuiDocumentView* docView);
+    Snapper(DmDocument* doc, IDocumentView* docView);
     virtual ~Snapper();
 
     void init();
@@ -187,7 +187,7 @@ private:
 
 protected:
     DmDocument*         pDocument = nullptr;                ///< 关联文档
-    GuiDocumentView*    docView = nullptr;                  ///< 文档视图
+    IDocumentView*      docView = nullptr;                  ///< 文档视图
     DmEntity*           keyEntity = nullptr;                ///< 关键实体
     SnapMode            snapMode;                           ///< 当前捕捉模式
     double              snapDistance = 1.0;                 ///< 捕捉距离，用于捕捉到与端点具有给定距离的点

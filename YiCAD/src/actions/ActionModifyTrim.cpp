@@ -29,11 +29,11 @@
 
 #include "Debug.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 
-ActionModifyTrim::ActionModifyTrim(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyTrim::ActionModifyTrim(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Trim Entity", doc, docView)
     , m_entToTrim(nullptr)
     , m_entUnderCursor(nullptr)

@@ -43,7 +43,7 @@ public:
     };
 
 public:
-    ActionDrawEllipseInscribe(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawEllipseInscribe(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawEllipseInscribe() override;
 
     void init(int status = 0) override;

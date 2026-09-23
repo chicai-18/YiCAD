@@ -45,7 +45,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档对象指针
     /// @param [in] docView 文档视图指针
-    explicit ActionDimRadial(DmDocument* doc, GuiDocumentView* docView);
+    explicit ActionDimRadial(DmDocument* doc, IDocumentView* docView);
     ~ActionDimRadial() override;
 
     /// @brief 重置操作状态

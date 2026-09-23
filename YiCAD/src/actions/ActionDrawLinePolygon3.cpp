@@ -31,7 +31,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "DmLine.h"
 #include "Transaction.h"
@@ -55,7 +55,7 @@ struct ActionDrawLinePolygonCenTan::Points
 /// @param [in] doc 文档对象指针
 /// @param [in] docView 文档视图指针
 ActionDrawLinePolygonCenTan::ActionDrawLinePolygonCenTan(DmDocument* doc,
-                                                         GuiDocumentView* docView) :
+                                                         IDocumentView* docView) :
     PreviewActionInterface("Draw Polygons (Center,Corner)", doc, docView),
     pPoints(new Points{}),
     number(3),

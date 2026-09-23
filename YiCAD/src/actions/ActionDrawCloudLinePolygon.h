@@ -44,7 +44,7 @@ public:
     };
 
 public:
-    ActionDrawCloudLinePolygon(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCloudLinePolygon(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCloudLinePolygon() override;
 
     void reset();

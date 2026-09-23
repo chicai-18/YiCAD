@@ -26,7 +26,7 @@
 #include "DmPolyline.h"
 #include "DmVector.h"
 #include "DmArc.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Debug.h"
 #include "Preview.h"
 #include "GuiCoordinateEvent.h"
@@ -56,7 +56,7 @@ struct ActionDrawCloudLineFree::Points
     bool isError{ false };         ///< 是否出错
 };
 
-ActionDrawCloudLineFree::ActionDrawCloudLineFree(DmDocument* doc, GuiDocumentView* docView):
+ActionDrawCloudLineFree::ActionDrawCloudLineFree(DmDocument* doc, IDocumentView* docView):
     PreviewActionInterface("Draw cloud line free", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionCloudLineFree;

@@ -44,7 +44,7 @@ public:
     };
 
 public:
-    ActionDrawCloudLineFree(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCloudLineFree(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCloudLineFree() override;
 
     void reset();

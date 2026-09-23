@@ -31,7 +31,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -44,7 +44,7 @@ struct ActionDrawCircle3P::Points
 };
 
 /// @brief 构造函数
-ActionDrawCircle3P::ActionDrawCircle3P(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawCircle3P::ActionDrawCircle3P(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw circles", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionDrawCircle3P;

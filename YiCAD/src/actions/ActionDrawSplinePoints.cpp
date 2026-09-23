@@ -34,7 +34,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -51,7 +51,7 @@ namespace
 }
 
 ActionDrawSplinePoints::ActionDrawSplinePoints(
-    DmDocument* doc, GuiDocumentView* docView)
+    DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw spline points", doc, docView)
     , pPoints(new Points{})
 {

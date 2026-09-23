@@ -32,12 +32,12 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
 
-ActionDrawCircle::ActionDrawCircle(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawCircle::ActionDrawCircle(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw circles", doc, docView)
     , data(new CircleData())
 {

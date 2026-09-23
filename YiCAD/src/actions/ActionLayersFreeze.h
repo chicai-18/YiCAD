@@ -38,7 +38,7 @@ public:
     /// @param sender 触发此动作的按钮对象
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionLayersFreeze(QObject* sender, DmDocument* doc, GuiDocumentView* docView);
+    ActionLayersFreeze(QObject* sender, DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化动作
     /// @param status 状态参数，默认为0

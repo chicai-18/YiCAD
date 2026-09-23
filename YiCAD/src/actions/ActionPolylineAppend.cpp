@@ -34,14 +34,14 @@
 #include "DmPolyline.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
 /// @brief 构造函数，初始化追加节点操作
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionPolylineAppend::ActionPolylineAppend(DmDocument* doc, GuiDocumentView* docView) :
+ActionPolylineAppend::ActionPolylineAppend(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Append polyline node", doc, docView)
     , originalPolyline(nullptr)
     , prepend(false)

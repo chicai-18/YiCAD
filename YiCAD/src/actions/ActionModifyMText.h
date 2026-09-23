@@ -43,7 +43,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
-    ActionModifyMText(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyMText(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 判断是否可被其他Action中断
     /// @return 始终返回false，此动作不可中断

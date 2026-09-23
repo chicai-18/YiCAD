@@ -24,14 +24,14 @@
 
 #include "ActionModifyReverse.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmLine.h"
 #include "DmArc.h"
 #include "DmSpline.h"
 #include "DmEllipse.h"
 #include "Transaction.h"
 
-ActionModifyReverse::ActionModifyReverse(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyReverse::ActionModifyReverse(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Reverse Entities", doc, docView)
 {
     actionType = DM::ActionModifyReverse;

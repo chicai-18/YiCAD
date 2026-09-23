@@ -29,7 +29,7 @@
 
 #include "Debug.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "DmCircle.h"
 #include "DmArc.h"
@@ -40,7 +40,7 @@
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionModifyCut2P::ActionModifyCut2P(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyCut2P::ActionModifyCut2P(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Cut Entity", doc, docView)
     , cutEntity(nullptr)
     , firstCoord(new DmVector{})

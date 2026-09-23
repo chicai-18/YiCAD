@@ -35,7 +35,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -45,7 +45,7 @@ namespace
     constexpr double DEFAULT_ARC_ANGLE = M_PI / 3.0; ///< 默认圆弧角度（60度）
 }
 
-ActionDrawArc::ActionDrawArc(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawArc::ActionDrawArc(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw arcs", doc, docView)
     , tempArc(new DmArc())
 {

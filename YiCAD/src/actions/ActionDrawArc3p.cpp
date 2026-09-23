@@ -34,7 +34,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -47,7 +47,7 @@ struct ActionDrawArc3P::Points
     DmVector point3;
 };
 
-ActionDrawArc3P::ActionDrawArc3P(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawArc3P::ActionDrawArc3P(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw arcs 3P", doc, docView)
     , pPoints(new Points())
 {

@@ -46,7 +46,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档对象指针
     /// @param docView 文档视图指针
-    ActionDrawLineRectangle(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawLineRectangle(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数
     ~ActionDrawLineRectangle() override;

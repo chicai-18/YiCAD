@@ -47,7 +47,7 @@ public:
     /// @param doc 文档指针
     /// @param docView 文档视图指针
     /// @param selectedRef 选中的块参照，默认为nullptr
-    ActionBlocksEdit(DmDocument* doc, GuiDocumentView* docView,
+    ActionBlocksEdit(DmDocument* doc, IDocumentView* docView,
         DmBlockReference* selectedRef = nullptr);
 
     /// @brief 析构函数

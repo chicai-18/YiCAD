@@ -27,7 +27,7 @@
 #include "DmCircle.h"
 #include "DmLine.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "GuiGrid.h"
 #include "DmSettings.h"
 #include "DmOverlayEntity.h"
@@ -145,7 +145,7 @@ struct Snapper::ImpData
 };
 
 
-Snapper::Snapper(DmDocument* doc, GuiDocumentView* docView)
+Snapper::Snapper(DmDocument* doc, IDocumentView* docView)
     : pDocument(doc)
     , docView(docView)
     , m_pImpData(new ImpData())

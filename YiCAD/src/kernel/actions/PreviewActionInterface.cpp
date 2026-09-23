@@ -20,7 +20,7 @@
 
 #include "PreviewActionInterface.h"
 
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmDocument.h"
 #include "Preview.h"
 #include "Debug.h"
@@ -29,7 +29,7 @@
 /// @param name 操作名称
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-PreviewActionInterface::PreviewActionInterface(const char* name, DmDocument* doc, GuiDocumentView* docView)
+PreviewActionInterface::PreviewActionInterface(const char* name, DmDocument* doc, IDocumentView* docView)
     : ActionInterface(name, doc, docView)
     , preview(new Preview(doc))
     , pDocument(doc)

@@ -37,7 +37,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
-    ActionModifyEntity(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyEntity(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 触发修改操作
     void trigger() override;

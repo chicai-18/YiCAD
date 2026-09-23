@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DmPoint.h"
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "Preview.h"
 #include "Quadratic.h"
@@ -52,7 +52,7 @@ struct ActionDrawCircleTan3::Points
 ActionDrawCircleTan3::~ActionDrawCircleTan3() = default;
 
 /// @brief 构造函数
-ActionDrawCircleTan3::ActionDrawCircleTan3(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawCircleTan3::ActionDrawCircleTan3(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw circle inscribed", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionDrawCircleTan3;

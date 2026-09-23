@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DmDocument.h"
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "SARibbonComboBox.h"
 #include "MDIWindow.h"
 #include "Transaction.h"
@@ -43,7 +43,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /// @param sender 发送者对象指针
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersDelete::ActionLayersDelete(QObject* sender, DmDocument* doc, GuiDocumentView* docView) :
+ActionLayersDelete::ActionLayersDelete(QObject* sender, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Delete Layer", doc, docView)
     , layer(nullptr)
     , theButton(sender)

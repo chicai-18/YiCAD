@@ -37,6 +37,7 @@
 #include <memory>
 
 #include "DmRect.h"
+#include "IDocumentView.h"
 #include "Snapper.h"
 
 class QMouseEvent;
@@ -59,7 +60,7 @@ class GLPainter;
 
 /// @brief 文档的画布
 /// @details 包括4层：背景层，文档层，预览层，前景层
-class GuiDocumentView : public QOpenGLWidget
+class GuiDocumentView : public QOpenGLWidget, public IDocumentView
 {
     Q_OBJECT
 
@@ -76,7 +77,7 @@ public:
 
     /// @brief 获取关联的文档对象
     /// @return 文档对象指针，如果无效则返回 nullptr
-    DmDocument* getDocument() const;
+    DmDocument* getDocument() const override;
 
     /// @brief 设置网格颜色
     void setGridColor(const QColor& c);
@@ -91,23 +92,23 @@ public:
     void setDocument(DmDocument* pDoc);
     /// @brief 获取缩放因子
     /// @return 单位设备坐标对应的世界坐标
-    DmVector getFactor() const;
+    DmVector getFactor() const override;
 
     /// @brief 设置默认操作
     void setDefaultAction(ActionInterface* action);
     /// @brief 获取默认操作
     ActionInterface* getDefaultAction();
     /// @brief 设置当前操作
-    void setCurrentAction(ActionInterface* action);
+    void setCurrentAction(ActionInterface* action) override;
     /// @brief 获取当前操作
-    ActionInterface* getCurrentAction();
+    ActionInterface* getCurrentAction() override;
 
     /// @brief 终止选择类操作
-    void killSelectActions();
+    void killSelectActions() override;
     /// @brief 终止所有操作
     void killAllActions();
     /// @brief 发出选择变更信号
-    void emitSelectedChanged();
+    void emitSelectedChanged() override;
 
     /// @brief 后退
     void back();
@@ -117,34 +118,38 @@ public:
     /// @brief 处理命令事件
     void commandEvent(GuiCommandEvent* e);
     /// @brief 启用坐标输入
-    void enableCoordinateInput();
+    void enableCoordinateInput() override;
     /// @brief 禁用坐标输入
-    void disableCoordinateInput();
+    void disableCoordinateInput() override;
 
     virtual int getWidth() const;
     virtual int getHeight() const;
     /// @brief 刷新画布
-    virtual void redraw();
+    void redraw() override;
     /// @brief 设置画布背景色
     virtual void setBackground(const QColor& bg);
     /// @brief 设置鼠标光标类型
-    virtual void setMouseCursor(DM::CursorType c);
+    void setMouseCursor(DM::CursorType c) override;
+    /// @brief 直接设置 Qt 光标
+    void setCursor(const QCursor& cursor) override;
+    /// @brief 获取用于 Qt 信号槽连接的 QObject 视图
+    QObject* asQObject() override;
     virtual DmVector getMousePosition() const;
 
     /// @brief 放大视图
     /// @param f 放大因子，默认 1.5
     /// @param center 缩放中心点
-    void zoomIn(double f = 1.5, const DmVector& center = DmVector(false));
+    void zoomIn(double f = 1.5, const DmVector& center = DmVector(false)) override;
     /// @brief 缩小视图
     /// @param f 缩小因子，默认 1.5
     /// @param center 缩放中心点
-    void zoomOut(double f = 1.5, const DmVector& center = DmVector(false));
+    void zoomOut(double f = 1.5, const DmVector& center = DmVector(false)) override;
     /// @brief 适屏显示
-    void zoomAuto();
+    void zoomAuto() override;
     /// @brief 移动视图
     /// @param dx X 方向偏移
     /// @param dy Y 方向偏移
-    void zoomPan(int dx, int dy);
+    void zoomPan(int dx, int dy) override;
 
     void drawBackgroundLayer();
     void drawDocumentLayer();
@@ -160,38 +165,38 @@ public:
     /// @brief 绘制捕捉点标识
     void drawSnapIndicator();
     /// @brief 设置选择框角点
-    void setOverlayCorners(const DmVector& corner1, const DmVector& corner2);
+    void setOverlayCorners(const DmVector& corner1, const DmVector& corner2) override;
     /// @brief 绘制选择框
     void drawOverlayBox();
     /// @brief 禁用选择框
-    void disableOverlayBox();
+    void disableOverlayBox() override;
 
     /// @brief 获取网格对象
-    GuiGrid* getGrid() const;
+    GuiGrid* getGrid() const override;
 
     /// @brief 设置默认捕捉模式
-    void setDefaultSnapMode(SnapMode sm);
-    SnapMode getDefaultSnapMode() const;
+    void setDefaultSnapMode(SnapMode sm) override;
+    SnapMode getDefaultSnapMode() const override;
     /// @brief 设置捕捉限制
-    void setSnapRestriction(DM::SnapRestriction sr);
+    void setSnapRestriction(DM::SnapRestriction sr) override;
     DM::SnapRestriction getSnapRestriction() const;
 
     /// @brief 检查网格是否开启
     bool isGridOn() const;
 
     /// @brief 实际坐标转屏幕坐标
-    DmVector toGui(DmVector v) const;
+    DmVector toGui(DmVector v) const override;
     double toGuiX(double x) const;
     double toGuiY(double y) const;
-    double toGuiDX(double d) const;
+    double toGuiDX(double d) const override;
     double toGuiDY(double d) const;
 
     /// @brief 屏幕坐标转实际坐标
-    DmVector toGraph(DmVector v) const;
-    DmVector toGraph(int x, int y) const;
-    double toGraphX(int x) const;
-    double toGraphY(int y) const;
-    double toGraphDX(int d) const;
+    DmVector toGraph(DmVector v) const override;
+    DmVector toGraph(int x, int y) const override;
+    double toGraphX(int x) const override;
+    double toGraphY(int y) const override;
+    double toGraphDX(int d) const override;
     double toGraphDY(int d) const;
 
     /// @brief 锁定/解锁相对零点位置
@@ -200,16 +205,16 @@ public:
     /// @return true 表示相对零点已锁定
     bool isRelativeZeroLocked() const;
     /// @return 相对零点坐标
-    DmVector const& getRelativeZero() const;
+    DmVector const& getRelativeZero() const override;
 
     void setRelativeZero(const DmVector& pos);
-    void moveRelativeZero(const DmVector& pos);
+    void moveRelativeZero(const DmVector& pos) override;
     void hideRelativeZero(const bool isHide);
 
-    void setOrthogonalZero(const DmVector& pos);
-    DmVector const& getOrthogonalZero() const;
+    void setOrthogonalZero(const DmVector& pos) override;
+    DmVector const& getOrthogonalZero() const override;
 
-    GuiEventHandler* getEventHandler() const;
+    GuiEventHandler* getEventHandler() const override;
 
     /// @brief 启用或禁用打印预览
     void setPrintPreview(bool pv);
@@ -224,26 +229,26 @@ public:
     /// @return true 表示草稿模式（线宽为 1 像素，无样式缩放）
     bool isDraftMode() const;
     void setDraftMode(bool dm);
-    bool isCleanUp(void) const;
+    bool isCleanUp(void) const override;
 
-    virtual DmEntityContainer* getOverlayContainer(DM::OverlayDocument position);
-    DmEntityContainer* getPreviewContainer();
+    DmEntityContainer* getOverlayContainer(DM::OverlayDocument position) override;
+    DmEntityContainer* getPreviewContainer() override;
     /// @brief 指示预览已修改
-    void specifyPreviewModified();
+    void specifyPreviewModified() override;
     /// @brief 指示文档已修改
-    void specifyDocumentModified();
+    void specifyDocumentModified() override;
     /// @brief 指示选择已修改
     void specifySelectChanged();
     /// @brief 指定预览模型矩阵的偏移量
-    void setPreviewModelOffset(const DmVector& offset);
+    void setPreviewModelOffset(const DmVector& offset) override;
     /// @brief 切换文档画笔的实体容器（用于块编辑）
     void setDocumentPainterContainer(DmEntityContainer* container);
 
     /// @brief 获得视图范围（世界坐标）
-    DmRect getViewRect();
+    DmRect getViewRect() override;
 
     void setStrDevice(const QString& strDevice);
-    void setIsDrawCursor(const bool& isDrawCursor);
+    void setIsDrawCursor(const bool& isDrawCursor) override;
 
 protected:
     void initializeGL() override;

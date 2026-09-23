@@ -49,7 +49,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档对象指针
     /// @param [in] docView 文档视图指针
-    explicit ActionDimLeader(DmDocument* doc, GuiDocumentView* docView);
+    explicit ActionDimLeader(DmDocument* doc, IDocumentView* docView);
     ~ActionDimLeader() override;
 
     /// @brief 重置操作状态

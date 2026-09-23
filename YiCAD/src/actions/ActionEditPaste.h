@@ -43,7 +43,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionEditPaste(DmDocument* doc, GuiDocumentView* docView);
+    ActionEditPaste(DmDocument* doc, IDocumentView* docView);
     ~ActionEditPaste() override;
 
     /// @brief 初始化 Action 状态

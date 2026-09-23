@@ -49,7 +49,7 @@ public:
 	/// @brief 构造函数
 	/// @param [in] doc 文档对象
 	/// @param [in] docView 文档视图对象
-	ActionDimBaseline(DmDocument* doc, GuiDocumentView* docView);
+	ActionDimBaseline(DmDocument* doc, IDocumentView* docView);
 
 	/// @brief 析构函数
 	~ActionDimBaseline() = default;

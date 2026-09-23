@@ -26,7 +26,7 @@
 
 class DmDocument;
 class DmBlock;
-class GuiDocumentView;
+class IDocumentView;
 
 /// @brief 进入块编辑命令
 /// @details 将文档切换到块编辑模式，getEntityTable() 返回块的实体表
@@ -38,7 +38,7 @@ public:
     /// @param blockName 要编辑的块名称
     /// @param docView 文档视图指针
     BlockEditEnterCmd(DmDocument* doc, const QString& blockName,
-                      GuiDocumentView* docView);
+                      IDocumentView* docView);
 
     void execute() override;
     void undo() override;
@@ -53,7 +53,7 @@ private:
 private:
     DmDocument* m_pDocument;        ///< 文档指针
     QString m_blockName;            ///< 块名称
-    GuiDocumentView* m_pDocView;    ///< 文档视图指针
+    IDocumentView* m_pDocView;    ///< 文档视图指针
 };
 
 /// @brief 退出块编辑命令
@@ -67,7 +67,7 @@ public:
     /// @param docView 文档视图指针
     /// @param save 是否保存修改（更新所有引用的块参照）
     BlockEditExitCmd(DmDocument* doc, const QString& blockName,
-                     GuiDocumentView* docView, bool save);
+                     IDocumentView* docView, bool save);
 
     void execute() override;
     void undo() override;
@@ -82,7 +82,7 @@ private:
 private:
     DmDocument* m_pDocument;        ///< 文档指针
     QString m_blockName;            ///< 块名称
-    GuiDocumentView* m_pDocView;    ///< 文档视图指针
+    IDocumentView* m_pDocView;    ///< 文档视图指针
     bool m_save;                    ///< 是否保存修改
 };
 

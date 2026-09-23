@@ -45,7 +45,7 @@ public:
     };
 
 public:
-    ActionDrawCircleTan2(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCircleTan2(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCircleTan2() override;
 
     void init(int status = 0) override;

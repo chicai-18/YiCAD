@@ -48,7 +48,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionDrawText(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawText(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawText() override;
 
     /// @brief 初始化 Action 状态

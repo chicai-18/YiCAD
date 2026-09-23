@@ -32,14 +32,14 @@
 #include "DmLine.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "InfoArea.h"
 #include "Preview.h"
 
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionInfoArea::ActionInfoArea(DmDocument* doc, GuiDocumentView* docView) :
+ActionInfoArea::ActionInfoArea(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Info Area", doc, docView), ia(new InfoArea{})
 {
     actionType = DM::ActionInfoArea;

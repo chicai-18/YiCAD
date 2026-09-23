@@ -30,7 +30,7 @@
 #include "Debug.h"
 #include "DmPolyline.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -41,7 +41,7 @@ constexpr int POINT_ON_ENTITY_TOLERANCE = 3;   ///< 判断点是否在线上的�
 /// @brief 构造函数，初始化删除节点操作
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionPolylineDel::ActionPolylineDel(DmDocument* doc, GuiDocumentView* docView) :
+ActionPolylineDel::ActionPolylineDel(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Delete node", doc, docView), delEntity(nullptr),
     delPoint(new DmVector{})
 {

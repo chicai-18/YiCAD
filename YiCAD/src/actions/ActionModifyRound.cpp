@@ -34,7 +34,7 @@
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "Math2d.h"
 #include "Modification.h"
@@ -52,7 +52,7 @@ struct ActionModifyRound::Points
     bool trim = true;
 };
 
-ActionModifyRound::ActionModifyRound(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyRound::ActionModifyRound(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Round Entities", doc, docView)
     , entity1(nullptr)
     , entity2(nullptr)

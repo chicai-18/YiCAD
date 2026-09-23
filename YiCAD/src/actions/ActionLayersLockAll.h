@@ -36,7 +36,7 @@ public:
     /// @param lock true 表示锁定所有图层，false 表示解锁所有图层
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionLayersLockAll(const bool lock, DmDocument* doc, GuiDocumentView* docView);
+    ActionLayersLockAll(const bool lock, DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化并立即触发
     /// @param status 初始状态

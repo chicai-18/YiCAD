@@ -26,7 +26,7 @@
 #include <QKeyEvent>
 #include "ActionSelectMultiple.h"
 #include "Debug.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Selection.h"
 #include "GuiDialogFactory.h"
 #include "Preview.h"
@@ -40,7 +40,7 @@ constexpr int MIN_DRAG_DISTANCE = 10;
 /// @param [in] actionSelect 调用此选择动作的父Action指针
 /// @param [in] entityTypeList 允许选择的实体类型列表
 ActionSelectMultiple::ActionSelectMultiple(DmDocument* doc,
-                                           GuiDocumentView* docView,
+                                           IDocumentView* docView,
                                            ActionInterface* actionSelect,
                                            std::list<DM::EntityType> const& entityTypeList) :
     PreviewActionInterface("Select Entities", doc, docView),

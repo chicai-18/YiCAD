@@ -27,7 +27,7 @@
 #include <QMouseEvent>
 
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "GuiCoordinateEvent.h"
 #include "GeometryMethods.h"
 #include "Preview.h"
@@ -39,7 +39,7 @@
 #include "Transaction.h"
 
 /// @brief 构造函数
-ActionDimBaseline::ActionDimBaseline(DmDocument* doc, GuiDocumentView* docView)
+ActionDimBaseline::ActionDimBaseline(DmDocument* doc, IDocumentView* docView)
 	: ActionDimension("Draw baseline dimension", doc, docView)
 {
 	actionType = DM::ActionDimBaseline;

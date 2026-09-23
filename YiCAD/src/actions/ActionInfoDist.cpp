@@ -32,7 +32,7 @@
 #include "DmLine.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 
 struct ActionInfoDist::Points
@@ -44,7 +44,7 @@ struct ActionInfoDist::Points
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionInfoDist::ActionInfoDist(DmDocument* doc, GuiDocumentView* docView) :
+ActionInfoDist::ActionInfoDist(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Info Dist", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionInfoDist;

@@ -30,7 +30,7 @@
 #include "DmDocument.h"
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "SARibbonComboBox.h"
 #include "MDIWindow.h"
 #include "Transaction.h"
@@ -39,7 +39,7 @@
 /// @param sender 触发动作的按钮对象
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersLock::ActionLayersLock(QObject* sender, DmDocument* doc, GuiDocumentView* docView)
+ActionLayersLock::ActionLayersLock(QObject* sender, DmDocument* doc, IDocumentView* docView)
 	: ActionInterface("Lock Layer", doc, docView)
 	, layer(nullptr)
 	, toLock(false)

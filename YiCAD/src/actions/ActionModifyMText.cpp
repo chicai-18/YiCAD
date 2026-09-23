@@ -29,7 +29,7 @@
 #include "ApplicationWindow.h"
 #include "DmDocument.h"
 #include "DmMText.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "GuiEventHandler.h"
 #include "MDIWindow.h"
 #include "Transaction.h"
@@ -53,7 +53,7 @@ namespace
 /// @brief 构造函数
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionModifyMText::ActionModifyMText(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyMText::ActionModifyMText(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Modify MText", doc, docView)
     , m_pMText(nullptr)
     , m_option(nullptr)

@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "DmLine.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Selection.h"
 #include "Transaction.h"
@@ -38,7 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
 /// @brief 构造函数，初始化正交切线绘制动作
-ActionDrawLineOrthTan::ActionDrawLineOrthTan(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawLineOrthTan::ActionDrawLineOrthTan(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw Tangent Orthogonal", doc, docView),
     normal(nullptr),
     tangent(nullptr),

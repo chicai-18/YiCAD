@@ -30,7 +30,7 @@
 /// @brief 构造函数，初始化文字样式Action
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionTextStyle::ActionTextStyle(DmDocument* doc, GuiDocumentView* docView)
+ActionTextStyle::ActionTextStyle(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Text Style", doc, docView)
 {
 }

@@ -29,13 +29,13 @@
 
 #include "Debug.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 
 /// @brief 构造函数，初始化裁剪操作所需的成员变量。
 /// @param doc CAD文档对象。
 /// @param docView 文档视图对象。
-ActionModifyCut::ActionModifyCut(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyCut::ActionModifyCut(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Cut Entity", doc, docView)
     , cutEntity(nullptr)
     , cutCoord(new DmVector{})

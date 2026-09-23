@@ -48,7 +48,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
-    ActionZoomPan(DmDocument* doc, GuiDocumentView* docView);
+    ActionZoomPan(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化操作状态
     /// @param [in] status 初始状态值，默认为0

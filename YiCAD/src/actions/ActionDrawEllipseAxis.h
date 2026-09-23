@@ -47,7 +47,7 @@ public:
     /// @param doc 文档指针
     /// @param docView 文档视图指针
     /// @param isArc 为 true 创建椭圆弧，为 false 创建完整椭圆
-    ActionDrawEllipseAxis(DmDocument* doc, GuiDocumentView* docView, bool isArc);
+    ActionDrawEllipseAxis(DmDocument* doc, IDocumentView* docView, bool isArc);
     ~ActionDrawEllipseAxis() override;
 
     void init(int status = 0) override;

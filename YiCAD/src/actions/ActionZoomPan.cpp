@@ -31,12 +31,12 @@
 #include "Debug.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数，初始化平移缩放Action
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionZoomPan::ActionZoomPan(DmDocument* doc, GuiDocumentView* docView) :
+ActionZoomPan::ActionZoomPan(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Zoom Panning", doc, docView)
 {
 }

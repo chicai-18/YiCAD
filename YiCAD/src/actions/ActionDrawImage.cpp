@@ -35,7 +35,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "DmDocument.h"
@@ -57,7 +57,7 @@ struct ActionDrawImage::AImageData
     QImage img;
 };
 
-ActionDrawImage::ActionDrawImage(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawImage::ActionDrawImage(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Image", doc, docView)
     , pImg(new AImageData())
     , m_lastStatus(ShowDialog)

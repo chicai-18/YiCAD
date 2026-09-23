@@ -34,7 +34,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -61,7 +61,7 @@ struct ActionDrawEllipseAxis::Points
     DmVector mouse;           ///< 鼠标当前位置
 };
 
-ActionDrawEllipseAxis::ActionDrawEllipseAxis(DmDocument* doc, GuiDocumentView* docView, bool isArc) :
+ActionDrawEllipseAxis::ActionDrawEllipseAxis(DmDocument* doc, IDocumentView* docView, bool isArc) :
     PreviewActionInterface("Draw ellipse with axis", doc, docView),
     pPoints(new Points{{}, {}, ELLIPSE_DEFAULT_RATIO, ELLIPSE_DEFAULT_ANGLE,
             isArc ? ELLIPSE_FULL_CIRCLE : ELLIPSE_DEFAULT_ANGLE, isArc})

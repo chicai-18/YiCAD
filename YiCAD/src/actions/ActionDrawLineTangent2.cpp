@@ -30,7 +30,7 @@
 #include "Debug.h"
 #include "DmLine.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Math2d.h"
 #include "DmEllipse.h"
@@ -46,7 +46,7 @@ namespace
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
 ActionDrawLineTangent2::ActionDrawLineTangent2(DmDocument* doc,
-                                               GuiDocumentView* docView)
+                                               IDocumentView* docView)
     : PreviewActionInterface("Draw Tangents 2", doc, docView)
     , m_circle1(nullptr)
     , m_circle2(nullptr)

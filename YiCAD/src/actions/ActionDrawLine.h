@@ -57,7 +57,7 @@ public:
     /// @brief 构造函数
     /// @param doc CAD 文档指针
     /// @param docView 文档视图指针
-    ActionDrawLine(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawLine(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数
     ~ActionDrawLine() override;

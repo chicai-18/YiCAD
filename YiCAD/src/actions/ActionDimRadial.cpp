@@ -34,12 +34,12 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
 
-ActionDimRadial::ActionDimRadial(DmDocument* doc, GuiDocumentView* docView) :
+ActionDimRadial::ActionDimRadial(DmDocument* doc, IDocumentView* docView) :
     ActionDimension("Draw Radial Dimensions", doc, docView), entity(nullptr), pos(new DmVector{}),
     lastStatus(SetEntity)
 {

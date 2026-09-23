@@ -40,7 +40,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
-    ActionModifyExplode(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyExplode(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化动作
     /// @param [in] status 初始状态，默认为0

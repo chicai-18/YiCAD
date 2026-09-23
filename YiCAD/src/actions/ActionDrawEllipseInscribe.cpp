@@ -33,7 +33,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DmLine.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -44,7 +44,7 @@ struct ActionDrawEllipseInscribe::Points
     bool valid{ false };        ///< 椭圆数据是否有效
 };
 
-ActionDrawEllipseInscribe::ActionDrawEllipseInscribe(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawEllipseInscribe::ActionDrawEllipseInscribe(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw ellipse inscribed", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionDrawEllipseInscribe;

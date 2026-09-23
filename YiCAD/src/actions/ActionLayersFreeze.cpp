@@ -30,7 +30,7 @@
 #include "CustomComboboxItem.h"
 #include "DmDocument.h"
 #include "DmLayer.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "MDIWindow.h"
 #include "SARibbonComboBox.h"
 #include "Transaction.h"
@@ -40,7 +40,7 @@
 /// @param sender 触发此动作的按钮对象
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersFreeze::ActionLayersFreeze(QObject* sender, DmDocument* doc, GuiDocumentView* docView)
+ActionLayersFreeze::ActionLayersFreeze(QObject* sender, DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Freeze Layer", doc, docView)
     , layer(nullptr)
     , toBeOn(false)

@@ -50,7 +50,7 @@ public:
     /// @brief 构造函数
     /// @param doc CAD 文档指针
     /// @param docView 文档视图指针
-    ActionDrawLineTangent1(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawLineTangent1(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数
     ~ActionDrawLineTangent1() override;

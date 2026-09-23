@@ -30,10 +30,10 @@
 #include "CustomComboboxItem.h"
 #include "Debug.h"
 #include "DmDocument.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Transaction.h"
 
-ActionLayersFreezeAll::ActionLayersFreezeAll(const bool freeze, DmDocument* doc, GuiDocumentView* docView) :
+ActionLayersFreezeAll::ActionLayersFreezeAll(const bool freeze, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Freeze all Layers", doc, docView)
     , freeze(freeze)
 {

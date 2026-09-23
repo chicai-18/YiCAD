@@ -33,7 +33,7 @@ class DmDocument;
 class PreviewActionInterface : public ActionInterface
 {
 public:
-    PreviewActionInterface(const char* name, DmDocument* doc, GuiDocumentView* docView);
+    PreviewActionInterface(const char* name, DmDocument* doc, IDocumentView* docView);
     ~PreviewActionInterface() override;
 
     void init(int status = 0) override;

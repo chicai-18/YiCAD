@@ -30,7 +30,7 @@
 #include "Debug.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Modification.h"
 #include "Preview.h"
@@ -41,7 +41,7 @@
 /// @brief 未定义角度时的默认值
 constexpr double ROTATE_ANGLE_UNDEFINED = 0.0;
 
-ActionModifyRotate::ActionModifyRotate(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyRotate::ActionModifyRotate(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Rotate Entities", doc, docView), data(new RotateData())
 {
     actionType = DM::ActionModifyRotate;

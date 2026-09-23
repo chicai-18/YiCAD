@@ -36,7 +36,7 @@
 #include "DmEntityContainer.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "GuiEventHandler.h"
 #include "BlockEditCmd.h"
 #include "CmdManager.h"
@@ -51,7 +51,7 @@
 /// @param docView 文档视图指针
 /// @param selectedRef 选中的块参照，默认为nullptr
 ActionBlocksEdit::ActionBlocksEdit(DmDocument* doc,
-    GuiDocumentView* docView, DmBlockReference* selectedRef)
+    IDocumentView* docView, DmBlockReference* selectedRef)
     : ActionInterface("Edit Block", doc, docView)
     , m_blockRefBeingEdited(selectedRef)
 {

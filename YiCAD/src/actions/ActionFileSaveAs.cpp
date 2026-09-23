@@ -37,7 +37,7 @@ constexpr const char* YCD_FORMAT_TYPE = "ycd";
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionFileSaveAs::ActionFileSaveAs(DmDocument* doc, GuiDocumentView* docView) :
+ActionFileSaveAs::ActionFileSaveAs(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Save as", doc, docView)
 {
 }

@@ -40,7 +40,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionDrawRay(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawRay(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数
     ~ActionDrawRay() override;

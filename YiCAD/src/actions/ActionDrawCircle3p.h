@@ -43,7 +43,7 @@ public:
     };
 
 public:
-    ActionDrawCircle3P(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCircle3P(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCircle3P() override;
 
     void init(int status = 0) override;

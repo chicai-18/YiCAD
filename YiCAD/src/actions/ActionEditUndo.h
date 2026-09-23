@@ -37,7 +37,7 @@ public:
     /// @param undo true 为撤销，false 为重做
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionEditUndo(bool undo, DmDocument* doc, GuiDocumentView* docView);
+    ActionEditUndo(bool undo, DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化并立即执行
     /// @param status 初始状态

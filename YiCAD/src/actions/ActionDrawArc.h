@@ -45,7 +45,7 @@ public:
     };
 
 public:
-    ActionDrawArc(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawArc(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawArc() override;
 
     void reset();

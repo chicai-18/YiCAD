@@ -27,7 +27,7 @@
 #include "GuiDialogFactory.h"
 #include "DmDocument.h"
 
-ActionDimStyle::ActionDimStyle(DmDocument* doc, GuiDocumentView* docView) :
+ActionDimStyle::ActionDimStyle(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Dimension Style", doc, docView)
 {
 }

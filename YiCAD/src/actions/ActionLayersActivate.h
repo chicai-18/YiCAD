@@ -39,7 +39,7 @@ public:
     /// @param sender 发送者对象指针
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionLayersActivate(QObject* sender, DmDocument* doc, GuiDocumentView* docView);
+    ActionLayersActivate(QObject* sender, DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化并立即触发
     /// @param status 初始状态

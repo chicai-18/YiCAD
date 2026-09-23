@@ -32,7 +32,7 @@
 #include "DmDocument.h"
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "SARibbonComboBox.h"
 #include "MDIWindow.h"
 #include "Transaction.h"
@@ -41,7 +41,7 @@
 /// @param sender 发送者对象指针
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersActivate::ActionLayersActivate(QObject* sender, DmDocument* doc, GuiDocumentView* docView) :
+ActionLayersActivate::ActionLayersActivate(QObject* sender, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Activate Layer", doc, docView)
     , layer(nullptr)
     , cbxData(nullptr)

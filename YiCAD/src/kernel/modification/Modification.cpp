@@ -30,7 +30,7 @@
 #include "DmEllipse.h"
 #include "DmLine.h"
 #include "DmSpline.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmClipboard.h"
 #include "DmDocument.h"
 #include "Information.h"
@@ -66,7 +66,7 @@ PasteData::PasteData(DmVector _insertionPoint, double _factor, double _angle, bo
 {
 }
 
-Modification::Modification(GuiDocumentView* docView)
+Modification::Modification(IDocumentView* docView)
 {
 	this->docView = docView;
 	if (docView)

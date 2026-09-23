@@ -24,14 +24,14 @@
 
 #include "ActionSetSnapRestriction.h"
 
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数，设置新的附加捕捉约束模式
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
 /// @param [in] snapRes 新的捕捉约束模式
 ActionSetSnapRestriction::ActionSetSnapRestriction(DmDocument* doc,
-                                                   GuiDocumentView* docView,
+                                                   IDocumentView* docView,
                                                    DM::SnapRestriction snapRes) :
     ActionInterface("Set Additional Snap Mode", doc, docView)
 {

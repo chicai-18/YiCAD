@@ -40,7 +40,7 @@ public:
     /// @param freeze 是否冻结所有图层（true 为冻结，false 为解冻）
     /// @param doc CAD 文档指针
     /// @param docView 文档视图指针
-    ActionLayersFreezeAll(const bool freeze, DmDocument* doc, GuiDocumentView* docView);
+    ActionLayersFreezeAll(const bool freeze, DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化动作并立即触发
     /// @param status 初始状态（默认为 0）

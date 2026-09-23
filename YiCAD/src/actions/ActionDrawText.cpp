@@ -33,7 +33,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmDocument.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -47,7 +47,7 @@ struct ActionDrawText::Points
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionDrawText::ActionDrawText(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawText::ActionDrawText(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw Text", doc, docView)
     , pPoints(new Points{})
     , textChanged(true)

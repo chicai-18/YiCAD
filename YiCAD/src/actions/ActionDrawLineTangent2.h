@@ -46,7 +46,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
-    ActionDrawLineTangent2(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawLineTangent2(DmDocument* doc, IDocumentView* docView);
 
     ~ActionDrawLineTangent2() override;
 

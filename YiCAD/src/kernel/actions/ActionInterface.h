@@ -30,6 +30,7 @@ class GuiCommandEvent;
 class GuiCoordinateEvent;
 class DmDocument;
 class QAction;
+class IDocumentView;
 
 /// @brief Action接口基类，所有Action类必须实现此接口
 /// Action类处理如画线、移动实体或缩放等操作
@@ -44,7 +45,7 @@ public:
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
     ActionInterface(const char* name, DmDocument* doc,
-                    GuiDocumentView* docView);
+                    IDocumentView* docView);
 
     /// @brief 虚析构函数
     virtual ~ActionInterface() = default;

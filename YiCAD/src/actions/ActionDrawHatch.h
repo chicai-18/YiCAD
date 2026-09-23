@@ -49,7 +49,7 @@ public:
     /// @param doc 文档指针
     /// @param docView 文档视图指针
     /// @param isModify 是否为修改模式
-    ActionDrawHatch(DmDocument* doc, GuiDocumentView* docView, bool isModify);
+    ActionDrawHatch(DmDocument* doc, IDocumentView* docView, bool isModify);
     ~ActionDrawHatch();
 
     void init(int status = 0) override;

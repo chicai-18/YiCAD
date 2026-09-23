@@ -36,7 +36,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmDocument.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -46,7 +46,7 @@ struct ActionDimLeader::Points
     std::vector<DmVector> points;
 };
 
-ActionDimLeader::ActionDimLeader(DmDocument* doc, GuiDocumentView* docView) :
+ActionDimLeader::ActionDimLeader(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw leaders", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionDimLeader;

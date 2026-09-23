@@ -35,7 +35,7 @@
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersAdd::ActionLayersAdd(DmDocument* doc, GuiDocumentView* docView)
+ActionLayersAdd::ActionLayersAdd(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Add Layer", doc, docView)
 {
 }

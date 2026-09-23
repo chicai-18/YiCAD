@@ -46,7 +46,7 @@ public:
     };
 
 public:
-    ActionModifySingleOffset(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifySingleOffset(DmDocument* doc, IDocumentView* docView);
     ~ActionModifySingleOffset() override;
 
     /// @brief 初始化命令状态

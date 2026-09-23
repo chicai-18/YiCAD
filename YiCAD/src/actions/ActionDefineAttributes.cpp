@@ -30,13 +30,13 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmDocument.h"
 #include "DmLine.h"
 #include "Preview.h"
 #include "Transaction.h"
 
-ActionDefineAttributes::ActionDefineAttributes(DmDocument* doc, GuiDocumentView* docView)
+ActionDefineAttributes::ActionDefineAttributes(DmDocument* doc, IDocumentView* docView)
 	: PreviewActionInterface("Define Attributes", doc, docView)
 	, pPoints(new Points{})
 	, textChanged(true)

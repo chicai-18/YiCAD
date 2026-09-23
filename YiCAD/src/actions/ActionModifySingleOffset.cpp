@@ -32,7 +32,7 @@
 #include "DmArc.h"
 #include "DmLine.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "Modification.h"
 #include "Preview.h"
@@ -44,7 +44,7 @@ constexpr double DEFAULT_OFFSET_DISTANCE = 30.0;
 /// @brief 默认偏移数量
 constexpr unsigned DEFAULT_OFFSET_NUMBER = 1;
 
-ActionModifySingleOffset::ActionModifySingleOffset(DmDocument* doc, GuiDocumentView* docView)
+ActionModifySingleOffset::ActionModifySingleOffset(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Modify Single Offset", doc, docView)
     , m_pOriginalEntity(nullptr)
     , m_pData(new OffsetData())

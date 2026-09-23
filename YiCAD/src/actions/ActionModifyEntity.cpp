@@ -31,12 +31,12 @@
 #include "Debug.h"
 #include "DmMText.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionModifyEntity::ActionModifyEntity(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyEntity::ActionModifyEntity(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Modify Entity", doc, docView),
     m_currentEntity(nullptr)
 {

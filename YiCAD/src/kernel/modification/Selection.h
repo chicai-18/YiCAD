@@ -22,7 +22,7 @@
 #define SELECTION_H
 
 #include "DmDocument.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 选择文档实体的类
 class Selection
@@ -31,7 +31,7 @@ public:
 	/// @brief 构造函数
 	/// @param doc 文档指针
 	/// @param docView 文档视图指针，可为空
-	Selection(DmDocument* doc, GuiDocumentView* docView = nullptr);
+	Selection(DmDocument* doc, IDocumentView* docView = nullptr);
 
 	/// @brief 切换单个实体的选中状态
 	/// @param e 实体指针
@@ -60,7 +60,7 @@ public:
 
 protected:
 	DmDocument* pDocument = nullptr;       ///< 关联的文档
-	GuiDocumentView* docView = nullptr;    ///< 关联的文档视图
+	IDocumentView* docView = nullptr;      ///< 关联的文档视图
 };
 
 #endif

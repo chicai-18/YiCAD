@@ -38,7 +38,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档对象指针
     /// @param docView 文档视图对象指针
-    ActionDrawPoint(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawPoint(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数
     ~ActionDrawPoint() override;

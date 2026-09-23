@@ -28,13 +28,13 @@
 
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数
 /// @param undo true 为撤销，false 为重做
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionEditUndo::ActionEditUndo(bool undo, DmDocument* doc, GuiDocumentView* docView) :
+ActionEditUndo::ActionEditUndo(bool undo, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Edit Undo", doc, docView), undo(undo)
 {
 }

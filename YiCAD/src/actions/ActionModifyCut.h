@@ -42,7 +42,7 @@ public:
     /// @brief 构造函数。
     /// @param doc CAD文档对象。
     /// @param docView 文档视图对象。
-    ActionModifyCut(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyCut(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数。
     ~ActionModifyCut() override;

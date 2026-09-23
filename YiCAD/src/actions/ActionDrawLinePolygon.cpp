@@ -31,7 +31,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "DmLine.h"
 #include "Transaction.h"
@@ -45,7 +45,7 @@ struct ActionDrawLinePolygonCenCor::Points
     DmVector corner; ///< 多边形角点
 };
 
-ActionDrawLinePolygonCenCor::ActionDrawLinePolygonCenCor(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawLinePolygonCenCor::ActionDrawLinePolygonCenCor(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw Polygons (Center,Corner)", doc, docView), pPoints(new Points{}), number(MIN_POLYGON_EDGES),
     lastStatus(Status::SetCenter)
 {

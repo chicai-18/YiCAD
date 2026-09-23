@@ -35,7 +35,7 @@ class ActionOptionsDrawing : public ActionInterface
     Q_OBJECT
 
 public:
-    ActionOptionsDrawing(DmDocument* doc, GuiDocumentView* docView);
+    ActionOptionsDrawing(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化并立即触发命令
     /// @param [in] status 初始状态，默认为0

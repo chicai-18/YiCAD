@@ -33,7 +33,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -56,7 +56,7 @@ struct ActionDrawLineRectangle::Points
 /// @param doc 文档对象指针
 /// @param docView 文档视图指针
 ActionDrawLineRectangle::ActionDrawLineRectangle(
-        DmDocument* doc, GuiDocumentView* docView)
+        DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw rectangles", doc, docView)
     , pPoints(new Points{})
 {

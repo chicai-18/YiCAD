@@ -30,7 +30,7 @@
 #include "DmSolid.h"
 #include "DmTriangle.h"
 
-Selection::Selection(DmDocument* doc, GuiDocumentView* docView)
+Selection::Selection(DmDocument* doc, IDocumentView* docView)
 {
 	this->pDocument = doc;
 	this->docView = docView;

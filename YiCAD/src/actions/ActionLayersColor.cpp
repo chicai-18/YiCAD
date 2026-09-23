@@ -30,7 +30,7 @@
 #include "DmDocument.h"
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "SARibbonComboBox.h"
 #include "MDIWindow.h"
 #include "Transaction.h"
@@ -39,7 +39,7 @@
 /// @param sender 发送者对象指针
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersColor::ActionLayersColor(QObject* sender, DmDocument* doc, GuiDocumentView* docView) :
+ActionLayersColor::ActionLayersColor(QObject* sender, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Layer Color", doc, docView)
     , layer(nullptr)
     , theButton(sender)

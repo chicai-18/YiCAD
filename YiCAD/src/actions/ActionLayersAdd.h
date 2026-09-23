@@ -35,7 +35,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionLayersAdd(DmDocument* doc, GuiDocumentView* docView);
+    ActionLayersAdd(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 初始化并立即触发
     /// @param status 初始状态

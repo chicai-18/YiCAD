@@ -26,7 +26,7 @@
 #include "DmPolyline.h"
 #include "DmVector.h"
 #include "DmArc.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Debug.h"
 #include "Preview.h"
 #include "GuiCoordinateEvent.h"
@@ -57,7 +57,7 @@ struct ActionDrawCloudLineRectangle::Points
     bool isError{ false }; ///< 是否发生错误导致无法生成云线
 };
 
-ActionDrawCloudLineRectangle::ActionDrawCloudLineRectangle(DmDocument* doc, GuiDocumentView* docView):
+ActionDrawCloudLineRectangle::ActionDrawCloudLineRectangle(DmDocument* doc, IDocumentView* docView):
     PreviewActionInterface("Draw cloud line rectangle", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionCloudLineRectangle;

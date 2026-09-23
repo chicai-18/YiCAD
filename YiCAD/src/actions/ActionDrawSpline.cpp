@@ -34,7 +34,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 #include "Math2d.h"
@@ -50,7 +50,7 @@ struct ActionDrawSpline::Points
 /// @brief 构造函数
 /// @param [in] doc 文档对象指针
 /// @param [in] docView 文档视图指针
-ActionDrawSpline::ActionDrawSpline(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawSpline::ActionDrawSpline(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw splines", doc, docView),
     pPoints(new Points{})
 {

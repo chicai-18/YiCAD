@@ -29,14 +29,14 @@
 
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 
 /// @brief 构造函数
 /// @param copy 为 true 时复制，为 false 时剪切
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionEditCopy::ActionEditCopy(bool copy, DmDocument* doc, GuiDocumentView* docView) :
+ActionEditCopy::ActionEditCopy(bool copy, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Edit Copy", doc, docView), copy{copy}, referencePoint{new DmVector{}}
 {
 }

@@ -32,7 +32,7 @@
 #include "DmBlockReference.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -49,7 +49,7 @@ struct ActionModifyMirror::Points
     DmVector axisPoint2;
 };
 
-ActionModifyMirror::ActionModifyMirror(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyMirror::ActionModifyMirror(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Mirror Entities", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionModifyMirror;

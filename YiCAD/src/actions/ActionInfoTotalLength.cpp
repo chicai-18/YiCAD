@@ -32,7 +32,7 @@
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionInfoTotalLength::ActionInfoTotalLength(DmDocument* doc, GuiDocumentView* docView)
+ActionInfoTotalLength::ActionInfoTotalLength(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Info Total Length", doc, docView)
 {
     actionType = DM::ActionInfoTotalLength;

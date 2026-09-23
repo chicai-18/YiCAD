@@ -33,7 +33,7 @@
 /// @param doc 文档指针
 /// @param docView 文档视图指针
 ActionBlocksDelete::ActionBlocksDelete(DmDocument* doc,
-	GuiDocumentView* docView)
+	IDocumentView* docView)
 	: ActionInterface("Delete Block", doc, docView)
 	, m_pDialog(nullptr)
 {

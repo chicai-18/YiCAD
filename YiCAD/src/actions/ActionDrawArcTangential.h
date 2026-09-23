@@ -44,7 +44,7 @@ public:
     };
 
 public:
-    ActionDrawArcTangential(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawArcTangential(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawArcTangential() override;
 
     void reset();

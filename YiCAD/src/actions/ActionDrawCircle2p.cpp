@@ -31,7 +31,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -42,7 +42,7 @@ struct ActionDrawCircle2P::Points
     DmVector mouse;  ///< 当前鼠标所在点
 };
 
-ActionDrawCircle2P::ActionDrawCircle2P(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawCircle2P::ActionDrawCircle2P(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw circles", doc, docView)
     , data(new CircleData()), pPoints(new Points{})
 {

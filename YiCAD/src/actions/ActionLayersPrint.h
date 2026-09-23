@@ -38,7 +38,7 @@ public:
 	/// @param sender 发送者对象指针
 	/// @param doc 文档指针
 	/// @param docView 文档视图指针
-	ActionLayersPrint(QObject* sender, DmDocument* doc, GuiDocumentView* docView);
+	ActionLayersPrint(QObject* sender, DmDocument* doc, IDocumentView* docView);
 
 	/// @brief 初始化动作
 	/// @param status 状态参数，默认为0

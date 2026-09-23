@@ -47,7 +47,7 @@ static const int BOUNDING_BOX_PREVIEW_RGB = 255;
 /// @param doc 文档指针
 /// @param docView 文档视图指针
 /// @param isModify 是否为修改模式
-ActionDrawMText::ActionDrawMText(DmDocument* doc, GuiDocumentView* docView, bool isModify)
+ActionDrawMText::ActionDrawMText(DmDocument* doc, IDocumentView* docView, bool isModify)
 	: PreviewActionInterface("Draw MText", doc, docView)
 	, m_bIsModify(isModify)
 	, pPoints(new Points())
@@ -416,7 +416,7 @@ void ActionDrawMText::initDisplayDialogs()
 			mtextData->setDefineWidth(defineWidth);
 		}
 		pPoints->secPos = pos + DmVector(defineWidth, -defineHeight);
-		m_pEditWidget = new MTextEditWidget(m_pEditingText, docView, this, docView);
+		m_pEditWidget = new MTextEditWidget(m_pEditingText, static_cast<GuiDocumentView*>(docView), this, static_cast<GuiDocumentView*>(docView));
 		m_pEditWidget->setCornersForModify(pPoints->pos, pPoints->secPos, pPoints->clickPt);
 	}
 	//新建
@@ -432,7 +432,7 @@ void ActionDrawMText::initDisplayDialogs()
 			defineWidth, "", activeStyle, 0.0);
 		m_pEditingText = new DmMText(nullptr, data);
 		m_pEditingText->setDocument(pDocument);
-		m_pEditWidget = new MTextEditWidget(m_pEditingText, docView, this, docView);
+		m_pEditWidget = new MTextEditWidget(m_pEditingText, static_cast<GuiDocumentView*>(docView), this, static_cast<GuiDocumentView*>(docView));
 		m_pEditWidget->setCornersForNew(pPoints->pos, pPoints->secPos);
 	}
 

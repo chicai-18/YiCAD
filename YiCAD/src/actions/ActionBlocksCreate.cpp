@@ -32,7 +32,7 @@
 #include "DmAttribute.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Transaction.h"
 #include "EntityTable.h"
 
@@ -41,7 +41,7 @@
 /// @param doc 文档指针
 /// @param docView 文档视图指针
 ActionBlocksCreate::ActionBlocksCreate(DmDocument* doc,
-	GuiDocumentView* docView)
+	IDocumentView* docView)
 	: PreviewActionInterface("Blocks Create", doc, docView)
 	, m_referencePoint(new DmVector{})
 {

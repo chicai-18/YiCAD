@@ -256,6 +256,46 @@ flowchart TB
   编译器会抓住绝大部分错误。
 - 缓解：分两个 PR，先做头文件瘦身（纯包含关系），再做 `IDocumentView` 抽取。
 
+### 4.6 执行结果
+
+已完成，分两个提交，与 4.5 节的缓解措施一致。
+
+**与方案的偏差**
+
+| 项 | 方案 | 实际 | 理由 |
+|----|------|------|------|
+| `GuiDocumentView.h` 是否彻底摆脱 GL 头 | 不再包含任何 `GL/*` 头 | 仍保留 `#define GL_GLEXT_PROTOTYPES` + `#include <GL/glew.h>`；`GL/gl.h`、`GL/glu.h`、`PainterCreator.h` 按计划下沉到 `.cpp` | `QOpenGLWidget` 经 Qt 的 `qopengl.h` 会在桌面 GL 下间接 `#include <GL/gl.h>`。`GL/glew.h` 的 `#error` 保护是翻译单元级别的约束——只要本文件的某个包含者后续还引入了需要 `glew.h` 的画笔代码（`GLShader.h` 等），gl.h 抢先被 Qt 拉入就会报错。这是被 100+ 文件包含的头无法完全摆脱的不变量，已把代价压到最小（详见文件内注释），构建数据仍达到预期收益（见下） |
+| `IDocumentView` 覆盖范围 | `actions/` 与 `kernel/actions/` | 额外覆盖 `kernel/modification/`（`Selection`、`Modification`）与 `kernel/history/BlockEditCmd` | 这三个类直接持有 Action 传入的 `docView` 指针：`Selection`/`Modification` 调用的 `redraw()`/`specifyDocumentModified()`/`getDocument()` 均已在接口内，机械替换即可；`BlockEditCmd` 的 `m_pDocView` 只存储从不解引用，改类型不需要新增任何接口方法。不跟着切换就无法编译（`docView` 现在是 `IDocumentView*`，反向转型不是隐式的） |
+| `IDocumentView` 的能力清单 | 坐标变换、重绘请求、光标设置、预览容器访问、相对零点、视口矩形 | 额外加了 `setCursor(const QCursor&)` 与 `asQObject()` | 两处遗留用法绕不开：`ActionDrawMText` 退出文字编辑态要恢复系统默认箭头光标，语义不同于 `setMouseCursor()` 的自绘光标（后者对 `ArrowCursor` 是画 `Qt::BlankCursor` 再自绘十字线）；`ActionDrawHatch`/`ActionModifyExtend` 用旧式 `connect(docView, SIGNAL(viewChanged())...)`，需要一个 `QObject*` |
+| 保留具体类型的例外 | 未列 | `ActionOptionsGeneral.cpp`、`kernel/actions/Preview.cpp` 仍 `#include GuiDocumentView.h`；`ActionDrawMText.cpp` 两处 `static_cast<GuiDocumentView*>(docView)` | 前两者拿到的指针分别来自 `MDIWindow::getDocumentView()`、`DmDocument::getDocumentView()`——这两个访问器的返回类型本就是具体的 `GuiDocumentView*`（UI/Model 层既有设计，不在本阶段范围），隐式上转型需要完整类型。后者是因为 `MTextEditWidget`（`ui/`，未迁移）的构造函数要求它同时是 Qt 父窗口和信号源，两者都要求具体类型 |
+
+**新增设施**
+
+- `YiCAD/src/kernel/actions/IDocumentView.h` —— Action/Snapper 视角下的文档视图
+  接口，纯虚，无成员，放在 `kernel/actions/` 而非 `kernel/gui/`：接口属于消费方
+  （依赖倒置），`GuiDocumentView`（`kernel/gui/`）反过来实现它，物理依赖方向与
+  6.3 节的目标库图（`Interaction --> Render`）保持一致。
+
+**执行中发现的缺陷（均属既有代码，本阶段顺手修复）**
+
+| 位置 | 问题 |
+|------|------|
+| `DmEllipse.cpp` | 用了 `glm::vec2`/`glm::distance`，但从未直接 `#include <glm/glm.hpp>`，全靠 `GuiDocumentView.h → PainterCreator.h → GLPainter.h` 这条链路间接带进来 |
+| `ActionLayersActivate/Color/Delete/Freeze/Lock/Print.cpp`（6 个文件） | 通过 `ComboBoxData::btnColor` 等字段与 `sender()` 做 `QObject* == QToolButton*`/`QPushButton*` 比较，但从未直接包含 `<QToolButton>`/`<QPushButton>`，同样靠 `GuiDocumentView.h` 间接带入 |
+| `UIBottomWidget.cpp` | 用 `QToolButton` 却未直接包含，同上 |
+
+三处都是 P8（重头文件扩散）描述的典型后果：头文件瘦身之前，这些缺失的直接依赖
+被 `GuiDocumentView.h` 的宽泛包含悄悄掩盖了。
+
+**验收对照**
+
+| 4.4 节的验收标准 | 状态 |
+|------------------|------|
+| `src/actions/` 与 `src/kernel/actions/` 下不再出现任何 `GL/*` 头 | 达成 |
+| `GuiDocumentView.h` 不再包含任何 `GL/*` 头 | 部分达成，仅保留 `GL/glew.h`，原因见上表 |
+| 全量编译时间相对阶段 0 基线有可测量的下降 | 达成。Release 全量构建 144.3s → 129.5s（-10%）；改 `GuiDocumentView.h` 后的增量构建 65.3s → 25.4s（**-61%**，本阶段的核心指标）；数据见 `doc/BASELINE.md` §5 |
+| 行为零变化：阶段 0 测试加三份基准图纸目视回归 | `ctest` 全绿（133 个用例不变）；三份基准图纸的目视回归需要 GPU 开发机人工完成，与阶段 0 的既有限制一致，未变化 |
+
 ---
 
 ## 5. 阶段 2：交互层工具化

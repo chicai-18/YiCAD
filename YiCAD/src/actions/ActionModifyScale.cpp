@@ -30,7 +30,7 @@
 #include "Debug.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -46,7 +46,7 @@ struct ActionModifyScale::Points
     DmVector referencePoint;
 };
 
-ActionModifyScale::ActionModifyScale(DmDocument* doc, GuiDocumentView* docView) :
+ActionModifyScale::ActionModifyScale(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Scale Entities", doc, docView), pPoints(new Points{})
 {
     actionType = DM::ActionModifyScale;

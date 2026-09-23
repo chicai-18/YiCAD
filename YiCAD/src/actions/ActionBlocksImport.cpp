@@ -53,7 +53,7 @@
 /// @param doc 文档指针
 /// @param docView 文档视图指针
 ActionBlocksImport::ActionBlocksImport(DmDocument* doc,
-	GuiDocumentView* docView)
+	IDocumentView* docView)
 	: ActionInterface("Block Import", doc, docView)
 {
 }

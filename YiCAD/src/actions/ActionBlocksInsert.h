@@ -59,7 +59,7 @@ public:
      * @param[in] doc 文档指针
      * @param[in] docView 文档视图指针
      */
-    ActionBlocksInsert(DmDocument* doc, GuiDocumentView* docView);
+    ActionBlocksInsert(DmDocument* doc, IDocumentView* docView);
 
     /**
      * @brief 析构函数

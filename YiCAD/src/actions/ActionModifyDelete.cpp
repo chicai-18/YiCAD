@@ -28,13 +28,13 @@
 
 #include "Debug.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 
 /// @brief 构造函数
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionModifyDelete::ActionModifyDelete(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyDelete::ActionModifyDelete(DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Delete Entities", doc, docView)
 {
     actionType = DM::ActionModifyDelete;

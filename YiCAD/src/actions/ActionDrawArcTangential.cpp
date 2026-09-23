@@ -34,7 +34,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -45,7 +45,7 @@ namespace
     constexpr double DEFAULT_LOCK_RADIUS = 100.0; ///< 默认锁定半径
 }
 
-ActionDrawArcTangential::ActionDrawArcTangential(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawArcTangential::ActionDrawArcTangential(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw arcs tangential", doc, docView)
     , point(new DmVector{}), tempArc(new DmArc{})
     , m_bLockAngle(false), m_dLockAngle(0.0)

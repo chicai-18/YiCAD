@@ -28,7 +28,7 @@
 #include "DmMText.h"
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "GuiDialogFactory.h"
 #include "ActionModifyMText.h"
 
@@ -36,7 +36,7 @@
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
 ActionSelectedChanged::ActionSelectedChanged(DmDocument* doc,
-                                             GuiDocumentView* docView) :
+                                             IDocumentView* docView) :
     ActionInterface("Selected Changed", doc, docView)
     , m_selectedNumType(0)
     , m_singleSelectedEnt(nullptr)

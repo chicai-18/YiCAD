@@ -28,6 +28,9 @@
 #include "DmSettings.h"
 #include "ApplicationWindow.h"
 #include "MDIWindow.h"
+// trigger() 遍历所有已打开的 MDIWindow 并更新它们各自视图的颜色，
+// MDIWindow::getDocumentView() 返回具体的 GuiDocumentView*（与本 Action
+// 自己的 IDocumentView* docView 成员无关），所以这里需要完整类型。
 #include "GuiDocumentView.h"
 
 #include <QMdiSubWindow>
@@ -35,7 +38,7 @@
 
 // TODO: 建议在构造函数中设置 actionType = DM::ActionOptionsGeneral（与其他文件保持一致）
 
-ActionOptionsGeneral::ActionOptionsGeneral(DmDocument* doc, GuiDocumentView* docView) :
+ActionOptionsGeneral::ActionOptionsGeneral(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("General Options", doc, docView)
 {
 }

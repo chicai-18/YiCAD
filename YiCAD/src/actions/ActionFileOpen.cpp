@@ -37,7 +37,7 @@ constexpr const char* DEFAULT_FORMAT_TYPE = "ycd";
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionFileOpen::ActionFileOpen(DmDocument* doc, GuiDocumentView* docView) :
+ActionFileOpen::ActionFileOpen(DmDocument* doc, IDocumentView* docView) :
     ActionInterface("File Open", doc, docView)
 {
 }

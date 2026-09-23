@@ -43,7 +43,7 @@ public:
     };
 
 public:
-    ActionDrawCloudLineRectangle(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCloudLineRectangle(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCloudLineRectangle() override;
 
     void reset();

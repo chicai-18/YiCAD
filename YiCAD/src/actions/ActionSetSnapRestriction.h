@@ -37,7 +37,7 @@ public:
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
     /// @param [in] snapRes 要设置的捕捉约束模式
-    ActionSetSnapRestriction(DmDocument* doc, GuiDocumentView* docView,
+    ActionSetSnapRestriction(DmDocument* doc, IDocumentView* docView,
                              DM::SnapRestriction snapRes);
 
     /// @brief 初始化操作状态

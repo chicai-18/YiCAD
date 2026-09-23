@@ -26,11 +26,11 @@
 
 #include "DmDimension.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "DmDocument.h"
 
 ActionDimension::ActionDimension(const char* name, DmDocument* doc,
-                                 GuiDocumentView* docView) :
+                                 IDocumentView* docView) :
     PreviewActionInterface(name, doc, docView)
 {
     reset();

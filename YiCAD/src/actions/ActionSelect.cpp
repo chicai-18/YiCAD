@@ -28,7 +28,7 @@
 #include "ActionSelectMultiple.h"
 #include "ActionSelectSingle.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 
 /// @brief 构造函数，初始化选择操作
 /// @param [in] a_handler UI动作处理器指针
@@ -36,7 +36,7 @@
 /// @param [in] docView 文档视图指针
 /// @param [in] nextAction 选择完成后要执行的后续动作类型
 /// @param [in] entityTypeList 允许选择的实体类型列表
-ActionSelect::ActionSelect(UIActionHandler* a_handler, DmDocument* doc, GuiDocumentView* docView,
+ActionSelect::ActionSelect(UIActionHandler* a_handler, DmDocument* doc, IDocumentView* docView,
                            DM::ActionType nextAction, std::list<DM::EntityType> const& entityTypeList) :
     ActionInterface("Select Entities", doc, docView),
     entityTypeList(entityTypeList), nextAction(nextAction), action_handler(a_handler)

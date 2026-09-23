@@ -61,7 +61,7 @@ struct ActionDefault::Points
 /// @param[in] doc 文档指针
 /// @param[in] docView 文档视图指针
 ActionDefault::ActionDefault(
-    DmDocument* doc, GuiDocumentView* docView)
+    DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Default", doc, docView)
     , pPoints(new Points{})
     , restrBak(DM::RestrictNothing)

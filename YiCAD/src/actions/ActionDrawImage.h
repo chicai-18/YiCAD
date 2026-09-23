@@ -48,7 +48,7 @@ class ActionDrawImage : public PreviewActionInterface
     };
 
 public:
-    ActionDrawImage(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawImage(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawImage() override;
 
     void init(int status = 0) override;

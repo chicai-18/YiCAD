@@ -37,7 +37,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -99,7 +99,7 @@ size_t ActionDrawLine::Points::index(const int offset /*= 0*/)
     return static_cast<size_t>(std::max(0, historyIndex + offset));
 }
 
-ActionDrawLine::ActionDrawLine(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawLine::ActionDrawLine(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw lines", doc, docView)
     , pPoints(new Points{})
 {

@@ -44,7 +44,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionInfoAngle(DmDocument* doc, GuiDocumentView* docView);
+    ActionInfoAngle(DmDocument* doc, IDocumentView* docView);
     ~ActionInfoAngle() override;
 
     /// @brief 初始化 Action 状态

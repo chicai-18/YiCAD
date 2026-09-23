@@ -31,7 +31,7 @@
 #include "Debug.h"
 #include "DmHatch.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "ApplicationWindow.h"
 #include "UIDlgHatch.h"
@@ -39,7 +39,7 @@
 #include "Preview.h"
 #include <QMessageBox>
 
-ActionDrawHatch::ActionDrawHatch(DmDocument* doc, GuiDocumentView* docView, bool isModify)
+ActionDrawHatch::ActionDrawHatch(DmDocument* doc, IDocumentView* docView, bool isModify)
     : PreviewActionInterface("Draw Hatch", doc, docView)
     , m_pData(new HatchData())
 {
@@ -66,7 +66,7 @@ void ActionDrawHatch::init(int status)
     // 仅在没有选择实体时绑定视图变化信号
     if (!m_hasSelectEntity)
     {
-        connect(docView, SIGNAL(viewChanged()), this, SLOT(slotViewChanged()));
+        connect(docView->asQObject(), SIGNAL(viewChanged()), this, SLOT(slotViewChanged()));
     }
 
     DmHatch tmp(nullptr, *m_pData);

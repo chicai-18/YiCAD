@@ -37,7 +37,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "GeometryMethods.h"
@@ -52,7 +52,7 @@ constexpr double SMALL_BULGE_THRESHOLD = 1E-5;
 /// @brief 构造函数
 /// @param doc 文档对象指针
 /// @param docView 文档视图指针
-ActionDrawPolyline::ActionDrawPolyline(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawPolyline::ActionDrawPolyline(DmDocument* doc, IDocumentView* docView)
 	: PreviewActionInterface("Draw polylines", doc, docView)
 	, m_startWeight(0.0)
 	, m_endWeight(0.0)

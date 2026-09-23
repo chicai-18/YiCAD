@@ -74,7 +74,7 @@ public:
 	/// @brief 构造函数
 	/// @param doc 文档对象指针
 	/// @param docView 文档视图指针
-	ActionDrawPolyline(DmDocument* doc, GuiDocumentView* docView);
+	ActionDrawPolyline(DmDocument* doc, IDocumentView* docView);
 
 	/// @brief 析构函数
 	~ActionDrawPolyline() override;

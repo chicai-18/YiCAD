@@ -46,7 +46,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionInfoArea(DmDocument* doc, GuiDocumentView* docView);
+    ActionInfoArea(DmDocument* doc, IDocumentView* docView);
     ~ActionInfoArea() override;
 
     /// @brief 初始化 Action 状态

@@ -46,7 +46,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
-    ActionPolylineAppend(DmDocument* doc, GuiDocumentView* docView);
+    ActionPolylineAppend(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 执行追加节点操作
     void trigger() override;

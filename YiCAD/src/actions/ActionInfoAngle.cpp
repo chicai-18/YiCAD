@@ -31,7 +31,7 @@
 #include "Debug.h"
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "Preview.h"
 
@@ -52,7 +52,7 @@ struct ActionInfoAngle::Points
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionInfoAngle::ActionInfoAngle(DmDocument* doc, GuiDocumentView* docView) :
+ActionInfoAngle::ActionInfoAngle(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Info Angle", doc, docView), entity1(nullptr), entity2(nullptr),
     pPoints(new Points{})
 {

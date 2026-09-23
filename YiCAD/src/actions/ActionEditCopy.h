@@ -43,7 +43,7 @@ public:
     /// @param copy 为 true 时复制，为 false 时剪切
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionEditCopy(bool copy, DmDocument* doc, GuiDocumentView* docView);
+    ActionEditCopy(bool copy, DmDocument* doc, IDocumentView* docView);
     ~ActionEditCopy() override;
 
     /// @brief 初始化 Action 状态

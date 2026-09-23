@@ -37,7 +37,7 @@ public:
     /// @param [in] doc 文档指针
     /// @param [in] docView 文档视图指针
     /// @param [in] snapMode 要切换的捕捉模式
-    ActionSetSnapMode(DmDocument* doc, GuiDocumentView* docView,
+    ActionSetSnapMode(DmDocument* doc, IDocumentView* docView,
                       DM::SnapMode snapMode);
 
     /// @brief 初始化操作状态

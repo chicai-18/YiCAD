@@ -30,10 +30,10 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Transaction.h"
 
-ActionDrawPoint::ActionDrawPoint(DmDocument* doc, GuiDocumentView* docView) :
+ActionDrawPoint::ActionDrawPoint(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Draw Points", doc, docView), m_pt(new DmVector{})
 {
     actionType = DM::ActionDrawPoint;

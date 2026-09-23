@@ -42,7 +42,7 @@ public:
     };
 
 public:
-    ActionDrawArc3P(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawArc3P(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawArc3P() override;
 
     void reset();

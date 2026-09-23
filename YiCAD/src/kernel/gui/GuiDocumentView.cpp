@@ -1213,6 +1213,16 @@ void GuiDocumentView::setMouseCursor(DM::CursorType c)
     }
 }
 
+void GuiDocumentView::setCursor(const QCursor& cursor)
+{
+    QWidget::setCursor(cursor);
+}
+
+QObject* GuiDocumentView::asQObject()
+{
+    return this;
+}
+
 /// @brief 获取鼠标在文档中的位置
 DmVector GuiDocumentView::getMousePosition() const
 {

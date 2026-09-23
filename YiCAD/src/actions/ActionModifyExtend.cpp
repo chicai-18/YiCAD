@@ -32,7 +32,7 @@
 #include "DmSpline.h"
 #include "GeometryMethods.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Information.h"
 #include "Math2d.h"
 #include "Modification.h"
@@ -45,7 +45,7 @@
 /// @brief 构造函数
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionModifyExtend::ActionModifyExtend(DmDocument* doc, GuiDocumentView* docView)
+ActionModifyExtend::ActionModifyExtend(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Extend Entity", doc, docView)
     , m_entToTrim(nullptr)
     , m_entUnderCursor(nullptr)
@@ -56,7 +56,7 @@ ActionModifyExtend::ActionModifyExtend(DmDocument* doc, GuiDocumentView* docView
 {
     actionType = DM::ActionModifyExtend;
 
-    connect(docView, SIGNAL(viewChanged()), this, SLOT(slotViewChanged()));
+    connect(docView->asQObject(), SIGNAL(viewChanged()), this, SLOT(slotViewChanged()));
 }
 
 /// @brief 析构函数

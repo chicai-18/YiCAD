@@ -49,7 +49,7 @@ public:
     };
 
 public:
-    ActionDrawCircleTan3(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCircleTan3(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCircleTan3() override;
 
     void init(int status = 0) override;

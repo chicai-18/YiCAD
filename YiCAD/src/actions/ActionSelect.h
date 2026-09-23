@@ -43,7 +43,7 @@ public:
     /// @param [in] nextAction 选择完成后要执行的后续动作类型
     /// @param [in] entityTypeList 允许选择的实体类型列表，为空则允许所有类型
     ActionSelect(
-        UIActionHandler* a_handler, DmDocument* doc, GuiDocumentView* docView,
+        UIActionHandler* a_handler, DmDocument* doc, IDocumentView* docView,
         DM::ActionType nextAction,
         std::list<DM::EntityType> const& entityTypeList = std::list<DM::EntityType>());
 

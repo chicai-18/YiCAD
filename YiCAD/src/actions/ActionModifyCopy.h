@@ -45,7 +45,7 @@ public:
     /// @brief 构造函数
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    ActionModifyCopy(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyCopy(DmDocument* doc, IDocumentView* docView);
 
     /// @brief 析构函数
     ~ActionModifyCopy() override;

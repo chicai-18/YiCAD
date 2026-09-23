@@ -36,7 +36,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Math2d.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -45,7 +45,7 @@
 /// @param[in] doc 文档指针
 /// @param[in] docView 文档视图指针
 ActionBlocksInsert::ActionBlocksInsert(
-    DmDocument* doc, GuiDocumentView* docView)
+    DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Blocks Insert", doc, docView)
     , block(nullptr)
     , lastStatus(eSetUndefined)

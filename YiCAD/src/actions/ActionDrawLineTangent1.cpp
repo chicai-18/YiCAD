@@ -31,7 +31,7 @@
 #include "DmLine.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 #include "GeUtility.h"
@@ -40,7 +40,7 @@
 /// @param doc CAD 文档指针
 /// @param docView 文档视图指针
 ActionDrawLineTangent1::ActionDrawLineTangent1(DmDocument* doc,
-                                               GuiDocumentView* docView)
+                                               IDocumentView* docView)
     : PreviewActionInterface("Draw Tangents 1", doc, docView)
     , tangent(nullptr)
     , point(new DmVector{})

@@ -43,7 +43,7 @@ public:
     };
 
 public:
-    ActionDrawCircle(DmDocument* doc, GuiDocumentView* docView);
+    ActionDrawCircle(DmDocument* doc, IDocumentView* docView);
     ~ActionDrawCircle() override;
 
     void reset();

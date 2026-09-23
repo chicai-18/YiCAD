@@ -36,7 +36,7 @@ public:
     /// @brief 构造函数
     /// @param [in] doc 文档对象指针
     /// @param [in] docView 文档视图指针
-    explicit ActionDimStyle(DmDocument* doc, GuiDocumentView* docView);
+    explicit ActionDimStyle(DmDocument* doc, IDocumentView* docView);
 
     void init(int status = 0) override;
     void trigger() override;

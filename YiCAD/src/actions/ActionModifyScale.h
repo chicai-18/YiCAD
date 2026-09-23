@@ -46,7 +46,7 @@ public:
     };
 
 public:
-    ActionModifyScale(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyScale(DmDocument* doc, IDocumentView* docView);
     ~ActionModifyScale() override;
 
     /// @brief 初始化实体包围框数据，计算选中实体的宽高较大值

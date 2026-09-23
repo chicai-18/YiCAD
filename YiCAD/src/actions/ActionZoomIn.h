@@ -43,7 +43,7 @@ public:
     /// @param [in] axis 受影响的轴向
     /// @param [in] pCenter 缩放中心点，为空则使用当前视图中心
     /// @param [in] factor 缩放因子
-    ActionZoomIn(DmDocument* doc, GuiDocumentView* docView,
+    ActionZoomIn(DmDocument* doc, IDocumentView* docView,
                  DM::ZoomDirection direction = DM::In,
                  DM::Axis axis = DM::Both,
                  DmVector const* pCenter = nullptr,

@@ -36,7 +36,7 @@
 /// @param[in] doc 文档指针
 /// @param[in] docView 文档视图指针
 ActionBlocksSaveAs::ActionBlocksSaveAs(
-    DmDocument* doc, GuiDocumentView* docView)
+    DmDocument* doc, IDocumentView* docView)
     : ActionInterface("Block Save As", doc, docView)
     , m_pBlockSaveAs(nullptr)
 {

@@ -36,7 +36,7 @@ constexpr double DIALOG_CENTER_RATIO = 0.5;
 /// @param doc 文档指针
 /// @param docView 文档视图指针
 ActionBlockInsertPrepare::ActionBlockInsertPrepare(DmDocument* doc,
-	GuiDocumentView* docView)
+	IDocumentView* docView)
 	: ActionInterface("Block Insert Prepare", doc, docView)
 	, m_pBlockBack(nullptr)
 	, m_pBlockWidget(nullptr)

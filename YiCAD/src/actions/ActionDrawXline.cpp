@@ -31,7 +31,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Snapper.h"
 #include "Transaction.h"
@@ -39,7 +39,7 @@
 /// @brief 构造函数
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionDrawXline::ActionDrawXline(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawXline::ActionDrawXline(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw ray", doc, docView)
     , data(new XLineData{})
 {

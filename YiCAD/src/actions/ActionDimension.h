@@ -40,7 +40,7 @@ public:
     /// @param [in] doc 文档对象指针
     /// @param [in] docView 文档视图指针
     explicit ActionDimension(const char* name, DmDocument* doc,
-                             GuiDocumentView* docView);
+                             IDocumentView* docView);
     ~ActionDimension() override;
 
     /// @brief 重置标注数据

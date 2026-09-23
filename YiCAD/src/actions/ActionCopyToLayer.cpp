@@ -32,7 +32,7 @@
 #include "DmLayer.h"
 #include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -41,7 +41,7 @@
 /// @param[in] doc 文档指针
 /// @param[in] docView 文档视图指针
 ActionCopyToLayer::ActionCopyToLayer(
-    DmDocument* doc, GuiDocumentView* docView)
+    DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface(
           "Copy Entities To Layer", doc, docView)
     , pPoints(new Points{})

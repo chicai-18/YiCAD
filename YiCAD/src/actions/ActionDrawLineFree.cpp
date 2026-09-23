@@ -30,7 +30,7 @@
 #include "DmPolyline.h"
 #include "DmLine.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Preview.h"
 #include "Transaction.h"
 
@@ -43,7 +43,7 @@ namespace
 /// @brief 构造函数，初始化自由手绘线动作
 /// @param doc 文档对象指针
 /// @param docView 文档视图指针
-ActionDrawLineFree::ActionDrawLineFree(DmDocument* doc, GuiDocumentView* docView)
+ActionDrawLineFree::ActionDrawLineFree(DmDocument* doc, IDocumentView* docView)
     : PreviewActionInterface("Draw freehand lines", doc, docView)
     , vertex(new DmVector{})
 {

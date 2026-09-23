@@ -45,7 +45,7 @@ public:
     };
 
 public:
-    ActionModifyTrim(DmDocument* doc, GuiDocumentView* docView);
+    ActionModifyTrim(DmDocument* doc, IDocumentView* docView);
     ~ActionModifyTrim() override;
 
     /// @brief 初始化命令状态

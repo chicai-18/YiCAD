@@ -30,14 +30,14 @@
 #include "DmDocument.h"
 #include "ApplicationWindow.h"
 #include "CustomComboboxItem.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Transaction.h"
 
 /// @brief 构造函数
 /// @param lock true 表示锁定所有图层，false 表示解锁所有图层
 /// @param doc 文档指针
 /// @param docView 文档视图指针
-ActionLayersLockAll::ActionLayersLockAll(const bool lock, DmDocument* doc, GuiDocumentView* docView) :
+ActionLayersLockAll::ActionLayersLockAll(const bool lock, DmDocument* doc, IDocumentView* docView) :
     ActionInterface("Lock all Layers", doc, docView)
     , lock(lock)
 {

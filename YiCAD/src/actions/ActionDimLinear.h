@@ -61,7 +61,7 @@ public:
     /// @param [in] doc 文档对象指针
     /// @param [in] docView 文档视图指针
     /// @param [in] type 操作类型，默认为线性标注
-    explicit ActionDimLinear(DmDocument* doc, GuiDocumentView* docView,
+    explicit ActionDimLinear(DmDocument* doc, IDocumentView* docView,
                     DM::ActionType type = DM::ActionDimLinear);
     ~ActionDimLinear() override;
 

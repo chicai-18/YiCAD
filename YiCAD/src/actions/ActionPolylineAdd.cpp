@@ -32,7 +32,7 @@
 #include "DmDocument.h"
 #include "DmPolyline.h"
 #include "GuiDialogFactory.h"
-#include "GuiDocumentView.h"
+#include "IDocumentView.h"
 #include "Modification.h"
 #include "Preview.h"
 #include "Transaction.h"
@@ -40,7 +40,7 @@
 /// @brief 构造函数，初始化添加节点操作
 /// @param [in] doc 文档指针
 /// @param [in] docView 文档视图指针
-ActionPolylineAdd::ActionPolylineAdd(DmDocument* doc, GuiDocumentView* docView) :
+ActionPolylineAdd::ActionPolylineAdd(DmDocument* doc, IDocumentView* docView) :
     PreviewActionInterface("Add node", doc, docView), addPoly(nullptr), addVertextIdx(-1),
     addCoord(new DmVector{})
 {
