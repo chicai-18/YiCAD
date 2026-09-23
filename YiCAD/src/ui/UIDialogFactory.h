@@ -21,6 +21,8 @@
 #ifndef UIDIALOGFACTORY_H
 #define UIDIALOGFACTORY_H
 #include <list>
+#include <QPointer>
+#include "CommandRegistry.h"
 #include "GuiDialogFactoryInterface.h"
 #include "UIActionHandler.h"
 
@@ -118,6 +120,10 @@ protected:
 	void requestBevelOptions(ActionInterface* action, bool on, bool update);
 	void requestRoundOptions(ActionInterface* action, bool on, bool update);
 
+	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（扩展命令用）。
+	void requestRegisteredOptions(const CommandOptionsFactory& factory, ActionInterface* action,
+								  bool on, bool update);
+
 public:
 	void requestSnapDistOptions(double& dist, bool on) override;
 	void requestSnapMiddleOptions(int& middlePoints, bool on) override;
@@ -168,6 +174,7 @@ private:
 	UIModifyOffsetOptions*			m_pModifyOffsetOptions = nullptr;
 	UIPrintPreviewOptions*			m_pPrintPreviewOptions = nullptr;
 	UILineAngleOptions*				m_pLineAngleOptions = nullptr;
+	QPointer<QWidget>				m_pRegisteredOptions;					///< requestRegisteredOptions 当前显示的选项条
 
 	UIDlgDimensionStyleMgr*			m_pDimensionStyleMgr = nullptr;
 	UIDlgDimensionStyle*			m_pDimensionStyle = nullptr;

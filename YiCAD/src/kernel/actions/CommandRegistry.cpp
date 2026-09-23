@@ -19,6 +19,7 @@
 
 #include "CommandRegistry.h"
 
+#include <iterator>
 #include <utility>
 
 #include "ActionSelect.h"
@@ -30,13 +31,31 @@
 // tests/interaction/test_command_registry.cpp 的"重复注册…被拒绝"用例），
 // 与 PluginRegistry 用返回值而非 assert 报告注册错误的既有约定一致。
 
+namespace
+{
+/// @brief 别名统一去首尾空白、转小写，去掉空项与重复项。
+QStringList normalizeAliases(const QStringList& aliases)
+{
+    QStringList out;
+    for (const QString& alias : aliases)
+    {
+        const QString key = alias.trimmed().toLower();
+        if (!key.isEmpty() && !out.contains(key))
+        {
+            out.append(key);
+        }
+    }
+    return out;
+}
+}  // namespace
+
 CommandRegistry& CommandRegistry::instance()
 {
     static CommandRegistry registry;
     return registry;
 }
 
-bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory)
+bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory, CommandInfo info)
 {
     if (id.isEmpty() || !factory)
     {
@@ -46,7 +65,19 @@ bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory)
     {
         return false;
     }
-    m_commands.emplace(id, std::move(factory));
+    info.aliases = normalizeAliases(info.aliases);
+    for (const QString& alias : info.aliases)
+    {
+        if (m_aliases.find(alias) != m_aliases.end())
+        {
+            return false;
+        }
+    }
+    for (const QString& alias : info.aliases)
+    {
+        m_aliases.emplace(alias, id);
+    }
+    m_commands.emplace(id, Entry{std::move(factory), std::move(info)});
     return true;
 }
 
@@ -65,9 +96,67 @@ bool CommandRegistry::registerLegacyCommand(DM::ActionType legacyType, const QSt
     return true;
 }
 
+bool CommandRegistry::unregisterCommand(const QString& id)
+{
+    auto it = m_commands.find(id);
+    if (it == m_commands.end())
+    {
+        return false;
+    }
+    for (const QString& alias : it->second.info.aliases)
+    {
+        m_aliases.erase(alias);
+    }
+    m_commands.erase(it);
+    for (auto bridge = m_legacyBridge.begin(); bridge != m_legacyBridge.end();)
+    {
+        bridge = bridge->second == id ? m_legacyBridge.erase(bridge) : std::next(bridge);
+    }
+    return true;
+}
+
+bool CommandRegistry::hasCommand(const QString& id) const
+{
+    return m_commands.find(id) != m_commands.end();
+}
+
 bool CommandRegistry::hasLegacyMapping(DM::ActionType legacyType) const
 {
     return m_legacyBridge.find(legacyType) != m_legacyBridge.end();
+}
+
+QString CommandRegistry::commandId(DM::ActionType legacyType) const
+{
+    auto it = m_legacyBridge.find(legacyType);
+    return it == m_legacyBridge.end() ? QString() : it->second;
+}
+
+QString CommandRegistry::commandForAlias(const QString& alias) const
+{
+    auto it = m_aliases.find(alias.trimmed().toLower());
+    return it == m_aliases.end() ? QString() : it->second;
+}
+
+QStringList CommandRegistry::aliases() const
+{
+    QStringList out;
+    for (const auto& [alias, id] : m_aliases)
+    {
+        out.append(alias);
+    }
+    return out;
+}
+
+QString CommandRegistry::description(const QString& id) const
+{
+    auto it = m_commands.find(id);
+    return it == m_commands.end() ? QString() : it->second.info.description;
+}
+
+CommandOptionsFactory CommandRegistry::optionsFactory(const QString& id) const
+{
+    auto it = m_commands.find(id);
+    return it == m_commands.end() ? CommandOptionsFactory() : it->second.info.optionsFactory;
 }
 
 ActionInterface* CommandRegistry::create(DM::ActionType legacyType, const CommandContext& ctx) const
@@ -87,7 +176,12 @@ ActionInterface* CommandRegistry::create(const QString& id, const CommandContext
     {
         return nullptr;
     }
-    return it->second(ctx);
+    ActionInterface* action = it->second.factory(ctx);
+    if (action)
+    {
+        action->setCommandId(id);
+    }
+    return action;
 }
 
 CommandFactory makeSelectFirstFactory(DM::ActionType noSelectLegacyType, CommandFactory buildReal)

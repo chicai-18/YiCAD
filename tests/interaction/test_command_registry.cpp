@@ -106,6 +106,79 @@ TEST(CommandRegistryTest, 重复注册同一legacyActionType被拒绝且不留�
     EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.dup_legacy_2"), ctx), nullptr);
 }
 
+TEST(CommandRegistryTest, 按字符串ID创建的Action记录命令ID)
+{
+    DmDocument doc;
+    FakeDocumentView view;
+    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
+        "test.cr.command_id",
+        [](const CommandContext& ctx) -> ActionInterface*
+        { return new TestAction(ctx.document, ctx.view); }));
+
+    CommandContext ctx{&doc, &view, nullptr, nullptr};
+    ActionInterface* a = CommandRegistry::instance().create(QStringLiteral("test.cr.command_id"), ctx);
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->getCommandId(), QStringLiteral("test.cr.command_id"));
+    delete a;
+
+    // 直接 new 出来的 Action 没有命令 ID。
+    TestAction direct(&doc, &view);
+    EXPECT_TRUE(direct.getCommandId().isEmpty());
+}
+
+TEST(CommandRegistryTest, 别名大小写不敏感并随说明与选项条一起登记)
+{
+    CommandInfo info;
+    info.description = QStringLiteral("Alias test");
+    info.aliases = QStringList{QStringLiteral(" CrFoo "), QStringLiteral("crbar"), QStringLiteral("crbar"), QString()};
+    info.optionsFactory = [](QWidget*, ActionInterface*, bool) -> QWidget* { return nullptr; };
+    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
+        "test.cr.alias", [](const CommandContext&) -> ActionInterface* { return nullptr; }, info));
+
+    EXPECT_EQ(CommandRegistry::instance().commandForAlias("crfoo"), QStringLiteral("test.cr.alias"));
+    EXPECT_EQ(CommandRegistry::instance().commandForAlias("CRBAR"), QStringLiteral("test.cr.alias"));
+    EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crbaz").isEmpty());
+    EXPECT_TRUE(CommandRegistry::instance().aliases().contains(QStringLiteral("crfoo")));
+    EXPECT_EQ(CommandRegistry::instance().description("test.cr.alias"), QStringLiteral("Alias test"));
+    EXPECT_TRUE(static_cast<bool>(CommandRegistry::instance().optionsFactory("test.cr.alias")));
+    EXPECT_FALSE(static_cast<bool>(CommandRegistry::instance().optionsFactory("test.cr.plain")));
+}
+
+TEST(CommandRegistryTest, 别名冲突时整条命令被拒绝且不留半成品)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
+        "test.cr.alias_owner", [](const CommandContext&) -> ActionInterface* { return nullptr; },
+        {.aliases = {"crtaken"}}));
+    EXPECT_FALSE(CommandRegistry::instance().registerCommand(
+        "test.cr.alias_thief", [](const CommandContext&) -> ActionInterface* { return nullptr; },
+        {.aliases = {"crfree", "CRTAKEN"}}));
+
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.alias_thief"));
+    EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crfree").isEmpty());
+    EXPECT_EQ(CommandRegistry::instance().commandForAlias("crtaken"), QStringLiteral("test.cr.alias_owner"));
+}
+
+TEST(CommandRegistryTest, 注销清除命令别名与legacy桥接)
+{
+    // ActionViewStatusBar 从未被任何内置命令注册（原 switch 里没有它的 case）。
+    ASSERT_TRUE(CommandRegistry::instance().registerLegacyCommand(
+        DM::ActionViewStatusBar, "test.cr.unregister",
+        [](const CommandContext&) -> ActionInterface* { return nullptr; }));
+    ASSERT_EQ(CommandRegistry::instance().commandId(DM::ActionViewStatusBar), QStringLiteral("test.cr.unregister"));
+
+    EXPECT_TRUE(CommandRegistry::instance().unregisterCommand("test.cr.unregister"));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.unregister"));
+    EXPECT_FALSE(CommandRegistry::instance().hasLegacyMapping(DM::ActionViewStatusBar));
+    EXPECT_TRUE(CommandRegistry::instance().commandId(DM::ActionViewStatusBar).isEmpty());
+    EXPECT_FALSE(CommandRegistry::instance().unregisterCommand("test.cr.unregister"));
+
+    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
+        "test.cr.unregister_alias", [](const CommandContext&) -> ActionInterface* { return nullptr; },
+        {.aliases = {"crgone"}}));
+    EXPECT_TRUE(CommandRegistry::instance().unregisterCommand("test.cr.unregister_alias"));
+    EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crgone").isEmpty());
+}
+
 TEST(CommandRegistryTest, makeSelectFirstFactory_未选中时建ActionSelect)
 {
     DmDocument doc;  // 空文档，必然没有选中实体

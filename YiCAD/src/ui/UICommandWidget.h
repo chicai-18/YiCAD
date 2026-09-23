@@ -49,6 +49,10 @@ public:
 
     /// @brief 设置外部规范命令，并与内置命令共同用于自动补全。
     void setExternalCommandStrings(const QStringList& commands);
+
+    /// @brief 重建自动补全列表；CommandRegistry 里的命令别名（扩展命令）
+    /// 注册完成后由宿主调用一次。
+    void refreshCompleter();
     QWidget* createTempEdit();
     QWidget* getCommandWidget();
     QWidget* getInfoWidget();

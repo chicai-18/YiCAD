@@ -70,6 +70,14 @@ public:
     /// @return ActionType枚举值
     virtual DM::ActionType getEntityType() const;
 
+    /// @brief 构造本 Action 的命令 ID（如 "draw.line"、"ext.dim.linear"）。
+    /// @return 经 CommandRegistry::create 构造时由注册表写入；直接 new 出来的
+    /// Action（子动作、视图内部动作等）为空串。
+    const QString& getCommandId() const { return m_commandId; }
+
+    /// @brief 记录构造本 Action 的命令 ID，只由 CommandRegistry::create 调用。
+    void setCommandId(const QString& commandId) { m_commandId = commandId; }
+
     /// @brief 设置Action名称
     /// @param [in] _name 新名称
     void setName(const char* _name);
@@ -220,6 +228,9 @@ private:
 
     /// @brief 捕捉能力的具体实现，构造时创建为 Snapper
     std::unique_ptr<ISnapService> m_snapService;
+
+    /// @brief 构造本 Action 的命令 ID，见 getCommandId()
+    QString m_commandId;
 
 protected:
     QString name;               ///< Action名称

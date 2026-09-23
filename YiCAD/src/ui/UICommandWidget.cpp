@@ -27,6 +27,7 @@
 #include "DmVector.h"
 #include "DmDocument.h"
 #include "Commands.h"
+#include "CommandRegistry.h"
 #include "QCompleter"
 #include "QAbstractItemView"
 #include <QPushButton>
@@ -149,13 +150,19 @@ void UICommandWidget::appCmdTempText(const QString text)
 		if (action)
 		{
 			DM::ActionType actionType = action->getEntityType();
+			QString desc;
 			if (actionType != DM::ActionNone)
 			{
-				QString desc = COMMANDS->description(actionType);
-				if (!desc.isEmpty())
-				{
-					displayText = QString("[%1] %2").arg(desc, text);
-				}
+				desc = COMMANDS->description(actionType);
+			}
+			// 扩展命令不在 keyconfig.xml 里，说明随命令注册在 CommandRegistry。
+			if (desc.isEmpty())
+			{
+				desc = CommandRegistry::instance().description(action->getCommandId());
+			}
+			if (!desc.isEmpty())
+			{
+				displayText = QString("[%1] %2").arg(desc, text);
 			}
 		}
 
@@ -299,6 +306,11 @@ void UICommandWidget::setExternalCommandStrings(const QStringList& commands)
 	updateCompleterModel();
 }
 
+void UICommandWidget::refreshCompleter()
+{
+	updateCompleterModel();
+}
+
 void UICommandWidget::updateCompleterModel()
 {
 	if (!m_pCompleter)
@@ -313,6 +325,7 @@ void UICommandWidget::updateCompleterModel()
 	}
 
 	QStringList commands = m_completerStrings;
+	commands.append(CommandRegistry::instance().aliases());
 	commands.append(m_externalCommandStrings);
 	commands.removeDuplicates();
 	model->setStringList(commands);
@@ -335,6 +348,7 @@ QWidget* UICommandWidget::createTempEdit()
 	}
 	m_pCompleter = new QCompleter();
 	QStringList commands = m_completerStrings;
+	commands.append(CommandRegistry::instance().aliases());
 	commands.append(m_externalCommandStrings);
 	commands.removeDuplicates();
 	QStringListModel* model = new QStringListModel(commands,m_pCompleter);

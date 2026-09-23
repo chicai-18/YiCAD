@@ -391,6 +391,14 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 		return;
 	}
 
+	// 扩展命令的选项条随命令注册在 CommandRegistry（CommandInfo::optionsFactory），
+	// 没有枚举值可供下面的 switch 分发。
+	if (CommandOptionsFactory factory = CommandRegistry::instance().optionsFactory(action->getCommandId()))
+	{
+		requestRegisteredOptions(factory, action, on, update);
+		return;
+	}
+
 	switch (action->getEntityType())
 	{
 	case DM::ActionDrawLine:
@@ -830,6 +838,30 @@ void UIDialogFactory::requestDimLinearOptions(ActionInterface* action, bool on, 
 			toolWidget->setAction(action, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
+			optionWidget->show();
+		}
+	}
+}
+
+void UIDialogFactory::requestRegisteredOptions(const CommandOptionsFactory& factory, ActionInterface* action,
+											   bool on, bool update)
+{
+	if (!optionWidget)
+	{
+		return;
+	}
+	if (m_pRegisteredOptions)
+	{
+		delete m_pRegisteredOptions;
+		optionWidget->hide();
+	}
+	if (on)
+	{
+		m_pRegisteredOptions = factory(optionWidget, action, update);
+		if (m_pRegisteredOptions)
+		{
+			m_pRegisteredOptions->show();
+			optionWidget->resize(m_pRegisteredOptions->width(), 23);
 			optionWidget->show();
 		}
 	}

@@ -112,10 +112,20 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 	// 全部 153 个原 case 已分批迁移到 CommandRegistry（阶段4第一至八部分，
 	// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。未命中注册表的类型
 	// （枚举里从未进入过这个 switch 的保留值，如 ActionFileExport/Print/
-	// Quit、ActionView* 系列等）维持原 default 行为：不构造任何 Action。
-	ActionInterface* a = CommandRegistry::instance().hasLegacyMapping(id)
-		? CommandRegistry::instance().create(id, CommandContext{m_pDocument, m_pView, this, sender()})
-		: nullptr;
+	// Quit、ActionView* 系列，以及已搬进扩展、不再有枚举桥接的命令）维持
+	// 原 default 行为：不构造任何 Action。
+	const QString commandId = CommandRegistry::instance().commandId(id);
+	if (commandId.isEmpty())
+	{
+		return nullptr;
+	}
+	return activateCommand(commandId, sender());
+}
+
+ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObject* source)
+{
+	ActionInterface* a = CommandRegistry::instance().create(
+		commandId, CommandContext{m_pDocument, m_pView, this, source ? source : sender()});
 
 	if (a)
 	{
@@ -181,7 +191,7 @@ bool UIActionHandler::keycode(const QString& code)
 
 	// keycode for new action:
 	DM::ActionType type = COMMANDS->keycodeToAction(code);
-	if (type != DM::ActionNone)
+	if (type != DM::ActionNone && hasBuiltinHandler(type))
 	{
 		// some actions require special handling (GUI update):
 		switch (type)
@@ -228,7 +238,40 @@ bool UIActionHandler::keycode(const QString& code)
 		return true;
 	}
 
-	return false;
+	// 纯字符串命令（扩展命令）没有枚举值，也不在 keyconfig.xml 里，按注册表
+	// 登记的别名再查一次。
+	const QString commandId = CommandRegistry::instance().commandForAlias(code);
+	if (!commandId.isEmpty())
+	{
+		activateCommand(commandId);
+		return true;
+	}
+
+	// keyconfig.xml 认领了、但宿主没有实现的枚举（如用户目录下旧 keyconfig
+	// 里残留的、已搬进扩展的命令）：保持原行为，按已识别处理。
+	return type != DM::ActionNone;
+}
+
+bool UIActionHandler::hasBuiltinHandler(DM::ActionType type)
+{
+	switch (type)
+	{
+	case DM::ActionEditKillAllActions:
+	case DM::ActionSnapFree:
+	case DM::ActionSnapCenter:
+	case DM::ActionSnapEndpoint:
+	case DM::ActionSnapGrid:
+	case DM::ActionSnapIntersection:
+	case DM::ActionSnapMiddle:
+	case DM::ActionSnapOnEntity:
+	case DM::ActionRestrictNothing:
+	case DM::ActionRestrictOrthogonal:
+	case DM::ActionRestrictHorizontal:
+	case DM::ActionRestrictVertical:
+		return true;
+	default:
+		return CommandRegistry::instance().hasLegacyMapping(type);
+	}
 }
 
 
@@ -317,16 +360,29 @@ bool UIActionHandler::command(const QString& cmd)
 	// it might be intended to launch a new command
 	if (!e.isAccepted()) 
 	{
-		// command for new action:
+		// 解析顺序：keyconfig.xml 里有实现的内置命令 > 注册表登记的别名
+		// （扩展命令）> keyconfig.xml 认领但没有实现的条目 > 插件命令。
 		DM::ActionType type = COMMANDS->cmdToAction(cmd);
-		if (type != DM::ActionNone) 
+		if (type != DM::ActionNone && hasBuiltinHandler(type))
 		{
 			//special handling, currently needed for snap actions
-			if (!commandLineActions(type)) 
+			if (!commandLineActions(type))
 			{
 				//not handled yet
 				setCurrentAction(type);
 			}
+			return true;
+		}
+
+		const QString commandId = CommandRegistry::instance().commandForAlias(cmd);
+		if (!commandId.isEmpty())
+		{
+			activateCommand(commandId);
+			return true;
+		}
+
+		if (type != DM::ActionNone)
+		{
 			return true;
 		}
 
