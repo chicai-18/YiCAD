@@ -67,6 +67,9 @@
 #include <QVBoxLayout>
 #include <QSettings>
 #include <QVariant>
+#include <QVector>
+
+#include <functional>
 
 #include "UITabDrawWidget.h"
 #include "UIBottomWidget.h"
@@ -76,7 +79,10 @@
 #include "UIBlockSaveAs.h"
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
-#include "AIAssistant.h"
+
+#include "AIExtension.h"
+#include "ExtensionManager.h"
+#include "IExtensionContext.h"
 
 #include "ActionLayersActivate.h"
 #include "ActionLayersFreeze.h"
@@ -164,6 +170,53 @@ public:
 
 private:
     ApplicationWindow& m_window;
+};
+
+/// @brief 一个已注册的设置页入口（阶段4第二阶段，IExtensionContext::
+/// registerSettingsPage 收集的数据）。
+struct ApplicationWindowSettingsPageEntry
+{
+    QString id;
+    QString title;
+    QString iconPath;
+    std::function<void()> open;
+};
+
+/// @brief ApplicationWindow 侧的 IExtensionContext 具体实现。
+///
+/// 作为 ApplicationWindow 的成员长期存活（不是 registerExtensions() 里的
+/// 栈上临时对象）——registerSettingsPage() 收集的列表要活到
+/// createCategoryOptions() 读取它的那一刻，AIExtension 也会在 OnRegister
+/// 之后继续保留指向本对象的指针，用于点击回调里现场取当前文档/视图
+/// （见 IExtension.h 关于这条例外的说明）。
+class ApplicationWindowExtensionContext final : public IExtensionContext
+{
+public:
+    ApplicationWindowExtensionContext(SARibbonBar& ribbon, ApplicationWindow& window)
+        : m_ribbon(ribbon), m_window(window)
+    {
+    }
+
+    SARibbonBar& ribbon() override { return m_ribbon; }
+    QWidget* mainWindow() override { return &m_window; }
+    DmDocument* currentDocument() const override { return m_window.getDocument(); }
+    GuiDocumentView* currentDocumentView() const override { return m_window.getDocumentView(); }
+
+    void registerSettingsPage(const QString& id, const QString& title, const QString& iconPath,
+                               std::function<void()> open) override
+    {
+        m_settingsPages.push_back({id, title, iconPath, std::move(open)});
+    }
+
+    const QVector<ApplicationWindowSettingsPageEntry>& settingsPages() const
+    {
+        return m_settingsPages;
+    }
+
+private:
+    SARibbonBar& m_ribbon;
+    ApplicationWindow& m_window;
+    QVector<ApplicationWindowSettingsPageEntry> m_settingsPages;
 };
 
 // TODO: 以下宏为性能调试用函数式宏，无法直接转换为constexpr，建议后续改为内联函数
@@ -292,6 +345,11 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	createQuickAccessBar(quickAccessBar);
 	PRINT_COST("add quick access bar");
 
+	// 进程内扩展（阶段4第二阶段）：必须在 createCategoryOptions() 之前
+	// 完成，因为该分类要读取扩展注册的设置页列表来建按钮。
+	registerExtensions();
+	PRINT_COST("register extensions");
+
 	//添加文件标签页 - 通过addCategoryPage工厂函数添加
 	SARibbonCategory* categoryFile = m_pRibbon->addCategoryPage(QObject::tr("File"));
 	categoryFile->setObjectName("categoryFile");
@@ -343,29 +401,11 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	this->setMinimumSize(900, 700);
 	showMaximized();
 
-	//Draw2d 作为缺省激活Tab 
+	//Draw2d 作为缺省激活Tab
 	ribbonBar()->setCurrentIndex(iDraw2d);
 
-	GuiDocumentView* view = m_pCurrentMdiWin->getDocumentView();
-
-	// ===========================AI 助手按钮=========================
-	SARibbonButtonGroupWidget* rightGroup = m_pRibbon->rightButtonGroup();
-	if (rightGroup)
-	{
-		m_pActAI = createAction(tr("AI Assistant"), ":/ribbon/tabbar/ai.svg", "ai-assistant");
-		m_pAIAssistant = new AIAssistant(this, this);
-		connect(m_pActAI, &QAction::triggered, this, [this]() {
-			DmDocument* doc = nullptr;
-			GuiDocumentView* docView = nullptr;
-			if (m_pCurrentMdiWin)
-			{
-				doc = m_pCurrentMdiWin->getDocument();
-				docView = m_pCurrentMdiWin->getDocumentView();
-			}
-			m_pAIAssistant->show(doc, docView);
-		});
-		rightGroup->addAction(m_pActAI);
-	}
+	// AI 助手按钮已随 registerExtensions() 迁移到 AIExtension（阶段4
+	// 第二阶段），不再在这里硬编码。
 
     /// @brief Ribbon、命令窗口和首个文档就绪后，接入唯一的新插件加载路径。
     m_pluginHostContext =
@@ -392,6 +432,14 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
     m_pluginUiAdapter->materialize();
 }
 
+/// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段，
+/// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4 §7.4任务③④）。
+void ApplicationWindow::registerExtensions()
+{
+	m_extensionContext = std::make_unique<ApplicationWindowExtensionContext>(*m_pRibbon, *this);
+	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
+	ExtensionManager::instance().BootAll(*m_extensionContext);
+}
 
 void ApplicationWindow::onStyleClicked(int id)
 {
@@ -1038,6 +1086,10 @@ std::vector<CustomComboboxItem*> ApplicationWindow::getLayerComboboxItems()
 
 ApplicationWindow::~ApplicationWindow()
 {
+    /// @brief 先关扩展（会触发 AIExtension::OnShutdown() 等），再关插件，
+    /// 最后才删其它全局单例——与下面插件关闭的注释是同一个约束的延伸。
+    ExtensionManager::instance().Shutdown();
+
     /// @brief 必须在任何窗口、文档和全局宿主服务销毁前关闭并卸载插件。
     FileIO::instance()->clearPluginRuntime();
     if (m_pluginManager)
@@ -1323,6 +1375,35 @@ void ApplicationWindow::createCategoryOptions(SARibbonCategory* page)
 		m_pActionHandler->slotOptionsDrawing();
 	});
 	settingGroup->addWidget(btnDrawSettings);
+
+	// 扩展注册的设置页（阶段4第二阶段，IExtensionContext::
+	// registerSettingsPage）——与上面两个内置按钮同款外观，唯一的区别是
+	// 点击回调来自注册表而不是硬编码的 UIActionHandler 槽。
+	// registerExtensions() 在构造函数里保证跑在本方法之前，这里读到的
+	// 列表已经是完整的。
+	if (m_extensionContext)
+	{
+		for (const auto& entry : m_extensionContext->settingsPages())
+		{
+			QToolButton* btnExtensionSettings = new QToolButton();
+			if (!entry.iconPath.isEmpty())
+			{
+				btnExtensionSettings->setIcon(QIcon(entry.iconPath));
+			}
+			else
+			{
+				btnExtensionSettings->setIcon(QIcon(":/ribbon/options/settings.svg"));
+			}
+			btnExtensionSettings->setToolTip(entry.title);
+			btnExtensionSettings->setProperty("yiCadStandaloneRibbonButton", true);
+			const auto open = entry.open;
+			connect(btnExtensionSettings, &QToolButton::clicked, this, [open](bool b) {
+				Q_UNUSED(b);
+				open();
+			});
+			settingGroup->addWidget(btnExtensionSettings);
+		}
+	}
 
 	pannel1->addLargeWidget(settingGroup);
 

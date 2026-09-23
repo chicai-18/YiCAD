@@ -56,8 +56,8 @@ class UIActionGroupManager;
 class UICommandWidget;
 class UIBlockListWidget;
 class UIBlockSaveAs;
-class AIAssistant;
 class ApplicationPluginHostContext;
+class ApplicationWindowExtensionContext;
 class HostApi;
 class PluginManager;
 class PluginRegistry;
@@ -197,6 +197,9 @@ public:
     void setDrawingTabName(const QString& fileName);
 
 private:
+    /// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段）。
+    void registerExtensions();
+
     void createCategoryFile(SARibbonCategory* page);
     void createCategoryOptions(SARibbonCategory* page);
     void createCategoryDraw2d(SARibbonCategory* page);
@@ -316,9 +319,9 @@ private:
     SARibbonComboBox*               m_pViewportTable = nullptr;         ///< 视图下拉框
     QListWidget*                    m_pViewportWidget = nullptr;        ///< 视图下拉列表
 
-    // AI 助手
-    QAction*                        m_pActAI = nullptr;                 ///< AI助手按钮Action
-    AIAssistant*                    m_pAIAssistant = nullptr;           ///< AI 助手控制器
+    // 进程内扩展框架（阶段4第二阶段）；ai/ 的 AI 助手按钮/设置页现在由
+    // AIExtension（注册进 ExtensionManager）持有，不再是本类的成员。
+    std::unique_ptr<ApplicationWindowExtensionContext> m_extensionContext;
 
     /// @brief 新插件运行时；声明顺序保证 Manager 最先析构，宿主上下文最后析构。
     std::unique_ptr<ApplicationPluginHostContext> m_pluginHostContext;

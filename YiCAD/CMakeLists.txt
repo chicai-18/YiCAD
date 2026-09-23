@@ -158,9 +158,14 @@ yicad_collect_sources(UI
 # 对应阶段 3 的 YiCadApp（可执行目标）。
 #
 # 计划图未列出 src/ai/ 与 src/plugin_runtime/，二者均位于 UI 之上：
-#   ai/AIAssistant.h  引用 ApplicationWindow / MDIWindow
 #   plugin_runtime/   引用 UIActionHandler.h、UICommandWidget.h
-# 阶段 4 会把 ai/ 抽成首个 IExtension 试点扩展。
+# 阶段 4 第一阶段已把 ai/AIAssistant.h 里"引用 ApplicationWindow /
+# MDIWindow"这条依赖去掉了（构造期只需要一个 QWidget*），第二阶段把
+# ai/ 抽成了首个 IExtension 试点扩展（见 src/ai/AIExtension.{h,cpp}）。
+#
+# src/main/extensions/（IExtension/IExtensionContext/ExtensionManager）
+# 是新增的进程内扩展框架，物理上和 ApplicationWindow 同属 src/main，
+# 只是单独开了个子目录；file(GLOB) 不递归，子目录必须显式列在这里。
 #
 # kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
 # getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
@@ -169,6 +174,7 @@ yicad_collect_sources(UI
 # 只是它决定了 Fileio.{h,cpp} 不能编进只应依赖 Model 的 YiCadPersistence。
 yicad_collect_sources(APP
     src/main
+    src/main/extensions
     src/ai
     src/plugin_runtime
     src/kernel/fileio)
@@ -410,6 +416,7 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters/opengl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/main/extensions
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ai
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui

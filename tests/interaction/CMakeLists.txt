@@ -9,4 +9,5 @@ yicad_add_test(interaction
         test_select_tool.cpp
         test_legacy_action_tool.cpp
         test_command_registry.cpp
+        test_extension_manager.cpp
     LABELS "interaction;unit")

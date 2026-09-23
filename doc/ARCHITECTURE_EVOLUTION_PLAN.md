@@ -871,6 +871,97 @@ Debug/Release 全量构建与 `ctest` 验证。
 两条明确留给后续会话——诚实反映"任务①②完成，任务③④⑤未做"的实际状态，
 不写"阶段4已完成"。
 
+### 7.8 执行结果（阶段4第二阶段：任务③④）
+
+按 7.6 节的缓解措施顺序，第一阶段完成任务①②后，本阶段做任务③④——
+`IExtension`/`IExtensionContext`/`ExtensionManager` 扩展框架，并把 `ai/`
+模块从 `ApplicationWindow.cpp` 构造函数里的硬编码改造成第一个试点扩展。
+任务⑤（按领域推进后续扩展：Dim/Text/Block/Hatch/Printing）留给未来会话。
+
+**与方案的偏差**
+
+| 项 | 方案 | 实际 | 理由 |
+|----|------|------|------|
+| `IExtensionContext` 的形状 | 参考 DS，只暴露 `Ribbon()` | 额外暴露 `mainWindow()`、`currentDocument()`/`currentDocumentView()`、`registerSettingsPage()` 四个方法，刻意仍不暴露整个 `ApplicationWindow` | DS 的 `CUR_DOC` 等全局单例在 YiCAD 没有对应物——"当前文档"只能通过具体的 `ApplicationWindow::getDocument()` 拿到；把整个 `ApplicationWindow&` 塞进 `IExtensionContext` 会让 `ExtensionManager` 自己的单测没法用一个廉价的假 Context（构造一整个 `ApplicationWindow` 太重），所以选了"窄接口、按需暴露具体能力"而不是"暴露整个宿主对象"，两者都比 DS 原版更具体，但保持了同一个"精简"的设计意图 |
+| Ribbon 注册的落点 | 未细化，`CRibbonRegistry` 式的声明式 API | 直接对接 YiCAD 已有的 `SARibbonBar::rightButtonGroup()`（AI 按钮原本就用这个，不是某个 tab 下的 category/pannel），`IExtensionContext::ribbon()` 只返回 `SARibbonBar&`，扩展自己 `new QAction` + `connect` + `rightButtonGroup()->addAction()` | `CRibbonRegistry` 是 DS 自己的 Ribbon 抽象层，YiCAD 没有对应物，硬建一层"扩展公用的 Ribbon 声明式 API"超出"让 ai/ 试点跑起来"的范围；`SARibbonBar` 已经是公开、够用的接口，`PluginUiAdapter` 也是直接对接它而不是先包一层 |
+| "设置页注册"机制 | 未细化——doc 只说要验证这条路径 | 全新设计：`IExtensionContext::registerSettingsPage(id, title, iconPath, open)` 收集进 `ApplicationWindowExtensionContext` 的一个 `QVector`，`createCategoryOptions()` 在原有"Application Settings"/"Draw Settings"两个 `QToolButton` 之后，对这个列表逐项建同款按钮 | 全仓没有任何"设置页注册"先例——`LLMSettingsPage`、`UIDlgOptionsGeneral`、`UIDlgOptionsDrawing` 全部是独立、直接 `exec()` 的模态 `QDialog`。没有现成模式可抄，选了"复用 Options 分类已有的按钮外观，只是数据来源从硬编码变成注册表"这个最小可行方案，没有另建一套多页设置对话框框架——那超出"验证注册路径"本身的要求 |
+| `ExtensionManager::Shutdown()` 的状态机 | 参考 DS："`Shutdown` 幂等" | 幂等之外，`Shutdown()` 额外把 `m_booted` 复位为 `false`，让管理器回到可以重新 `Register`/`BootAll` 的初始状态；去掉了原设计草稿里的 `m_shutdown` 标志（`m_extensions.empty()` 已经足够判断是否需要在析构时兜底） | 生产环境下 `Shutdown()` 只在进程退出前调用一次，复位状态对生产行为没有影响；但 `ExtensionManager` 是进程范围单例，`tests/interaction/test_extension_manager.cpp` 的多个用例要在同一个测试二进制里各自跑一遍完整生命周期，"不能重新启动"会让除第一个用例外的所有用例都失败。顺带修正一处设计草稿里的逻辑漏洞：只有真正 `BootAll` 过的扩展才配对调用 `OnShutdown()`，`Register` 了但从未启动过的扩展直接清空，不收到没有配对 `OnRegister` 的 `OnShutdown` |
+| `AIExtension` 持有 `std::unique_ptr<AIAssistant>` 触发的不完整类型问题 | 未预料到 | `AIExtension.h` 只前置声明了 `AIAssistant`，`ApplicationWindow.cpp` 调用 `std::make_unique<AIExtension>()` 时，MSVC 在该翻译单元里隐式生成 `AIExtension` 的构造/析构函数，需要 `AIAssistant` 的完整类型（哪怕只是默认构造/析构 `unique_ptr` 成员），导致 `error C2027`/`C2338`。修法是标准 pimpl 惯用法：`AIExtension` 的构造函数和析构函数都显式声明在头文件、定义挪到 `AIExtension.cpp`（那里真正 `#include "AIAssistant.h"`） | 纯粹是实现细节踩坑，不是设计决策；记录下来是因为这个模式以后每个持有"惰性/不透明子系统对象"的扩展都会遇到，值得作为约定写进 `IExtension.h` 或未来的扩展作者指南 |
+| "关闭该扩展后应用正常启动"的验证方式 | 7.5 节字面写"关闭该扩展" | 目前只能通过临时注释掉 `registerExtensions()` 里的 `ExtensionManager::instance().Register(std::make_unique<AIExtension>());` 一行、重新编译来验证——不是运行期可切换的开关 | `IExtension`/`ExtensionManager` 本身没有设计"运行期启用/禁用"的概念（DS 的参考设计也没有——`Register` 发生在启动期一次性完成）。这条验收标准的原始意图更可能是"证明扩展是可插拔的、抽掉不影响核心功能"而不是"做一个运行期开关 UI"，按前一种理解处理，如实记录不是运行期可切换 |
+
+**新增设施**
+
+- `YiCAD/src/main/extensions/IExtension.h` —— `OnRegister(IExtensionContext&)`/
+  `OnShutdown()`/`Id()`，含"`ctx` 只在调用期间保证有效，例外取决于具体
+  实现"的生命周期说明。
+- `YiCAD/src/main/extensions/IExtensionContext.h` —— `ribbon()`/
+  `mainWindow()`/`currentDocument()`/`currentDocumentView()`/
+  `registerSettingsPage()` 五个方法的窄接口。
+- `YiCAD/src/main/extensions/ExtensionManager.{h,cpp}` —— 单例；
+  `Register`/`BootAll`/`Shutdown`/`Find`；注册顺序 = 启动顺序 = 关闭反序；
+  `Shutdown` 幂等且复位状态；析构函数兜底（未 `Shutdown` 时警告并补调）。
+- `YiCAD/src/ai/AIExtension.{h,cpp}` —— 试点扩展，`Id()` 为
+  `"ext.ai"`。`OnRegister` 里：构造 `AIAssistant`；调用
+  `LLMSettingsService::instance()->init(...)`（从 `Main.cpp` 搬过来）；
+  建 AI 按钮放进 `rightButtonGroup()`，点击回调现场从存下来的
+  `IExtensionContext*` 取当前文档/视图；注册一个"AI Settings"设置页
+  入口，打开既有的 `LLMSettingsPage`。`OnShutdown` 里调用
+  `LLMSettingsService::shutdown()`——这是一个真实的既有缺陷修复：该方法
+  一直存在（`LLMSettingsService.h:79`）但全仓从未被调用过。
+- `YiCAD/src/main/ApplicationWindow.cpp` 里新增的
+  `ApplicationWindowExtensionContext`（`IExtensionContext` 的具体实现，
+  作为 `ApplicationWindow` 的成员长期存活）与
+  `ApplicationWindowSettingsPageEntry`（设置页条目的数据结构），均为
+  文件作用域的私有类型，不放进匿名命名空间——它们要跟头文件里
+  `class ApplicationWindowExtensionContext;` 的前向声明是同一个类型，
+  放进匿名命名空间会变成另一个不相关的同名类型（`ApplicationPluginHostContext`
+  已经是这个模式的既有先例，照抄）。
+- `tests/interaction/test_extension_manager.cpp` —— 5 个用例：注册顺序
+  等于启动顺序且 `Shutdown` 按反序执行、重复 Id 被拒绝、`BootAll` 之后
+  不能再注册且重复 `BootAll` 是空操作、`Shutdown` 幂等且复位后可以重新
+  注册、从未 `BootAll` 就 `Shutdown` 不会调用 `OnShutdown`。用一个只需
+  满足接口、不需要真正可用的假 `IExtensionContext`（`ribbon()` 返回测试期间
+  构造的裸 `SARibbonBar`）——`ExtensionManager` 自己的行为不依赖
+  Ribbon/文档访问器是否真的可用，这正是 `IExtensionContext` 保持窄接口
+  带来的可测试性。
+
+**影响面**
+
+- `YiCAD/CMakeLists.txt` —— `yicad_collect_sources(APP ...)` 与
+  `target_include_directories(YiCadCore ...)` 都要加
+  `src/main/extensions` 这一行——`file(GLOB)` 不递归，新目录必须显式
+  列出；两处都漏一处都会导致构建失败（先后实际踩过这两个坑）。
+  顺带修正了 6.4.1 附近一条已经过时的注释（"`ai/AIAssistant.h` 引用
+  `ApplicationWindow`/`MDIWindow`"——阶段4第一阶段就已经不成立）。
+- `YiCAD/src/main/ApplicationWindow.h`/`.cpp` —— 移除 `m_pActAI`/
+  `m_pAIAssistant` 两个成员和原先硬编码在构造函数里的 AI 按钮块；新增
+  `registerExtensions()` 私有方法（插入点：`m_pRibbon = ribbonBar()`
+  之后、三个 `addCategoryPage` 之前，因为 `createCategoryOptions()` 要
+  读扩展注册的设置页列表）；析构函数在插件关闭之前新增
+  `ExtensionManager::instance().Shutdown();`。
+- `YiCAD/src/main/Main.cpp` —— 删除 `LLMSettingsService.h` 的 include
+  与 `init()` 调用，`ai/` 从 `Main.cpp` 彻底解耦。
+
+**验收对照**
+
+| 7.5 节的验收标准 | 状态 |
+|------------------|------|
+| 新增一条绘图命令不需要修改 `src/kernel/` 下的任何文件 | 沿用第一阶段的"机制就绪"状态，未在本阶段进一步验证——`ai/` 的试点不经过 `CommandRegistry`（AI 按钮是纯对话框启动器，不构造 `ActionInterface`），没有增加新证据 |
+| `UIActionHandler.cpp` 无 `switch (actionType)` 巨型分支 | 沿用第一阶段已达成的状态，本阶段未改动 |
+| `ai/` 作为独立扩展加载，关闭该扩展后应用正常启动与绘图 | 达成，但验证方式如上表"与方案的偏差"最后一行所述——通过临时注释
+  `Register(std::make_unique<AIExtension>())` 那一行验证"抽掉不影响核心绘图能力"，不是运行期可切换的开关 |
+| 扩展的注册与卸载顺序可预测，`OnShutdown` 反序执行 | 达成，`tests/interaction/test_extension_manager.cpp` 直接断言了这一行为 |
+
+四条验收标准里，前两条沿用第一阶段状态，后两条本阶段达成。Debug/Release
+均全量构建通过，`ctest` 两个配置下全绿（含新增的 5 个
+`test_extension_manager` 用例），`check_layering.py` 通过，Release 安装
+后启动 `YiCAD.exe` 确认无启动期崩溃——**GUI 交互回归无法在本环境自动化**：
+AI 按钮是否出现在 Ribbon 右侧常驻区、点击后 `AIDialog` 是否正常弹出、
+Options 分类新增的"AI Settings"按钮是否可点、`LLMSettingsPage` 是否正常
+显示与保存，均未做人工验证，需要在有 GUI 的开发机上手工确认。
+
+任务③④完成；任务⑤（按领域推进后续扩展）留给未来会话。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移
