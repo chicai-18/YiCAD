@@ -114,8 +114,63 @@ void SelectTool::onDeactivate()
     deletePreview();
 }
 
+void SelectTool::suspend()
+{
+    m_snapService->suspend();
+    deletePreview();
+}
+
+void SelectTool::resume()
+{
+    updateButtonHints();
+    m_snapService->resume();
+    drawPreview();
+}
+
+void SelectTool::enterEvent()
+{
+    if (!hasBusinessAction())
+    {
+        resume();
+    }
+}
+
+void SelectTool::leaveEvent()
+{
+    if (!hasBusinessAction())
+    {
+        suspend();
+    }
+}
+
+DmEntity* SelectTool::pickAt(int guiX, int guiY)
+{
+    DmEntity* en = m_snapService->catchEntity(DmVector(m_docView->toGraphX(guiX), m_docView->toGraphY(guiY)));
+    if (en)
+    {
+        Selection s(m_pDocument, m_docView);
+        s.selectSingle(en);
+        GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+    }
+    return en;
+}
+
+bool SelectTool::hasBusinessAction() const
+{
+    if (!m_docView)
+    {
+        return false;
+    }
+    GuiEventHandler* handler = m_docView->getEventHandler();
+    return handler && handler->hasAction();
+}
+
 void SelectTool::updateButtonHints() const
 {
+    if (hasBusinessAction())
+    {
+        return;
+    }
     switch (m_status)
     {
     case Neutral:
@@ -146,19 +201,13 @@ std::optional<DM::CursorType> SelectTool::cursorForStatus() const
 
 std::optional<DM::CursorType> SelectTool::getCursor() const
 {
-    // 有其它业务 Action 正活动时，光标由它自己直接调用 setMouseCursor()
+    // 有业务 Action 正活动时，光标由它自己直接调用 setMouseCursor()
     // 决定（105 个 Action 尚未改造，见阶段2 5.7 节），选择层在仲裁通道里
     // 保持沉默，不能用自己的偏好覆盖它们。这次查询不影响 setStatus()/
     // init() 的直接调用——那两处用的是不受这条限制约束的 cursorForStatus()。
-    if (m_docView)
+    if (hasBusinessAction())
     {
-        if (GuiEventHandler* handler = m_docView->getEventHandler())
-        {
-            if (handler->hasAction())
-            {
-                return std::nullopt;
-            }
-        }
+        return std::nullopt;
     }
     return cursorForStatus();
 }
@@ -206,8 +255,7 @@ ViewToolResult SelectTool::mouseMoveEvent(QMouseEvent* e)
     if (m_panTool && m_panTool->isPanning())
     {
         // 导航层正在平移中，让路——否则选择层会在移动事件上抢在导航层
-        // 结束这次平移之前把事件处理掉。见头部说明与 LegacyActionTool
-        // 里同样的判断。
+        // 结束这次平移之前把事件处理掉。见头部说明。
         return ViewToolResult::NotHandled;
     }
 
@@ -321,6 +369,12 @@ ViewToolResult SelectTool::mouseMoveEvent(QMouseEvent* e)
 
 ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
 {
+    if (e->button() == Qt::MiddleButton)
+    {
+        // 中键平移属于导航层（PanZoomTool），选择层让路。
+        return ViewToolResult::NotHandled;
+    }
+
     if (e->button() == Qt::LeftButton)
     {
         switch (m_status)
@@ -329,9 +383,7 @@ ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
             if (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))
             {
                 // Ctrl/Meta+左键从 Neutral 状态发起是导航层的平移手势
-                // （见 PanZoomTool），选择层让路。业务层已经在没有业务
-                // Action 活动时对这个组合让过一次路（LegacyActionTool::
-                // wantsPress），本类只有在那之后才可能真正收到这次按下。
+                // （见 PanZoomTool），选择层让路。
                 return ViewToolResult::NotHandled;
             }
             m_points.v1 = m_docView->toGraph(e->x(), e->y());

@@ -18,36 +18,30 @@
 /// @file SelectTool.h
 /// @brief 选择工具：点选/框选/交叉选，以及拖拽实体与夹点
 ///
-/// 从 `ActionDefault` 抽出（阶段2 第5.4节第3项），吸收其原本的
-/// `Neutral`/`Dragging`/`SetCorner2`/`Moving`/`MovingRef` 五个状态。
-/// `ActionDefault` 现在是本类的一个薄适配器：真正的状态机搬到这里，
-/// 得以脱离 Action 体系（`ActionInterface`/`QObject`）单独构造与单测。
+/// 从原 `ActionDefault` 抽出（阶段2 第5.4节第3项），吸收其
+/// `Neutral`/`Dragging`/`SetCorner2`/`Moving`/`MovingRef` 五个状态，
+/// 脱离 Action 体系（`ActionInterface`/`QObject`）单独构造与单测。
 ///
-/// 未把 `Moving`/`MovingRef` 拆成方案里提到的独立 `GripEditTool`——
-/// 三者共享同一次拖拽手势：鼠标刚按下时还不知道最终是框选还是拖动
-/// 实体/夹点，要等 `Dragging` 状态下移动超过阈值后才能判定。拆成两个
-/// 类需要在它们之间转移这次"未决"的拖拽状态，边界不清晰而收益有限，
-/// 遂保留在同一个类里；方案本身也把这个拆分标注为"评估后决定"。
+/// 未把 `Moving`/`MovingRef` 拆成独立的 `GripEditTool`：三者共享同一次
+/// 拖拽手势，鼠标刚按下时还不知道最终是框选还是拖动实体/夹点，要等
+/// `Dragging` 状态下移动超过阈值后才能判定，拆开需要在两个类之间转移
+/// 这次"未决"的拖拽状态。
 ///
-/// 现已注册为 `ViewToolControl` 的选择层（阶段2第6项 `LegacyActionTool`
-/// 落地之后）。这带来两处必须的额外判断，都是"选择层现在要直接与导航层、
-/// 业务层竞争优先级"的自然结果：
-///   - `mousePressEvent` 的 `Neutral` 分支要在 Ctrl/Meta+左键时让路给
-///     导航层（`PanZoomTool` 的平移手势）——这个判断在阶段2第一轮里被
-///     挪到了 `GuiDocumentView`/`LegacyActionTool`，选择层若不重新声明，
-///     会在导航层之前把这次按下错当成框选/点选的起点抢走。
-///   - `mouseMoveEvent`/`mouseReleaseEvent` 在导航层正在平移
-///     （`PanZoomTool::isPanning()`）时也要主动让路，否则会在平移的
-///     移动/释放事件上抢在导航层结束这次平移之前把事件处理掉。
+/// 由交互视图 `UIView`（view/UIView.h）持有（连同捕捉器与预览容器），注册为
+/// `ViewToolControl` 的选择层。没有旧版业务 Action 活动时，`LegacyActionTool`
+/// 整体让路，空闲态事件直接落到本类（doc/COMMAND_TOOL_MIGRATION_PLAN.md
+/// 第一步）。与导航层竞争优先级的三处让路：
+///   - 中键按下：平移属于导航层（`PanZoomTool`）；
+///   - `Neutral` 状态下的 Ctrl/Meta+左键：导航层的平移手势；
+///   - 导航层平移中（`PanZoomTool::isPanning()`）的移动与释放。
 ///
-/// `getCursor()` 在"有其它业务 Action 正活动"（`docView->getEventHandler()
-/// ->hasAction()`）时返回 `nullopt`：那些 Action 仍然通过
-/// `updateMouseCursor()` 直接调用 `setMouseCursor()`（105 个未改造，见
-/// 5.7 节"与方案的偏差"），选择层不应该用自己的偏好覆盖它们。
-/// `setStatus()`/`init()` 仍然保留直接调用 `setMouseCursor()`——这是
-/// `ActionBlocksEdit`/`ActionModifyMText` 通过 `getDefaultAction()`
-/// 复用本类时唯一还在起作用的光标更新路径（那时 `hasAction()` 为真，
-/// `getCursor()` 的仲裁通道按上一条规则保持沉默）。
+/// 有旧版业务 Action 活动时，本类只收到该 Action 经
+/// `ActionInterface::passesToSelection()` 交下来的事件（块编辑、多行文字
+/// 属性编辑时的双击）。此时 `getCursor()` 返回 `nullopt`、按键提示也不
+/// 更新：光标与提示归那个 Action 管（它仍通过 `updateMouseCursor()`/
+/// `updateMouseButtonHints()` 直接设置，见主计划 5.7 节）。`setStatus()`/
+/// `init()` 仍直接调用 `setMouseCursor()`，块编辑中拖动实体时的光标反馈
+/// 靠这条路径。
 
 #ifndef SELECTTOOL_H
 #define SELECTTOOL_H
@@ -79,16 +73,30 @@ public:
 
     /// @param doc 文档指针
     /// @param docView 文档视图指针
-    /// @param snapService 非持有指针，与拥有者（`ActionDefault`）共享
-    ///                     同一个捕捉器实例，保证捕捉模式/捕捉结果一致
-    /// @param preview 非持有指针，与拥有者共享同一个预览容器
+    /// @param snapService 非持有指针，由视图持有；空闲态的捕捉提示也读它
+    /// @param preview 非持有指针，由视图持有的预览容器
     /// @param panTool 非持有指针，可为空；用于查询导航层是否正在平移中，
-    ///                 为空时视为"从不平移"（当前语义不变）
+    ///                 为空时视为"从不平移"
     SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
                PanZoomTool* panTool = nullptr);
 
-    /// @brief 复位到 Neutral，供 `ActionDefault::init()` 调用
+    /// @brief 复位到 Neutral：清除预览与捕捉点，重新初始化捕捉器
+    /// @note 结束全部命令（`GuiEventHandler::killAllActions()`）时调用
     void init();
+
+    /// @brief 挂起：清除预览与捕捉点
+    /// @note 旧版业务 Action 从空闲态启动、或空闲态下鼠标离开画布时调用
+    void suspend();
+    /// @brief 恢复：刷新按键提示，重绘预览与捕捉点
+    /// @note 回到空闲态、或空闲态下鼠标回到画布时调用
+    void resume();
+
+    /// @brief 单点拾取：切换画布坐标处最近实体的选中状态，并刷新选择计数
+    /// @param guiX 画布像素 X 坐标
+    /// @param guiY 画布像素 Y 坐标
+    /// @return 拾取到的实体；未命中返回 nullptr
+    /// @note 手写板橡皮擦用，取代原 `ActionSelectSingle`
+    DmEntity* pickAt(int guiX, int guiY);
 
     ViewToolResult mousePressEvent(QMouseEvent* e) override;
     ViewToolResult mouseReleaseEvent(QMouseEvent* e) override;
@@ -97,13 +105,15 @@ public:
     ViewToolResult keyPressEvent(QKeyEvent* e) override;
     ViewToolResult keyReleaseEvent(QKeyEvent* e) override;
 
+    /// @brief 空闲态下鼠标进入画布时恢复；有业务 Action 时由它自己恢复
+    void enterEvent() override;
+    /// @brief 空闲态下鼠标离开画布时挂起；有业务 Action 时由它自己挂起
+    void leaveEvent() override;
+
     std::optional<DM::CursorType> getCursor() const override;
 
     void onActivate() override;
     void onDeactivate() override;
-
-    /// @brief 更新鼠标按钮提示文本，供 `ActionDefault::updateMouseButtonHints()` 调用
-    void updateButtonHints() const;
 
     int getStatus() const { return m_status; }
 
@@ -118,10 +128,15 @@ private:
     void deletePreview();
     void drawPreview();
 
-    /// @brief 状态到光标的原始映射，不考虑是否有其它业务 Action 活动。
-    /// `setStatus()`/`init()` 的直接调用用这个（不受 `getCursor()` 的
-    /// `hasAction()` 让路判断影响，见头部说明）；`getCursor()` 在此基础上
-    /// 叠加让路判断。
+    /// @brief 更新鼠标按钮提示；有业务 Action 活动时不更新，见头部说明
+    void updateButtonHints() const;
+
+    /// @brief 是否有旧版业务 Action 活动（视图的 `GuiEventHandler::hasAction()`）
+    bool hasBusinessAction() const;
+
+    /// @brief 状态到光标的原始映射，不考虑是否有业务 Action 活动。
+    /// `setStatus()`/`init()` 的直接调用用这个；`getCursor()` 在此基础上
+    /// 叠加让路判断，见头部说明。
     std::optional<DM::CursorType> cursorForStatus() const;
 
     DmDocument* m_pDocument = nullptr;

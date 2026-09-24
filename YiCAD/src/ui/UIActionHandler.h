@@ -60,8 +60,6 @@ public:
     void setMdiArea(QMdiArea* m);
     void setUITabDrawWidget(UITabDrawWidget* tabDrawWidget);
 
-    /// @brief Kills all running selection actions. Called when a selection action is launched to reduce confusion.
-    void killSelectActions();
     /// @brief killAllActions kill all actions
     void killAllActions();
 

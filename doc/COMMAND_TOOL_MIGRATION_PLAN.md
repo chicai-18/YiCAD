@@ -326,8 +326,9 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
    - 枚举只保留仍有非命令用途的值，没有则整个删除。
 4. **分层检查**：`tools/check_layering.py` 增加"命令与工具不得包含 `ui/`、`main/`
    头文件"的检查。
-5. **目录**：`src/actions/` 目录更名（候选 `src/commands/`），同步 CMake 分区与
-   `check_layering.py`。
+5. **目录**：`src/actions/` 目录更名（候选 `src/commands/`），`kernel/actions/` 同样
+   更名（候选 `kernel/interaction/`，与分区名 `YiCadInteraction` 一致），名称届时再定；
+   同步 CMake 分区与 `check_layering.py`。
 
 ## 7. 验收标准
 
@@ -374,3 +375,107 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
   影响范围。
 
 **工作量**：XL。
+
+## 9. 执行结果
+
+### 9.1 第一步（2026-09-24）
+
+按第 6 节第一步的 8 项落地：
+
+1. **交互回归清单**：`doc/INTERACTION_CHECKLIST.md`，按空闲态选择、键盘与导航、
+   先选后建、块编辑、手写板橡皮擦、多行文字分节，期望写现有行为；第 7 节登记各步
+   有意的行为变化。
+2. **`SelectTool` 由视图持有**：对照 DS 的 `HQWidget`/`UIView`，把 `GuiDocumentView`
+   拆成两层（见下文偏差 7）。交互视图 `UIView`（`src/view/`）持有 `ViewToolControl`、
+   `PanZoomTool`、`LegacyActionTool` 与 `SelectTool` 及其 `Snapper`、`Preview`；
+   `setDefaultSnapMode`/`setSnapRestriction` 由 `UIView` 覆写，同步给这个捕捉器（它是
+   捕捉器的拥有者，没有经 `GuiEventHandler` 转一道）。鼠标离开/进入画布由
+   `IViewTool::leaveEvent`/`enterEvent` 承接：`SelectTool` 只在空闲态挂起/恢复，
+   `LegacyActionTool` 把它们转给栈顶业务 Action。
+3. **`LegacyActionTool` 整体让路**：没有业务 Action 时全部事件返回 `NotHandled`；
+   原先的"空闲态 Ctrl+左键让路"并入这条规则。
+4. **键盘改走 `ViewToolControl`**：`ApplicationWindow` 的 Esc/空格交给
+   `GuiDocumentView::processKeyEvent()`（对应 DS 的 `HQWidget::processKeyEvent`），由
+   `UIView` 覆写为经 `ViewToolControl` 分发；回车（`GuiDocumentView::enter()`）改为
+   合成按键交给 `processKeyEvent()`，`GuiEventHandler::enter()` 随之删除。画布自己的
+   `keyPressEvent`/`keyReleaseEvent`、左键双击、滚轮缩放后补发的移动也改走
+   `ViewToolControl`。
+5. **让路钩子**：`ActionInterface::passesToSelection(const QEvent*)`，见下文偏差 1。
+6. **删除 `ActionDefault`**：连同 `GuiEventHandler`/`GuiDocumentView` 的默认 Action
+   成员与存取方法、`ActionInterface::finish()` 的特判、`inSelectionMode()`。
+   `getCurrentAction()` 空闲态返回 `nullptr`，调用方逐一核对：
+   - 画布的捕捉标记与捕捉提示：改为读虚函数 `currentSnapResult()`/`currentSnapSpot()`，
+     基类返回"无捕捉"，`UIView` 覆写为有业务 Action 时读它的捕捉器、空闲态读选择层的；
+   - 释放后的 `updateMouseCursor()`、`UICommandWidget::appCmdTempText`：已判空，
+     原先默认 Action 的对应实现本就是空操作或空说明，行为不变；
+   - `UIActionHandler::getAvailableCommands()`：空闲态返回值从空列表变为
+     `line`/`rectangle`，但全仓库没有调用方；
+   - `Snapper::finishOrthogonal()`、`ActionDrawEllipseAxis`：只在业务 Action 内部调用，
+     此时必有当前 Action。
+7. **删除 `ActionSelectSingle`**：删除 `select.single` 注册；手写板橡皮擦改用
+   `SelectTool::pickAt()`；`killSelectActions()` 连同 `IDocumentView`、
+   `UIActionHandler` 上的同名方法与 3 处调用删除；两个枚举值与 `Commands.cpp` 映射
+   按计划保留到第四步。
+8. **测试**：`test_select_tool` 新增 12 例（中键让路、单点拾取、有业务 Action 时不更新
+   提示、只在空闲态挂起恢复，以及按 `UIView` 装配、经 `ViewToolControl`
+   分发的 8 例空闲态鼠标、键盘用例）；`test_legacy_action_tool` 改为用记录事件的探针
+   Action，覆盖整体让路、转发、钩子、转发前询问与进入/离开；`test_command_registry`
+   删除 `select.single` 用例；`FakeDocumentView` 同步。
+
+**与方案的偏差与补充**
+
+1. **钩子的语义是"处理后继续下传"，不是"不交给 Action"**。`passesToSelection()`
+   在转发前询问（`GuiEventHandler` 转发释放后会 `cleanUp()`，结束了的 Action 此时已被
+   删除）；为真时照常转给 Action，再返回 `NotHandled`。原因有二：
+   - `ActionModifyMText` 双击时要先取消选择、结束自己，再由选择层进入文字编辑，这件事
+     留在它自己的 `mouseDoubleClickEvent` 里，钩子保持为纯查询；
+   - 块编辑下 `GuiEventHandler` 在释放后照常 `cleanUp()`，恢复块编辑的提示与选项条，
+     与原先经默认 Action 转发时一致。
+
+   钩子不是 `const`：`ActionInterface::getStatus()` 不是 `const`。
+2. **空闲态的三处切换由 `GuiEventHandler` 调选择层**。原默认 Action 靠
+   `GuiEventHandler` 的 `suspend`/`resume`/`init` 完成：旧 Action 从空闲态启动时挂起、
+   回到空闲态时恢复（刷新按键提示）、`killAllActions()` 复位。现由
+   `GuiEventHandler::setSelectTool()` 登记的非持有指针在原位置调用
+   `SelectTool::suspend()`/`resume()`/`init()`，第四步随 `GuiEventHandler` 删除。
+   排他命令（文件新建、打开等）经 `killAllActions()` 复位选择层的行为因此保持不变。
+3. **有业务 Action 时 `SelectTool` 不更新按键提示**，与 `getCursor()` 已有的规则一致。
+   否则块编辑下选择层回到 `Neutral` 时会清空提示，而 `cleanUp()` 在它之前运行，
+   "Edit block entities"提示不再恢复。副作用：块编辑中拖框、拖动实体时提示不再短暂
+   清空（清单第 7 节）。
+4. **修复中键平移**。`SelectTool::mousePressEvent` 对左、右键以外的按下一律返回
+   `Handled`，把 `LegacyActionTool` 让出的中键吞在选择层，导航层收不到按下——37ac325
+   把 `SelectTool` 注册为选择层时引入，空闲态和命令中的中键平移都失效。现在
+   `SelectTool` 对中键返回 `NotHandled`，由 `PanZoomTool` 处理；只放中键，其它按键
+   （如 XButton）仍由选择层接住，否则会被导航层当成平移起点。回归测试去掉修复后失败
+   3 例。
+5. **Shift 不转发**。第 6 节第 4 项说不改的话"空闲态的 Esc、Shift 到不了
+   `SelectTool`"，实测改动前 Shift 也到不了：`ApplicationWindow` 只转发 Esc/空格、
+   不转发按键释放，画布拿不到焦点；`Snapper::setSnapRestriction()` 本身也是空实现。
+   保持不转发。
+6. **橡皮擦不再压 Action**。原流程临时压入 `ActionSelectSingle` 会挂起当前命令，
+   直到下一次 `cleanUp()`；现在直接拾取，不影响当前命令。拾取仍是切换选中、随后删除
+   整个选择集（清单 E2–E4 的既有行为）。
+7. **`GuiDocumentView` 拆成画布与交互视图两层**（2026-09-24 确认，对照 DS 的
+   `HQWidget`/`UIView`）。方案原写"`GuiDocumentView` 直接持有 `SelectTool`"；但
+   `GuiDocumentView` 在 `kernel/gui/`（`YiCadRender`），按主计划 6.3 节不应认识交互层
+   类型，主计划 6.7 节已把它 new 工具记为第一处双向依赖。现在：
+   - `GuiDocumentView` 只留渲染与视图状态，不再包含任何交互层工具或 Action 头文件；
+     新增 `processKeyEvent()`（对应 DS 的 `HQWidget::processKeyEvent`）与捕捉结果的
+     两个虚函数，基类实现都是"无交互层"；
+   - `UIView`（`src/view/`，对应 DS 的 `View/`；沿用 DS 类名，`UI*` 前缀与所属的
+     `YiCadUi` 分区一致）继承它，
+     持有 `ViewToolControl` 与三层工具，接收全部 Qt 输入事件，滚轮缩放
+     （`ActionZoomIn`）与橡皮擦删除（`ActionModifyDelete`）也随之移过来；
+   - `MDIWindow` 创建 `UIView`；导出 PDF 用的临时无文档视图仍是基类，不需要交互；
+   - 与 DS 的区别：DS 的 `EditTool`、`ExclusiveCommandBus` 以 `UIView*` 构造，工具层
+     反过来认识派生类。YiCAD 的内核禁止包含 `UI*` 头文件（`check_layering.py`），
+     命令与工具只能经 `IDocumentView`/`GuiDocumentView` 认识视图；第二步的总线也照此
+     设计，由 `UIView` 持有；
+   - `GuiEventHandler` 暂留基类：`IDocumentView` 的 `getEventHandler()`/
+     `setCurrentAction()`/`getCurrentAction()` 要求画布实现，第四步随它一起删除。
+     `GuiEventHandler` 包含 `ActionInterface.h`，所以 6.7 节那处依赖在第四步才完全解开。
+
+**验证**：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
+76 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对，
+核对结果记入清单第 8 节。

@@ -30,8 +30,6 @@
 #include "DmDocument.h"
 #include "DmMText.h"
 #include "IDocumentView.h"
-#include "GuiEventHandler.h"
-#include "MDIWindow.h"
 #include "Transaction.h"
 #include "UIMTextModifyOptions.h"
 
@@ -103,7 +101,7 @@ void ActionModifyMText::mouseReleaseEvent(QMouseEvent* e)
     docView->emitSelectedChanged();
 }
 
-/// @brief 鼠标双击事件处理
+/// @brief 鼠标双击事件处理：取消选择并结束，随后由选择层进入编辑
 /// @param [in] e 鼠标事件指针
 void ActionModifyMText::mouseDoubleClickEvent(QMouseEvent* e)
 {
@@ -112,9 +110,14 @@ void ActionModifyMText::mouseDoubleClickEvent(QMouseEvent* e)
         m_pMText->setSelected(false);
     }
     finish();
-    // 触发双击编辑
-    auto defAction = ApplicationWindow::getAppWindow()->getMDIWindow()->getEventHandler()->getDefaultAction();
-    defAction->mouseDoubleClickEvent(e);
+}
+
+/// @brief 双击在本 Action 结束后继续交给选择层，由它进入多行文字编辑
+/// @param [in] e 即将转发给本 Action 的事件
+/// @return 双击时为 true
+bool ActionModifyMText::passesToSelection(const QEvent* e)
+{
+    return e->type() == QEvent::MouseButtonDblClick;
 }
 
 /// @brief 如果多行文字内容为空，更新其内容

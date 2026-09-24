@@ -35,7 +35,7 @@ PanZoomTool::PanZoomTool(IDocumentView* docView)
 
 ViewToolResult PanZoomTool::mousePressEvent(QMouseEvent* e)
 {
-    // 是否算作一次平移手势由调用方（GuiDocumentView）判断后才会转发到这里，
+    // 是否算作一次平移手势由上层工具让路来表达（见头文件），
     // 本类只管接受并记录起点。
     m_panning = true;
     m_panButton = e->button();

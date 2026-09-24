@@ -60,7 +60,6 @@ void ActionEditCopy::trigger()
 
     // docView->redraw();
     finish(false);
-    docView->killSelectActions();
     // init(getStatus()-1);
     GUIDIALOGFACTORY->updateSelectionWidget(pDocument->getEntityTable()->countSelect());
 }

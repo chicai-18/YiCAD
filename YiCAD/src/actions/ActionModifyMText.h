@@ -114,9 +114,14 @@ public:
     /// @param [in] e 鼠标事件指针
     void mouseReleaseEvent(QMouseEvent* e) override;
 
-    /// @brief 鼠标双击事件处理
+    /// @brief 鼠标双击事件处理：取消选择并结束，随后由选择层进入编辑
     /// @param [in] e 鼠标事件指针
     void mouseDoubleClickEvent(QMouseEvent* e) override;
+
+    /// @brief 双击在本 Action 结束后继续交给选择层，由它进入多行文字编辑
+    /// @param [in] e 即将转发给本 Action 的事件
+    /// @return 双击时为 true
+    bool passesToSelection(const QEvent* e) override;
 
 private:
     /// @brief 如果多行文字内容为空，更新其内容

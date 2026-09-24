@@ -98,7 +98,6 @@ public:
 
     void setCurrentAction(ActionInterface*) override {}
     ActionInterface* getCurrentAction() override { return nullptr; }
-    void killSelectActions() override {}
     void emitSelectedChanged() override {}
 
     void enableCoordinateInput() override {}

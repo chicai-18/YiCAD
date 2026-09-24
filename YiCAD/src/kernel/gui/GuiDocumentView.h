@@ -52,9 +52,6 @@ class DmEntityContainer;
 class GuiEventHandler;
 class GuiCommandEvent;
 class GuiGrid;
-class ViewToolControl;
-class PanZoomTool;
-class LegacyActionTool;
 
 namespace opengl
 {
@@ -62,7 +59,9 @@ class GLPainter;
 }
 
 /// @brief 文档的画布
-/// @details 包括4层：背景层，文档层，预览层，前景层
+/// @details 包括4层：背景层，文档层，预览层，前景层。本类只负责渲染与视图状态，
+///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（view/UIView.h）
+///          接收并交给 ViewToolControl 分发，对应 DS 的 HQWidget 与 UIView 之分。
 class GuiDocumentView : public QOpenGLWidget, public IDocumentView
 {
     Q_OBJECT
@@ -97,26 +96,26 @@ public:
     /// @return 单位设备坐标对应的世界坐标
     DmVector getFactor() const override;
 
-    /// @brief 设置默认操作
-    void setDefaultAction(ActionInterface* action);
-    /// @brief 获取默认操作
-    ActionInterface* getDefaultAction();
     /// @brief 设置当前操作
     void setCurrentAction(ActionInterface* action) override;
     /// @brief 获取当前操作
+    /// @return 栈顶业务 Action；空闲态返回 nullptr
     ActionInterface* getCurrentAction() override;
 
-    /// @brief 终止选择类操作
-    void killSelectActions() override;
-    /// @brief 终止所有操作
+    /// @brief 终止所有操作，并复位选择层
     void killAllActions();
     /// @brief 发出选择变更信号
     void emitSelectedChanged() override;
 
     /// @brief 后退
     void back();
-    /// @brief 前进/确认
+    /// @brief 前进/确认：合成一次回车按下，交给 processKeyEvent()
     void enter();
+
+    /// @brief 处理主窗口转交的按键（有文档时画布不直接接收键盘事件）
+    /// @param e 按键事件；是否被接受由处理者设置在事件上
+    /// @return 被交互层处理时返回 true；本类没有交互层，忽略事件并返回 false
+    virtual bool processKeyEvent(QKeyEvent* e);
 
     /// @brief 处理命令事件
     void commandEvent(GuiCommandEvent* e);
@@ -251,6 +250,8 @@ public:
     DmRect getViewRect() override;
 
     void setStrDevice(const QString& strDevice);
+    /// @brief 输入设备名称（"Mouse"/"Trackpad"），决定滚轮的解释方式
+    const QString& getStrDevice() const;
     void setIsDrawCursor(const bool& isDrawCursor) override;
 
 protected:
@@ -258,18 +259,18 @@ protected:
     void paintGL() override;
     void resizeGL(int w, int h) override;
 
-    void mousePressEvent(QMouseEvent* e) override;
-    void mouseDoubleClickEvent(QMouseEvent* e) override;
-    void mouseReleaseEvent(QMouseEvent* e) override;
+    /// @brief 记录鼠标的世界坐标（绘制十字光标用）；派生类先调用本函数再分发
     void mouseMoveEvent(QMouseEvent* e) override;
-    void tabletEvent(QTabletEvent* e) override;
-    void leaveEvent(QEvent* e) override;
-    void enterEvent(QEvent* e) override;
-    void focusInEvent(QFocusEvent* e) override;
     void focusOutEvent(QFocusEvent* e) override;
-    void wheelEvent(QWheelEvent* e) override;
-    void keyPressEvent(QKeyEvent* e) override;
-    void keyReleaseEvent(QKeyEvent* e) override;
+
+    /// @brief 当前捕捉结果，决定捕捉标记与捕捉提示；本类没有捕捉器，返回 SnapNone
+    virtual SnapResultType currentSnapResult();
+    /// @brief 当前捕捉点，与 currentSnapResult() 取自同一个捕捉器
+    virtual DmVector currentSnapSpot();
+
+    /// @brief 按 currentSnapResult() 显示或隐藏捕捉类型提示
+    /// @param pos 鼠标的画布坐标，提示显示在它右下方
+    void updateSnapTooltip(const QPoint& pos);
 
 private slots:
     void hideSnapTooltip();
@@ -280,15 +281,7 @@ private:
 
 protected:
     DmDocument*                         pDocument;              ///< 文档实体容器
-    GuiEventHandler*                    eventHandler;           ///< 事件处理器
-    // 注意声明顺序：成员按声明的逆序析构。m_pViewToolControl 析构时会
-    // 向业务/导航工具发 onDeactivate() 通知，被它引用的
-    // m_pLegacyActionTool、m_pPanZoomTool 都必须先声明（从而后析构）；
-    // m_pLegacyActionTool 自身又持有指向 m_pPanZoomTool 的裸指针，
-    // 因此 m_pPanZoomTool 还要声明在 m_pLegacyActionTool 之前。
-    std::unique_ptr<PanZoomTool>        m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
-    std::unique_ptr<LegacyActionTool>   m_pLegacyActionTool;    ///< 业务层：包装 eventHandler（阶段2第6项）
-    std::unique_ptr<ViewToolControl>    m_pViewToolControl;     ///< 交互层工具控制器（阶段2）
+    GuiEventHandler*                    eventHandler;           ///< 旧版 Action 栈，第四步删除
 
     QColor                              background;             ///< 背景色
     QColor                              foreground;             ///< 前景色

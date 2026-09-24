@@ -22,6 +22,7 @@
 
 #include <QMouseEvent>
 
+#include "ActionInterface.h"
 #include "GuiEventHandler.h"
 #include "PanZoomTool.h"
 
@@ -31,29 +32,35 @@ LegacyActionTool::LegacyActionTool(GuiEventHandler* handler, PanZoomTool* panToo
 {
 }
 
-bool LegacyActionTool::wantsPress(QMouseEvent* e) const
+LegacyActionTool::Route LegacyActionTool::routeOf(const QEvent* e) const
 {
-    if (e->button() == Qt::MiddleButton)
+    if (!m_handler->hasAction())
     {
-        return false;
+        return Route::Skip;
     }
-    if (e->button() == Qt::LeftButton
-        && (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))
-        && !m_handler->hasAction())
-    {
-        return false;
-    }
-    return true;
+    // 与 GuiEventHandler 的分发对象一致：有业务 Action 时即栈顶
+    ActionInterface* action = m_handler->getCurrentAction();
+    return action->passesToSelection(e) ? Route::ForwardAndPass : Route::Forward;
+}
+
+ViewToolResult LegacyActionTool::resultOf(Route route)
+{
+    return route == Route::ForwardAndPass ? ViewToolResult::NotHandled : ViewToolResult::Handled;
 }
 
 ViewToolResult LegacyActionTool::mousePressEvent(QMouseEvent* e)
 {
-    if (!wantsPress(e))
+    if (e->button() == Qt::MiddleButton)
+    {
+        return ViewToolResult::NotHandled;
+    }
+    const Route route = routeOf(e);
+    if (route == Route::Skip)
     {
         return ViewToolResult::NotHandled;
     }
     m_handler->mousePressEvent(e);
-    return ViewToolResult::Handled;
+    return resultOf(route);
 }
 
 ViewToolResult LegacyActionTool::mouseReleaseEvent(QMouseEvent* e)
@@ -62,8 +69,15 @@ ViewToolResult LegacyActionTool::mouseReleaseEvent(QMouseEvent* e)
     {
         return ViewToolResult::NotHandled;
     }
+    // 转发前决定去向：GuiEventHandler 转发释放后会 cleanUp()，
+    // 已结束的栈顶 Action 在那时被删除。
+    const Route route = routeOf(e);
+    if (route == Route::Skip)
+    {
+        return ViewToolResult::NotHandled;
+    }
     m_handler->mouseReleaseEvent(e);
-    return ViewToolResult::Handled;
+    return resultOf(route);
 }
 
 ViewToolResult LegacyActionTool::mouseMoveEvent(QMouseEvent* e)
@@ -72,24 +86,54 @@ ViewToolResult LegacyActionTool::mouseMoveEvent(QMouseEvent* e)
     {
         return ViewToolResult::NotHandled;
     }
+    const Route route = routeOf(e);
+    if (route == Route::Skip)
+    {
+        return ViewToolResult::NotHandled;
+    }
     m_handler->mouseMoveEvent(e);
-    return ViewToolResult::Handled;
+    return resultOf(route);
 }
 
 ViewToolResult LegacyActionTool::mouseDoubleClickEvent(QMouseEvent* e)
 {
+    const Route route = routeOf(e);
+    if (route == Route::Skip)
+    {
+        return ViewToolResult::NotHandled;
+    }
     m_handler->mouseDoubleClickEvent(e);
-    return ViewToolResult::Handled;
+    return resultOf(route);
 }
 
 ViewToolResult LegacyActionTool::keyPressEvent(QKeyEvent* e)
 {
+    const Route route = routeOf(e);
+    if (route == Route::Skip)
+    {
+        return ViewToolResult::NotHandled;
+    }
     m_handler->keyPressEvent(e);
-    return ViewToolResult::Handled;
+    return resultOf(route);
 }
 
 ViewToolResult LegacyActionTool::keyReleaseEvent(QKeyEvent* e)
 {
+    const Route route = routeOf(e);
+    if (route == Route::Skip)
+    {
+        return ViewToolResult::NotHandled;
+    }
     m_handler->keyReleaseEvent(e);
-    return ViewToolResult::Handled;
+    return resultOf(route);
+}
+
+void LegacyActionTool::enterEvent()
+{
+    m_handler->mouseEnterEvent();
+}
+
+void LegacyActionTool::leaveEvent()
+{
+    m_handler->mouseLeaveEvent();
 }

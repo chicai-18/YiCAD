@@ -38,7 +38,7 @@
 #include "DmBlockReference.h"
 #include "DmMText.h"
 #include "DmPen.h"
-#include "GuiDocumentView.h"
+#include "UIView.h"
 #include "Debug.h"
 
 int MDIWindow::idCounter = 0;
@@ -64,7 +64,7 @@ MDIWindow::MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags)
         owner = false;
     }
 
-    docView = new GuiDocumentView(this, Qt::WindowFlags(), document);
+    docView = new UIView(this, Qt::WindowFlags(), document);
     docView->setObjectName("documentview");
 
     setWidget(docView);

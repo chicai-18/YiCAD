@@ -46,15 +46,6 @@ UIActionHandler::UIActionHandler(QObject* parent)
 }
 
 
-// Kills all running selection actions. Called when a selection action is launched to reduce confusion.
-void UIActionHandler::killSelectActions()
-{
-	if (m_pView)
-	{
-		m_pView->killSelectActions();
-	}
-}
-
 void UIActionHandler::killAllActions()
 {
 

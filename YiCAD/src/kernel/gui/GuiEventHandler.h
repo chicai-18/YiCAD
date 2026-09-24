@@ -26,6 +26,7 @@
 #include "DmVector.h"
 
 class ActionInterface;
+class SelectTool;
 class QAction;
 class QMouseEvent;
 class QKeyEvent;
@@ -35,7 +36,9 @@ class DmVector;
 struct SnapMode;
 
 /// @brief GUI 事件处理器
-/// @details 拥有并管理所有当前活跃的操作。所有从视图到操作的事件都通过此类传递。
+/// @details 拥有并管理所有当前活跃的旧版业务 Action。视图的事件经
+///          LegacyActionTool 转到这里；没有业务 Action 时事件不经过本类，
+///          直接由选择层 SelectTool 处理（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步）。
 class GuiEventHandler : public QObject
 {
     Q_OBJECT
@@ -51,8 +54,6 @@ public:
 
     /// @brief 后退操作
     void back();
-    /// @brief 前进/确认操作
-    void enter();
 
     /// @brief 处理鼠标按下事件
     void mousePressEvent(QMouseEvent* e);
@@ -79,23 +80,23 @@ public:
     /// @brief 禁用坐标输入
     void disableCoordinateInput();
 
-    /// @brief 设置默认操作
-    void setDefaultAction(ActionInterface* action);
-    /// @brief 获取默认操作
-    ActionInterface* getDefaultAction() const;
+    /// @brief 设置空闲态的选择层，由视图持有
+    /// @details 原默认 Action 承担的三处空闲态切换改由它完成：业务 Action 从空闲态
+    ///          启动时挂起、回到空闲态时恢复、killAllActions() 时复位。
+    /// @param tool 非持有，可为空（没有文档的视图）
+    void setSelectTool(SelectTool* tool);
 
     /// @brief 设置当前操作
     void setCurrentAction(ActionInterface* action);
     /// @brief 获取当前操作
+    /// @return 栈顶业务 Action；没有业务 Action 时返回 nullptr
     ActionInterface* getCurrentAction();
     /// @brief 获取当前操作数量
     int getCurrentActionNum();
     /// @brief 检查操作是否有效
     bool isValid(ActionInterface* action) const;
 
-    /// @brief 终止选择类操作
-    void killSelectActions();
-    /// @brief 终止所有操作
+    /// @brief 终止所有操作，并复位选择层
     void killAllActions();
 
     QList<ActionInterface*>& getCurrentActionsRef();
@@ -109,12 +110,9 @@ public:
     /// @brief 设置捕捉限制
     void setSnapRestriction(DM::SnapRestriction sr);
 
-    /// @return true 表示当前操作为选择模式
-    bool inSelectionMode();
-
 private:
     QAction*                m_pAction = nullptr;                    ///< 关联的 QAction
-    ActionInterface*        m_pDefaultAction = nullptr;             ///< 默认操作
+    SelectTool*             m_pSelectTool = nullptr;                ///< 空闲态的选择层（非持有）
     QList<ActionInterface*> m_currentActions;                       ///< 当前操作栈
     bool                    m_isCoordinateInputEnabled = true;      ///< 是否启用坐标输入
     DmVector                m_relativeZero;                         ///< 相对零点

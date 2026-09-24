@@ -154,10 +154,15 @@ yicad_collect_sources(INTERACTION
 #
 # src/ui/ribbon/ 是 Ribbon 注册表与装配器（UIRibbonRegistry/UIRibbonManager），
 # 内置类目与扩展共用。
+#
+# src/view/ 是交互视图 UIView：继承 RENDER 分区的画布 GuiDocumentView，持有
+# INTERACTION 分区的 ViewToolControl 与各层工具（对应 DS 的 View/UIView），
+# 所以位于二者之上、归入本分区。
 yicad_collect_sources(UI
     src/ui
     src/ui/forms
-    src/ui/ribbon)
+    src/ui/ribbon
+    src/view)
 
 # 对应阶段 3 的 YiCadApp（可执行目标）。
 #
@@ -475,6 +480,7 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/view
     ${YICAD_EXTENSION_INCLUDE_DIRS})
 
 target_precompile_headers(YiCadCore PRIVATE

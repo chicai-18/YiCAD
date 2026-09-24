@@ -22,13 +22,11 @@
 /// 业务工具栈（后进先出，最高优先级）、选择工具（次优先）、导航工具
 /// （栈底，兜底）。事件按此顺序分发，直到某层返回 Handled/Cancel。
 ///
-/// 阶段2（本次落地）只挂载了导航工具（PanZoomTool）；选择工具与业务
-/// 工具栈是为 SelectTool、GripEditTool 以及未来把旧版 Action 体系包成
-/// 一个业务工具（5.4节第6项的适配器）预留的接口，当前未使用，见
-/// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2"执行结果"一节的范围说明。
-///
-/// GuiDocumentView 在事件到达旧版 GuiEventHandler 之前，先把事件交给
-/// 本类；任一层返回 Handled，事件到此为止，不再转发给 GuiEventHandler。
+/// 交互视图 UIView（view/UIView.h）持有本类并挂载三层：业务层 LegacyActionTool
+/// （包装旧版 Action 栈）、选择层 SelectTool、导航层 PanZoomTool。画布的鼠标、
+/// 双击、滚轮后的补发移动与进入/离开事件都经本类分发；键盘事件由主窗口经
+/// GuiDocumentView::processKeyEvent() 转交（doc/COMMAND_TOOL_MIGRATION_PLAN.md
+/// 第一步）。右键释放与 XButton1 仍由 UIView 直接处理（主计划 5.7 节）。
 
 #ifndef VIEWTOOLCONTROL_H
 #define VIEWTOOLCONTROL_H

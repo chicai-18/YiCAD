@@ -60,21 +60,16 @@ public:
     /// @brief 触发动作执行
     void trigger() override;
 
-    /// @brief 鼠标移动事件处理
-    /// @param e 鼠标事件指针
-    void mouseMoveEvent(QMouseEvent* e) override;
-
-    /// @brief 鼠标按下事件处理
-    /// @param e 鼠标事件指针
-    void mousePressEvent(QMouseEvent* e) override;
-
-    /// @brief 鼠标释放事件处理
+    /// @brief 鼠标释放事件处理：右键询问是否保存并退出编辑
     /// @param e 鼠标事件指针
     void mouseReleaseEvent(QMouseEvent* e) override;
 
-    /// @brief 键盘按下事件处理
-    /// @param e 键盘事件指针
-    void keyPressEvent(QKeyEvent* e) override;
+    /// @brief 编辑态把点选、框选、拖拽与 Esc 交给选择层
+    /// @details 交出鼠标移动、按下、左键释放与按键按下；右键释放（退出对话框）、
+    ///          双击与按键释放仍到本 Action 为止，与原先转发给默认 Action 的范围一致。
+    /// @param e 即将转发给本 Action 的事件
+    /// @return true 表示继续交给选择层
+    bool passesToSelection(const QEvent* e) override;
 
     /// @brief 检查是否可以中断
     /// @return true表示可以中断，false表示不可以中断

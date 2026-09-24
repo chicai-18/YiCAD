@@ -123,9 +123,8 @@ public:
     /// @brief 设置当前操作
     virtual void setCurrentAction(ActionInterface* action) = 0;
     /// @brief 获取当前操作
+    /// @return 栈顶业务 Action；空闲态返回 nullptr
     virtual ActionInterface* getCurrentAction() = 0;
-    /// @brief 终止选择类操作
-    virtual void killSelectActions() = 0;
     /// @brief 发出选择变更信号
     virtual void emitSelectedChanged() = 0;
 

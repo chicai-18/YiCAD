@@ -27,7 +27,6 @@
 #include "CommandRegistry.h"
 
 #include <QMouseEvent>
-#include <QKeyEvent>
 #include <QMessageBox>
 #include <QSet>
 
@@ -39,7 +38,6 @@
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
-#include "GuiEventHandler.h"
 #include "BlockEditCmd.h"
 #include "CmdManager.h"
 #include "MacroCmd.h"
@@ -285,50 +283,33 @@ bool ActionBlocksEdit::hasModifications() const
     return cmdMgr->getUndoCount() > m_undoCountAtEnter;
 }
 
-/// @brief 鼠标移动事件处理
-/// @param e 鼠标事件指针
-void ActionBlocksEdit::mouseMoveEvent(QMouseEvent* e)
+/// @brief 编辑态把点选、框选、拖拽与 Esc 交给选择层
+/// @param e 即将转发给本 Action 的事件
+/// @return true 表示继续交给选择层
+bool ActionBlocksEdit::passesToSelection(const QEvent* e)
 {
-    if (getStatus() == eEditing)
+    if (getStatus() != eEditing)
     {
-        auto* handler = docView->getEventHandler();
-        if (handler && handler->getDefaultAction())
-        {
-            handler->getDefaultAction()->mouseMoveEvent(e);
-        }
+        return false;
+    }
+    switch (e->type())
+    {
+    case QEvent::MouseMove:
+    case QEvent::MouseButtonPress:
+    case QEvent::KeyPress:
+        return true;
+    case QEvent::MouseButtonRelease:
+        return static_cast<const QMouseEvent*>(e)->button() == Qt::LeftButton;
+    default:
+        return false;
     }
 }
 
-/// @brief 鼠标按下事件处理
-/// @param e 鼠标事件指针
-void ActionBlocksEdit::mousePressEvent(QMouseEvent* e)
-{
-    if (getStatus() == eEditing)
-    {
-        auto* handler = docView->getEventHandler();
-        if (handler && handler->getDefaultAction())
-        {
-            handler->getDefaultAction()->mousePressEvent(e);
-        }
-    }
-}
-
-/// @brief 鼠标释放事件处理
+/// @brief 鼠标释放事件处理：右键询问是否保存并退出编辑
 /// @param e 鼠标事件指针
 void ActionBlocksEdit::mouseReleaseEvent(QMouseEvent* e)
 {
-    if (e->button() == Qt::LeftButton)
-    {
-        if (getStatus() == eEditing)
-        {
-            auto* handler = docView->getEventHandler();
-            if (handler && handler->getDefaultAction())
-            {
-                handler->getDefaultAction()->mouseReleaseEvent(e);
-            }
-        }
-    }
-    else if (e->button() == Qt::RightButton)
+    if (e->button() == Qt::RightButton)
     {
         if (getStatus() == eEditing)
         {
@@ -351,24 +332,6 @@ void ActionBlocksEdit::mouseReleaseEvent(QMouseEvent* e)
         {
             finish();
         }
-    }
-}
-
-/// @brief 键盘按下事件处理
-/// @param e 键盘事件指针
-void ActionBlocksEdit::keyPressEvent(QKeyEvent* e)
-{
-    if (getStatus() == eEditing)
-    {
-        auto* handler = docView->getEventHandler();
-        if (handler && handler->getDefaultAction())
-        {
-            handler->getDefaultAction()->keyPressEvent(e);
-        }
-    }
-    else
-    {
-        ActionInterface::keyPressEvent(e);
     }
 }
 

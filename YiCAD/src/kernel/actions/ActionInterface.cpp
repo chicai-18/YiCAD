@@ -197,18 +197,13 @@ void ActionInterface::setFinished()
 }
 
 /// @brief 正常结束Action
-/// 拒绝退出默认Action（ActionDefault）
 /// @param [in] updateTB 是否更新工具栏
 void ActionInterface::finish(bool /*updateTB*/)
 {
-    // 拒绝退出默认Action
-    if (getEntityType() != DM::ActionDefault)
-    {
-        m_status = -1;
-        finished = true;
-        hideOptions();
-        m_snapService->finish();
-    }
+    m_status = -1;
+    finished = true;
+    hideOptions();
+    m_snapService->finish();
 
     if (getEntityType() != DM::ActionNone)
     {
@@ -254,6 +249,13 @@ bool ActionInterface::isExclusive()
 /// @brief 是否为子命令
 /// @return 默认返回false
 bool ActionInterface::isSubAction()
+{
+    return false;
+}
+
+/// @brief 本 Action 处理完该事件后是否继续交给选择层
+/// @return 默认 false
+bool ActionInterface::passesToSelection(const QEvent* /*e*/)
 {
     return false;
 }

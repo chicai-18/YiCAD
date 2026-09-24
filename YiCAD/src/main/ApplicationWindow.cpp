@@ -572,9 +572,10 @@ void ApplicationWindow::keyPressEvent(QKeyEvent* e)
 		case Qt::Key_Escape:    // ESC|空格 取消操作/取消选中
 		case Qt::Key_Space:
 		{
+			// 先交给当前视图的工具栈：有业务 Action 时由它处理，空闲态由选择层处理；
+			// 都未接受时结束全部命令并清空选择。
 			GuiDocumentView* gv = m_pCurrentMdiWin->getDocumentView();
-			GuiEventHandler* handle = gv->getEventHandler();
-			handle->keyPressEvent(e);
+			gv->processKeyEvent(e);
 			if (!e->isAccepted())
 			{
 				slotKillAllActions();

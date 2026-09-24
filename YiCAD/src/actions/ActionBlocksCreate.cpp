@@ -87,7 +87,6 @@ void ActionBlocksCreate::trigger()
 		docView->redraw();
 		setStatus(getStatus() + 1);  // 清除鼠标按钮提示
 		updateMouseButtonHints();
-		docView->killSelectActions();
 		finish(false);
 		return;
 	}
@@ -150,7 +149,6 @@ void ActionBlocksCreate::trigger()
 
 	setStatus(getStatus() + 1);  // 清除鼠标按钮提示
 	updateMouseButtonHints();
-	docView->killSelectActions();
 	finish(false);
 }
 

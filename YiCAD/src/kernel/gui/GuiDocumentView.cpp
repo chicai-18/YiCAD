@@ -54,14 +54,6 @@
 #include "Debug.h"
 #include "ScopedTimer.h"
 #include "DmColor.h"
-#include "ActionZoomIn.h"
-#include "ActionModifyDelete.h"
-#include "ActionSelectSingle.h"
-#include "ActionDefault.h"
-#include "ViewToolControl.h"
-#include "PanZoomTool.h"
-#include "LegacyActionTool.h"
-#include "SelectTool.h"
 
 #ifdef Q_OS_WIN32
 #define CURSOR_SIZE 16
@@ -108,22 +100,10 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
 {
     setMouseTracking(true);
 
-    m_pPanZoomTool = std::make_unique<PanZoomTool>(this);
-    m_pLegacyActionTool = std::make_unique<LegacyActionTool>(eventHandler, m_pPanZoomTool.get());
-    m_pViewToolControl = std::make_unique<ViewToolControl>(this);
-    m_pViewToolControl->setNavigationTool(m_pPanZoomTool.get());
-    m_pViewToolControl->activate(m_pLegacyActionTool.get());
-
     if (doc)
     {
         setDocument(doc);
         doc->setDocumentView(this);
-        ActionDefault* defaultAction = new ActionDefault(doc, this, m_pPanZoomTool.get());
-        setDefaultAction(defaultAction);
-        // 把 ActionDefault 内部持有的 SelectTool 注册为选择层，让空闲态
-        // （没有业务 Action 活动）的光标经由 ViewToolControl::refreshCursor()
-        // 统一仲裁，见 SelectTool.h 顶部说明与阶段2 5.7 节。
-        m_pViewToolControl->setSelectionTool(defaultAction->getSelectTool());
     }
 
     DMSETTINGS->beginGroup("Colors");
@@ -158,18 +138,6 @@ GuiDocumentView::~GuiDocumentView()
     cleanUp();
     qDeleteAll(m_overlayEntities);
     deletePainters();
-
-    // 必须先于 eventHandler 被清空：ViewToolControl 的选择层引用了
-    // ActionDefault（eventHandler 的默认Action）内部持有的 SelectTool，
-    // eventHandler 一旦被删除，SelectTool 也随之析构。m_pViewToolControl
-    // 是 unique_ptr 成员，会在本函数体结束后才自动析构；若等到那时候，
-    // 会经一个已经悬空的指针调用 SelectTool::onDeactivate()。这里手动
-    // 断开引用（触发一次正常的 onDeactivate()，此时 eventHandler 还活着，
-    // 是安全的）。
-    if (m_pViewToolControl)
-    {
-        m_pViewToolControl->setSelectionTool(nullptr);
-    }
 
     if (eventHandler)
     {
@@ -206,29 +174,6 @@ bool GuiDocumentView::isGridOn() const
     return true;
 }
 
-/// @brief 获取默认操作
-/// @return 当前操作或 nullptr
-ActionInterface* GuiDocumentView::getDefaultAction()
-{
-    if (eventHandler)
-    {
-        return eventHandler->getDefaultAction();
-    }
-    else
-    {
-        return nullptr;
-    }
-}
-
-/// @brief 设置事件处理器的默认操作
-void GuiDocumentView::setDefaultAction(ActionInterface* action)
-{
-    if (eventHandler)
-    {
-        eventHandler->setDefaultAction(action);
-    }
-}
-
 /// @brief 获取当前操作
 /// @return 当前操作或 nullptr
 ActionInterface* GuiDocumentView::getCurrentAction()
@@ -249,15 +194,6 @@ void GuiDocumentView::setCurrentAction(ActionInterface* action)
     if (eventHandler)
     {
         eventHandler->setCurrentAction(action);
-    }
-}
-
-/// @brief 终止选择类操作
-void GuiDocumentView::killSelectActions()
-{
-    if (eventHandler)
-    {
-        eventHandler->killSelectActions();
     }
 }
 
@@ -286,13 +222,17 @@ void GuiDocumentView::back()
     }
 }
 
-/// @brief 前进/确认当前操作
+/// @brief 前进/确认当前操作：合成一次回车按下，交给 processKeyEvent()
 void GuiDocumentView::enter()
 {
-    if (eventHandler && eventHandler->hasAction())
-    {
-        eventHandler->enter();
-    }
+    QKeyEvent e(QEvent::KeyPress, Qt::Key_Enter, Qt::NoModifier);
+    processKeyEvent(&e);
+}
+
+bool GuiDocumentView::processKeyEvent(QKeyEvent* e)
+{
+    e->ignore();
+    return false;
 }
 
 /// @brief 处理命令事件（由命令行 UI 调用）
@@ -753,15 +693,11 @@ void GuiDocumentView::drawCursor()
 
 void GuiDocumentView::drawSnapIndicator()
 {
-    ActionInterface* action = getCurrentAction();
-    if (!action)
-        return;
-
-    SnapResultType snapResult = action->getSnapResult();
+    SnapResultType snapResult = currentSnapResult();
     if (snapResult == SnapResultType::SnapNone)
         return;
 
-    DmVector snapSpot = action->getSnapSpot();
+    DmVector snapSpot = currentSnapSpot();
     if (!snapSpot.valid)
         return;
 
@@ -937,7 +873,7 @@ SnapMode GuiDocumentView::getDefaultSnapMode() const
     return defaultSnapMode;
 }
 
-/// @brief 设置默认捕捉模式（用于新创建的操作）
+/// @brief 设置默认捕捉模式（用于新创建的操作），同步给活动操作
 void GuiDocumentView::setDefaultSnapMode(SnapMode sm)
 {
     defaultSnapMode = sm;
@@ -947,7 +883,7 @@ void GuiDocumentView::setDefaultSnapMode(SnapMode sm)
     }
 }
 
-/// @brief 设置捕捉限制（如正交）
+/// @brief 设置捕捉限制（如正交），同步给活动操作
 void GuiDocumentView::setSnapRestriction(DM::SnapRestriction sr)
 {
     defaultSnapRes = sr;
@@ -1131,6 +1067,16 @@ GuiGrid* GuiDocumentView::getGrid() const
 GuiEventHandler* GuiDocumentView::getEventHandler() const
 {
     return eventHandler;
+}
+
+SnapResultType GuiDocumentView::currentSnapResult()
+{
+    return SnapResultType::SnapNone;
+}
+
+DmVector GuiDocumentView::currentSnapSpot()
+{
+    return DmVector(false);
 }
 
 void GuiDocumentView::setBackground(const QColor& bg)
@@ -1402,308 +1348,49 @@ void GuiDocumentView::resizeGL(int w, int h)
     m_pForegroundPainter->new_device_size(w, h);
 }
 
-void GuiDocumentView::mousePressEvent(QMouseEvent* e)
-{
-    // 是否要转发给旧版 Action 体系、还是留给导航层平移的判断，已经收进
-    // LegacyActionTool::wantsPress()（阶段2第6项的业务工具适配器），
-    // 这里只需要统一交给 ViewToolControl 分发：业务层（LegacyActionTool）
-    // 优先，它对中键、以及无业务 Action 活动时的 Ctrl/Meta+左键主动让路，
-    // 由导航层（PanZoomTool）接手。
-    e->accept();
-    m_pViewToolControl->mousePressEvent(e);
-}
-
-void GuiDocumentView::mouseDoubleClickEvent(QMouseEvent* e)
-{
-    switch (e->button())
-    {
-    case Qt::MiddleButton:
-        zoomAuto();
-        break;
-    case Qt::LeftButton:
-        eventHandler->mouseDoubleClickEvent(e);
-        break;
-    default:
-        break;
-    }
-    e->accept();
-}
-
-void GuiDocumentView::mouseReleaseEvent(QMouseEvent* e)
-{
-    e->accept();
-
-    switch (e->button())
-    {
-    case Qt::RightButton:
-
-        if (eventHandler->hasAction())
-        {
-            back();
-        }
-        break;
-
-    case Qt::XButton1:
-        enter();
-        emit xbutton1_released();
-        break;
-
-    default:
-    {
-        // ViewToolControl 统一分发：业务层（LegacyActionTool）优先，正常
-        // 释放转给 eventHandler（等价于原来直接调用
-        // eventHandler->mouseReleaseEvent(e)）；平移中的释放业务层主动让路
-        // （见 LegacyActionTool::mouseReleaseEvent），由导航层 PanZoomTool
-        // 处理并结束这次平移。
-        if (m_pViewToolControl->mouseReleaseEvent(e) == ViewToolResult::Handled)
-        {
-            // 无论是平移刚结束还是普通业务释放，都让当前 Action 重新声明
-            // 一次光标：平移结束时避免 ClosedHandCursor 残留在画布上（见
-            // ViewToolControl::refreshCursor"无偏好则不动"的策略）；
-            // 普通释放时这只是一次无害的重复刷新。
-            if (ActionInterface* action = getCurrentAction())
-            {
-                action->updateMouseCursor();
-            }
-        }
-        break;
-    }
-    }
-}
-
 void GuiDocumentView::mouseMoveEvent(QMouseEvent* e)
 {
     m_currentMousePt = toGraph(DmVector(e->pos().x(), e->pos().y()));
-
     e->accept();
+}
 
-    // ViewToolControl 统一分发：不在平移中时，业务层（LegacyActionTool）
-    // 把这次移动转发给 eventHandler，等价于原来单独调用
-    // eventHandler->mouseMoveEvent(e)；平移中则业务层主动让路（见
-    // LegacyActionTool::mouseMoveEvent），交给导航层 PanZoomTool 处理。
-    m_pViewToolControl->mouseMoveEvent(e);
-
-    if (m_pPanZoomTool->isPanning())
+void GuiDocumentView::updateSnapTooltip(const QPoint& pos)
+{
+    SnapResultType snapResult = currentSnapResult();
+    if (snapResult != SnapResultType::SnapNone)
     {
-        // 平移期间没有捕捉结果，跳过下面的捕捉提示。
-        return;
-    }
-
-    // snap tooltip
-    ActionInterface* action = getCurrentAction();
-    if (action)
-    {
-        SnapResultType snapResult = action->getSnapResult();
-        if (snapResult != SnapResultType::SnapNone)
+        QString text;
+        switch (snapResult)
         {
-            QString text;
-            switch (snapResult)
-            {
-            case SnapResultType::SnapEndpoint:    text = tr("Endpoint"); break;
-            case SnapResultType::SnapCenter:      text = tr("Center"); break;
-            case SnapResultType::SnapMiddle:      text = tr("Middle"); break;
-            case SnapResultType::SnapIntersection: text = tr("Intersection"); break;
-            case SnapResultType::SnapOnEntity:    text = tr("On Entity"); break;
-            case SnapResultType::SnapSubsection:  text = tr("Subsection"); break;
-            case SnapResultType::SnapGrid:        text = tr("Grid"); break;
-            default: break;
-            }
-            if (!text.isEmpty())
-            {
-                m_snapTooltip->setText(text);
-                m_snapTooltip->adjustSize();
-                QPoint globalPos = mapToGlobal(e->pos() + QPoint(15, 15));
-                m_snapTooltip->move(globalPos);
-                m_snapTooltip->show();
-                m_snapTooltipTimer->start(2000);
-            }
+        case SnapResultType::SnapEndpoint:    text = tr("Endpoint"); break;
+        case SnapResultType::SnapCenter:      text = tr("Center"); break;
+        case SnapResultType::SnapMiddle:      text = tr("Middle"); break;
+        case SnapResultType::SnapIntersection: text = tr("Intersection"); break;
+        case SnapResultType::SnapOnEntity:    text = tr("On Entity"); break;
+        case SnapResultType::SnapSubsection:  text = tr("Subsection"); break;
+        case SnapResultType::SnapGrid:        text = tr("Grid"); break;
+        default: break;
         }
-        else
+        if (!text.isEmpty())
         {
-            m_snapTooltip->hide();
-            m_snapTooltipTimer->stop();
+            m_snapTooltip->setText(text);
+            m_snapTooltip->adjustSize();
+            QPoint globalPos = mapToGlobal(pos + QPoint(15, 15));
+            m_snapTooltip->move(globalPos);
+            m_snapTooltip->show();
+            m_snapTooltipTimer->start(2000);
         }
     }
-}
-
-void GuiDocumentView::tabletEvent(QTabletEvent* e)
-{
-    if (testAttribute(Qt::WA_UnderMouse))
+    else
     {
-        switch (e->device())
-        {
-        case QTabletEvent::Eraser:
-            if (e->type() == QEvent::TabletRelease)
-            {
-                if (pDocument)
-                {
-                    ActionSelectSingle* a = new ActionSelectSingle(pDocument, this);
-                    setCurrentAction(a);
-                    QMouseEvent ev(QEvent::MouseButtonRelease, e->pos(), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-                    mouseReleaseEvent(&ev);
-                    a->finish();
-
-                    if (pDocument->getEntityTable()->hasSelect())
-                    {
-                        setCurrentAction(new ActionModifyDelete(pDocument, this));
-                    }
-                }
-            }
-            break;
-
-        case QTabletEvent::Stylus:
-        case QTabletEvent::Puck:
-            if (e->type() == QEvent::TabletPress)
-            {
-                QMouseEvent ev(QEvent::MouseButtonPress, e->pos(), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-                mousePressEvent(&ev);
-            }
-            else if (e->type() == QEvent::TabletRelease)
-            {
-                QMouseEvent ev(QEvent::MouseButtonRelease, e->pos(), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-                mouseReleaseEvent(&ev);
-            }
-            else if (e->type() == QEvent::TabletMove)
-            {
-                QMouseEvent ev(QEvent::MouseMove, e->pos(), Qt::NoButton, 0, Qt::NoModifier);
-                mouseMoveEvent(&ev);
-            }
-            break;
-
-        default:
-            break;
-        }
+        m_snapTooltip->hide();
+        m_snapTooltipTimer->stop();
     }
-}
-
-void GuiDocumentView::leaveEvent(QEvent* e)
-{
-    eventHandler->mouseLeaveEvent();
-    QWidget::leaveEvent(e);
-}
-
-void GuiDocumentView::enterEvent(QEvent* e)
-{
-    eventHandler->mouseEnterEvent();
-    QWidget::enterEvent(e);
-}
-
-void GuiDocumentView::focusInEvent(QFocusEvent* e)
-{
-    eventHandler->mouseEnterEvent();
-    QWidget::focusInEvent(e);
 }
 
 void GuiDocumentView::focusOutEvent(QFocusEvent* e)
 {
     QWidget::focusOutEvent(e);
-}
-
-void GuiDocumentView::wheelEvent(QWheelEvent* e)
-{
-    const double ZOOM_FACTOR_MOUSE = 1.137;     // 鼠标滚轮缩放因子
-    const double TRACKPAD_ZOOM_SCALE = 100.;     // 触控板缩放的每像素百分比
-    const int TRACKPAD_ANGLE_DIVISOR = 4;        // 触控板角度增量除数
-
-    DmVector mouse = toGraph(e->x(), e->y());
-
-    if (m_strDevice == "Trackpad")
-    {
-        QPoint numPixels = e->pixelDelta();
-
-        // 高分辨率滚轮触发平移而不是缩放
-        isSmoothScrolling |= !numPixels.isNull();
-
-        if (isSmoothScrolling)
-        {
-            if (e->phase() == Qt::ScrollEnd)
-            {
-                isSmoothScrolling = false;
-            }
-        }
-        else // Trackpads that without high-resolution scrolling
-        {
-            numPixels = e->angleDelta() / TRACKPAD_ANGLE_DIVISOR;
-        }
-
-        if (!numPixels.isNull())
-        {
-            if (e->modifiers() == Qt::ControlModifier)
-            {
-                DMSETTINGS->beginGroup("/Defaults");
-                bool invZoom = (DMSETTINGS->readNumEntry("/InvertZoomDirection", 0) == 1);
-                DMSETTINGS->endGroup();
-
-                // Hold ctrl to zoom. 1 % per pixel
-                double v = (invZoom) ? (numPixels.y() / TRACKPAD_ZOOM_SCALE) : (-numPixels.y() / TRACKPAD_ZOOM_SCALE);
-                DM::ZoomDirection direction;
-                double factor;
-
-                if (v < 0)
-                {
-                    direction = DM::In; factor = 1 - v;
-                }
-                else
-                {
-                    direction = DM::Out;  factor = 1 + v;
-                }
-
-                setCurrentAction(new ActionZoomIn(pDocument, this, direction, DM::Both, &mouse, factor));
-            }
-            redraw();
-        }
-        e->accept();
-        return;
-    }
-
-    if (e->delta() == 0)
-    {
-        // A zero delta event occurs when smooth scrolling is ended. Ignore this
-        e->accept();
-        return;
-    }
-
-    // zoom in/out:
-    if (e->modifiers() == 0)
-    {
-        DmVector mainViewCenter = toGraph(getWidth() / 2, getHeight() / 2);
-
-        DMSETTINGS->beginGroup("/Defaults");
-        bool invZoom = (DMSETTINGS->readNumEntry("/InvertZoomDirection", 0) == 1);
-        DMSETTINGS->endGroup();
-
-        if ((e->delta() > 0 && !invZoom) || (e->delta() < 0 && invZoom))
-        {
-            setCurrentAction(new ActionZoomIn(pDocument, this, DM::Out, DM::Both, &mouse, ZOOM_FACTOR_MOUSE));
-        }
-        else
-        {
-            setCurrentAction(new ActionZoomIn(pDocument, this, DM::In, DM::Both, &mouse, ZOOM_FACTOR_MOUSE));
-        }
-    }
-    m_currentMousePt = toGraph(DmVector(e->pos().x(), e->pos().y()));
-
-    QMouseEvent* event = new QMouseEvent(QEvent::MouseMove, QPoint(e->x(), e->y()), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
-    eventHandler->mouseMoveEvent(event);
-    delete event;
-
-    e->accept();
-    emit viewChanged();
-}
-
-void GuiDocumentView::keyPressEvent(QKeyEvent* e)
-{
-    if (pDocument)
-    {
-        return;
-    }
-
-    eventHandler->keyPressEvent(e);
-}
-
-void GuiDocumentView::keyReleaseEvent(QKeyEvent* e)
-{
-    eventHandler->keyReleaseEvent(e);
 }
 
 void GuiDocumentView::createPainters(unsigned int width, unsigned int height)
@@ -1747,6 +1434,11 @@ void GuiDocumentView::deletePainters()
 void GuiDocumentView::setStrDevice(const QString& strDevice)
 {
     m_strDevice = strDevice;
+}
+
+const QString& GuiDocumentView::getStrDevice() const
+{
+    return m_strDevice;
 }
 
 void GuiDocumentView::setIsDrawCursor(const bool& isDrawCursor)

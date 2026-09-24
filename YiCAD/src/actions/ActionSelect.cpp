@@ -26,7 +26,6 @@
 #include "ActionSelect.h"
 
 #include "ActionSelectMultiple.h"
-#include "ActionSelectSingle.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 
@@ -51,8 +50,6 @@ void ActionSelect::init(int status)
     ActionInterface::init(status);
     if (status >= 0)
     {
-        // 当前使用框选模式；如需单选模式可切换为 ActionSelectSingle
-        //docView->setCurrentAction(new ActionSelectSingle(*container, *docView, this, entityTypeList));
         docView->setCurrentAction(new ActionSelectMultiple(pDocument, docView, this, entityTypeList));
     }
 

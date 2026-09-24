@@ -29,6 +29,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
 #include "Math2d.h"
+#include "SelectTool.h"
 #include "Debug.h"
 
 GuiEventHandler::GuiEventHandler(QObject* parent) : QObject(parent)
@@ -38,9 +39,6 @@ GuiEventHandler::GuiEventHandler(QObject* parent) : QObject(parent)
 
 GuiEventHandler::~GuiEventHandler()
 {
-    delete m_pDefaultAction;
-    m_pDefaultAction = nullptr;
-
     for (auto a : m_currentActions)
     {
         delete a;
@@ -60,13 +58,6 @@ void GuiEventHandler::back()
     }
 }
 
-/// @brief 向当前操作发送回车确认事件
-void GuiEventHandler::enter()
-{
-    QKeyEvent e(QEvent::KeyPress, Qt::Key_Enter, 0);
-    keyPressEvent(&e);
-}
-
 /// @brief 处理鼠标按下事件（由 GuiDocumentView 调用）
 void GuiEventHandler::mousePressEvent(QMouseEvent* e)
 {
@@ -77,15 +68,7 @@ void GuiEventHandler::mousePressEvent(QMouseEvent* e)
     }
     else
     {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->mousePressEvent(e);
-            e->accept();
-        }
-        else
-        {
-            e->ignore();
-        }
+        e->ignore();
     }
 }
 
@@ -100,14 +83,7 @@ void GuiEventHandler::mouseReleaseEvent(QMouseEvent* e)
     }
     else
     {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->mouseReleaseEvent(e);
-        }
-        else
-        {
-            e->ignore();
-        }
+        e->ignore();
     }
 }
 
@@ -118,10 +94,6 @@ void GuiEventHandler::mouseMoveEvent(QMouseEvent* e)
     {
         m_currentActions.last()->mouseMoveEvent(e);
     }
-    else if (m_pDefaultAction)
-    {
-        m_pDefaultAction->mouseMoveEvent(e);
-    }
 }
 
 /// @brief 处理鼠标双击事件
@@ -131,41 +103,23 @@ void GuiEventHandler::mouseDoubleClickEvent(QMouseEvent* e)
     {
         m_currentActions.last()->mouseDoubleClickEvent(e);
     }
-    else if (m_pDefaultAction)
-    {
-        m_pDefaultAction->mouseDoubleClickEvent(e);
-    }
 }
 
-/// @brief 处理鼠标离开事件（由 GuiDocumentView 调用）
+/// @brief 处理鼠标离开事件（经 LegacyActionTool 调用）；空闲态由选择层自己处理
 void GuiEventHandler::mouseLeaveEvent()
 {
     if (hasAction())
     {
         m_currentActions.last()->suspend();
     }
-    else
-    {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->suspend();
-        }
-    }
 }
 
-/// @brief 处理鼠标进入事件（由 GuiDocumentView 调用）
+/// @brief 处理鼠标进入事件（经 LegacyActionTool 调用）；空闲态由选择层自己处理
 void GuiEventHandler::mouseEnterEvent()
 {
     if (hasAction())
     {
         m_currentActions.last()->resume();
-    }
-    else
-    {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->resume();
-        }
     }
 }
 
@@ -179,14 +133,7 @@ void GuiEventHandler::keyPressEvent(QKeyEvent* e)
     }
     else
     {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->keyPressEvent(e);
-        }
-        else
-        {
-            e->ignore();
-        }
+        e->ignore();
     }
 }
 
@@ -199,14 +146,7 @@ void GuiEventHandler::keyReleaseEvent(QKeyEvent* e)
     }
     else
     {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->keyReleaseEvent(e);
-        }
-        else
-        {
-            e->ignore();
-        }
+        e->ignore();
     }
 }
 
@@ -323,14 +263,6 @@ void GuiEventHandler::commandEvent(GuiCommandEvent* e)
                     m_currentActions.last()->commandEvent(e);
                 }
             }
-            else
-            {
-                //send the command to default action
-                if (m_pDefaultAction)
-                {
-                    m_pDefaultAction->commandEvent(e);
-                }
-            }
         }
     }
 }
@@ -355,10 +287,7 @@ ActionInterface* GuiEventHandler::getCurrentAction()
     {
         return m_currentActions.last();
     }
-    else
-    {
-        return m_pDefaultAction;
-    }
+    return nullptr;
 }
 
 /// @brief 获取当前操作数量
@@ -367,23 +296,10 @@ int GuiEventHandler::getCurrentActionNum()
     return m_currentActions.size();
 }
 
-/// @brief 获取默认操作
-/// @return 当前默认操作
-ActionInterface* GuiEventHandler::getDefaultAction() const
+/// @brief 设置空闲态的选择层
+void GuiEventHandler::setSelectTool(SelectTool* tool)
 {
-    return m_pDefaultAction;
-}
-
-/// @brief 设置默认操作
-void GuiEventHandler::setDefaultAction(ActionInterface* action)
-{
-    if (m_pDefaultAction)
-    {
-        m_pDefaultAction->finish();
-        delete m_pDefaultAction;
-    }
-
-    m_pDefaultAction = action;
+    m_pSelectTool = tool;
 }
 
 /// @brief 设置当前操作
@@ -394,19 +310,11 @@ void GuiEventHandler::setCurrentAction(ActionInterface* action)
         return;
     }
 
-    ActionInterface* predecessor = NULL;
-
-    // 按需要挂起或终止前一个action
-    if (hasAction())
+    // 按需要挂起或终止前一个action；从空闲态启动时挂起选择层
+    ActionInterface* predecessor = hasAction() ? m_currentActions.last() : nullptr;
+    if (!predecessor && m_pSelectTool)
     {
-        predecessor = m_currentActions.last();
-    }
-    else
-    {
-        if (m_pDefaultAction)
-        {
-            predecessor = m_pDefaultAction;
-        }
+        m_pSelectTool->suspend();
     }
     if (predecessor)
     {
@@ -467,28 +375,7 @@ void GuiEventHandler::setCurrentAction(ActionInterface* action)
     }
 }
 
-/// @brief 终止选择类操作
-void GuiEventHandler::killSelectActions()
-{
-    for (auto it = m_currentActions.begin(); it != m_currentActions.end();)
-    {
-        if ((*it)->getEntityType() == DM::ActionSelectSingle)
-        {
-            if (!(*it)->isFinished())
-            {
-                (*it)->finish();
-            }
-            delete *it;
-            it = m_currentActions.erase(it);
-        }
-        else
-        {
-            it++;
-        }
-    }
-}
-
-/// @brief 终止所有活动操作（窗口关闭时调用）
+/// @brief 终止所有活动操作，并把选择层复位到初始状态
 void GuiEventHandler::killAllActions()
 {
     if (m_pAction)
@@ -505,12 +392,10 @@ void GuiEventHandler::killAllActions()
         }
     }
 
-    if (!m_pDefaultAction->isFinished())
+    if (m_pSelectTool)
     {
-        m_pDefaultAction->finish();
+        m_pSelectTool->init();
     }
-
-    m_pDefaultAction->init(0);
 }
 
 QList<ActionInterface*>& GuiEventHandler::getCurrentActionsRef()
@@ -559,13 +444,9 @@ void GuiEventHandler::cleanUp()
         m_currentActions.last()->resume();
         m_currentActions.last()->showOptions();
     }
-    else
+    else if (m_pSelectTool)
     {
-        if (m_pDefaultAction)
-        {
-            m_pDefaultAction->resume();
-            m_pDefaultAction->showOptions();
-        }
+        m_pSelectTool->resume();
     }
 }
 
@@ -579,11 +460,6 @@ void GuiEventHandler::setSnapMode(SnapMode sm)
             a->setSnapMode(sm);
         }
     }
-
-    if (m_pDefaultAction)
-    {
-        m_pDefaultAction->setSnapMode(sm);
-    }
 }
 
 /// @brief 为所有当前活动操作设置捕捉限制
@@ -595,11 +471,6 @@ void GuiEventHandler::setSnapRestriction(DM::SnapRestriction sr)
         {
             a->setSnapRestriction(sr);
         }
-    }
-
-    if (m_pDefaultAction)
-    {
-        m_pDefaultAction->setSnapRestriction(sr);
     }
 }
 
@@ -616,17 +487,4 @@ void GuiEventHandler::setQAction(QAction* action)
 void GuiEventHandler::setRelativeZero(const DmVector& point)
 {
     m_relativeZero = point;
-}
-
-/// @brief 检查是否处于选择模式
-bool GuiEventHandler::inSelectionMode()
-{
-    switch (getCurrentAction()->getEntityType())
-    {
-    case DM::ActionDefault:
-    case DM::ActionSelectSingle:
-        return true;
-    default:
-        return false;
-    }
 }
