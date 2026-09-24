@@ -31,7 +31,7 @@
 #include <QAction>
 #include <QMouseEvent>
 
-#include "ActionEditUndo.h"
+#include "EditUndoCommand.h"
 #include "Commands.h"
 #include "Debug.h"
 #include "DmLine.h"
@@ -509,7 +509,7 @@ void ActionDrawLine::undo()
 
         case HA_SetEndpoint:
         case HA_Close:
-            docView->setCurrentAction(new ActionEditUndo(true, pDocument, docView));
+            EditUndoCommand::run(pDocument, true);
             pPoints->data.setStartPoint(h.prevPt);
             setStatus(SetEndpoint);
             break;
@@ -550,12 +550,12 @@ void ActionDrawLine::redo()
             break;
 
         case HA_SetEndpoint:
-            docView->setCurrentAction(new ActionEditUndo(false, pDocument, docView));
+            EditUndoCommand::run(pDocument, false);
             setStatus(SetEndpoint);
             break;
 
         case HA_Close:
-            docView->setCurrentAction(new ActionEditUndo(false, pDocument, docView));
+            EditUndoCommand::run(pDocument, false);
             setStatus(SetStartpoint);
             break;
 

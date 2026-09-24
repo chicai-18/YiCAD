@@ -270,6 +270,29 @@ void ExclusiveCommandBus::resume()
     m_active->resume();
 }
 
+void ExclusiveCommandBus::post(std::function<void()> task)
+{
+    if (!task)
+    {
+        return;
+    }
+    if (m_scopeDepth > 0)
+    {
+        m_posted.push_back(std::move(task));
+        return;
+    }
+    QTimer::singleShot(0, this, [this, task = std::move(task)]()
+    {
+        if (m_scopeDepth > 0)
+        {
+            // 定时器在分发中（如模态对话框的事件循环里）触发：等这次分发返回
+            m_posted.push_back(task);
+            return;
+        }
+        task();
+    });
+}
+
 void ExclusiveCommandBus::setSnapMode(const SnapMode& snapMode)
 {
     if (ISnapService* snapper = m_active ? m_active->snapService() : nullptr)
@@ -343,4 +366,12 @@ void ExclusiveCommandBus::leaveScope()
     }
     m_retired.clear();
     m_retiredModes.clear();
+
+    // 任务里可能再次进入分发范围（并 post 新任务），先取出本轮的
+    std::vector<std::function<void()>> posted;
+    posted.swap(m_posted);
+    for (auto& task : posted)
+    {
+        task();
+    }
 }

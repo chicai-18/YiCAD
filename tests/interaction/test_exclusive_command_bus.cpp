@@ -6,7 +6,8 @@
 ///   - 结束前回调（5.1 节）：三种原因、否决与不否决、ViewClosing 忽略否决、
 ///     回调期间的重入请求被忽略；
 /// 以及过渡期的挂起/恢复、选择阶段约束由总线清除、捕捉设置同步，
-/// 编辑模式（IEditMode）的进入、退出与结束全部时的征求同意。
+/// 编辑模式（IEditMode）的进入、退出与结束全部时的征求同意，
+/// 供临时视图工具延迟结束自己的 post()（第三步）。
 
 #include <gtest/gtest.h>
 
@@ -606,4 +607,60 @@ TEST_F(BusFixture, 命令活动时进入编辑模式等命令结束才恢复模�
     }
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(modeLog.resumed, 1);
+}
+
+TEST_F(BusFixture, 分发范围内post的任务在最外层范围结束时执行)
+{
+    // 临时视图工具在自己的事件处理中请求结束：分发返回后才执行（迁移计划第三步）
+    int runs = 0;
+    {
+        ExclusiveCommandBus::DispatchScope outer(&bus);
+        {
+            ExclusiveCommandBus::DispatchScope inner(&bus);
+            bus.post([&runs]() { ++runs; });
+        }
+        EXPECT_EQ(runs, 0);
+    }
+    EXPECT_EQ(runs, 1);
+}
+
+TEST_F(BusFixture, post的任务在结束命令之后执行)
+{
+    // 同一次分发里命令请求结束、临时视图工具 post 了任务：任务执行时命令已结束
+    ASSERT_TRUE(bus.start(makeCommand(newLog())));
+    bool commandActiveWhenRun = true;
+    {
+        ExclusiveCommandBus::DispatchScope scope(&bus);
+        static_cast<BaseExclusiveCommand*>(bus.activeCommand())->finish();
+        bus.post([&]() { commandActiveWhenRun = bus.hasActiveCommand(); });
+    }
+    EXPECT_FALSE(commandActiveWhenRun);
+}
+
+TEST_F(BusFixture, 分发范围外post的任务经事件循环执行)
+{
+    int runs = 0;
+    bus.post([&runs]() { ++runs; });
+    EXPECT_EQ(runs, 0);
+    for (int i = 0; i < 5 && runs == 0; ++i)
+    {
+        QCoreApplication::processEvents();
+    }
+    EXPECT_EQ(runs, 1);
+}
+
+TEST_F(BusFixture, 事件循环在分发中触发时post的任务等分发返回)
+{
+    // 定时器在模态对话框的事件循环里（仍在分发范围内）触发：推迟到范围结束
+    int runs = 0;
+    bus.post([&runs]() { ++runs; });
+    {
+        ExclusiveCommandBus::DispatchScope scope(&bus);
+        for (int i = 0; i < 5; ++i)
+        {
+            QCoreApplication::processEvents();
+        }
+        EXPECT_EQ(runs, 0);
+    }
+    EXPECT_EQ(runs, 1);
 }

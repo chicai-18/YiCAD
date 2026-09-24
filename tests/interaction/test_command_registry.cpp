@@ -4,7 +4,8 @@
 /// 覆盖阶段4第一部分（doc/ARCHITECTURE_EVOLUTION_PLAN.md 7.4节任务①）的核心
 /// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝；以及业务
 /// 工具化第二步新增的交互命令、即时命令两类注册（doc/COMMAND_TOOL_MIGRATION_PLAN.md
-/// 第二步第 2 项）。makeSelectFirstFactory 随先选后建命令的迁移删除。
+/// 第二步第 2 项），第三步新增的临时视图工具注册与即时命令的打断策略。
+/// makeSelectFirstFactory 随先选后建命令的迁移删除。
 ///
 /// CommandRegistry 是进程范围的单例，同一个测试二进制内的所有用例共享同一份
 /// 注册表状态，且 gtest 不保证跨用例的严格声明顺序（如加 --gtest_shuffle）。
@@ -25,6 +26,7 @@
 #include "DmDocument.h"
 #include "DmPoint.h"
 #include "EntityTable.h"
+#include "TransientViewTool.h"
 #include "UIActionHandler.h"
 #include "support/FakeDocumentView.h"
 
@@ -51,6 +53,16 @@ protected:
 ExclusiveCommandFactory testCommandFactory()
 {
     return [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return std::make_unique<TestCommand>(); };
+}
+
+/// @brief 最小的临时视图工具测试替身
+class TestViewTool : public TransientViewTool
+{
+};
+
+ViewToolFactory testViewToolFactory()
+{
+    return [](const CommandContext&) -> std::unique_ptr<TransientViewTool> { return std::make_unique<TestViewTool>(); };
 }
 }  // namespace
 
@@ -291,4 +303,77 @@ TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
     }
     // Delete 键与手写板橡皮擦用的直接删除保留为即时命令
     EXPECT_EQ(CommandRegistry::instance().kind("modify.delete_no_select"), CommandKind::Instant);
+}
+
+TEST(CommandRegistryTest, 临时视图工具按ID创建并记录命令ID)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerViewTool("test.cr.view_tool", testViewToolFactory()));
+    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.view_tool"), CommandKind::ViewTool);
+
+    CommandContext ctx{};
+    std::unique_ptr<TransientViewTool> tool = CommandRegistry::instance().createViewTool("test.cr.view_tool", ctx);
+    ASSERT_NE(tool, nullptr);
+    EXPECT_EQ(tool->commandId(), QStringLiteral("test.cr.view_tool"));
+
+    // 类型不对的入口都返回空
+    EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.view_tool"), ctx), nullptr);
+    EXPECT_EQ(CommandRegistry::instance().createCommand("test.cr.view_tool", ctx), nullptr);
+    EXPECT_FALSE(CommandRegistry::instance().runInstant("test.cr.view_tool", ctx));
+    EXPECT_EQ(CommandRegistry::instance().createViewTool("test.cr.exclusive_missing", ctx), nullptr);
+    EXPECT_FALSE(CommandRegistry::instance().registerViewTool("test.cr.null_view_tool", nullptr));
+}
+
+TEST(CommandRegistryTest, 带legacy桥接的即时命令与临时视图工具)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        DM::ActionViewBlockList, "test.cr.bridged_instant", [](const CommandContext&) {}));
+    ASSERT_TRUE(CommandRegistry::instance().registerViewTool(
+        DM::ActionViewCommandLine, "test.cr.bridged_view_tool", testViewToolFactory()));
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionViewBlockList), QStringLiteral("test.cr.bridged_instant"));
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionViewCommandLine),
+              QStringLiteral("test.cr.bridged_view_tool"));
+
+    // 已桥接的枚举被拒绝，且不留下注册
+    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand(
+        DM::ActionViewBlockList, "test.cr.bridged_instant_dup", [](const CommandContext&) {}));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.bridged_instant_dup"));
+    EXPECT_FALSE(CommandRegistry::instance().registerViewTool(
+        DM::ActionViewCommandLine, "test.cr.bridged_view_tool_dup", testViewToolFactory()));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.bridged_view_tool_dup"));
+}
+
+TEST(CommandRegistryTest, 即时命令的打断策略随注册登记)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.cr.keep_all", [](const CommandContext&) {}, {.instantInterrupt = InstantInterrupt::KeepAll}));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand("test.cr.default_interrupt",
+                                                                   [](const CommandContext&) {}));
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("test.cr.keep_all"), InstantInterrupt::KeepAll);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("test.cr.default_interrupt"),
+              InstantInterrupt::EndUninterruptible);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("test.cr.interrupt_missing"),
+              InstantInterrupt::EndUninterruptible);
+}
+
+TEST(CommandRegistryTest, 第三步迁移的视图与即时命令注册为新类型)
+{
+    // 平移模式是临时视图工具，不占命令总线
+    EXPECT_EQ(CommandRegistry::instance().kind("zoom.pan"), CommandKind::ViewTool);
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionZoomPan), QStringLiteral("zoom.pan"));
+
+    const std::pair<DM::ActionType, const char*> instants[] = {
+        {DM::ActionZoomIn, "zoom.in"},     {DM::ActionZoomOut, "zoom.out"},
+        {DM::ActionEditUndo, "edit.undo"}, {DM::ActionEditRedo, "edit.redo"},
+        {DM::ActionInfoSelected, "info.selected"},
+    };
+    for (const auto& [type, id] : instants)
+    {
+        SCOPED_TRACE(id);
+        EXPECT_EQ(CommandRegistry::instance().kind(id), CommandKind::Instant);
+        EXPECT_EQ(CommandRegistry::instance().commandId(type), QString::fromLatin1(id));
+    }
+    // 原视图 Action 不打断任何命令（多行文字编辑中缩放不结束它）；撤销等照旧结束不可打断的
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("zoom.in"), InstantInterrupt::KeepAll);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("zoom.out"), InstantInterrupt::KeepAll);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("edit.undo"), InstantInterrupt::EndUninterruptible);
 }

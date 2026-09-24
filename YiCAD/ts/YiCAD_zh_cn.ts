@@ -1389,54 +1389,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionInfoSelected</name>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="65"/>
-        <source>Type: </source>
-        <translation>类型： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="68"/>
-        <source>ID: </source>
-        <translation>ID： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="71"/>
-        <source>Layer: </source>
-        <translation>图层： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="121"/>
-        <source>start point: </source>
-        <translation>起点： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="124"/>
-        <source>end point: </source>
-        <translation>终点： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="128"/>
-        <source>knots count: </source>
-        <translation>节点个数： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="131"/>
-        <source>knots: </source>
-        <translation>节点向量： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="142"/>
-        <source>control point count: </source>
-        <translation>控制点个数： </translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoSelected.cpp" line="145"/>
-        <source>control points: </source>
-        <translation>控制点： </translation>
-    </message>
-</context>
-<context>
     <name>ActionLayersActivate</name>
     <message>
         <location filename="../src/actions/ActionLayersActivate.cpp" line="77"/>
@@ -2055,6 +2007,54 @@ This block cannot be inserted.</source>
         <location filename="../src/kernel/gui/GuiDocumentView.cpp" line="1435"/>
         <source>Grid</source>
         <translation>网格</translation>
+    </message>
+</context>
+<context>
+    <name>InfoSelectedCommand</name>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="76"/>
+        <source>Type: </source>
+        <translation>类型： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="79"/>
+        <source>ID: </source>
+        <translation>ID： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="82"/>
+        <source>Layer: </source>
+        <translation>图层： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="129"/>
+        <source>start point: </source>
+        <translation>起点： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="132"/>
+        <source>end point: </source>
+        <translation>终点： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="135"/>
+        <source>knots count: </source>
+        <translation>节点个数： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="138"/>
+        <source>knots: </source>
+        <translation>节点向量： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="149"/>
+        <source>control point count: </source>
+        <translation>控制点个数： </translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoSelectedCommand.cpp" line="152"/>
+        <source>control points: </source>
+        <translation>控制点： </translation>
     </message>
 </context>
 <context>

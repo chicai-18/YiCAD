@@ -6,6 +6,7 @@ yicad_add_test(interaction
     SOURCES
         test_view_tool_control.cpp
         test_pan_zoom_tool.cpp
+        test_zoom_pan_tool.cpp
         test_select_tool.cpp
         test_legacy_action_tool.cpp
         test_command_registry.cpp

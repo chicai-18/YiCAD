@@ -35,11 +35,12 @@
 /// `DM::ActionType` 为键）；纯字符串命令没有枚举值可挂，别名与说明随
 /// `CommandInfo` 一起注册在这里。
 ///
-/// 命令有三种注册类型（`CommandKind`，doc/COMMAND_TOOL_MIGRATION_PLAN.md
-/// 第二步第 2 项）：旧版 Action（工厂返回 `ActionInterface*`，第四步删除）、
+/// 命令有四种注册类型（`CommandKind`，doc/COMMAND_TOOL_MIGRATION_PLAN.md
+/// 第二步第 2 项与第三步）：旧版 Action（工厂返回 `ActionInterface*`，第四步删除）、
 /// 交互命令（工厂返回 `std::unique_ptr<IExclusiveCommand>`，由视图的命令总线
-/// 运行）与即时命令（一个函数，不建命令对象、不占总线，没有打开图纸时也能
-/// 执行）。`UIActionHandler::activateCommand` 按注册类型分派。
+/// 运行）、即时命令（一个函数，不建命令对象、不占总线，没有打开图纸时也能
+/// 执行）与临时视图工具（平移：不占总线，叠在业务栈顶，见 TransientViewTool.h）。
+/// `UIActionHandler::activateCommand` 按注册类型分派。
 
 #ifndef COMMANDREGISTRY_H
 #define COMMANDREGISTRY_H
@@ -59,6 +60,7 @@ class IDocumentView;
 class IExclusiveCommand;
 class QObject;
 class QWidget;
+class TransientViewTool;
 
 /// @brief 构造命令所需的运行时环境。
 ///
@@ -92,13 +94,24 @@ ExclusiveCommandFactory exclusiveCommandFactory()
 /// @brief 即时命令：执行即完成，不建命令对象、不占命令总线。
 using InstantCommand = std::function<void(const CommandContext&)>;
 
+/// @brief 即时命令执行前如何处理正在运行的命令
+enum class InstantInterrupt
+{
+    EndUninterruptible, ///< 结束不可打断的命令（多行文字编辑），默认：与原先压栈时一致
+    KeepAll             ///< 什么也不结束：原 isViewAction() 的 Action（缩放）不打断任何命令
+};
+
+/// @brief 临时视图工具工厂：构造一个新的工具实例；返回空表示本次不启动。
+using ViewToolFactory = std::function<std::unique_ptr<TransientViewTool>(const CommandContext&)>;
+
 /// @brief 命令的注册类型
 enum class CommandKind
 {
     None,      ///< 未注册
     Legacy,    ///< 旧版 Action，第四步删除
     Exclusive, ///< 交互命令，由视图的命令总线运行
-    Instant    ///< 即时命令
+    Instant,   ///< 即时命令
+    ViewTool   ///< 临时视图工具，不占命令总线，叠在业务栈顶
 };
 
 /// @brief 命令选项条工厂。Action 调用 `GUIDIALOGFACTORY->requestOptions(this, true, update)`
@@ -129,6 +142,8 @@ struct CommandInfo
     CommandOptionsFactory optionsFactory;
     /// @brief 交互命令的选项条；为空表示该命令没有选项条。
     ExclusiveCommandOptionsFactory commandOptionsFactory;
+    /// @brief 即时命令执行前如何处理正在运行的命令；只对即时命令有效。
+    InstantInterrupt instantInterrupt = InstantInterrupt::EndUninterruptible;
 };
 
 /// @brief 命令注册表。字符串 ID 为主键，`DM::ActionType` 只是过渡期桥接。
@@ -155,6 +170,18 @@ public:
 
     /// @brief 注册一个即时命令，其余同 registerCommand()。
     bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info = {});
+
+    /// @brief 注册一个内置即时命令，同时建立 legacy ActionType 桥接。
+    /// @return 成功返回 true；id 或 legacyType 已存在时返回 false，不留下部分注册的状态。
+    bool registerInstantCommand(DM::ActionType legacyType, const QString& id, InstantCommand command,
+                                CommandInfo info = {});
+
+    /// @brief 注册一个临时视图工具，其余同 registerCommand()。
+    bool registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info = {});
+
+    /// @brief 注册一个内置临时视图工具，同时建立 legacy ActionType 桥接。
+    /// @return 成功返回 true；id 或 legacyType 已存在时返回 false，不留下部分注册的状态。
+    bool registerViewTool(DM::ActionType legacyType, const QString& id, ViewToolFactory factory);
 
     /// @brief 为已注册的命令建立 legacy ActionType 桥接（keyconfig.xml 仍以枚举为键）。
     /// @return id 未注册或 legacyType 已桥接时返回 false。
@@ -199,6 +226,9 @@ public:
     /// @brief 交互命令的选项条工厂；未注册或未提供时返回空函数。
     ExclusiveCommandOptionsFactory commandOptionsFactory(const QString& id) const;
 
+    /// @brief 即时命令执行前如何处理正在运行的命令；未注册时返回默认值。
+    InstantInterrupt instantInterrupt(const QString& id) const;
+
     /// @brief 按 legacy ActionType 构造 Action；未注册返回 nullptr。
     ActionInterface* create(DM::ActionType legacyType, const CommandContext& ctx) const;
 
@@ -210,6 +240,10 @@ public:
     /// @brief 按字符串 ID 构造交互命令，并把 id 记到命令上；未注册、不是交互
     /// 命令或工厂返回空时返回空。
     std::unique_ptr<IExclusiveCommand> createCommand(const QString& id, const CommandContext& ctx) const;
+
+    /// @brief 按字符串 ID 构造临时视图工具，并把 id 记到工具上；未注册、不是
+    /// 临时视图工具或工厂返回空时返回空。
+    std::unique_ptr<TransientViewTool> createViewTool(const QString& id, const CommandContext& ctx) const;
 
     /// @brief 执行即时命令。
     /// @return 未注册或不是即时命令时返回 false，什么也不做。
@@ -224,11 +258,14 @@ private:
         CommandFactory factory;                   ///< kind 为 Legacy 时有效
         ExclusiveCommandFactory commandFactory;   ///< kind 为 Exclusive 时有效
         InstantCommand instant;                   ///< kind 为 Instant 时有效
+        ViewToolFactory viewToolFactory;          ///< kind 为 ViewTool 时有效
         CommandInfo info;
     };
 
-    /// @brief 三种注册共用：校验 id 与别名，登记条目
+    /// @brief 各种注册共用：校验 id 与别名，登记条目
     bool addEntry(const QString& id, Entry entry);
+    /// @brief 带 legacy 桥接的注册共用：legacyType 未桥接时才注册，注册成功后建立桥接
+    bool addBridged(DM::ActionType legacyType, const QString& id, const std::function<bool()>& registerEntry);
 
     std::map<QString, Entry> m_commands;
     std::map<DM::ActionType, QString> m_legacyBridge;

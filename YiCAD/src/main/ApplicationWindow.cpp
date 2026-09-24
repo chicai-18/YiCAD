@@ -1188,7 +1188,7 @@ void ApplicationWindow::createQuickAccessBar(SARibbonQuickAccessBar* quickAccess
 	// undo/redo
 	// 撤销
 	m_pActUndo = createAction(QObject::tr("Undo"), ":/ribbon/undo.svg");
-	// 撤销保留 slotEditUndo：没有打开的图纸时它直接返回，不构造 ActionEditUndo。
+	// 撤销保留 slotEditUndo：没有打开的图纸时它直接返回，不执行撤销。
 	connect(m_pActUndo, SIGNAL(triggered()), m_pActionHandler, SLOT(slotEditUndo()));
     m_pActUndo->setEnabled(false);
 	quickAccessBar->addAction(m_pActUndo);																	// 回退

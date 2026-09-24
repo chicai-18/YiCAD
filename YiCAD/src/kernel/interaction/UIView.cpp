@@ -26,8 +26,6 @@
 #include <QWheelEvent>
 
 #include "ActionInterface.h"
-#include "ActionZoomIn.h"
-#include "CommandRegistry.h"
 #include "DmDocument.h"
 #include "DmSettings.h"
 #include "EntityTable.h"
@@ -41,6 +39,7 @@
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
+#include "TransientViewTool.h"
 #include "ViewToolControl.h"
 
 using DispatchScope = ExclusiveCommandBus::DispatchScope;
@@ -68,6 +67,10 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
         // 选择层之上有旧 Action 或命令时，提示与光标归它们（命令的选择阶段除外）
         m_pSelectTool->setOverlayQuery([this]()
         {
+            if (m_pViewTool)
+            {
+                return SelectTool::Overlay::ViewTool;
+            }
             if (getEventHandler()->hasAction())
             {
                 return SelectTool::Overlay::LegacyAction;
@@ -89,7 +92,13 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
 
 UIView::~UIView()
 {
-    // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
+    // 临时视图工具先移出工具栈；其下各层随后都要析构，不再恢复。
+    if (m_pViewTool)
+    {
+        m_pViewToolControl->deactivate(m_pViewTool.get());
+        m_pViewTool.reset();
+    }
+    // 再结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
     // GuiEventHandler 归基类，比本类的成员活得久，先解除它对本类的引用。
     getEventHandler()->setStackBase(nullptr);
@@ -108,6 +117,8 @@ bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
         return false;
     }
     m_pCommandBus->end();
+    // 启动命令结束平移模式（原先它被挂起、命令结束后恢复，迁移计划 9.3 节）
+    endViewTool();
 
     // 过渡期：启动命令时结束全部旧 Action，不再恢复（迁移计划 9.2 节）
     GuiEventHandler* handler = getEventHandler();
@@ -119,13 +130,85 @@ bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
     return m_pCommandBus->start(std::move(command));
 }
 
-void UIView::prepareInstantCommand()
+void UIView::prepareInstantCommand(InstantInterrupt interrupt)
 {
+    if (interrupt == InstantInterrupt::KeepAll)
+    {
+        return;
+    }
     getEventHandler()->interruptForInstantCommand();
+}
+
+bool UIView::startViewTool(std::unique_ptr<TransientViewTool> tool)
+{
+    if (!m_pCommandBus || !tool || m_pCommandBus->isInCallback())
+    {
+        return false;
+    }
+    endViewTool();
+    suspendUnderViewTool();
+
+    m_pViewTool = std::move(tool);
+    const unsigned generation = ++m_viewToolGeneration;
+    m_pViewTool->setFinishHandler([this, generation]()
+    {
+        // 工具在自己的事件处理中请求结束：它还在调用栈上，分发返回后再结束
+        m_pCommandBus->post([this, generation]()
+        {
+            if (generation == m_viewToolGeneration)
+            {
+                endViewTool();
+            }
+        });
+    });
+    m_pViewToolControl->activate(m_pViewTool.get());
+    return true;
+}
+
+void UIView::endViewTool()
+{
+    if (!m_pViewTool)
+    {
+        return;
+    }
+    // 先移出成员：恢复其下各层时，选择层查询到的已不是临时视图工具
+    std::unique_ptr<TransientViewTool> tool = std::move(m_pViewTool);
+    m_pViewToolControl->deactivate(tool.get());
+    resumeUnderViewTool();
+}
+
+void UIView::suspendUnderViewTool()
+{
+    if (ActionInterface* action = getCurrentAction())
+    {
+        action->suspend();
+        action->hideOptions();
+    }
+    else
+    {
+        suspendForLegacy();
+    }
+}
+
+void UIView::resumeUnderViewTool()
+{
+    if (ActionInterface* action = getCurrentAction())
+    {
+        action->resume();
+        action->showOptions();
+    }
+    else
+    {
+        resumeAfterLegacy();
+    }
 }
 
 QString UIView::activeCommandId() const
 {
+    if (m_pViewTool)
+    {
+        return m_pViewTool->commandId();
+    }
     return m_pCommandBus ? m_pCommandBus->activeCommandId() : QString();
 }
 
@@ -138,12 +221,18 @@ bool UIView::processKeyEvent(QKeyEvent* e)
 void UIView::back()
 {
     QMouseEvent e(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    DispatchScope scope(m_pCommandBus.get());
     routeBack(&e);
 }
 
 void UIView::routeBack(QMouseEvent* e)
 {
-    if (getEventHandler()->hasAction())
+    if (m_pViewTool)
+    {
+        // 平移模式在业务栈顶，右键退出它
+        m_pViewToolControl->mouseReleaseEvent(e);
+    }
+    else if (getEventHandler()->hasAction())
     {
         GuiDocumentView::back();
     }
@@ -157,7 +246,8 @@ void UIView::routeBack(QMouseEvent* e)
 
 void UIView::commandEvent(GuiCommandEvent* e)
 {
-    if (getEventHandler()->hasAction() || !hasBusinessOnBus())
+    // 平移模式在业务栈顶，与命令一样经 ViewToolControl 交给它（它丢弃坐标、不接受文本）
+    if (!m_pViewTool && (getEventHandler()->hasAction() || !hasBusinessOnBus()))
     {
         GuiDocumentView::commandEvent(e);
         return;
@@ -198,6 +288,7 @@ bool UIView::killAllActions()
         }
         m_pCommandBus->endAll();
     }
+    endViewTool();
     return GuiDocumentView::killAllActions();
 }
 
@@ -209,12 +300,13 @@ void UIView::killAllActionsOnClose()
         m_pCommandBus->approveEndAll(CommandEndReason::ViewClosing);
         m_pCommandBus->endAll();
     }
+    endViewTool();
     GuiDocumentView::killAllActionsOnClose();
 }
 
 bool UIView::hasActiveCommand()
 {
-    return GuiDocumentView::hasActiveCommand() || hasBusinessOnBus();
+    return GuiDocumentView::hasActiveCommand() || hasBusinessOnBus() || m_pViewTool;
 }
 
 bool UIView::hasBusinessOnBus() const
@@ -247,6 +339,8 @@ void UIView::setCurrentAction(ActionInterface* action)
             m_pCommandBus->endAll();
         }
     }
+    // 过渡期：启动旧版 Action 结束平移模式（原先它被挂起、旧 Action 结束后恢复）
+    endViewTool();
     // 其余旧 Action 叠在命令之上：GuiEventHandler 从空栈启动它时经
     // suspendForLegacy() 挂起命令，栈清空时经 resumeAfterLegacy() 恢复
     GuiDocumentView::setCurrentAction(action);
@@ -340,6 +434,11 @@ ISnapService* UIView::commandSnapService() const
 
 SnapResultType UIView::currentSnapResult()
 {
+    if (m_pViewTool)
+    {
+        // 平移模式不捕捉，其下各层已挂起
+        return SnapResultType::SnapNone;
+    }
     if (ActionInterface* action = getCurrentAction())
     {
         return action->getSnapResult();
@@ -353,6 +452,10 @@ SnapResultType UIView::currentSnapResult()
 
 DmVector UIView::currentSnapSpot()
 {
+    if (m_pViewTool)
+    {
+        return DmVector(false);
+    }
     if (ActionInterface* action = getCurrentAction())
     {
         return action->getSnapSpot();
@@ -417,8 +520,10 @@ void UIView::mouseReleaseEvent(QMouseEvent* e)
             // 无论是平移刚结束还是普通业务释放，都让当前 Action 重新声明
             // 一次光标：平移结束时避免 ClosedHandCursor 残留在画布上（见
             // ViewToolControl::refreshCursor"无偏好则不动"的策略）；
-            // 普通释放时这只是一次无害的重复刷新。
-            if (ActionInterface* action = getCurrentAction())
+            // 普通释放时这只是一次无害的重复刷新。平移模式下旧 Action 已挂起，
+            // 光标归平移模式。
+            ActionInterface* action = m_pViewTool ? nullptr : getCurrentAction();
+            if (action)
             {
                 action->updateMouseCursor();
             }
@@ -499,21 +604,43 @@ void UIView::tabletEvent(QTabletEvent* e)
 void UIView::leaveEvent(QEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    m_pViewToolControl->leaveEvent();
+    // 平移模式下其下各层已挂起，进入/离开画布只通知它（原先只通知旧 Action 栈顶）
+    if (m_pViewTool)
+    {
+        m_pViewTool->leaveEvent();
+    }
+    else
+    {
+        m_pViewToolControl->leaveEvent();
+    }
     GuiDocumentView::leaveEvent(e);
 }
 
 void UIView::enterEvent(QEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    m_pViewToolControl->enterEvent();
+    if (m_pViewTool)
+    {
+        m_pViewTool->enterEvent();
+    }
+    else
+    {
+        m_pViewToolControl->enterEvent();
+    }
     GuiDocumentView::enterEvent(e);
 }
 
 void UIView::focusInEvent(QFocusEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    m_pViewToolControl->enterEvent();
+    if (m_pViewTool)
+    {
+        m_pViewTool->enterEvent();
+    }
+    else
+    {
+        m_pViewToolControl->enterEvent();
+    }
     GuiDocumentView::focusInEvent(e);
 }
 
@@ -555,19 +682,15 @@ void UIView::wheelEvent(QWheelEvent* e)
 
                 // Hold ctrl to zoom. 1 % per pixel
                 double v = (invZoom) ? (numPixels.y() / TRACKPAD_ZOOM_SCALE) : (-numPixels.y() / TRACKPAD_ZOOM_SCALE);
-                DM::ZoomDirection direction;
-                double factor;
-
+                // 缩放直接作用于视图，不经命令（原先压入一个视图 Action，挂起、恢复当前命令）
                 if (v < 0)
                 {
-                    direction = DM::In; factor = 1 - v;
+                    zoomIn(1 - v, mouse);
                 }
                 else
                 {
-                    direction = DM::Out;  factor = 1 + v;
+                    zoomOut(1 + v, mouse);
                 }
-
-                setCurrentAction(new ActionZoomIn(pDocument, this, direction, DM::Both, &mouse, factor));
             }
             redraw();
         }
@@ -591,11 +714,11 @@ void UIView::wheelEvent(QWheelEvent* e)
 
         if ((e->delta() > 0 && !invZoom) || (e->delta() < 0 && invZoom))
         {
-            setCurrentAction(new ActionZoomIn(pDocument, this, DM::Out, DM::Both, &mouse, ZOOM_FACTOR_MOUSE));
+            zoomOut(ZOOM_FACTOR_MOUSE, mouse);
         }
         else
         {
-            setCurrentAction(new ActionZoomIn(pDocument, this, DM::In, DM::Both, &mouse, ZOOM_FACTOR_MOUSE));
+            zoomIn(ZOOM_FACTOR_MOUSE, mouse);
         }
     }
 

@@ -24,6 +24,7 @@
 
 #include "ActionInterface.h"
 #include "IExclusiveCommand.h"
+#include "TransientViewTool.h"
 
 // 注册冲突（重复 ID / 重复 legacy 类型）用返回值报告，不用 assert() 硬中断——
 // 这条路径本身就是可测试、可恢复的正常分支（见
@@ -109,16 +110,7 @@ bool CommandRegistry::registerExclusiveCommand(const QString& id, ExclusiveComma
 bool CommandRegistry::registerExclusiveCommand(DM::ActionType legacyType, const QString& id,
                                                ExclusiveCommandFactory factory)
 {
-    if (m_legacyBridge.find(legacyType) != m_legacyBridge.end())
-    {
-        return false;
-    }
-    if (!registerExclusiveCommand(id, std::move(factory)))
-    {
-        return false;
-    }
-    m_legacyBridge.emplace(legacyType, id);
-    return true;
+    return addBridged(legacyType, id, [&]() { return registerExclusiveCommand(id, std::move(factory)); });
 }
 
 bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info)
@@ -134,6 +126,31 @@ bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand c
     return addEntry(id, std::move(entry));
 }
 
+bool CommandRegistry::registerInstantCommand(DM::ActionType legacyType, const QString& id, InstantCommand command,
+                                             CommandInfo info)
+{
+    return addBridged(legacyType, id,
+                      [&]() { return registerInstantCommand(id, std::move(command), std::move(info)); });
+}
+
+bool CommandRegistry::registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info)
+{
+    if (!factory)
+    {
+        return false;
+    }
+    Entry entry;
+    entry.kind = CommandKind::ViewTool;
+    entry.viewToolFactory = std::move(factory);
+    entry.info = std::move(info);
+    return addEntry(id, std::move(entry));
+}
+
+bool CommandRegistry::registerViewTool(DM::ActionType legacyType, const QString& id, ViewToolFactory factory)
+{
+    return addBridged(legacyType, id, [&]() { return registerViewTool(id, std::move(factory)); });
+}
+
 bool CommandRegistry::bindLegacyType(DM::ActionType legacyType, const QString& id)
 {
     if (m_legacyBridge.find(legacyType) != m_legacyBridge.end() || !hasCommand(id))
@@ -147,11 +164,17 @@ bool CommandRegistry::bindLegacyType(DM::ActionType legacyType, const QString& i
 bool CommandRegistry::registerLegacyCommand(DM::ActionType legacyType, const QString& id,
                                              CommandFactory factory)
 {
+    return addBridged(legacyType, id, [&]() { return registerCommand(id, std::move(factory)); });
+}
+
+bool CommandRegistry::addBridged(DM::ActionType legacyType, const QString& id,
+                                 const std::function<bool()>& registerEntry)
+{
     if (m_legacyBridge.find(legacyType) != m_legacyBridge.end())
     {
         return false;
     }
-    if (!registerCommand(id, std::move(factory)))
+    if (!registerEntry())
     {
         return false;
     }
@@ -246,6 +269,12 @@ ExclusiveCommandOptionsFactory CommandRegistry::commandOptionsFactory(const QStr
     return it == m_commands.end() ? ExclusiveCommandOptionsFactory() : it->second.info.commandOptionsFactory;
 }
 
+InstantInterrupt CommandRegistry::instantInterrupt(const QString& id) const
+{
+    auto it = m_commands.find(id);
+    return it == m_commands.end() ? InstantInterrupt::EndUninterruptible : it->second.info.instantInterrupt;
+}
+
 ActionInterface* CommandRegistry::create(DM::ActionType legacyType, const CommandContext& ctx) const
 {
     auto it = m_legacyBridge.find(legacyType);
@@ -284,6 +313,21 @@ std::unique_ptr<IExclusiveCommand> CommandRegistry::createCommand(const QString&
         command->setCommandId(id);
     }
     return command;
+}
+
+std::unique_ptr<TransientViewTool> CommandRegistry::createViewTool(const QString& id, const CommandContext& ctx) const
+{
+    auto it = m_commands.find(id);
+    if (it == m_commands.end() || it->second.kind != CommandKind::ViewTool)
+    {
+        return nullptr;
+    }
+    std::unique_ptr<TransientViewTool> tool = it->second.viewToolFactory(ctx);
+    if (tool)
+    {
+        tool->setCommandId(id);
+    }
+    return tool;
 }
 
 bool CommandRegistry::runInstant(const QString& id, const CommandContext& ctx) const

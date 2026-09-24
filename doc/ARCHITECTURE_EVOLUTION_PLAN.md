@@ -1153,6 +1153,11 @@ YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
 `DM::ActionType` 降级与 keyconfig 改用字符串 ID 并入该方案第四步。理由见该文件
 第 2 节。
 
+**2026-09-24 再调整**：任务⑤的文字、块、填充三个领域并入该方案第三步，迁移时直接
+做成扩展 `ext.text`、`ext.block`、`ext.hatch`；另把原先不在任务⑤里的文件、图层、
+选项也做成扩展 `ext.file`、`ext.layer`、`ext.options`。任务⑤只剩打印。见该文件
+5.2 节。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移

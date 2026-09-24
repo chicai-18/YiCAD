@@ -45,6 +45,12 @@ constexpr double kDragThresholdGui = 10.0;
 constexpr double kRefSnapGuiDist = 8.0;
 /// @brief 角度吸附步进（度）
 constexpr double kAngleSnapStep = 15.0;
+
+/// @brief 选择层之上的业务是否连选择阶段的输入、提示与光标也一并接管
+bool ownsEverything(SelectTool::Overlay above)
+{
+    return above == SelectTool::Overlay::LegacyAction || above == SelectTool::Overlay::ViewTool;
+}
 }  // namespace
 
 SelectTool::SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
@@ -130,7 +136,7 @@ void SelectTool::resume()
 void SelectTool::enterEvent()
 {
     const Overlay above = overlay();
-    if (inSelectionPhase() ? above != Overlay::LegacyAction : above == Overlay::None || above == Overlay::EditMode)
+    if (inSelectionPhase() ? !ownsEverything(above) : above == Overlay::None || above == Overlay::EditMode)
     {
         resume();
     }
@@ -139,7 +145,7 @@ void SelectTool::enterEvent()
 void SelectTool::leaveEvent()
 {
     const Overlay above = overlay();
-    if (inSelectionPhase() ? above != Overlay::LegacyAction : above == Overlay::None || above == Overlay::EditMode)
+    if (inSelectionPhase() ? !ownsEverything(above) : above == Overlay::None || above == Overlay::EditMode)
     {
         suspend();
     }
@@ -194,7 +200,7 @@ SelectTool::Overlay SelectTool::overlay() const
 
 bool SelectTool::phaseOwnsInput() const
 {
-    return inSelectionPhase() && overlay() != Overlay::LegacyAction;
+    return inSelectionPhase() && !ownsEverything(overlay());
 }
 
 void SelectTool::notifySelectionChanged()
@@ -284,7 +290,7 @@ std::optional<DM::CursorType> SelectTool::getCursor() const
         return phaseOwnsInput() ? cursorForStatus() : std::nullopt;
     }
     const Overlay above = overlay();
-    if (above == Overlay::Command || above == Overlay::LegacyAction)
+    if (above == Overlay::Command || ownsEverything(above))
     {
         return std::nullopt;
     }

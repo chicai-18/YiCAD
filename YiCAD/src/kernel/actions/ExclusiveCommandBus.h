@@ -35,11 +35,13 @@
 ///     命令叠在它上面；启动命令不影响模式，结束全部命令与视图关闭时先问命令、
 ///     再问模式（approveEndAll()）。
 ///
-/// 视图工具（平移、缩放）不占总线，直接叠在业务栈顶。
+/// 视图工具（平移）不占总线，由视图直接叠在业务栈顶（TransientViewTool.h）；
+/// 它请求结束自己时经 post() 延迟到分发返回之后。
 
 #ifndef EXCLUSIVECOMMANDBUS_H
 #define EXCLUSIVECOMMANDBUS_H
 
+#include <functional>
 #include <memory>
 #include <vector>
 
@@ -161,6 +163,14 @@ public:
     /// @brief 活动命令是否被挂起
     bool isSuspended() const { return m_suspended; }
 
+    // ---- 延迟执行 ----
+
+    /// @brief 在这次分发返回后执行一项任务
+    /// @details 分发范围内延迟到最外层范围结束（在结束命令、退出编辑模式之后）；
+    ///          范围外经 0 毫秒定时器。供不归总线管理、又要在自己的事件处理中
+    ///          结束自己的临时视图工具使用。
+    void post(std::function<void()> task);
+
     // ---- 捕捉设置同步 ----
 
     /// @brief 视图的默认捕捉模式变化时同步给活动命令的捕捉器
@@ -185,6 +195,8 @@ private:
     std::vector<std::unique_ptr<IExclusiveCommand>> m_retired;
     /// @brief 分发范围内退出的编辑模式，范围结束时销毁
     std::vector<std::unique_ptr<IEditMode>> m_retiredModes;
+    /// @brief post() 的任务，最外层范围结束时执行
+    std::vector<std::function<void()>> m_posted;
     int m_scopeDepth = 0;
     bool m_finishPending = false;
     bool m_exitModePending = false;

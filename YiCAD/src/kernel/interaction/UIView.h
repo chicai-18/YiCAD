@@ -42,7 +42,12 @@
 ///   - 命令运行中启动旧 Action：命令被挂起，旧 Action 全部结束后恢复（本类作为
 ///     旧 Action 栈之下的一层，实现 ILegacyStackBase）；排他的旧 Action（文件
 ///     新建、打开等）先按 5.1 节请命令让位；
-///   - 即时命令：不碰命令总线，只结束不可打断的旧 Action。
+///   - 即时命令：不碰命令总线，只结束不可打断的旧 Action（缩放什么也不结束）。
+///
+/// 临时视图工具（平移模式，TransientViewTool）也由本类持有：它不占命令总线，
+/// 叠在业务栈顶；启动时挂起其下各层（旧 Action、命令或编辑模式、选择层），
+/// 结束时恢复（迁移计划第三步）。启动命令、启动旧版 Action、结束全部命令与
+/// 视图关闭时结束它。
 ///
 /// 编辑模式（块编辑，IEditMode）也由命令总线持有：启动命令不影响它；结束全部命令、
 /// 排他的旧 Action 与视图关闭时先问命令、再问模式（ExclusiveCommandBus::approveEndAll）。
@@ -52,6 +57,7 @@
 
 #include <memory>
 
+#include "CommandRegistry.h"
 #include "GuiDocumentView.h"
 #include "GuiEventHandler.h"
 
@@ -62,6 +68,7 @@ class LegacyActionTool;
 class PanZoomTool;
 class Preview;
 class SelectTool;
+class TransientViewTool;
 class ViewToolControl;
 
 /// @brief 交互视图：画布加交互层工具栈与命令总线
@@ -83,14 +90,24 @@ public:
     /// @return 新命令已激活（包括激活期间就已完成的）时返回 true
     bool startCommand(std::unique_ptr<IExclusiveCommand> command);
 
-    /// @brief 即时命令执行前调用：结束不可打断的旧 Action（见
-    ///        GuiEventHandler::interruptForInstantCommand）
-    void prepareInstantCommand();
+    /// @brief 即时命令执行前调用
+    /// @param interrupt EndUninterruptible 时结束不可打断的旧 Action（见
+    ///        GuiEventHandler::interruptForInstantCommand）；KeepAll 时什么也不做
+    void prepareInstantCommand(InstantInterrupt interrupt = InstantInterrupt::EndUninterruptible);
+
+    /// @brief 启动临时视图工具（平移模式）：结束已有的，挂起其下各层，叠在业务栈顶
+    /// @param tool 新工具，视图接管所有权
+    /// @return 没有文档或处于结束前回调期间时返回 false，工具被丢弃
+    bool startViewTool(std::unique_ptr<TransientViewTool> tool);
+    /// @brief 结束临时视图工具并恢复其下各层；没有时什么也不做
+    void endViewTool();
+    /// @brief 当前的临时视图工具；没有时返回 nullptr
+    TransientViewTool* viewTool() const { return m_pViewTool.get(); }
 
     /// @brief 命令总线；没有文档时为空
     ExclusiveCommandBus* commandBus() const { return m_pCommandBus.get(); }
 
-    /// @brief 活动命令的 ID；没有时返回空串
+    /// @brief 活动命令的 ID：有临时视图工具时是它的，否则是命令总线上的；没有时返回空串
     QString activeCommandId() const;
 
     /// @brief 主窗口转交的按键，经 ViewToolControl 分发
@@ -106,10 +123,11 @@ public:
     bool killAllActions() override;
     /// @brief 视图关闭：回调命令与编辑模式（ViewClosing，不能否决）后结束全部
     void killAllActionsOnClose() override;
-    /// @brief 旧 Action 栈非空、有活动命令或处于编辑模式
+    /// @brief 旧 Action 栈非空、有活动命令、处于编辑模式或有临时视图工具
     bool hasActiveCommand() override;
 
-    /// @brief 启动旧版 Action：排他的先请命令让位；回调期间的启动请求被忽略
+    /// @brief 启动旧版 Action：排他的先请命令让位；回调期间的启动请求被忽略；
+    ///        结束临时视图工具（过渡期）
     void setCurrentAction(ActionInterface* action) override;
 
     /// @brief 设置默认捕捉模式，并同步给选择层与活动命令的捕捉器
@@ -151,6 +169,12 @@ private:
     /// @brief 命令总线上有活动命令或编辑模式
     bool hasBusinessOnBus() const;
 
+    /// @brief 临时视图工具启动时挂起其下各层：有旧 Action 时挂起栈顶并收起它的选项条
+    ///        （原先视图 Action 压栈时的做法），否则同 suspendForLegacy()
+    void suspendUnderViewTool();
+    /// @brief 临时视图工具结束时恢复其下各层
+    void resumeUnderViewTool();
+
     // 注意声明顺序：成员按声明的逆序析构。m_pCommandBus 最后声明、最先析构
     // （析构函数里还会提前显式释放），结束活动命令时它的工具、选择层与
     // ViewToolControl 都还在；m_pViewToolControl 随后析构，向各层工具发
@@ -163,8 +187,10 @@ private:
     std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层的捕捉器，空闲态的捕捉提示也读它
     std::unique_ptr<Preview>                m_pSelectPreview;       ///< 选择层拖动实体时的预览容器
     std::unique_ptr<SelectTool>             m_pSelectTool;          ///< 选择层；没有文档时为空
+    std::unique_ptr<TransientViewTool>      m_pViewTool;            ///< 临时视图工具（平移模式）；没有时为空
     std::unique_ptr<ViewToolControl>        m_pViewToolControl;     ///< 交互层工具控制器
     std::unique_ptr<ExclusiveCommandBus>    m_pCommandBus;          ///< 命令总线；没有文档时为空
+    unsigned                                m_viewToolGeneration = 0; ///< 每启动一个临时视图工具加一
 };
 
 #endif // UIVIEW_H

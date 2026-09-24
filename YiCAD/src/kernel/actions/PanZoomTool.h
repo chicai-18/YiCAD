@@ -30,9 +30,9 @@
 /// 业务层 LegacyActionTool 与选择层 SelectTool 不处理的按下才落到本类。
 /// 本类不依赖 GuiEventHandler，保持导航层与旧版 Action 体系解耦。
 ///
-/// 显式的"平移"命令（Ribbon 的 Pan 按钮，`ActionZoomPan`）不在本类改动
-/// 范围内：那是用户主动进入的模态命令，与这里"任何时候中键一按就能平移"
-/// 的导航手势是两回事，语义不同，予以保留。
+/// 显式的"平移"命令（Ribbon 的 Pan 按钮，原 `ActionZoomPan`，现为临时视图工具
+/// `ZoomPanTool`）不由本类承担：那是用户主动进入、需要退出的模式，与这里
+/// "任何时候中键一按就能平移"的导航手势是两回事，语义不同，予以保留。
 ///
 /// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 第5.4节第2项。
 

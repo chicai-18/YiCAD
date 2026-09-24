@@ -31,7 +31,9 @@
 
 - **阶段 4 任务⑤**要把文字、块、填充、打印的 Action 搬进扩展。先做会按即将删除的
   Action 形式写一遍、本方案再迁一遍；扩展注册命令的接口（`CommandFactory` 返回
-  `ActionInterface*`）也会在调用方变多之后才改签名。
+  `ActionInterface*`）也会在调用方变多之后才改签名。2026-09-24 调整：文字、块、
+  填充改在第三步迁移时直接做成扩展，另把文件、图层、选项也做成扩展（见 5.2 节），
+  任务⑤只剩打印。
 - **阶段 4 遗留的"每个扩展独立成库"**被主计划 6.7 节记录的两处双向依赖卡住：
   `GuiEventHandler` 持有 Action 栈，Action 直接包含 UI/APP 头文件。这两处正是
   本方案要拆掉的。
@@ -152,6 +154,7 @@ DS 没有、YiCAD 需要保留的：
 | 夹点编辑 | 不拆出 `EditTool`，留在 `SelectTool` | 理由同主计划 5.7 节：框选与拖夹点在同一次拖拽的中途才分叉，共享未决状态 |
 | 命名 | DS 后缀式 | 命令 `XxxCommand`、工具 `XxxTool`、框架接口 `I*`，例如 `ActionDrawLine` → `DrawLineCommand` + `DrawLineTool`。框架类沿用 DS 名称（`ExclusiveCommandBus` 等）；方法名按 YiCAD 已有移植（`IViewTool`）的写法用小驼峰。`Action*` 只留给尚未迁移的旧类，不再新增。`AGENTS.md` 的命名规则已同步修改 |
 | 执行顺序 | 先于主计划阶段 4 任务⑤与阶段 5，分四步 | 见第 2 节与第 6 节 |
+| 第三步与扩展化（2026-09-24 确认） | 块、文字、填充在第三步直接做成扩展，文件、图层、选项也做成扩展 | 见 5.2 节 |
 
 ### 5.1 结束前回调
 
@@ -192,6 +195,23 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
   新增"取消"；需要时再利用否决能力加上。
 - **块编辑模式**：它不是命令，但视图关闭时同样要给它保存或放弃的机会，接口形式
   相同；右键退出的"是/否/取消"对话框保持现状。
+
+### 5.2 第三步与扩展化（2026-09-24 确认）
+
+第三步开始前确认，改动第 6 节第三步的分批：
+
+- **块、文字、填充**（主计划阶段 4 任务⑤的三个领域）在第三步迁移时直接做成扩展
+  `ext.block`、`ext.text`、`ext.hatch`，不再先在 `src/actions/` 迁一遍、任务⑤再
+  搬一次。第二步已迁移的块命令（创建块、编辑块与块编辑模式）随 `ext.block` 一起搬。
+- **文件、图层、选项**也做成扩展 `ext.file`、`ext.layer`、`ext.options`。主计划
+  任务⑤原先没有列出它们；这几组命令依赖主窗口，做成扩展后经 `IExtensionContext`
+  访问宿主。
+- 做法与 `ext.dim`（主计划 7.10 节）相同：命令 ID 改为 `ext.<领域>.*`，Ribbon 条目、
+  命令行别名由扩展注册，keyconfig.xml 删除对应条目，翻译拆到扩展自己的 ts。
+- 分层：扩展将来各自成库，可以依赖 `YiCadUi`（包含 `ui/` 的头文件），不能包含
+  `main/` 的头文件（`ApplicationWindow`、`MDIWindow`）；核心命令（`src/actions/`）
+  两者都不能包含，第四步由 `check_layering.py` 检查。
+- 节奏：每批一个提交，每批完成后停下，核对后再做下一批。
 
 ## 6. 任务
 
@@ -305,10 +325,25 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
      选择变化的监听者，不再是命令。
 6. **标注扩展**：`ext.dim` 的 9 个 Action。
 
+按 5.2 节调整后的分批（2026-09-24），每批一个提交：
+
+| 批 | 内容 |
+|----|------|
+| ① 视图与核心即时命令 | 平移（临时视图工具）；缩放、撤销/重做、选中信息（即时命令）；删除两个从未注册的捕捉设置 Action |
+| ② 绘图·直线类 | 直线、多段线、矩形、多边形 ×2、角平分线、切线 ×2、正交切线、徒手线、射线、构造线、点 |
+| ③ 绘图·曲线类 | 圆弧 ×3、圆 ×5、椭圆 ×2、样条 ×2、云线 ×3、图片 |
+| ④ 修改与查询 | 修剪、延伸、倒角、圆角、打断 ×2、偏移、多段线编辑 ×3、查询角度/面积/距离、粘贴、修改实体 |
+| ⑤ 扩展：文件、图层、选项 | `ext.file`、`ext.layer`、`ext.options` |
+| ⑥ 扩展：块 | `ext.block`：插入块（两阶段命令）、属性定义、块的删除/保存/另存/导入，连同第二步的创建块、编辑块与块编辑模式 |
+| ⑦ 扩展：文字 | `ext.text`：单行文字、多行文字、多行文字属性、文字样式；选择变化改为监听者 |
+| ⑧ 扩展：填充 | `ext.hatch` |
+| ⑨ 标注扩展 | `ext.dim` 的 9 个 Action |
+
 每一批都要求：
 - 业务工具经 `getCursor()` 提供光标，删除 `updateMouseCursor()`；
-- 命令与工具不直接包含 `ui/`、`main/` 的头文件，需要的能力经
-  `GuiDialogFactoryInterface`、`IExtensionContext` 或新增的窄接口获取；
+- 命令与工具不直接包含 `ui/`、`main/` 的头文件（扩展里的可以包含 `ui/` 的，见
+  5.2 节），需要的能力经 `GuiDialogFactoryInterface`、`IExtensionContext` 或新增的
+  窄接口获取；
 - 有未提交修改的命令实现 5.1 节的回调；
 - 构建、`ctest`、`check_layering.py` 通过，并按回归清单手工核对。
 
@@ -692,3 +727,62 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 都已就位；先选后建的 14 个命令都迁成交互命令，块编辑成为编辑模式，`ActionSelect`、
 `ActionSelectMultiple` 与 `makeSelectFirstFactory` 删除。其余 Action 仍经
 `LegacyActionTool` 运行，按第三步分批迁移。
+
+### 9.3 第三步（2026-09-24 起）
+
+按 5.2 节调整后的分批，每批一个提交，每批完成后停下核对。
+
+**提交①：视图与核心即时命令**
+
+1. **临时视图工具**：基类 `TransientViewTool`（`kernel/actions/`），`CommandRegistry`
+   第四种注册类型 `CommandKind::ViewTool`（`registerViewTool`/`createViewTool`），
+   `UIActionHandler::activateCommand` 交给 `UIView::startViewTool()`。由 `UIView`
+   持有，不占命令总线：
+   - 启动时挂起其下各层，结束时恢复，与原先视图 Action 压在旧 Action 栈顶时一致：
+     有旧 Action 时挂起栈顶并收起它的选项条，否则挂起命令（或编辑模式）与选择层；
+   - 叠在业务栈顶；进入/离开画布只通知它（原先只通知旧 Action 栈顶）；右键释放、
+     命令行 "escape"、命令行输入先交给它；
+   - 启动命令、启动旧版 Action、结束全部命令与视图关闭时结束它；
+   - 工具在自己的事件处理中请求结束时，经新增的 `ExclusiveCommandBus::post()`
+     延迟到这次分发返回之后（分发范围外经 0 毫秒定时器）；
+   - 选择层的 `SelectTool::Overlay` 增加 `ViewTool`：提示与光标都归它；画布的
+     捕捉标记与提示读"无捕捉"；命令行 "[说明]" 前缀与"是否有命令"都算上它。
+2. **平移**：`zoom.pan` 的 `ZoomPanTool`（`src/actions/`）取代 `ActionZoomPan`，逐项
+   对照原先经 `LegacyActionTool` 转发时的行为：左键拖动超过 7 像素才平移；右键退出
+   并重绘；左键释放只结束一次拖动；中键与中键平移中的移动让给导航层；双击、按键
+   到此为止，按键不接受；命令行坐标丢弃、文本不接受。光标经 `getCursor()` 仲裁：
+   等待时张开的手，拖动中握紧的手。
+3. **即时命令**：`zoom.in`/`zoom.out`（`ZoomCommands.cpp`）、`edit.undo`/`edit.redo`
+   （`EditUndoCommand`）、`info.selected`（`InfoSelectedCommand.cpp`）。
+   `CommandInfo::instantInterrupt` 登记即时命令执行前如何处理正在运行的命令：
+   缩放为 `KeepAll`（原视图 Action 不打断任何命令，多行文字编辑中缩放不结束它），
+   其余默认 `EndUninterruptible`（与原先压栈时一致）。`CommandRegistry` 增加带
+   legacy 桥接的 `registerInstantCommand` 重载。
+4. **滚轮缩放**直接调用视图的 `zoomIn`/`zoomOut`，不再压入 `ActionZoomIn`。
+5. **画直线的撤销/重做按钮**直接调用 `EditUndoCommand::run()`，不再嵌套启动
+   `ActionEditUndo`（直线本身在第②批迁移）。
+6. **删除**：`ActionZoomPan`、`ActionZoomIn`、`ActionEditUndo`、`ActionInfoSelected`，
+   以及从未注册、没有调用方的 `ActionSetSnapMode`、`ActionSetSnapRestriction`（捕捉
+   模式一直由 `UIActionHandler::slotSnap*`/`slotRestrict*` 直接设置）。
+7. **测试**：新增 `test_zoom_pan_tool`（8 例）；`test_exclusive_command_bus` 补 4 例
+   （`post()` 在范围内、范围外、结束命令之后、定时器在分发中触发）；
+   `test_command_registry` 补 4 例（临时视图工具、带桥接的即时命令与视图工具、
+   打断策略、本批迁移的命令注册为新类型）。
+
+**与方案的偏差与补充**
+
+1. **平移模式遇到启动命令或旧版 Action 时结束**，不再挂起后恢复：原 `ActionZoomPan`
+   可被打断，新 Action 结束后回到平移模式。这是"被打断的命令不再恢复"的一部分
+   （清单第 7 节）。过渡期启动任何旧版 Action 都会结束平移模式，包括图层开关这类
+   立即完成的；它们在第⑤批改成即时命令后不再如此。
+2. **即时命令不挂起当前命令**：撤销、重做、选中信息原先作为旧 Action 压栈，会挂起
+   当前命令（清除预览、收起选项条、刷新提示），结束后恢复；现在与第二步的 Delete 键
+   一样直接执行，当前命令不受影响。滚轮缩放同样不再挂起、恢复当前旧 Action，选项条
+   不再随每一格滚轮收起又显示。
+3. **没有打开图纸时**执行 `zoom.in`/`zoom.out`/`info.selected`：原先"没有视图就
+   `trigger()` 再删除"会解引用空的视图或文档，现在什么也不做。
+4. **保留的副作用**：`info.selected` 结束时复位视图的正交零点（原 Action 设置了
+   Action 类型，`ActionInterface::finish()` 因此复位）。
+
+提交①验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
+166 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。

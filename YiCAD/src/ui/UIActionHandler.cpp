@@ -36,6 +36,7 @@
 #include "Debug.h"
 #include "DmSettings.h"
 #include "IExclusiveCommand.h"
+#include "TransientViewTool.h"
 #include "MDIWindow.h"
 #include "QMdiArea"
 #include "GuiDocumentView.h"
@@ -141,9 +142,20 @@ ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObj
 		// 即时命令不占命令总线，没有打开图纸时也执行（document/view 为空）
 		if (UIView* view = qobject_cast<UIView*>(m_pView))
 		{
-			view->prepareInstantCommand();
+			view->prepareInstantCommand(registry.instantInterrupt(commandId));
 		}
 		registry.runInstant(commandId, ctx);
+		return nullptr;
+
+	case CommandKind::ViewTool:
+		// 临时视图工具（平移模式）不占命令总线，叠在视图的业务栈顶；没有打开图纸时不启动
+		if (UIView* view = qobject_cast<UIView*>(m_pView))
+		{
+			if (std::unique_ptr<TransientViewTool> tool = registry.createViewTool(commandId, ctx))
+			{
+				view->startViewTool(std::move(tool));
+			}
+		}
 		return nullptr;
 
 	case CommandKind::Legacy:
