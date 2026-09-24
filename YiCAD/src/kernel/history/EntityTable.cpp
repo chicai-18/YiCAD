@@ -24,6 +24,8 @@
 #include "DmIdManager.h"
 #include "EntityTableCmd.h"
 #include "Cmd.h"
+#include <algorithm>
+#include <limits>
 #include <unordered_set>
 
 namespace
@@ -105,42 +107,48 @@ void EntityTable::searchEntities(const DmVector &min, const DmVector &max, std::
     }
     else
     {
-        // 查找doc下的实体，从已找到的子实体中向上寻找父实体
-        std::unordered_map<DmId, DmEntity*> docEntMap;
-        std::vector<DmEntity*> docEnts;
-        std::vector<DmEntity*> subEnts;
-        m_searchTree.search(min, max, subEnts);
-        for (auto subEnt : subEnts)
+        std::vector<DmEntity*> found;
+        m_searchTree.search(min, max, found);
+
+        // 树中每个实体只有一份（SpacialSearchTree::insert 对已在树中的实体只做更新），
+        // 命中的若都没有父实体，结果本身不会重复，不必逐个去重——覆盖全图的
+        // 框选会命中全部实体，去重的开销远大于树查询本身。
+        bool hasParent = std::any_of(found.begin(), found.end(),
+            [](DmEntity* e) { return e->getParent() != nullptr; });
+        if (!hasParent)
         {
-            DmEntity* parent = subEnt->getParent();
-            DmEntity* child = subEnt;
-            while (parent)
-            {
-                child = parent;
-                parent = parent->getParent();
-            }
-            if (docEntMap.find(child->getId()) == docEntMap.end())
-            {
-                docEntMap[child->getId()] = child;
-                docEnts.emplace_back(child);
-            }
+            ents = std::move(found);
         }
-        ents = docEnts;
+        else
+        {
+            // 从已找到的子实体中向上寻找顶层实体，按指针去重
+            std::unordered_set<DmEntity*> seen;
+            seen.reserve(found.size());
+            std::vector<DmEntity*> docEnts;
+            docEnts.reserve(found.size());
+            for (auto subEnt : found)
+            {
+                DmEntity* parent = subEnt->getParent();
+                DmEntity* child = subEnt;
+                while (parent)
+                {
+                    child = parent;
+                    parent = parent->getParent();
+                }
+                if (seen.insert(child).second)
+                {
+                    docEnts.emplace_back(child);
+                }
+            }
+            ents = std::move(docEnts);
+        }
     }
 
     // 仅可见实体
     if (onlyVisible)
     {
-        std::vector<DmEntity*> theEnts;
-        theEnts.reserve(ents.size());
-        for (auto e : ents)
-        {
-            if (e->isVisible() && !e->isErased())
-            {
-               theEnts.emplace_back(e);
-            }
-        }
-        ents = theEnts;
+        ents.erase(std::remove_if(ents.begin(), ents.end(),
+            [](DmEntity* e) { return !e->isVisible() || e->isErased(); }), ents.end());
     }
 }
 
@@ -339,13 +347,28 @@ DmVector EntityTable::getNearestSelectedRef(const DmVector& coord, double* dist 
 DmVector EntityTable::getNearestVirtualIntersection(const DmVector& coord, const double& angle, double* dist)
 {
     // 虚拟交点捕捉耗时埋点，默认关闭，见 ScopedTimer.h。
-    // 本函数目前对全容器求最近实体（P10），阶段 9.1 改走 R 树候选集。
     YICAD_SCOPED_TIMER(yicad::counters::nearestVirtualIntersection());
 
     DmVector point;
 
-    // 查找离起始坐标最近的实体（排除文本和图片实体）
-    DmEntity* closestEntity = m_entContainer.getNearestEntity(coord, nullptr, DM::ResolveAllButTextImage);
+    // 查找离起始坐标最近的实体，不限距离，跳过不可见实体与顶层图片实体，
+    // 取解析到的子实体——与原先对渲染容器调用
+    // getNearestEntity(coord, nullptr, DM::ResolveAllButTextImage) 的语义一致，
+    // 改为在空间搜索树上做最近邻查询，不再遍历全部实体（P10）。
+    const DmEntity* nearest = m_searchTree.nearest(coord, [&coord](DmEntity* e)
+    {
+        if (e->isErased() || !e->isVisible() || e->getEntityType() == DM::EntityImage)
+        {
+            return std::numeric_limits<double>::infinity();
+        }
+        DmEntity* subEntity = nullptr;
+        return e->getDistanceToPoint(coord, &subEntity, DM::ResolveAllButTextImage);
+    });
+    DmEntity* closestEntity = nullptr;
+    if (nearest)
+    {
+        nearest->getDistanceToPoint(coord, &closestEntity, DM::ResolveAllButTextImage);
+    }
 
     if (closestEntity)
     {
@@ -353,10 +376,10 @@ DmVector EntityTable::getNearestVirtualIntersection(const DmVector& coord, const
         DmVector direction;
         direction.set(angle);
         DmConstructionLineData data(coord, coord + direction);
-        auto line = new DmConstructionLine(&m_entContainer, data);
+        DmConstructionLine line(nullptr, data);
 
         // 计算构造线与最近实体的几何交点
-        DmVectorSolutions sol = Information::getIntersection(closestEntity, line, true);
+        DmVectorSolutions sol = Information::getIntersection(closestEntity, &line, true);
         if (sol.getVector().empty())
         {
             // 无交点，返回原始坐标

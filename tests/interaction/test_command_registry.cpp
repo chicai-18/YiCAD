@@ -3,7 +3,8 @@
 ///
 /// 覆盖阶段4第一部分（doc/ARCHITECTURE_EVOLUTION_PLAN.md 7.4节任务①）的核心
 /// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝、
-/// makeSelectFirstFactory 的两个分支。
+/// makeSelectFirstFactory 的两个分支；另有内置 select.single 工厂在没有当前
+/// Action 时不解引用空指针的回归用例。
 ///
 /// CommandRegistry 是进程范围的单例，同一个测试二进制内的所有用例共享同一份
 /// 注册表状态，且 gtest 不保证跨用例的严格声明顺序（如加 --gtest_shuffle）。
@@ -34,6 +35,14 @@ public:
         : ActionInterface("TestAction", doc, docView)
     {
     }
+};
+
+/// @brief 当前 Action 可设置的视图替身；FakeDocumentView 本身固定返回 nullptr。
+class CurrentActionView : public FakeDocumentView
+{
+public:
+    ActionInterface* current = nullptr;
+    ActionInterface* getCurrentAction() override { return current; }
 };
 }  // namespace
 
@@ -220,5 +229,23 @@ TEST(CommandRegistryTest, makeSelectFirstFactory_已选中时建真正Action)
     ActionInterface* a = factory(ctx);
     ASSERT_NE(a, nullptr);
     EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
+    delete a;
+}
+
+TEST(CommandRegistryTest, select_single没有当前Action时不启动)
+{
+    // 内置命令 select.single 在 ActionSelectSingle.cpp 里静态注册。视图没有事件
+    // 处理器时 getCurrentAction() 返回 nullptr，此前工厂会直接解引用它而崩溃。
+    DmDocument doc;
+    CurrentActionView view;
+    CommandContext ctx{&doc, &view, nullptr, nullptr};
+    EXPECT_EQ(CommandRegistry::instance().create(DM::ActionSelectSingle, ctx), nullptr);
+
+    // 有当前 Action 时照常建出单选，挂在它之下。
+    TestAction parent(&doc, &view);
+    view.current = &parent;
+    ActionInterface* a = CommandRegistry::instance().create(DM::ActionSelectSingle, ctx);
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->getEntityType(), DM::ActionSelectSingle);
     delete a;
 }

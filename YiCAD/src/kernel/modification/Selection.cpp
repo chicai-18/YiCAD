@@ -72,6 +72,83 @@ void Selection::selectAll(bool select)
 	}
 }
 
+namespace
+{
+/// @brief 交叉选（从右往左）时判断实体是否与窗口相交
+/// @details 基本实体直接与窗口四条边求交；文字等有子实体的复杂实体逐个判断子实体。
+///          放在 selectWindow 之外：逐实体的快速判断保持短小，只有需要时才进入这里。
+bool crossesWindow(DmEntity* e, const DmVector& v1, const DmVector& v2)
+{
+	bool included = false;
+	DmEntityContainer l;
+	l.addRectangle(v1, v2);
+	DmVectorSolutions sol;
+
+	auto subEntities = e->getSubEntities();
+	// 直线，圆弧，Solid，样条线等基本实体
+	if (subEntities.size() == 0)
+	{
+		if (e->getEntityType() == DM::EntityTriangle)
+		{
+			included = static_cast<DmTriangle*>(e)->isInCrossWindow(v1, v2);
+		}
+		else if (e->getEntityType() == DM::EntitySolid)
+		{
+			included = static_cast<DmSolid*>(e)->isInCrossWindow(v1, v2);
+		}
+		else
+		{
+			for (auto line : l)
+			{
+				sol = Information::getIntersection(e, line, true);
+				if (sol.hasValid())
+				{
+					included = true;
+					break;
+				}
+			}
+		}
+	}
+	// 文字等复杂实体，判断子实体是否相交
+	else
+	{
+		for (auto subEnt : subEntities)
+		{
+			if (subEnt->isInWindow(v1, v2))
+			{
+				included = true;
+			}
+			else if (subEnt->getEntityType() == DM::EntityTriangle)
+			{
+				included = static_cast<DmTriangle*>(subEnt)->isInCrossWindow(v1, v2);
+			}
+			else if (subEnt->getEntityType() == DM::EntitySolid)
+			{
+				included = static_cast<DmSolid*>(subEnt)->isInCrossWindow(v1, v2);
+			}
+			else
+			{
+				for (auto line : l)
+				{
+					sol = Information::getIntersection(subEnt, line, true);
+					if (sol.hasValid())
+					{
+						included = true;
+						break;
+					}
+				}
+			}
+
+			if (included)
+			{
+				break;
+			}
+		}
+	}
+	return included;
+}
+}  // namespace
+
 /// @brief 根据窗口选择实体
 /// @param v1 窗口角点1
 /// @param v2 窗口角点2
@@ -81,119 +158,66 @@ void Selection::selectAll(bool select)
 void Selection::selectWindow(const DmVector& v1, const DmVector& v2, bool select, bool cross, std::list<DM::EntityType> const& entityTypeList)
 {
 	// 框选耗时埋点，默认关闭，见 ScopedTimer.h。
-	// 本函数目前仍是全表遍历（P10），阶段 9.1 改走 R 树候选集后可用同一计数器对比。
 	YICAD_SCOPED_TIMER(yicad::counters::selectWindow());
 
 	DmVector min(std::min(v1.x, v2.x), std::min(v1.y, v2.y));
 	DmVector max(std::max(v1.x, v2.x), std::max(v1.y, v2.y));
 
 	std::list<DM::EntityType>::size_type typeSize = entityTypeList.size();
-	bool included = false;
-	for (auto e : *pDocument->getEntityTable())
+
+	// 判断单个顶层实体是否被框中，被框中则设置选中状态
+	auto selectIfHit = [&](DmEntity* e)
 	{
-		included = false;
 		if (typeSize != 0)
 		{
 			if (std::find(entityTypeList.begin(), entityTypeList.end(), e->getEntityType()) == entityTypeList.end())
 			{
-				continue;
+				return;
 			}
 		}
 
-		if (!e->isVisible())
+		if (!e->isVisible() || e->isErased())
 		{
-			continue;
+			return;
 		}
 
 		// 先用顶层实体包围盒做一次粗过滤，避免全量跑几何相交判断。
 		if (e->getMax().x < min.x || e->getMin().x > max.x
 			|| e->getMax().y < min.y || e->getMin().y > max.y)
 		{
-			continue;
+			return;
 		}
 
-		// 完全包含
-		if (e->isInWindow(v1, v2))
-		{
-			included = true;
-		}
-		// 从右往左选
-		else if (cross)
-		{
-			DmEntityContainer l;
-			l.addRectangle(v1, v2);
-			DmVectorSolutions sol;
-
-			auto subEntities = e->getSubEntities();
-			// 直线，圆弧，Solid，样条线等基本实体
-			if (subEntities.size() == 0)
-			{
-				if (e->getEntityType() == DM::EntityTriangle)
-				{
-					included = static_cast<DmTriangle*>(e)->isInCrossWindow(v1, v2);
-				}
-				else if (e->getEntityType() == DM::EntitySolid)
-				{
-					included = static_cast<DmSolid*>(e)->isInCrossWindow(v1, v2);
-				}
-				else
-				{
-					for (auto line : l)
-					{
-						sol = Information::getIntersection(e, line, true);
-						if (sol.hasValid())
-						{
-							included = true;
-							break;
-						}
-					}
-				}
-			}
-			// 文字等复杂实体，判断子实体是否相交
-			else
-			{
-				for (auto subEnt : subEntities)
-				{
-					if (subEnt->isInWindow(v1, v2))
-					{
-						included = true;
-					}
-					else if (subEnt->getEntityType() == DM::EntityTriangle)
-					{
-						included = static_cast<DmTriangle*>(subEnt)->isInCrossWindow(v1, v2);
-					}
-					else if (subEnt->getEntityType() == DM::EntitySolid)
-					{
-						included = static_cast<DmSolid*>(subEnt)->isInCrossWindow(v1, v2);
-					}
-					else
-					{
-						for (auto line : l)
-						{
-							sol = Information::getIntersection(subEnt, line, true);
-							if (sol.hasValid())
-							{
-								included = true;
-								break;
-							}
-						}
-					}
-
-					if (included)
-					{
-						break;
-					}
-				}
-			}
-		}
-		else
-		{
-			// 非交叉模式，不在窗口内则不选中
-		}
-
-		if (included)
+		// 完全包含；从右往左选时与窗口相交也算
+		if (e->isInWindow(v1, v2) || (cross && crossesWindow(e, v1, v2)))
 		{
 			e->setSelected(select);
+		}
+	};
+
+	// 候选实体的取法（P10）：窗口盖住全部实体的包围框时每个实体都会命中，
+	// 顺序遍历实体表最快；否则用空间搜索树只取包围盒与窗口重叠的顶层实体，
+	// 取法与点选（Snapper::catchEntity 的 ResolveNone 分支）相同。两条路径对每个
+	// 实体做同样的判断，结果一致，只是快慢不同。
+	EntityTable* table = pDocument->getEntityTable();
+	DmVector allMin, allMax;
+	bool coversAll = table->getSearchBounds(allMin, allMax)
+		&& min.x <= allMin.x && min.y <= allMin.y && max.x >= allMax.x && max.y >= allMax.y;
+	if (coversAll)
+	{
+		for (auto e : *table)
+		{
+			selectIfHit(e);
+		}
+	}
+	else
+	{
+		// 可见性留给 selectIfHit 判断，不让 searchEntities 再过滤一遍
+		std::vector<DmEntity*> candidates;
+		pDocument->searchEntities(min, max, candidates, false, false);
+		for (auto e : candidates)
+		{
+			selectIfHit(e);
 		}
 	}
 

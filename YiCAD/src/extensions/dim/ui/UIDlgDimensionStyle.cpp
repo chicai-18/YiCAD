@@ -108,8 +108,10 @@ void UIDlgDimensionStyle::init()
     //线
     connect(cbColor, SIGNAL(colorChanged(DmColor)), this, SLOT(slotColorChanged(DmColor)));
     connect(cbColorBoundary, SIGNAL(colorChanged(DmColor)), this, SLOT(slotColorChanged(DmColor)));
-    connect(cbLineType, SIGNAL(lineTypeChanged(DM::LineType)), this, SLOT(slotLineTypeChanged(DM::LineType)));
-    connect(cbLineTypeBoundary, SIGNAL(lineTypeChanged(DM::LineType)), this, SLOT(slotLineTypeChanged(DM::LineType)));
+    // 用函数指针连接，签名不符时编译期报错（此前字符串形式写成了不存在的
+    // lineTypeChanged(DM::LineType)，连接在运行期失败，线型修改不生效）
+    connect(cbLineType, &UILineTypeBox::lineTypeChanged, this, &UIDlgDimensionStyle::slotLineTypeChanged);
+    connect(cbLineTypeBoundary, &UILineTypeBox::lineTypeChanged, this, &UIDlgDimensionStyle::slotLineTypeChanged);
     connect(cbLineWidth, SIGNAL(widthChanged(DM::LineWidth)), this, SLOT(slotWidthChanged(DM::LineWidth)));
     connect(cbLineWidthBoundary, SIGNAL(widthChanged(DM::LineWidth)), this, SLOT(slotWidthChanged(DM::LineWidth)));
     connect(chkDimLine1, SIGNAL(stateChanged(int)), this, SLOT(slotChkChanged(int)));

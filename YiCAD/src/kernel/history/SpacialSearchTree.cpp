@@ -23,7 +23,10 @@
 #include "DmEntity.h"
 #include "DmBlockReference.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
+#include <queue>
 
 namespace
 {
@@ -46,7 +49,108 @@ bool SearchTreeBoundingBox::operator==(const SearchTreeBoundingBox& box) const
     return (min == box.min) && (max == box.max);
 }
 
-typedef RTree<DmEntity*, double, 2> SearchTree;
+/// @brief 在 RTree 上补充最近邻查询
+/// @details RTree.h 是第三方实现，只提供矩形范围查询；最近邻要遍历受保护的节点结构，
+///          因此用派生类实现，不改第三方文件。
+class SearchTree : public RTree<DmEntity*, double, 2>
+{
+public:
+    /// @brief best-first 最近邻查询，语义见 SpacialSearchTree::nearest
+    DmEntity* nearest(const double pt[2], const std::function<double(DmEntity*)>& distanceFn, double* dist) const
+    {
+        // 队列元素：node 非空时是待展开的节点，否则是待求精确距离的实体。
+        // boxDist 是包围框到查询点的距离，也是其中任何实体精确距离的下界。
+        struct Item
+        {
+            double boxDist;
+            Node* node;
+            DmEntity* data;
+        };
+        auto farther = [](const Item& a, const Item& b) { return a.boxDist > b.boxDist; };
+        std::priority_queue<Item, std::vector<Item>, decltype(farther)> queue(farther);
+
+        DmEntity* best = nullptr;
+        double bestDist = std::numeric_limits<double>::infinity();
+        if (m_root && m_root->m_count > 0)
+        {
+            queue.push({ 0.0, m_root, nullptr });
+        }
+        while (!queue.empty() && queue.top().boxDist < bestDist)
+        {
+            Item item = queue.top();
+            queue.pop();
+            if (!item.node)
+            {
+                double d = distanceFn(item.data);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = item.data;
+                }
+                continue;
+            }
+            for (int i = 0; i < item.node->m_count; ++i)
+            {
+                const Branch& branch = item.node->m_branch[i];
+                double d = rectDistance(branch.m_rect, pt);
+                if (d >= bestDist)
+                {
+                    continue;
+                }
+                if (item.node->IsInternalNode())
+                {
+                    queue.push({ d, branch.m_child, nullptr });
+                }
+                else
+                {
+                    queue.push({ d, nullptr, branch.m_data });
+                }
+            }
+        }
+        if (best && dist)
+        {
+            *dist = bestDist;
+        }
+        return best;
+    }
+
+    /// @brief 整棵树的包围框，即根节点各分支矩形的并集；空树返回 false
+    bool bounds(double min[2], double max[2]) const
+    {
+        if (!m_root || m_root->m_count == 0)
+        {
+            return false;
+        }
+        for (int d = 0; d < 2; ++d)
+        {
+            min[d] = m_root->m_branch[0].m_rect.m_min[d];
+            max[d] = m_root->m_branch[0].m_rect.m_max[d];
+        }
+        for (int i = 1; i < m_root->m_count; ++i)
+        {
+            for (int d = 0; d < 2; ++d)
+            {
+                min[d] = std::min(min[d], m_root->m_branch[i].m_rect.m_min[d]);
+                max[d] = std::max(max[d], m_root->m_branch[i].m_rect.m_max[d]);
+            }
+        }
+        return true;
+    }
+
+private:
+    /// @brief 点到矩形的欧氏距离，点在矩形内为 0
+    static double rectDistance(const Rect& rect, const double pt[2])
+    {
+        double squared = 0.0;
+        for (int i = 0; i < 2; ++i)
+        {
+            double d = std::max({ rect.m_min[i] - pt[i], 0.0, pt[i] - rect.m_max[i] });
+            squared += d * d;
+        }
+        return std::sqrt(squared);
+    }
+};
+
 class SpacialSearchTreePrivate
 {
 public:
@@ -72,6 +176,15 @@ void SpacialSearchTree::insert(DmEntity* entity)
 {
     if (!entity)
     {
+        return;
+    }
+
+    // 已在树中的实体只更新包围框，保证每个实体在树中只有一份：
+    // 重复插入会留下 remove 删不掉的残余条目，范围查询也会返回重复结果。
+    if (entity->getId().isValid()
+        && m_searchTreeBoundingBoxes.find(entity->getId()) != m_searchTreeBoundingBoxes.end())
+    {
+        update(entity);
         return;
     }
 
@@ -170,6 +283,25 @@ void SpacialSearchTree::search(const DmVector& min, const DmVector& max, std::ve
         return true;
     };
     m_pTreePrivate->searchTree.Search(mind, maxd, callback);
+}
+
+DmEntity* SpacialSearchTree::nearest(const DmVector& pt, const std::function<double(DmEntity*)>& distanceFn, double* dist) const
+{
+    double ptd[2] = { pt.x, pt.y };
+    return m_pTreePrivate->searchTree.nearest(ptd, distanceFn, dist);
+}
+
+bool SpacialSearchTree::getBounds(DmVector& min, DmVector& max) const
+{
+    double mind[2];
+    double maxd[2];
+    if (!m_pTreePrivate->searchTree.bounds(mind, maxd))
+    {
+        return false;
+    }
+    min = DmVector(mind[0], mind[1]);
+    max = DmVector(maxd[0], maxd[1]);
+    return true;
 }
 
 void SpacialSearchTree::getEntitiesOfBlockReferenceRecursive(DmBlockReference* blkRef, std::vector<DmEntity*>& ents)

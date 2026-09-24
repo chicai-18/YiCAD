@@ -79,6 +79,8 @@ public:
     DmEntityContainer* getEntityContainer() {return &m_entContainer;}
     /// @brief 搜索包围框与指定区域有重叠的实体
     void searchEntities(const DmVector& min, const DmVector& max, std::vector<DmEntity*>& ents, bool onlyVisible = true, bool searchSubEnts = true);
+    /// @brief 空间搜索树中全部实体包围框的并集；表中没有可索引的实体时返回 false
+    bool getSearchBounds(DmVector& min, DmVector& max) const { return m_searchTree.getBounds(min, max); }
     /// @brief 通知实体已修改，更新空间搜索树中的包围盒
     void notifyEntityModified(DmEntity* e) { m_searchTree.update(e); }
 private:

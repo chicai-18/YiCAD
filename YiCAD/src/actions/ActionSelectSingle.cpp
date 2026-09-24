@@ -133,15 +133,17 @@ void ActionSelectSingle::updateMouseCursor()
 
 namespace
 {
-// 原 switch 里的既有行为：若当前没有活动 Action，getCurrentAction() 返回
-// nullptr，随即被无条件解引用——这是迁移前就存在的缺陷（见
-// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4"已确认的关键事实"），原样保留，
-// 不在本次迁移中顺手修复。
+// 单选要挂在当前 Action 之下（Esc/右键时交还给它）。视图没有事件处理器时
+// getCurrentAction() 返回 nullptr，此时没有可挂的父 Action，不启动命令。
 const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
     DM::ActionSelectSingle, QStringLiteral("select.single"),
     [](const CommandContext& ctx) -> ActionInterface*
     {
         ActionInterface* current = ctx.view->getCurrentAction();
+        if (!current)
+        {
+            return nullptr;
+        }
         if (current->getEntityType() != DM::ActionSelectSingle)
         {
             return new ActionSelectSingle(ctx.document, ctx.view, current);
