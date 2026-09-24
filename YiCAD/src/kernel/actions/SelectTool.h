@@ -100,6 +100,10 @@ public:
     /// @brief 查询选择层之上正在活动的业务
     using OverlayQuery = std::function<Overlay()>;
 
+    /// @brief 启动一个交互命令，作用于 entity（在 point 处）；由视图装配时设置
+    /// @return 命令启动成功时返回 true
+    using CommandStarter = std::function<bool(const QString& commandId, DmEntity* entity, const DmVector& point)>;
+
     /// @brief 选择阶段的约束
     struct SelectionPhase
     {
@@ -136,6 +140,10 @@ public:
     /// @brief 设置"选择层之上有什么在活动"的查询，由视图装配时设置
     /// @param query 为空时退回默认：视图的旧版 Action 栈有 Action 即 LegacyAction
     void setOverlayQuery(OverlayQuery query);
+
+    /// @brief 设置启动命令的方式：双击实体时按 CommandRegistry::entityEditor 找到的
+    ///        编辑命令经它启动（如多行文字的就地编辑）
+    void setCommandStarter(CommandStarter starter) { m_commandStarter = std::move(starter); }
 
     /// @brief 进入选择阶段：复位到 Neutral，按约束工作
     /// @param phase 约束
@@ -205,6 +213,7 @@ private:
     DM::SnapRestriction m_restrictionBak = DM::RestrictNothing;
 
     OverlayQuery m_overlayQuery;                 ///< 为空时按旧版 Action 栈判断
+    CommandStarter m_commandStarter;             ///< 为空时双击不启动编辑命令
     std::optional<SelectionPhase> m_phase;       ///< 有值表示处于选择阶段
 };
 

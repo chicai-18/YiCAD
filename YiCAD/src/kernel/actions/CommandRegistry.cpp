@@ -198,7 +198,27 @@ bool CommandRegistry::unregisterCommand(const QString& id)
     {
         bridge = bridge->second == id ? m_legacyBridge.erase(bridge) : std::next(bridge);
     }
+    for (auto editor = m_entityEditors.begin(); editor != m_entityEditors.end();)
+    {
+        editor = editor->second == id ? m_entityEditors.erase(editor) : std::next(editor);
+    }
     return true;
+}
+
+bool CommandRegistry::registerEntityEditor(DM::EntityType type, const QString& commandId)
+{
+    if (kind(commandId) != CommandKind::Exclusive || m_entityEditors.count(type) != 0)
+    {
+        return false;
+    }
+    m_entityEditors[type] = commandId;
+    return true;
+}
+
+QString CommandRegistry::entityEditor(DM::EntityType type) const
+{
+    auto it = m_entityEditors.find(type);
+    return it == m_entityEditors.end() ? QString() : it->second;
 }
 
 bool CommandRegistry::hasCommand(const QString& id) const

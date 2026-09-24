@@ -26,9 +26,11 @@
 #define BASEEXCLUSIVECOMMAND_H
 
 #include "IExclusiveCommand.h"
+#include "DmVector.h"
 #include "ISnapService.h"
 
 class DmDocument;
+class DmEntity;
 class IDocumentView;
 class ViewToolControl;
 
@@ -61,6 +63,9 @@ public:
     ///          圆弧在命令行切换为圆心圆弧）。按 5.1 节，本命令先被请求让位（Replaced）。
     /// @param commandId 另一个命令在 CommandRegistry 里的 ID；未注册时什么也不做
     void replaceWith(const QString& commandId);
+    /// @brief 同上，新命令作用于 entity（在 point 处），如修改实体属性转到多行文字属性面板、
+    ///        多行文字属性面板双击转到文字编辑（见 CommandContext）
+    void replaceWith(const QString& commandId, DmEntity* entity, const DmVector& point = DmVector(false));
 
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等

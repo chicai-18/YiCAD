@@ -84,6 +84,11 @@ public:
                                });
     }
 
+    bool registerEntityEditor(DM::EntityType type, const QString& commandId) override
+    {
+        return owns("entity editor", commandId) && CommandRegistry::instance().registerEntityEditor(type, commandId);
+    }
+
     bool activateCommand(const QString& commandId) override { return m_host.activateCommand(commandId); }
 
     /// @brief 注销本扩展注册过的全部命令，在其 OnShutdown 之后调用。

@@ -18,12 +18,11 @@
 /// @file MTextEditCmd.h
 /// @brief 多行文字编辑器命令，包含字符/段落添加、删除、格式修改等Undo/Redo命令
 ///
-/// 阶段 3 从 kernel/history/ 移到本目录：多数 Cmd 子类只读写 DmMText 数据，
-/// 属于通用文档撤销/重做基础设施；但 MTextEdit_SetSelectBeginEndToNull_Cmd
-/// 与 MTextEdit_ResizeCmd 直接读写 ui/MTextEditWidget 的公开成员（选区字符
-/// 指针、缩放边界），是编辑控件自身交互状态的一部分，不是文档数据。整个
-/// .cpp 因此需要 MTextEditWidget 的完整类型，只能落在依赖 UI 的分区。
-/// 唯一调用方是 ui/MTextEditWidget.cpp，kernel/history 下没有任何引用。
+/// 多数 Cmd 子类只读写 DmMText 数据；MTextEdit_SetSelectBeginEndToNull_Cmd 与
+/// MTextEdit_ResizeCmd 直接读写 MTextEditWidget 的公开成员（选区字符指针、缩放边界），
+/// 是编辑框自身交互状态的一部分。唯一调用方是 MTextEditWidget，业务工具化第三步第⑦批
+/// 随编辑框从 kernel/actions/ 搬进文字扩展（原先阶段 3 从 kernel/history/ 移到
+/// kernel/actions/）。
 
 #ifndef MTEXTEDITCMD_H
 #define MTEXTEDITCMD_H

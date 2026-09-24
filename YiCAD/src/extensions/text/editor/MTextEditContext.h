@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,159 +18,35 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file MTextEditContext.h
+/// @brief 多行文字编辑上下文 MTextEditContext
 
-/// @file ActionDrawMText.h
-/// @brief 多行文字绘制与编辑动作类头文件
+#ifndef MTEXTEDITCONTEXT_H
+#define MTEXTEDITCONTEXT_H
 
-#ifndef ACTIONDRAWMTEXT_H
-#define ACTIONDRAWMTEXT_H
+#include <QObject>
+#include <QString>
 
-#include "PreviewActionInterface.h"
-#include "MTextData.h"
+#include "DmColor.h"
 #include "DmMTextParagraph.h"
-#include "Transaction.h"
+#include "MTextData.h"
 
-class MTextEditWidget;
-class UIMTextOptions;
-class QDialog;
-class DmFont;
 class DmDocument;
-class DmMText;
-class ActionDrawMTextContext;
+class DmFont;
+class DmTextStyle;
 
-/// @brief 绘制多行文字，双击编辑多行文字Action
-class ActionDrawMText : public PreviewActionInterface
-{
-	Q_OBJECT
-public:
-	/// @brief 动作状态枚举
-	enum Status
-	{
-		DrawingBoundingBox, ///< 绘制边界框
-		Editing             ///< 编辑中
-	};
-
-public:
-	/// @brief 构造函数
-	/// @param doc 文档指针
-	/// @param docView 文档视图指针
-	/// @param isModify 是否为修改模式
-	ActionDrawMText(DmDocument* doc, IDocumentView* docView, bool isModify);
-
-	/// @brief 析构函数
-	~ActionDrawMText() = default;
-
-	/// @brief 初始化动作
-	/// @param status 初始状态，默认为0
-	void init(int status = 0) override;
-
-	/// @brief 重置动作状态
-	void reset();
-
-	/// @brief 触发动作执行（完成文字创建或修改）
-	void trigger() override;
-
-	/// @brief 检查动作是否可被中断
-	/// @return 始终返回false，此动作不可被中断
-	bool canBeInterrupt() override;
-
-	/// @brief 结束动作
-	/// @param updateTB 是否更新工具栏
-	void finish(bool updateTB = true) override;
-
-	/// @brief 鼠标移动事件处理
-	/// @param e 鼠标事件指针
-	void mouseMoveEvent(QMouseEvent* e) override;
-
-	/// @brief 鼠标释放事件处理
-	/// @param e 鼠标事件指针
-	void mouseReleaseEvent(QMouseEvent* e) override;
-
-	/// @brief 鼠标按下事件处理
-	/// @param e 鼠标事件指针
-	void mousePressEvent(QMouseEvent* e) override;
-
-	/// @brief 坐标事件处理
-	/// @param e 坐标事件指针
-	void coordinateEvent(GuiCoordinateEvent* e) override;
-
-	/// @brief 命令事件处理
-	/// @param e 命令事件指针
-	void commandEvent(GuiCommandEvent* e) override;
-
-	/// @brief 更新鼠标按钮提示信息
-	void updateMouseButtonHints() override;
-
-	/// @brief 更新鼠标光标样式
-	void updateMouseCursor() override;
-
-	/// @brief 聚焦编辑控件
-	void focusEditWidget();
-
-	/// @brief 获取关联的文档
-	/// @return 文档指针
-	DmDocument* getDocument();
-
-	/// @brief 初始化并显示选项及编辑框
-	void initDisplayDialogs();
-
-	/// @brief 设置修改模式的数据
-	/// @param pOriginText 原始文字实体指针
-	/// @param clickPt 点击位置
-	void setModifyData(DmMText* pOriginText, const DmVector& clickPt);
-
-	/// @brief 取消当前操作
-	void cancel();
-
-	/// @brief 获取上下文对象
-	/// @return 上下文对象指针
-	ActionDrawMTextContext* getContext();
-
-private slots:
-	/// @brief ESC键按下槽函数
-	/// @param save 是否保存
-	void slotEscPressed(bool save);
-
-private:
-	/// @brief 绘制边界框
-	void drawBoundingBox();
-
-	/// @brief 释放UI资源
-	void freeUI();
-
-protected:
-	struct Points;
-	std::unique_ptr<Points> pPoints;                     ///< 点集（位置信息）
-	MTextEditWidget* m_pEditWidget = nullptr;            ///< 文字编辑控件指针
-	QWidget* m_pOptionBack = nullptr;                    ///< 选项背景控件指针
-	UIMTextOptions* m_pOptionWidget = nullptr;           ///< 选项控件指针
-	DmMText* m_pOriginText = nullptr;                    ///< 原始文字，仅对"修改文字"命令下有效
-	DmMText* m_pEditingText = nullptr;                   ///< 正在编辑的文字指针
-	bool m_bIsModify;                                    ///< 是否为"双击修改文字"命令
-	std::shared_ptr<TransactionGroup> m_trans;           ///< 事务组
-	std::unique_ptr<ActionDrawMTextContext> m_context;   ///< 当前上下文信息
-};
-
-/// @brief 动作绘制多行文字的点集结构体
-struct ActionDrawMText::Points
-{
-	DmVector pos{ false };       ///< 新建时第一个角点
-	DmVector secPos{ false };    ///< 新建时第二个角点
-
-	DmVector clickPt{ false };   ///< 双击编辑时点击的点
-};
-
-/// @brief 多行文字绘制上下文类，管理当前编辑状态和样式信息
-class ActionDrawMTextContext : public QObject
+/// @brief 多行文字编辑的上下文：当前的样式、字体、字高、颜色等编辑状态，在编辑框与选项条之间
+///        同步（原 ActionDrawMTextContext，定义在 ActionDrawMText.h）
+class MTextEditContext : public QObject
 {
 	Q_OBJECT
 public:
 	/// @brief 默认构造函数
-	ActionDrawMTextContext();
+	MTextEditContext();
 
 	/// @brief 拷贝构造函数
 	/// @param context 要拷贝的上下文对象
-	ActionDrawMTextContext(const ActionDrawMTextContext& context);
+	MTextEditContext(const MTextEditContext& context);
 
 	/// @brief 初始化上下文
 	/// @param pDocument 文档指针
@@ -458,4 +334,4 @@ private:
 	double m_dWidthFactor;                 ///< 宽度因子
 };
 
-#endif // !ACTIONDRAWMTEXT_H
+#endif  // MTEXTEDITCONTEXT_H

@@ -94,6 +94,7 @@
 #include "FileExtension.h"
 #include "LayerExtension.h"
 #include "OptionsExtension.h"
+#include "TextExtension.h"
 
 #include "MDIWindow.h"
 #include "GuiDocumentView.h"
@@ -403,6 +404,7 @@ void ApplicationWindow::registerExtensions()
 	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
 	ExtensionManager::instance().Register(std::make_unique<DimExtension>());
 	ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
+	ExtensionManager::instance().Register(std::make_unique<TextExtension>());
 	ExtensionManager::instance().BootAll(*m_extensionHost);
 }
 

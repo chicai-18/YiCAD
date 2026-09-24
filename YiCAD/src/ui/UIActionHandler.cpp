@@ -621,7 +621,14 @@ void UIActionHandler::slotIndoSelected()
 
 void UIActionHandler::slotSecectedChanged()
 {
-	setCurrentAction(DM::ActionSelectedChanged);
+	// 原 ActionSelectedChanged：刷新选择计数；单选多行文字时的属性面板归文字扩展
+	if (!m_pDocument)
+	{
+		return;
+	}
+	GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+	CommandRegistry::instance().runInstant(QStringLiteral("ext.text.selection_changed"),
+	                                       CommandContext{m_pDocument, m_pView});
 }
 
 void UIActionHandler::slotCmdStateChanged()

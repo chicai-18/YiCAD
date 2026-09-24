@@ -58,12 +58,17 @@ void BaseExclusiveCommand::finish()
 
 void BaseExclusiveCommand::replaceWith(const QString& commandId)
 {
+    replaceWith(commandId, nullptr);
+}
+
+void BaseExclusiveCommand::replaceWith(const QString& commandId, DmEntity* entity, const DmVector& point)
+{
     if (!m_active || !m_bus)
     {
         return;
     }
-    if (std::unique_ptr<IExclusiveCommand> next =
-            CommandRegistry::instance().createCommand(commandId, CommandContext{document(), view()}))
+    if (std::unique_ptr<IExclusiveCommand> next = CommandRegistry::instance().createCommand(
+            commandId, CommandContext{document(), view(), nullptr, entity, point}))
     {
         m_bus->start(std::move(next));
     }

@@ -25,9 +25,8 @@
 #include "EntityDataDef.h"
 #include "DmMTextParagraph.h"
 
-class ActionDrawMText;
-class ActionDrawMTextContext;
-class ActionInterface;
+class DrawMTextCommand;
+class MTextEditContext;
 
 class UIMTextOptions : public QWidget, public Ui::Ui_MTextOptions
 {
@@ -41,10 +40,9 @@ public:
 	~UIMTextOptions() = default;
 
 public:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的多行文字命令（它正在编辑时）
+	/// @param c 多行文字命令
+	virtual void setCommand(DrawMTextCommand* c);
 
 	/// @brief 初始化控件连接和数据
 	void init();
@@ -87,8 +85,8 @@ private:
 	DmMTextParagraph::Alignment translateStringToAlignment(const QString& str);
 
 protected:
-	ActionDrawMText* action = nullptr;          ///< 画多行文字 Action 指针
-	ActionDrawMTextContext* context = nullptr;  ///< 多行文字上下文指针
+	DrawMTextCommand* command = nullptr;          ///< 多行文字命令
+	MTextEditContext* context = nullptr;  ///< 多行文字上下文指针
 	bool m_isDlgShow = false;                   ///< 窗体是否已显示
 	bool m_isChangingStyle = false;             ///< 是否在修改文字样式，修改文字样式时可能会同步修改"粗体""倾斜"，为了避免多次触发修改添加该变量
 	bool m_isChangingSpinBoxValue = false;      ///< 是否正在修改SpinBox，避免在更新到UI时又触发更新到文字

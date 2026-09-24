@@ -20,7 +20,7 @@
 
 #include "UITextOptions.h"
 
-#include "ActionDrawText.h"
+#include "DrawTextCommand.h"
 #include "Math2d.h"
 #include "ui_UITextOptions.h"
 #include "Debug.h"
@@ -41,18 +41,17 @@ void UITextOptions::languageChange()
 	ui->retranslateUi(this);
 }
 
-void UITextOptions::setAction(ActionInterface* a, bool update)
+void UITextOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a && a->getEntityType() == DM::ActionDrawText)
+	command = dynamic_cast<DrawTextCommand*>(c);
+	if (command)
 	{
-		action = static_cast<ActionDrawText*>(a);
-
 		QString st;
 		QString sa;
 		if (update)
 		{
-			st = action->getText();
-			sa = QString("%1").arg(Math2d::rad2deg(action->getAngle()));
+			st = command->text();
+			sa = QString("%1").arg(Math2d::rad2deg(command->angle()));
 		}
 		else
 		{
@@ -63,24 +62,20 @@ void UITextOptions::setAction(ActionInterface* a, bool update)
 		ui->teText->setText(st);
 		ui->leAngle->setText(sa);
 	}
-	else
-	{
-		action = nullptr;
-	}
 }
 
 void UITextOptions::updateText()
 {
-	if (action)
+	if (command)
 	{
-		action->setText(ui->teText->toPlainText());
+		command->setText(ui->teText->toPlainText());
 	}
 }
 
 void UITextOptions::updateAngle()
 {
-	if (action)
+	if (command)
 	{
-		action->setAngle(Math2d::deg2rad(Math2d::eval(ui->leAngle->text())));
+		command->setAngle(Math2d::deg2rad(Math2d::eval(ui->leAngle->text())));
 	}
 }

@@ -23,7 +23,7 @@
 
 #include "ui_UIMTextModifyOptions.h"
 
-class ActionModifyMText;
+class ModifyMTextCommand;
 
 class UIMTextModifyOptions : public QWidget, public Ui::Ui_MTextModifyOptions
 {
@@ -37,9 +37,9 @@ public:
 	~UIMTextModifyOptions() = default;
 
 public:
-	/// @brief 设置关联的修改 Action
-	/// @param a 修改多行文字 Action 指针
-	virtual void setAction(ActionModifyMText* a);
+	/// @brief 设置关联的属性面板命令
+	/// @param c 多行文字属性面板命令
+	virtual void setCommand(ModifyMTextCommand* c);
 
 	/// @brief 初始化控件连接和数据
 	void init();
@@ -60,7 +60,7 @@ private slots:
 	void slotStyleChanged();
 
 protected:
-	ActionModifyMText* action = nullptr; ///< 修改多行文字 Action 指针
+	ModifyMTextCommand* command = nullptr; ///< 多行文字属性面板命令
 	bool m_isDlgShow = false; ///< 窗体是否已显示
 };
 

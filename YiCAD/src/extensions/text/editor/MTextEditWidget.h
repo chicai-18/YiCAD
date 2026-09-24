@@ -26,8 +26,8 @@
 #include "DmMText.h"
 #include "MTextEditCmdManager.h"
 
-class ActionDrawMText;
-class ActionDrawMTextContext;
+class DrawMTextCommand;
+class MTextEditContext;
 class QTimer;
 class DmChar;
 
@@ -48,7 +48,7 @@ public:
         Resizing,   ///< 调整编辑框尺寸状态
         Selecting,  ///< 选择文字状态
     };
-    MTextEditWidget(DmMText* mtext, GuiDocumentView* docView, ActionDrawMText* action, QWidget* parent = nullptr, Qt::WindowFlags fl = Qt::WindowFlags());
+    MTextEditWidget(DmMText* mtext, GuiDocumentView* docView, DrawMTextCommand* command, QWidget* parent = nullptr, Qt::WindowFlags fl = Qt::WindowFlags());
     virtual ~MTextEditWidget();
     /// @brief 创建（格式刷）光标
     QCursor* createSvgCursor(const QString& svgPath, const QSize& size, const QPoint& hotSpot);
@@ -69,7 +69,7 @@ public:
     void setSelectBeginEndToNull(bool needUndo);
     void insertTextAtCursor(const QString& str);
     /// @brief 根据指定的上下文（当前格式或格式刷的上下文）设置选择的文字
-    void matchSelectedChars(const ActionDrawMTextContext* context);
+    void matchSelectedChars(const MTextEditContext* context);
     /// @brief 指定的文字是否需要替换。如果后面的参数与文字格式不匹配，则需要替换
     bool charShouldBeReplacedInMatching(DmChar* c, const double& widthFactor, const double& slashAngle, const QString& fontName, const bool& isBold, const bool& isItalic) const;
     /// @brief 按指定的格式设置一个文字
@@ -168,9 +168,9 @@ private slots:
 private:
     GuiDocumentView*                    m_pDocumentView = nullptr;
     DmMText*                            m_pMText = nullptr;
-    ActionDrawMText*                    m_pAction = nullptr;
-    ActionDrawMTextContext*             m_pContext = nullptr;                           ///< 当前上下文，所有权在ActionDrawMText
-    std::unique_ptr<ActionDrawMTextContext> m_matchContext;                             ///< 格式刷上下文
+    DrawMTextCommand*                    m_pCommand = nullptr;
+    MTextEditContext*             m_pContext = nullptr;                           ///< 当前上下文，所有权在 DrawMTextCommand
+    std::unique_ptr<MTextEditContext> m_matchContext;                             ///< 格式刷上下文
     DmVector                            m_leftTop;                                      ///< 编辑窗体左上角世界坐标
     DmVector                            m_rightBottom;                                  ///< 编辑窗体右下角世界坐标
     Status                              m_curStatus = Status::Normal;

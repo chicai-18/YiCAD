@@ -46,6 +46,7 @@
 #define COMMANDREGISTRY_H
 
 #include "Datamodel.h"
+#include "DmVector.h"
 
 #include <functional>
 #include <map>
@@ -56,6 +57,7 @@
 
 class ActionInterface;
 class DmDocument;
+class DmEntity;
 class IDocumentView;
 class IExclusiveCommand;
 class QObject;
@@ -64,15 +66,18 @@ class TransientViewTool;
 
 /// @brief 构造命令所需的运行时环境。
 ///
-/// 绝大多数命令只用 document/view；sender 供 Layers* 系列命令透传 Ribbon
-/// 触发源（原 switch 里直接用 UIActionHandler::sender()）。即时命令在没有
-/// 打开图纸时 document/view 为空。原先供 ActionSelect 回调的 handler 字段
-/// 随先选后建命令的迁移删除（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步）。
+/// 绝大多数命令只用 document/view；sender 供图层命令透传触发的按钮。即时命令在
+/// 没有打开图纸时 document/view 为空。entity/point 是命令要作用的实体与位置：
+/// 选择层双击实体启动它的编辑命令（registerEntityEditor）时为双击的实体与位置，
+/// 修改实体属性时为被修改的实体。原先供 ActionSelect 回调的 handler 字段随先选后建
+/// 命令的迁移删除（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步）。
 struct CommandContext
 {
     DmDocument* document = nullptr;
     IDocumentView* view = nullptr;
     QObject* sender = nullptr;
+    DmEntity* entity = nullptr;
+    DmVector point{false};
 };
 
 /// @brief 命令工厂：给定运行时环境，构造并返回一个新的 Action 实例
@@ -197,6 +202,13 @@ public:
     /// @return id 未注册时返回 false。
     bool unregisterCommand(const QString& id);
 
+    /// @brief 登记某类实体的双击编辑命令（如多行文字的就地编辑）：选择层双击这类实体时
+    ///        按 ID 启动它，上下文的 entity/point 为双击的实体与位置。命令注销时登记随之删除
+    /// @return 这类实体已有编辑命令，或 commandId 不是已注册的交互命令时返回 false
+    bool registerEntityEditor(DM::EntityType type, const QString& commandId);
+    /// @brief 这类实体的双击编辑命令；没有时返回空
+    QString entityEditor(DM::EntityType type) const;
+
     /// @brief id 是否已注册。
     bool hasCommand(const QString& id) const;
 
@@ -272,6 +284,8 @@ private:
     std::map<DM::ActionType, QString> m_legacyBridge;
     /// @brief 小写别名 -> 命令 ID
     std::map<QString, QString> m_aliases;
+    /// @brief 实体类型 -> 双击编辑命令 ID
+    std::map<DM::EntityType, QString> m_entityEditors;
 };
 
 #endif  // COMMANDREGISTRY_H

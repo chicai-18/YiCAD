@@ -30,103 +30,6 @@
     </message>
 </context>
 <context>
-    <name>ActionDrawMText</name>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="116"/>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="377"/>
-        <source>Create MText</source>
-        <translation>多行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="126"/>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="366"/>
-        <source>Modify MText</source>
-        <translation>修改多行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="145"/>
-        <source>Delete MText</source>
-        <translation>删除多行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="181"/>
-        <source>Tips</source>
-        <translation>提示</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="181"/>
-        <source>Save the changes?</source>
-        <translation>是否保存更改？</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="318"/>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="323"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="318"/>
-        <source>Specify first point of edit box</source>
-        <translation>指定编辑框的第一角点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="323"/>
-        <source>Specify second point of edit box</source>
-        <translation>指定编辑框的第二角点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawMText.cpp" line="368"/>
-        <source>Hind origin MText</source>
-        <translation>隐藏原始多行文字</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawText</name>
-    <message>
-        <location filename="../src/actions/ActionDrawText.cpp" line="112"/>
-        <source>Create Text</source>
-        <translation>单行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawText.cpp" line="312"/>
-        <source>Specify insertion point</source>
-        <translation>指定插入点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawText.cpp" line="312"/>
-        <location filename="../src/actions/ActionDrawText.cpp" line="315"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawText.cpp" line="315"/>
-        <source>Specify second point</source>
-        <translation>指定第二个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawText.cpp" line="319"/>
-        <source>Enter text:</source>
-        <translation>输入文本：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawText.cpp" line="319"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyMText</name>
-    <message>
-        <location filename="../src/actions/ActionModifyMText.cpp" line="169"/>
-        <location filename="../src/actions/ActionModifyMText.cpp" line="193"/>
-        <location filename="../src/actions/ActionModifyMText.cpp" line="217"/>
-        <location filename="../src/actions/ActionModifyMText.cpp" line="240"/>
-        <location filename="../src/actions/ActionModifyMText.cpp" line="264"/>
-        <source>Modify MText</source>
-        <translation>修改多行文字</translation>
-    </message>
-</context>
-<context>
     <name>ApplicationWindow</name>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1283"/>
@@ -1375,19 +1278,6 @@
         <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="168"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
-    </message>
-</context>
-<context>
-    <name>MTextEditWidget</name>
-    <message>
-        <location filename="../src/ui/MTextEditWidget.cpp" line="1466"/>
-        <source>Tips</source>
-        <translation>提示</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/MTextEditWidget.cpp" line="1466"/>
-        <source>Save the changes?</source>
-        <translation>是否保存改变？</translation>
     </message>
 </context>
 <context>
@@ -2718,11 +2608,6 @@
         <translation>分解</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1493"/>
-        <source>Text style</source>
-        <translation>文字样式</translation>
-    </message>
-    <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1470"/>
         <source>Baseline</source>
         <translation>基线</translation>
@@ -2751,16 +2636,6 @@
         <location filename="../src/main/ApplicationWindow.cpp" line="1482"/>
         <source>Text</source>
         <translation>文字</translation>
-    </message>
-    <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1485"/>
-        <source>Single line text</source>
-        <translation>单行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1489"/>
-        <source>Multiline text</source>
-        <translation>多行文字</translation>
     </message>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1794"/>
@@ -5362,126 +5237,6 @@
     </message>
 </context>
 <context>
-    <name>UIMTextOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="118"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="507"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="510"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="569"/>
-        <source>TopLeft</source>
-        <translation>左上</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="118"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="514"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="573"/>
-        <source>TopCenter</source>
-        <translation>中上</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="118"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="518"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="577"/>
-        <source>TopRight</source>
-        <translation>右上</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="119"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="522"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="581"/>
-        <source>MiddleLeft</source>
-        <translation>左中</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="119"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="526"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="585"/>
-        <source>MiddleCenter</source>
-        <translation>正中</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="119"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="530"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="589"/>
-        <source>MiddleRight</source>
-        <translation>右中</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="120"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="534"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="593"/>
-        <source>BottomLeft</source>
-        <translation>左下</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="120"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="538"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="597"/>
-        <source>BottomCenter</source>
-        <translation>中下</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="120"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="542"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="601"/>
-        <source>BottomRight</source>
-        <translation>右下</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="126"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="614"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="617"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="649"/>
-        <source>Default</source>
-        <translation>默认</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="126"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="621"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="653"/>
-        <source>Left</source>
-        <translation>左对齐</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="126"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="625"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="657"/>
-        <source>Mid</source>
-        <translation>居中</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="126"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="629"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="661"/>
-        <source>Right</source>
-        <translation>右对齐</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="126"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="633"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="665"/>
-        <source>Justify</source>
-        <translation>对正</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="126"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="637"/>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="669"/>
-        <source>Distribute</source>
-        <translation>分散对齐</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="195"/>
-        <source>Tips</source>
-        <translation>提示</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.cpp" line="195"/>
-        <source>Change text style will effect the entire multiline text, whether to confirm the modification?</source>
-        <translation>修改文字样式将会应用到多行文字整体，是否确定修改？</translation>
-    </message>
-</context>
-<context>
     <name>UINestedBlockSelectDialog</name>
     <message>
         <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="60"/>
@@ -6321,47 +6076,6 @@ p, li { white-space: pre-wrap; }
     </message>
 </context>
 <context>
-    <name>Ui_MTextModifyOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UIMTextModifyOptions.ui" line="32"/>
-        <source>Text Options</source>
-        <translation>文字选项</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextModifyOptions.ui" line="50"/>
-        <source>Style:</source>
-        <translation>样式：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextModifyOptions.ui" line="60"/>
-        <source>Text height:</source>
-        <translation>文字高度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextModifyOptions.ui" line="77"/>
-        <source>Line space factor:</source>
-        <translation>行距比例：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextModifyOptions.ui" line="87"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIMTextModifyOptions.ui" line="97"/>
-        <source>Line space:</source>
-        <translation>行间距：</translation>
-    </message>
-</context>
-<context>
-    <name>Ui_MTextOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UIMTextOptions.ui" line="32"/>
-        <source>Text Options</source>
-        <translation>字段设置</translation>
-    </message>
-</context>
-<context>
     <name>Ui_ModifyOffsetOptions</name>
     <message>
         <location filename="../src/ui/forms/UIModifyOffsetOptions.ui" line="32"/>
@@ -6532,24 +6246,6 @@ p, li { white-space: pre-wrap; }
         <location filename="../src/ui/forms/UISplineOptions.ui" line="137"/>
         <source>Undo</source>
         <translation>撤销</translation>
-    </message>
-</context>
-<context>
-    <name>Ui_TextOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UITextOptions.ui" line="32"/>
-        <source>Text Options</source>
-        <translation>字段设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UITextOptions.ui" line="53"/>
-        <source>Text:</source>
-        <translation>字段：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UITextOptions.ui" line="91"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
     </message>
 </context>
 </TS>

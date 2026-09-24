@@ -142,11 +142,8 @@ void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
     // 标注：只占位，按钮由标注扩展（src/extensions/dim/）注册。
     r.addPanel({.id = kPanelDraw2dDimension, .categoryId = kCategoryDraw2d, .title = QObject::tr("Dimension")});
 
-    // 文字
+    // 文字：只占位，按钮由文字扩展（src/extensions/text/）注册。
     r.addPanel({.id = kPanelDraw2dText, .categoryId = kCategoryDraw2d, .title = QObject::tr("Text")});
-    addCommand(r, kPanelDraw2dText, QObject::tr("Single line text"), ":/ribbon/draw2d/text.svg", "draw.text");
-    addCommand(r, kPanelDraw2dText, QObject::tr("Multiline text"), ":/ribbon/draw2d/mtext.svg", "draw.mtext");
-    addCommand(r, kPanelDraw2dText, QObject::tr("Text style"), ":/ribbon/draw2d/text_style.svg", "text.style");
 
     // 其他
     r.addPanel({.id = kPanelDraw2dOther, .categoryId = kCategoryDraw2d, .title = QObject::tr("Other")});

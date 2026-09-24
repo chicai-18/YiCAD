@@ -90,6 +90,10 @@ public:
     /// @brief 命令当前使用的捕捉器，画布的捕捉标记与捕捉提示读它
     /// @return 没有捕捉器时返回 nullptr
     virtual ISnapService* snapService() const { return nullptr; }
+
+    /// @brief 即时命令（撤销、删除等）执行前是否要结束本命令（原 canBeInterrupt() 为 false
+    ///        的 Action：多行文字编辑、多行文字属性面板）。结束前照常调用 onEndRequested
+    virtual bool isUninterruptible() const { return false; }
 };
 
 #endif // IEXCLUSIVECOMMAND_H

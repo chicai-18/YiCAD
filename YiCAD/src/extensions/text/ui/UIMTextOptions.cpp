@@ -22,8 +22,8 @@
 #include <QDoubleValidator>
 
 #include "UIMTextOptions.h"
-#include "ActionInterface.h"
-#include "ActionDrawMText.h"
+#include "DrawMTextCommand.h"
+#include "MTextEditContext.h"
 #include "DmDocument.h"
 #include "DmFontList.h"
 #include "DmFont.h"
@@ -31,7 +31,7 @@
 
 UIMTextOptions::UIMTextOptions(QWidget* parent, Qt::WindowFlags fl)
 	: QWidget(parent, fl)
-	, action(nullptr)
+	, command(nullptr)
 	, context(nullptr)
 	, m_isDlgShow(false)
 	, m_isChangingStyle(false)
@@ -52,8 +52,8 @@ void UIMTextOptions::slotEditLineEditingFinished()
 			context->emitUiCharHeightChanged();
 		}
 	}
-	//action->update(ActionDrawMText::DataUpdateMode::UpdateToDMSelect);
-	action->focusEditWidget();
+	//command->update(DrawMTextCommand::DataUpdateMode::UpdateToDMSelect);
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::languageChange()
@@ -61,31 +61,27 @@ void UIMTextOptions::languageChange()
 	retranslateUi(this);
 }
 
-void UIMTextOptions::setAction(ActionInterface* a, bool update)
+void UIMTextOptions::setCommand(DrawMTextCommand* c)
 {
-	if (a && (a->getEntityType() == DM::ActionDrawMText))
+	command = c;
+	if (command)
 	{
-		action = static_cast<ActionDrawMText*>(a);
-		context = action->getContext();
+		context = command->getContext();
 		connect(context, SIGNAL(dmToOption()), this, SLOT(updateUIFromData()));
 		connect(context, SIGNAL(undoToOption(bool, bool)), this, SLOT(slotUpdateUndoUI(bool, bool)));
 		init();
 
 		//bool reversed;
 		//if (update) {
-		//	reversed = action->isReversed();
+		//	reversed = command->isReversed();
 		//}
 		//else {
 		//	DMSETTINGS->beginGroup("/Draw");
 		//	reversed = DMSETTINGS->readNumEntry("/ArcReversed", 0);
 		//	DMSETTINGS->endGroup();
-		//	action->setReversed(reversed);
+		//	command->setReversed(reversed);
 		//}
 		//ui->rbNeg->setChecked(reversed);
-	}
-	else
-	{
-		action = nullptr;
 	}
 }
 
@@ -144,7 +140,7 @@ void UIMTextOptions::init()
 
 	// 文字样式初始化（放在后面是因为要设置默认字体等）
 	connect(cbStyle, SIGNAL(styleChanged()), this, SLOT(slotStyleChanged()));
-	DmTextStyleTable* textStyleTable = action->getDocument()->getTextStyleTable();
+	DmTextStyleTable* textStyleTable = command->getDocument()->getTextStyleTable();
 	cbStyle->init(textStyleTable);
 	cbStyle->setChangeQueryFunc(queryChangeItem);
 }
@@ -206,11 +202,11 @@ void UIMTextOptions::showEvent(QShowEvent* ev)
 
 void UIMTextOptions::leaveEvent(QEvent* event)
 {
-	if (nullptr == action)
+	if (nullptr == command)
 	{
 		return;
 	}
-	action->focusEditWidget();
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotStyleChanged()
@@ -248,8 +244,8 @@ void UIMTextOptions::slotStyleChanged()
 	{
 		context->emitUiStyleChanged();
 	}
-	//action->update(ActionDrawMText::DataUpdateMode::UpdateToDMAll);
-	action->focusEditWidget();
+	//command->update(DrawMTextCommand::DataUpdateMode::UpdateToDMAll);
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotCboFontChanged(const QString& font)
@@ -267,8 +263,8 @@ void UIMTextOptions::slotCboFontChanged(const QString& font)
 	{
 		context->emitUiFontFamilyChanged();
 	}
-	//action->update(ActionDrawMText::DataUpdateMode::UpdateToDMSelect);
-	action->focusEditWidget();
+	//command->update(DrawMTextCommand::DataUpdateMode::UpdateToDMSelect);
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotColorChanged(const DmColor& color)
@@ -282,8 +278,8 @@ void UIMTextOptions::slotColorChanged(const DmColor& color)
 	{
 		context->emitUiColorChanged();
 	}
-	//action->update(ActionDrawMText::DataUpdateMode::UpdateToDMSelect);
-	action->focusEditWidget();
+	//command->update(DrawMTextCommand::DataUpdateMode::UpdateToDMSelect);
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotCboSymbolActivated(const QString& symbol)
@@ -375,7 +371,7 @@ void UIMTextOptions::slotBtnToggled(bool checked)
 	{
 		// 未识别的发送者，不做处理
 	}
-	action->focusEditWidget();
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotJustifyChanged(const QString& text)
@@ -388,12 +384,12 @@ void UIMTextOptions::slotJustifyChanged(const QString& text)
 	{
 		return;
 	}
-	ActionDrawMTextContext* context = action->getContext();
+	MTextEditContext* context = command->getContext();
 	EMTextMode curMode = translateStringToJustify(text);
 	context->setJustification(curMode);
 	context->emitUiJustificationChanged();
-	//action->update(ActionDrawMText::DataUpdateMode::UpdateToDMAll);
-	action->focusEditWidget();
+	//command->update(DrawMTextCommand::DataUpdateMode::UpdateToDMAll);
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotParaAlignmentChanged(const QString& text)
@@ -406,12 +402,12 @@ void UIMTextOptions::slotParaAlignmentChanged(const QString& text)
 	{
 		return;
 	}
-	ActionDrawMTextContext* context = action->getContext();
+	MTextEditContext* context = command->getContext();
 	DmMTextParagraph::Alignment align = translateStringToAlignment(text);
 	context->setParaAlignment(align);
 	context->emitUiParaAlignmentChanged();
-	//action->update(ActionDrawMText::DataUpdateMode::UpdateToDMSelect);
-	action->focusEditWidget();
+	//command->update(DrawMTextCommand::DataUpdateMode::UpdateToDMSelect);
+	command->focusEditWidget();
 }
 
 void UIMTextOptions::slotCaseChange()
@@ -436,7 +432,7 @@ void UIMTextOptions::slotSpinBoxValueChanged(double d)
 	{
 		return;
 	}
-	ActionDrawMTextContext* context = action->getContext();
+	MTextEditContext* context = command->getContext();
 	if (sender() == dsbOblique)
 	{
 		if (d >= 0.0 && d < 90.0)

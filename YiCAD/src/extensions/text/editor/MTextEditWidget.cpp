@@ -41,16 +41,17 @@
 #include "DmFont.h"
 #include "DmFontList.h"
 #include "DmCharTemplate.h"
-#include "ActionDrawMText.h"
+#include "DrawMTextCommand.h"
+#include "MTextEditContext.h"
 #include "ApplicationWindow.h"
 #include "MTextEditCmd.h"
 
 
-MTextEditWidget::MTextEditWidget(DmMText* mtext, GuiDocumentView* docView, ActionDrawMText* action, QWidget* parent, Qt::WindowFlags f)
+MTextEditWidget::MTextEditWidget(DmMText* mtext, GuiDocumentView* docView, DrawMTextCommand* command, QWidget* parent, Qt::WindowFlags f)
 	:GuiPreviewWidget(parent, f)
 	, m_pDocumentView(docView)
 	, m_pMText(mtext)
-	, m_pAction(action)
+	, m_pCommand(command)
 	, m_pCursor(nullptr)
 	, m_pContext(nullptr)
 	, m_matchContext(nullptr)
@@ -63,9 +64,9 @@ MTextEditWidget::MTextEditWidget(DmMText* mtext, GuiDocumentView* docView, Actio
 	, m_selectEndPreChar(nullptr)
 	, m_selectEndPostChar(nullptr)
 {
-	if (action)
+	if (command)
 	{
-		m_pContext = m_pAction->getContext();
+		m_pContext = m_pCommand->getContext();
 		connect(m_pContext, SIGNAL(uiStyleChanged()), this, SLOT(slotTextStyleChanged()));
 		connect(m_pContext, SIGNAL(uiFontFamilyChanged()), this, SLOT(slotFormatChanged()));
 		connect(m_pContext, SIGNAL(uiColorChanged()), this, SLOT(slotFormatChanged()));
@@ -330,7 +331,7 @@ void MTextEditWidget::insertTextAtCursor(const QString& str)
     m_cmdManager.done();
 }
 
-void MTextEditWidget::matchSelectedChars(const ActionDrawMTextContext* context)
+void MTextEditWidget::matchSelectedChars(const MTextEditContext* context)
 {
 	if (nullptr == context)
 	{
@@ -1813,7 +1814,7 @@ void MTextEditWidget::slotMatch()
 	{
 		if (nullptr == m_matchContext.get())
 		{
-			m_matchContext.reset(new ActionDrawMTextContext(*m_pContext));
+			m_matchContext.reset(new MTextEditContext(*m_pContext));
 		}
 	}
 	//取消格式刷状态

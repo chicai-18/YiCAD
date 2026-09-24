@@ -1027,3 +1027,60 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交⑥验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 236 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/块"面板的
 7 个按钮正常显示（截图核对）。交互回归清单新增 K1–K6，尚待手工核对。
+
+**提交⑦：扩展 `ext.text`**
+
+1. **文字扩展**（`src/extensions/text/`）：
+   - 交互命令：单行文字 `ext.text.draw`、多行文字 `ext.text.mtext`、多行文字就地编辑
+     `ext.text.edit_mtext`（双击时由选择层启动）、多行文字属性面板 `ext.text.modify_mtext`；
+   - 即时命令：文字样式 `ext.text.style`，以及宿主用的选择变化监听者 `ext.text.selection_changed`；
+   - 编辑框 `MTextEditWidget` 与它的撤销命令 `MTextEditCmd`、`MTextEditCmdManager`（原在
+     `ui/`、`kernel/actions/`、`kernel/history/`，只有编辑框用）搬进 `editor/`；原
+     `ActionDrawMTextContext` 改名 `MTextEditContext` 并拆成单独的文件；三个选项条
+     `UITextOptions`、`UIMTextOptions`、`UIMTextModifyOptions` 搬进 `ui/`；
+   - 按钮注册进宿主占位的"绘图/文字"面板；命令行别名取原 keyconfig.xml 两组的并集
+     （`dhwz` 两组里分别属于单行、多行文字，原先按单行文字解析，现在只给单行文字）。
+
+   删除 5 个旧 Action（单行文字、多行文字、多行文字属性、文字样式、选择变化）；keyconfig.xml
+   删去 4 条。`kernel/actions/MTextEditCmd.cpp` 原先是内核里唯一包含编辑框完整类型的文件，
+   随之离开内核。
+2. **实体双击编辑的登记**：`CommandRegistry::registerEntityEditor(实体类型, 命令 ID)`，扩展经
+   `IExtensionContext::registerEntityEditor` 登记，命令注销时登记随之删除。选择层双击实体时按
+   登记的命令 ID 经视图设置的启动方式（`SelectTool::setCommandStarter`，由 `UIView` 设置）
+   启动，不再在内核里构造 `ActionDrawMText`；没有登记的实体照旧弹出属性对话框。
+   `CommandContext` 增加 `entity`、`point` 两个字段传递要作用的实体与位置，
+   `BaseExclusiveCommand::replaceWith` 增加带实体的重载。
+3. **不可打断的命令**：`IExclusiveCommand::isUninterruptible()`；多行文字编辑与属性面板返回
+   true。即时命令按 `EndUninterruptible` 执行前（撤销、删除等），`UIView::prepareInstantCommand`
+   先请它让位并结束它（原先只结束不可打断的旧 Action），否则会继续编辑被删除或撤销的文字。
+4. **多行文字编辑的保存提示**：按 5.1 节移入 `onEndRequested`：编辑中被新命令替换、结束全部
+   命令、关闭视图或即时命令结束时弹出"Save the changes?"（是/否），提交或放弃后放行；在
+   画布上按下提交并结束，编辑框里按 Esc 按选择提交或放弃（原先的信号改接到命令）。结束全部
+   命令时若块编辑否决，已提交或放弃的多行文字命令自己结束。
+5. **选择变化**：`UIActionHandler::slotSecectedChanged` 不再启动 `ActionSelectedChanged`，
+   自己刷新选择计数，再运行 `ext.text.selection_changed`：空闲态选中的实体都在同一个图层上、
+   第一个是多行文字时显示属性面板（原规则）。修改实体属性点到多行文字时转到属性面板命令。
+6. **选项条**：`requestOptions` 的 switch 删空（旧版 Action 只剩标注扩展经注册表提供的选项条），
+   `requestTextOptions` 删除，单行文字的选项条随命令注册。
+7. **翻译**：`ActionDrawText`、`ActionDrawMText`、`ActionModifyMText`、`MTextEditWidget`、三个
+   选项条的上下文与 3 个按钮文字并入 `text_zh_cn.ts`。
+8. **测试**：新增 `test_text_extension`（11 例：命令类型、打断方式与别名、双击编辑的登记与
+   注销、原 ID 与枚举桥接不再存在、按钮所在面板、单行文字取消对话框、多行文字拉编辑框、
+   编辑与属性面板只接受多行文字、属性面板不可打断且单击结束、监听者在假视图下什么也不做、
+   选择层按登记启动编辑命令）；`test_command_registry` 增加登记的拒绝与随命令注销。
+
+**与方案的偏差与补充**
+
+1. **修改实体属性点到多行文字**：属性面板接替修改实体属性命令，面板结束后回到空闲态（原先
+   属性编辑的旧 Action 叠在修改实体属性之上，结束后回到它）。交互命令不能叠放，这是唯一
+   为此改变的流程。
+2. **命令运行中的选择变化**：原先属性编辑的旧 Action 会叠在正在运行的命令之上并挂起它；现在
+   有命令在运行时监听者不显示属性面板。命令运行中选择变化的情形很少（先选后建命令的选择阶段
+   本来就不发选择变化）。
+3. **单行文字**：在"输入文字"一步右键结束时恢复坐标输入（原 Action 结束时不恢复，此后命令行
+   输入的坐标都不被解析）；命令行文字照旧不被接受，随后还会被当作新命令解析（原有行为）。
+4. **原样保留**：多行文字的事务名"Hind origin MText"；属性面板的方法名 `getLineSpaceFatctor`。
+
+提交⑦验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 248 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/文字"面板
+的 3 个按钮正常显示（截图核对）。第 6 节的 M1–M4、T1–T4 与新增的 T5–T7 尚待手工核对。

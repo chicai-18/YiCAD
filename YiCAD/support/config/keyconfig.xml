@@ -53,8 +53,6 @@
 		<item action="ActionDrawEllipseInscribe" description="内切椭圆" keys="ellipseinscribed, ei, ie"/>
 		
 		<!--文字-->
-		<item action="ActionDrawText" description="单行文字" keys="text, txt"/>
-		<item action="ActionDrawMText" description="多行文字" keys="mtext, mtxt"/>
 		<item action="ActionModifyExplodeText" description="分解文字" keys=""/>
 		
 		<!--其他-->
@@ -148,8 +146,6 @@
 		<item action="ActionDrawEllipseInscribe" description="内切椭圆" keys="nqty"/>
 		
 		<!--文字-->
-		<item action="ActionDrawText" description="单行文字" keys="d, dhwz"/>
-		<item action="ActionDrawMText" description="多行文字" keys="dhwz"/>
 		<item action="ActionModifyExplodeText" description="分解文字" keys="fjwz"/>
 		
 		<!--其他-->

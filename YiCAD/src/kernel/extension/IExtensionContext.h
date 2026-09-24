@@ -87,6 +87,11 @@ public:
     /// @brief 注册一条即时命令（见 CommandRegistry::registerInstantCommand），命名空间规则同上。
     virtual bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info) = 0;
 
+    /// @brief 登记某类实体的双击编辑命令（见 CommandRegistry::registerEntityEditor）。
+    /// @param commandId 必须在本扩展的命名空间内，且已注册为交互命令；命令注销时登记随之删除
+    /// @return 命名空间不符、命令未注册或这类实体已有编辑命令时返回 false。
+    virtual bool registerEntityEditor(DM::EntityType type, const QString& commandId) = 0;
+
     /// @brief 按命令 ID 启动命令（任意已注册命令，不限本扩展）。
     /// @return 命令未注册时返回 false。
     virtual bool activateCommand(const QString& commandId) = 0;

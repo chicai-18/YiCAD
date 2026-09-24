@@ -25,7 +25,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 
-#include "ActionDrawMText.h"
+#include "CommandRegistry.h"
 #include "DmLine.h"
 #include "DmMText.h"
 #include "GuiDialogFactory.h"
@@ -628,16 +628,18 @@ ViewToolResult SelectTool::mouseDoubleClickEvent(QMouseEvent* e)
     // 修改实体
     if (selectCount == 0 || (selectCount == 1 && en == ents.front()))
     {
-        // 多行文字的编辑不是模态对话框，且与Action关联，需要特殊处理
-        if (en->getEntityType() == DM::EntityMText)
+        // 登记了双击编辑命令的实体（多行文字的就地编辑，由文字扩展登记）：启动该命令
+        const QString editor = CommandRegistry::instance().entityEditor(en->getEntityType());
+        if (!editor.isEmpty())
         {
-            ActionDrawMText* mtextAction = new ActionDrawMText(m_pDocument, m_docView, true);
-            mtextAction->setModifyData(static_cast<DmMText*>(en), clickPos);
-            m_docView->setCurrentAction(mtextAction);
+            if (m_commandStarter)
+            {
+                m_commandStarter(editor, en, clickPos);
+            }
             return ViewToolResult::Handled;
         }
 
-        // 不是多行文字类型处理
+        // 其余实体弹出属性对话框
         GUIDIALOGFACTORY->requestModifyEntityDialog(en);
     }
     return ViewToolResult::Handled;

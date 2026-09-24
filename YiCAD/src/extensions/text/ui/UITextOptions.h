@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawText;
+class IExclusiveCommand;
+class DrawTextCommand;
 namespace Ui {
 	class Ui_TextOptions;
 }
@@ -44,19 +44,19 @@ public:
 	~UITextOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	/// @param update 是否从命令更新 UI
+	virtual void setCommand(IExclusiveCommand* c, bool update);
 
-	/// @brief 更新文字内容到 Action
+	/// @brief 更新文字内容到命令
 	virtual void updateText();
 
-	/// @brief 更新角度到 Action
+	/// @brief 更新角度到命令
 	virtual void updateAngle();
 
 protected:
-	ActionDrawText* action = nullptr; ///< 文字 Action 指针
+	DrawTextCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

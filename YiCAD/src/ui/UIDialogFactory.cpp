@@ -75,12 +75,10 @@
 #include "UILineOptions.h"
 #include "UILinePolygonOptions.h"
 #include "UIModifyOffsetOptions.h"
-#include "UIMTextOptions.h"
 #include "UIRoundOptions.h"
 #include "UISnapDistOptions.h"
 #include "UISnapMiddleOptions.h"
 #include "UISplineOptions.h"
-#include "UITextOptions.h"
 #include "UIPolylineOptions.h"
 #include "DmBlockTable.h"
 #include "UISnapMiddleOptions.h"
@@ -412,22 +410,11 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 		return;
 	}
 
-	// 扩展命令的选项条随命令注册在 CommandRegistry（CommandInfo::optionsFactory），
-	// 没有枚举值可供下面的 switch 分发。
+	// 旧版 Action 的选项条只剩随命令注册在 CommandRegistry 的（CommandInfo::optionsFactory，
+	// 标注扩展）；内置命令都已迁为交互命令，见 requestCommandOptions
 	if (CommandOptionsFactory factory = CommandRegistry::instance().optionsFactory(action->getCommandId()))
 	{
 		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, action, update); }, on);
-		return;
-	}
-
-	switch (action->getEntityType())
-	{
-	case DM::ActionDrawText:
-		requestTextOptions(action, on, update);
-		break;
-
-	default:
-		break;
 	}
 }
 
@@ -681,29 +668,6 @@ void UIDialogFactory::requestSplineOptions(IExclusiveCommand* command, bool on, 
 			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 26);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for text options.
-void UIDialogFactory::requestTextOptions(ActionInterface* action, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UITextOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UITextOptions(optionWidget);
-			toolWidget->setAction(action, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
 		}
 	}

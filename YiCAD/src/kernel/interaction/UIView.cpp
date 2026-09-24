@@ -86,6 +86,13 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
             }
             return SelectTool::Overlay::None;
         });
+        // 双击实体启动它登记的编辑命令（如多行文字的就地编辑）
+        m_pSelectTool->setCommandStarter([this](const QString& commandId, DmEntity* entity, const DmVector& point)
+        {
+            std::unique_ptr<IExclusiveCommand> command = CommandRegistry::instance().createCommand(
+                commandId, CommandContext{getDocument(), this, nullptr, entity, point});
+            return command && startCommand(std::move(command));
+        });
         getEventHandler()->setStackBase(this);
     }
 }
@@ -153,6 +160,17 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
         return true;
 
     case InstantInterrupt::EndUninterruptible:
+        // 不可打断的命令（多行文字编辑与属性面板）先结束，否则它会继续编辑被删除或撤销的
+        // 文字；结束前照常询问（多行文字编辑的保存提示没有"取消"，不会否决）
+        if (m_pCommandBus && !m_pCommandBus->isInCallback() && m_pCommandBus->activeCommand() &&
+            m_pCommandBus->activeCommand()->isUninterruptible())
+        {
+            if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
+            {
+                return false;
+            }
+            m_pCommandBus->end();
+        }
         break;
     }
     getEventHandler()->interruptForInstantCommand();

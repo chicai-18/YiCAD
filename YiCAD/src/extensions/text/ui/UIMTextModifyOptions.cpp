@@ -19,21 +19,21 @@
 /// @brief 多行文字修改选项控件实现
 
 #include "UIMTextModifyOptions.h"
-#include "ActionModifyMText.h"
+#include "ModifyMTextCommand.h"
 #include "DmDocument.h"
 #include "Math2d.h"
 
 UIMTextModifyOptions::UIMTextModifyOptions(QWidget* parent, Qt::WindowFlags fl)
 	: QWidget(parent, fl)
 	, m_isDlgShow(false)
-	, action(nullptr)
+	, command(nullptr)
 {
 	setupUi(this);
 }
 
-void UIMTextModifyOptions::setAction(ActionModifyMText* a)
+void UIMTextModifyOptions::setCommand(ModifyMTextCommand* c)
 {
-	action = a;
+	command = c;
 	init();
 }
 
@@ -41,7 +41,7 @@ void UIMTextModifyOptions::init()
 {
 	// 文字样式
 	connect(cbStyle, SIGNAL(styleChanged()), this, SLOT(slotStyleChanged()));
-	DmTextStyleTable* textStyleTable = action->getDocument()->getTextStyleTable();
+	DmTextStyleTable* textStyleTable = command->getDocument()->getTextStyleTable();
 	cbStyle->init(textStyleTable);
 
 	//其他
@@ -55,11 +55,11 @@ void UIMTextModifyOptions::init()
 
 void UIMTextModifyOptions::updateUIFromData()
 {
-	cbStyle->setStyle(action->getStyle()->getName());
-	leHeight->setText(QString::number(action->getHeight()));
-	leLineSpaceFactor->setText(QString::number(action->getLineSpaceFatctor()));
-	leLineSpace->setText(QString::number(action->getLineSpace()));
-	double angle_deg = Math2d::rad2deg(action->getAngle());
+	cbStyle->setStyle(command->getStyle()->getName());
+	leHeight->setText(QString::number(command->getHeight()));
+	leLineSpaceFactor->setText(QString::number(command->getLineSpaceFatctor()));
+	leLineSpace->setText(QString::number(command->getLineSpace()));
+	double angle_deg = Math2d::rad2deg(command->getAngle());
 	leAngle->setText(QString::number(angle_deg));
 }
 
@@ -88,7 +88,7 @@ void UIMTextModifyOptions::slotEditLineEditingFinished()
 		{
 			return;
 		}
-		action->setHeight(height);
+		command->setHeight(height);
 	}
 	else if (sender() == leLineSpaceFactor)
 	{
@@ -97,21 +97,21 @@ void UIMTextModifyOptions::slotEditLineEditingFinished()
 		{
 			return;
 		}
-		action->setLineSpaceFatctor(factor);
-		double lineSpace = action->getLineSpace();
+		command->setLineSpaceFatctor(factor);
+		double lineSpace = command->getLineSpace();
 		leLineSpace->setText(QString::number(lineSpace));
 	}
 	else if (sender() == leLineSpace)
 	{
 		double lineSpace = leLineSpace->text().toDouble();
-		action->setLineSpace(lineSpace);
-		double factor = action->getLineSpaceFatctor();
+		command->setLineSpace(lineSpace);
+		double factor = command->getLineSpaceFatctor();
 		leLineSpaceFactor->setText(QString::number(factor));
 	}
 	else if (sender() == leAngle)
 	{
 		double angle_deg = leAngle->text().toDouble();
-		action->setAngle(Math2d::deg2rad(angle_deg));
+		command->setAngle(Math2d::deg2rad(angle_deg));
 	}
 }
 
@@ -121,5 +121,5 @@ void UIMTextModifyOptions::slotStyleChanged()
 	{
 		return;
 	}
-	action->setStyle(cbStyle->getStyle());
+	command->setStyle(cbStyle->getStyle());
 }

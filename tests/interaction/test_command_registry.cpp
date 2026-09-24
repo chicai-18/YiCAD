@@ -375,3 +375,27 @@ TEST(CommandRegistryTest, 第三步迁移的视图与即时命令注册为新类
     EXPECT_EQ(CommandRegistry::instance().instantInterrupt("zoom.out"), InstantInterrupt::KeepAll);
     EXPECT_EQ(CommandRegistry::instance().instantInterrupt("edit.undo"), InstantInterrupt::EndUninterruptible);
 }
+
+TEST(CommandRegistryTest, 实体双击编辑命令只接受交互命令且一类实体只登记一个)
+{
+    CommandRegistry& registry = CommandRegistry::instance();
+    ASSERT_TRUE(registry.registerInstantCommand("test.cr.editor_instant", [](const CommandContext&) {}));
+    ASSERT_TRUE(registry.registerExclusiveCommand(
+        "test.cr.editor_a", [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return nullptr; }));
+    ASSERT_TRUE(registry.registerExclusiveCommand(
+        "test.cr.editor_b", [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return nullptr; }));
+
+    EXPECT_FALSE(registry.registerEntityEditor(DM::EntityArc, "test.cr.editor_instant"));
+    EXPECT_FALSE(registry.registerEntityEditor(DM::EntityArc, "test.cr.no_such_command"));
+    EXPECT_TRUE(registry.registerEntityEditor(DM::EntityArc, "test.cr.editor_a"));
+    EXPECT_FALSE(registry.registerEntityEditor(DM::EntityArc, "test.cr.editor_b"));
+    EXPECT_EQ(registry.entityEditor(DM::EntityArc), QStringLiteral("test.cr.editor_a"));
+
+    // 命令注销时登记随之删除，这类实体可以再登记
+    registry.unregisterCommand("test.cr.editor_a");
+    EXPECT_TRUE(registry.entityEditor(DM::EntityArc).isEmpty());
+    EXPECT_TRUE(registry.registerEntityEditor(DM::EntityArc, "test.cr.editor_b"));
+
+    registry.unregisterCommand("test.cr.editor_b");
+    registry.unregisterCommand("test.cr.editor_instant");
+}

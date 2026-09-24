@@ -112,7 +112,6 @@ protected:
 
 	void requestSplineOptions(IExclusiveCommand* command, bool on, bool update);
 
-	void requestTextOptions(ActionInterface* action, bool on, bool update);
 
 	void requestImageOptions(IExclusiveCommand* command, bool on, bool update);
 
