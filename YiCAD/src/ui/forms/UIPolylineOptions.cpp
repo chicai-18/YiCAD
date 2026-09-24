@@ -20,7 +20,7 @@
 
 #include "UIPolylineOptions.h"
 
-#include "ActionDrawPolyline.h"
+#include "DrawPolylineCommand.h"
 #include "DmSettings.h"
 #include "Math2d.h"
 #include "ui_UIPolylineOptions.h"
@@ -65,12 +65,11 @@ void UIPolylineOptions::destroy()
 	DMSETTINGS->endGroup();
 }
 
-void UIPolylineOptions::setAction(ActionInterface* a, bool update)
+void UIPolylineOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a && a->getEntityType() == DM::ActionDrawPolyline)
+	command = dynamic_cast<DrawPolylineCommand*>(c);
+	if (command)
 	{
-		action = static_cast<ActionDrawPolyline*>(a);
-
 		double sw = 0.0;
 		double ew = 0.0;
 		QString sd1;
@@ -82,9 +81,9 @@ void UIPolylineOptions::setAction(ActionInterface* a, bool update)
 		{
 			sw = ui->startWeight->text().toDouble();
 			ew = ui->endWeight->text().toDouble();
-			sd1 = QString("%1").arg(action->getRadius());
-			sd2 = QString("%1").arg(action->getAngle());
-			mode = action->getMode();
+			sd1 = QString("%1").arg(command->getRadius());
+			sd2 = QString("%1").arg(command->getAngle());
+			mode = command->getMode();
 		}
 		else
 		{
@@ -96,12 +95,12 @@ void UIPolylineOptions::setAction(ActionInterface* a, bool update)
 			mode = DMSETTINGS->readNumEntry("/PolylineMode", 0);
 			cw = DMSETTINGS->readNumEntry("/PolylineCW", 0);
 			DMSETTINGS->endGroup();
-			action->setStartWeight(sw);
-			action->setEndWeight(ew);
-			action->setRadius(sd1.toDouble());
-			action->setAngle(sd2.toDouble());
-			action->setMode((ActionDrawPolyline::SegmentMode)mode);
-			action->setCCW(!cw);
+			command->setStartWeight(sw);
+			command->setEndWeight(ew);
+			command->setRadius(sd1.toDouble());
+			command->setAngle(sd2.toDouble());
+			command->setMode((DrawPolylineCommand::SegmentMode)mode);
+			command->setCCW(!cw);
 		}
 		ui->startWeight->setText(QString::number(sw));
 		ui->endWeight->setText(QString::number(ew));
@@ -111,39 +110,35 @@ void UIPolylineOptions::setAction(ActionInterface* a, bool update)
 		ui->rbNeg->setChecked(cw);
 		updateMode(mode);
 	}
-	else
-	{
-		action = nullptr;
-	}
 }
 
 void UIPolylineOptions::close()
 {
-	if (action)
+	if (command)
 	{
-		action->close();
+		command->close();
 	}
 }
 
 void UIPolylineOptions::undo()
 {
-	if (action)
+	if (command)
 	{
-		action->undo();
+		command->undo();
 	}
 }
 
 void UIPolylineOptions::updateRadius(const QString& s)
 {
-	if (action)
+	if (command)
 	{
-		action->setRadius(Math2d::eval(s));
+		command->setRadius(Math2d::eval(s));
 	}
 }
 
 void UIPolylineOptions::updateAngle(const QString& s)
 {
-	if (action)
+	if (command)
 	{
 		double a = Math2d::eval(s);
 		//	QString sr;
@@ -157,35 +152,35 @@ void UIPolylineOptions::updateAngle(const QString& s)
 			a = 0.0;
 			ui->leAngle->setText(QString("%1").arg(a));
 		}
-		action->setAngle(a);
+		command->setAngle(a);
 	}
 }
 
 void UIPolylineOptions::updateDirection(bool /*pos*/)
 {
-	if (action)
+	if (command)
 	{
-		action->setCCW(ui->rbPos->isChecked());
+		command->setCCW(ui->rbPos->isChecked());
 	}
 }
 
 void UIPolylineOptions::updateMode(int m)
 {
-	if (action)
+	if (command)
 	{
-		action->setMode((ActionDrawPolyline::SegmentMode)m);
+		command->setMode((DrawPolylineCommand::SegmentMode)m);
 	}
-	switch ((ActionDrawPolyline::SegmentMode)m)
+	switch ((DrawPolylineCommand::SegmentMode)m)
 	{
-	case ActionDrawPolyline::Line:
-	case ActionDrawPolyline::Tangential:
+	case DrawPolylineCommand::Line:
+	case DrawPolylineCommand::Tangential:
 	default:
 		for (QWidget* p : wLists{ ui->leRadius, ui->leAngle, ui->lRadius, ui->lAngle, ui->rbPos, ui->rbNeg })
 		{
 			p->hide();
 		}
 		break;
-	case ActionDrawPolyline::TanRad:
+	case DrawPolylineCommand::TanRad:
 		for (QWidget* p : wLists{ ui->leAngle, ui->lAngle, ui->rbPos, ui->rbNeg })
 		{
 			p->hide();
@@ -195,7 +190,7 @@ void UIPolylineOptions::updateMode(int m)
 			p->show();
 		}
 		break;
-	case ActionDrawPolyline::Ang:
+	case DrawPolylineCommand::Ang:
 		for (QWidget* p : wLists{ ui->leRadius, ui->lRadius })
 		{
 			p->hide();
@@ -214,11 +209,11 @@ void UIPolylineOptions::updateMode(int m)
 void UIPolylineOptions::updateStartLineWeight()
 {
 	double sw = ui->startWeight->text().toDouble();
-	action->setStartWeight(sw);
+	command->setStartWeight(sw);
 }
 
 void UIPolylineOptions::updateEndLineWeight()
 {
 	double ew = ui->endWeight->text().toDouble();
-	action->setEndWeight(ew);
+	command->setEndWeight(ew);
 }

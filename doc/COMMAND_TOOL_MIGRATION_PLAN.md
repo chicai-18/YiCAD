@@ -786,3 +786,59 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 
 提交①验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
 166 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。
+
+**提交②：绘图·直线类**
+
+1. **放置命令的基类** `PlaceCommand`（`kernel/actions/`）：原 `PreviewActionInterface`
+   派生、不先选后建的 Action 迁移后的公共部分。启动时构造预览与放置工具（原 `init()`，
+   连同清除一次预览）、显示选项条、激活工具；结束时停用工具并结束捕捉会话、收起选项条、
+   清除预览（原 `finish()`）；旧 Action 叠上来时停用工具并收起选项条，结束后重新激活并
+   显示（原 `suspend()`/`hideOptions()` 与 `resume()`/`showOptions()`）。分工：工具持有交互
+   状态机与这次交互采集的点，命令持有选项条参数、预览与提交；选项条上作用于交互状态的
+   按钮（撤销、闭合、重做）由命令转给工具。
+2. **`BasePlaceTool` 补充**：`restart()` 连同清除预览（原 `PreviewActionInterface::init`）；
+   `onFinish()` 钩子承接原 Action 的 `finish()` 覆盖（取消高亮等）；`finishIfOrthogonal()`
+   取代 `Snapper::finishOrthogonal()`（后者经 `getCurrentAction()` 结束当前 Action，对命令
+   无效，最后一个调用方迁走后删除）；双击、按键、按键释放的钩子。
+3. **迁移**（13 个）：直线 `DrawLineCommand`、多段线 `DrawPolylineCommand`、矩形、正多边形
+   （中心+角点、中心+切点共用基类 `LinePolygonCommand`）、角平分线
+   `DrawLineBisectorCommand`、过点切线、两圆公切线、正交切线、徒手线、射线与构造线
+   （`DrawInfiniteLineCommands.cpp` 共用一个工具模板）、点。没有选项条的命令只在自己的
+   .cpp 里定义命令类。
+4. **选项条**：`UILineOptions`、`UIPolylineOptions`、`UILinePolygonOptions`、
+   `UILineBisectorOptions` 改为 `setCommand(IExclusiveCommand*)`，按命令类型
+   `dynamic_cast`；`UIDialogFactory::requestCommandOptions` 在注册表之外按命令 ID 分派
+   内置命令的选项条，`requestOptions` 的 switch 删去对应分支。
+5. **测试**：新增公共夹具 `tests/support/CommandTestFixture.h`（与 `UIView` 相同的装配，
+   记录提示、命令行消息与选项条请求）与 `test_draw_line_commands`（22 例：注册与桥接、
+   13 个命令的第一步提示与选项条、右键退回、命令行输入、预览、光标、挂起时收起选项条）。
+
+**与方案的偏差与补充**
+
+1. **原样保留的既有行为**：
+   - `Commands::checkCommand` 对 help/close/undo 以外的关键字一律返回真
+     （`cmd/Commands.cpp` 的 `checkCommand`）。因此画直线时任何命令行文本都被当作
+     `redo` 接受；正多边形在前两步输入任何文本都进入"输入边数"（且不接受这段文本）；
+     角平分线在前两步输入任何文本都进入"输入长度"，命令行进不了"输入数量"。测试按此
+     断言并注明；
+   - 多段线与角平分线的事务名是"Add cloud line"；画多段线在第一步输入 help 列出命令后
+     不接受；正交切线提交后不清除切线，不移动鼠标再次单击会再画一条；两圆公切线
+     提交后"切线有效"标记不复位。
+2. **顺手处理的崩溃与泄漏**（行为不变）：两圆公切线在选中第一个圆、还没悬停到第二个时
+   结束命令会解引用空指针；正交切线求不出切线时预览会解引用空指针，现在跳过预览；正交
+   切线每次移动鼠标都泄漏一条直线。
+3. **可见的细微变化**：
+   - 中心+切点正多边形原先借用中心+角点的 Action 类型，选项条靠两个类相同的内存布局
+     才能设置边数，命令行 "[说明]" 前缀也显示中心+角点的；现在两者共用基类，前缀是
+     自己的；
+   - 射线、构造线的原类没有 `Q_OBJECT`，`tr()` 落到 `ActionInterface` 的翻译上下文，
+     提示与事务名一直显示英文；现在显示译文；
+   - 徒手线原先把视图共用的预览容器设为不持有实体后不再复原，此后所有命令的预览
+     实体都不被释放；现在命令结束时复原；
+   - 角平分线选第一条线时的悬停高亮原先记在函数内的静态变量里，命令结束时不取消；
+     现在记在工具里，结束时取消。
+
+提交②验证：Debug、Release 构建通过（Release 的 `YiCAD.exe` 被正在运行的程序占用，
+没有重新链接，库与测试程序都已构建）；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 188 例）；`check_layering.py` 通过；安装后的 Debug 程序能启动。
+交互回归清单新增 D1–D16，尚待手工核对。

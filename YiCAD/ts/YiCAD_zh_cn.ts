@@ -692,303 +692,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionDrawLine</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="123"/>
-        <source>Create Line</source>
-        <translation>直线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="356"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="356"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="406"/>
-        <source>Specify next point or [%1]</source>
-        <translation>指定下一个点或者[%1]</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="406"/>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="410"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="410"/>
-        <source>Specify next point</source>
-        <translation>指定下一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="462"/>
-        <source>Cannot close sequence of lines: Not enough entities defined yet, or already closed.</source>
-        <translation>无法关闭行序列：尚未定义足够多的实体，或已关闭。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="526"/>
-        <source>Cannot undo: Begin of history reached</source>
-        <translation>无法撤消：已到达初始状态</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLine.cpp" line="566"/>
-        <source>Cannot redo: End of history reached</source>
-        <translation>无法重做：处于最终状态</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLineBisector</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="176"/>
-        <source>Add cloud line</source>
-        <translation>云线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="359"/>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="386"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="380"/>
-        <source>Number sector lines not in range: </source>
-        <comment>number of bisector to create must be in [1, 200]</comment>
-        <translation>编号扇区线不在范围内：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="424"/>
-        <source>Select first line</source>
-        <translation>选择第一条线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="424"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="427"/>
-        <source>Select second line</source>
-        <translation>选择第二条线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="427"/>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="430"/>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="433"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="430"/>
-        <source>Enter bisector length:</source>
-        <translation>输入平分线长度：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineBisector.cpp" line="433"/>
-        <source>Enter number of bisectors:</source>
-        <translation>输入平分线数量：</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLineFree</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLineFree.cpp" line="65"/>
-        <source>Create LineFree</source>
-        <translation>徒手绘线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineFree.cpp" line="186"/>
-        <source>Click and drag to draw a line</source>
-        <translation>单击并拖动以绘制一条线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineFree.cpp" line="186"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLineOrthTan</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLineOrthTan.cpp" line="68"/>
-        <source>Create LineOrthTan</source>
-        <translation>正交切线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineOrthTan.cpp" line="231"/>
-        <source>Select a line</source>
-        <translation>选择一条线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineOrthTan.cpp" line="231"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineOrthTan.cpp" line="236"/>
-        <source>Select circle, arc or ellipse</source>
-        <translation>选择圆，弧或椭圆</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineOrthTan.cpp" line="236"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLinePolygonCenCor</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon.cpp" line="60"/>
-        <source>Create line center corner</source>
-        <translation>多边形(中心,角点)</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon.cpp" line="141"/>
-        <source>Specify center</source>
-        <translation>指定中点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon.cpp" line="145"/>
-        <source>Specify a corner</source>
-        <translation>指定角</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon.cpp" line="149"/>
-        <source>Enter number:</source>
-        <translation>输入数字：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon.cpp" line="206"/>
-        <source>Not a valid number. Try 1..9999</source>
-        <translation>没有有效数字，尝试1到99</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon.cpp" line="212"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLinePolygonCenTan</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon3.cpp" line="76"/>
-        <source>Create line polygon center tan</source>
-        <translation>多边形(中心,切线)</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon3.cpp" line="178"/>
-        <source>Specify center</source>
-        <translation>指定中点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon3.cpp" line="182"/>
-        <source>Specify a tangent</source>
-        <translation>指定切线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon3.cpp" line="186"/>
-        <source>Enter number:</source>
-        <translation>输入数字：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon3.cpp" line="252"/>
-        <source>Not a valid number. Try 1..%1</source>
-        <translation>无效数字，请输入 1..%1</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLinePolygon3.cpp" line="259"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLineRectangle</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLineRectangle.cpp" line="74"/>
-        <source>Create line rectangle</source>
-        <translation>矩形</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineRectangle.cpp" line="191"/>
-        <source>Specify first corner</source>
-        <translation>指定第一个角</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineRectangle.cpp" line="191"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineRectangle.cpp" line="196"/>
-        <source>Specify second corner</source>
-        <translation>指定第二个角</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineRectangle.cpp" line="196"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLineTangent1</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent1.cpp" line="120"/>
-        <source>Create line tangent</source>
-        <translation>切线(点,圆)</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent1.cpp" line="245"/>
-        <source>Specify point</source>
-        <translation>指定点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent1.cpp" line="245"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent1.cpp" line="248"/>
-        <source>Select circle, arc or ellipse</source>
-        <translation>选择圆，弧或椭圆</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent1.cpp" line="248"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawLineTangent2</name>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent2.cpp" line="77"/>
-        <source>Create line tangent</source>
-        <translation>切线(圆,圆)</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent2.cpp" line="208"/>
-        <source>Select first circle or ellipse</source>
-        <translation>选择第一个圆或椭圆</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent2.cpp" line="209"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent2.cpp" line="213"/>
-        <source>Select second circle or ellipse</source>
-        <translation>选择第二个圆或椭圆</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawLineTangent2.cpp" line="214"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
     <name>ActionDrawMText</name>
     <message>
         <location filename="../src/actions/ActionDrawMText.cpp" line="116"/>
@@ -1037,96 +740,6 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/ActionDrawMText.cpp" line="368"/>
         <source>Hind origin MText</source>
         <translation>隐藏原始多行文字</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawPoint</name>
-    <message>
-        <location filename="../src/actions/ActionDrawPoint.cpp" line="43"/>
-        <source>Create Point</source>
-        <translation>点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPoint.cpp" line="113"/>
-        <source>Specify location</source>
-        <translation>指定位置</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPoint.cpp" line="113"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawPolyline</name>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="307"/>
-        <source>Add cloud line</source>
-        <translation>云线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="578"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="578"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="597"/>
-        <source>Specify next point or [%1]</source>
-        <translation>指定下一个点或者[%1]</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="598"/>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="603"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="603"/>
-        <source>Specify next point</source>
-        <translation>指定下一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="654"/>
-        <source>Cannot close sequence of lines: Not enough entities defined yet.</source>
-        <translation>无法关闭行序列：尚未定义实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawPolyline.cpp" line="700"/>
-        <source>Cannot undo: Not enough entities defined yet.</source>
-        <translation>无法撤销：尚未定义实体。</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawRay</name>
-    <message>
-        <location filename="../src/actions/ActionDrawRay.cpp" line="69"/>
-        <source>Draw Ray</source>
-        <translation>绘制射线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawRay.cpp" line="205"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawRay.cpp" line="205"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawRay.cpp" line="209"/>
-        <source>Specify direction</source>
-        <translation>指定方向</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawRay.cpp" line="209"/>
-        <source>Back</source>
-        <translation>返回</translation>
     </message>
 </context>
 <context>
@@ -1238,34 +851,6 @@ This block cannot be inserted.</source>
     </message>
     <message>
         <location filename="../src/actions/ActionDrawText.cpp" line="319"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDrawXline</name>
-    <message>
-        <location filename="../src/actions/ActionDrawXline.cpp" line="68"/>
-        <source>Draw Construction Line</source>
-        <translation>绘制构造线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawXline.cpp" line="176"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawXline.cpp" line="176"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawXline.cpp" line="179"/>
-        <source>Specify direction</source>
-        <translation>指定方向</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawXline.cpp" line="179"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -1959,6 +1544,386 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>DrawLineBisectorCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="423"/>
+        <source>Add cloud line</source>
+        <translation>云线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="299"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="320"/>
+        <source>Number sector lines not in range: </source>
+        <comment>number of bisector to create must be in [1, 200]</comment>
+        <translation>编号扇区线不在范围内：</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="121"/>
+        <source>Select first line</source>
+        <translation>选择第一条线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="122"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="125"/>
+        <source>Select second line</source>
+        <translation>选择第二条线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="126"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="129"/>
+        <source>Enter bisector length:</source>
+        <translation>输入平分线长度：</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineBisectorCommand.cpp" line="133"/>
+        <source>Enter number of bisectors:</source>
+        <translation>输入平分线数量：</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLineCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="496"/>
+        <source>Create Line</source>
+        <translation>直线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="186"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="187"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="215"/>
+        <source>Specify next point or [%1]</source>
+        <translation>指定下一个点或者[%1]</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="216"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="220"/>
+        <source>Specify next point</source>
+        <translation>指定下一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="91"/>
+        <source>Cannot close sequence of lines: Not enough entities defined yet, or already closed.</source>
+        <translation>无法关闭行序列：尚未定义足够多的实体，或已关闭。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="135"/>
+        <source>Cannot undo: Begin of history reached</source>
+        <translation>无法撤消：已到达初始状态</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineCommand.cpp" line="176"/>
+        <source>Cannot redo: End of history reached</source>
+        <translation>无法重做：处于最终状态</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLineFreeCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLineFreeCommand.cpp" line="73"/>
+        <source>Create LineFree</source>
+        <translation>徒手绘线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineFreeCommand.cpp" line="118"/>
+        <source>Click and drag to draw a line</source>
+        <translation>单击并拖动以绘制一条线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineFreeCommand.cpp" line="119"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLineOrthTanCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLineOrthTanCommand.cpp" line="63"/>
+        <source>Create LineOrthTan</source>
+        <translation>正交切线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineOrthTanCommand.cpp" line="102"/>
+        <source>Select a line</source>
+        <translation>选择一条线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineOrthTanCommand.cpp" line="103"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineOrthTanCommand.cpp" line="106"/>
+        <source>Select circle, arc or ellipse</source>
+        <translation>选择圆，弧或椭圆</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineOrthTanCommand.cpp" line="107"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLinePolygonCenCorCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="290"/>
+        <source>Create line center corner</source>
+        <translation>多边形(中心,角点)</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="262"/>
+        <source>Specify a corner</source>
+        <translation>指定角</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="273"/>
+        <source>Not a valid number. Try 1..9999</source>
+        <translation>没有有效数字，尝试1到99</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLinePolygonCenTanCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="328"/>
+        <source>Create line polygon center tan</source>
+        <translation>多边形(中心,切线)</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="295"/>
+        <source>Specify a tangent</source>
+        <translation>指定切线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="306"/>
+        <source>Not a valid number. Try 1..%1</source>
+        <translation>无效数字，请输入 1..%1</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLineRectangleCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLineRectangleCommand.cpp" line="86"/>
+        <source>Create line rectangle</source>
+        <translation>矩形</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineRectangleCommand.cpp" line="122"/>
+        <source>Specify first corner</source>
+        <translation>指定第一个角</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineRectangleCommand.cpp" line="123"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineRectangleCommand.cpp" line="126"/>
+        <source>Specify second corner</source>
+        <translation>指定第二个角</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineRectangleCommand.cpp" line="127"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLineTangent1Command</name>
+    <message>
+        <location filename="../src/actions/DrawLineTangent1Command.cpp" line="65"/>
+        <source>Create line tangent</source>
+        <translation>切线(点,圆)</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent1Command.cpp" line="105"/>
+        <source>Specify point</source>
+        <translation>指定点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent1Command.cpp" line="106"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent1Command.cpp" line="109"/>
+        <source>Select circle, arc or ellipse</source>
+        <translation>选择圆，弧或椭圆</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent1Command.cpp" line="110"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawLineTangent2Command</name>
+    <message>
+        <location filename="../src/actions/DrawLineTangent2Command.cpp" line="69"/>
+        <source>Create line tangent</source>
+        <translation>切线(圆,圆)</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent2Command.cpp" line="321"/>
+        <source>Select first circle or ellipse</source>
+        <translation>选择第一个圆或椭圆</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent2Command.cpp" line="322"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent2Command.cpp" line="325"/>
+        <source>Select second circle or ellipse</source>
+        <translation>选择第二个圆或椭圆</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLineTangent2Command.cpp" line="326"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawPointCommand</name>
+    <message>
+        <location filename="../src/actions/DrawPointCommand.cpp" line="55"/>
+        <source>Create Point</source>
+        <translation>点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPointCommand.cpp" line="85"/>
+        <source>Specify location</source>
+        <translation>指定位置</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPointCommand.cpp" line="86"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>DrawPolylineCommand</name>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="570"/>
+        <source>Add cloud line</source>
+        <translation>云线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="146"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="147"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="164"/>
+        <source>Specify next point or [%1]</source>
+        <translation>指定下一个点或者[%1]</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="165"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="169"/>
+        <source>Specify next point</source>
+        <translation>指定下一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="92"/>
+        <source>Cannot close sequence of lines: Not enough entities defined yet.</source>
+        <translation>无法关闭行序列：尚未定义实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawPolylineCommand.cpp" line="136"/>
+        <source>Cannot undo: Not enough entities defined yet.</source>
+        <translation>无法撤销：尚未定义实体。</translation>
+    </message>
+</context>
+<context>
+    <name>DrawRayCommand</name>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="212"/>
+        <source>Draw Ray</source>
+        <translation>绘制射线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="206"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="208"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="207"/>
+        <source>Specify direction</source>
+        <translation>指定方向</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="209"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawXlineCommand</name>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="228"/>
+        <source>Draw Construction Line</source>
+        <translation>绘制构造线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="206"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="208"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="207"/>
+        <source>Specify direction</source>
+        <translation>指定方向</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawInfiniteLineCommands.cpp" line="209"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
     <name>EditCopyCommand</name>
     <message>
         <location filename="../src/actions/EditCopyCommand.cpp" line="63"/>
@@ -2068,6 +2033,24 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/InfoTotalLengthCommand.cpp" line="49"/>
         <source>At least one of the selected entities cannot be measured.</source>
         <translation>至少有一个选定的实体无法测量。</translation>
+    </message>
+</context>
+<context>
+    <name>LinePolygonCommand</name>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="77"/>
+        <source>Specify center</source>
+        <translation>指定中点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="83"/>
+        <source>Enter number:</source>
+        <translation>输入数字：</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/DrawLinePolygonCommand.cpp" line="168"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
     </message>
 </context>
 <context>

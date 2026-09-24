@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawLinePolygonCenCor;
+class IExclusiveCommand;
+class LinePolygonCommand;
 namespace Ui {
 	class Ui_LinePolygonOptions;
 }
@@ -44,17 +44,17 @@ public:
 	~UILinePolygonOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	/// @param update 是否从命令更新 UI
+	virtual void setCommand(IExclusiveCommand* c, bool update);
 
 	/// @brief 更新多边形边数
 	/// @param n 边数
 	virtual void updateNumber(int n);
 
 protected:
-	ActionDrawLinePolygonCenCor* action = nullptr; ///< 多边形 Action 指针
+	LinePolygonCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

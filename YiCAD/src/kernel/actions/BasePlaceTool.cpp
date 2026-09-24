@@ -46,6 +46,7 @@ ISnapService* BasePlaceTool::snapper() const
 
 void BasePlaceTool::finishSession()
 {
+    onFinish();
     m_snapper->finish();
     if (m_resetsOrthogonal)
     {
@@ -65,8 +66,20 @@ void BasePlaceTool::setStatus(int status)
 
 void BasePlaceTool::restart(int status)
 {
+    if (m_preview)
+    {
+        m_preview->clear();
+    }
     setStatus(status);
     m_snapper->init();
+}
+
+void BasePlaceTool::finishIfOrthogonal()
+{
+    if (m_snapper->getSnapMode()->restriction == DM::RestrictOrthogonal)
+    {
+        m_command.finish();
+    }
 }
 
 void BasePlaceTool::stepBack()
@@ -111,22 +124,33 @@ ViewToolResult BasePlaceTool::mouseMoveEvent(QMouseEvent* e)
     return ViewToolResult::Handled;
 }
 
-ViewToolResult BasePlaceTool::mouseDoubleClickEvent(QMouseEvent*)
+ViewToolResult BasePlaceTool::mouseDoubleClickEvent(QMouseEvent* e)
 {
+    onMouseDoubleClick(e);
     return ViewToolResult::Handled;
 }
 
 ViewToolResult BasePlaceTool::keyPressEvent(QKeyEvent* e)
 {
-    // 与原 ActionInterface::keyPressEvent 一样不接受：Esc/空格随后由主窗口结束全部命令
-    e->ignore();
+    onKeyPress(e);
     return ViewToolResult::Handled;
 }
 
 ViewToolResult BasePlaceTool::keyReleaseEvent(QKeyEvent* e)
 {
-    e->ignore();
+    onKeyRelease(e);
     return ViewToolResult::Handled;
+}
+
+void BasePlaceTool::onKeyPress(QKeyEvent* e)
+{
+    // 与原 ActionInterface::keyPressEvent 一样不接受：Esc/空格随后由主窗口结束全部命令
+    e->ignore();
+}
+
+void BasePlaceTool::onKeyRelease(QKeyEvent* e)
+{
+    e->ignore();
 }
 
 ViewToolResult BasePlaceTool::coordinateEvent(const DmVector& pos)

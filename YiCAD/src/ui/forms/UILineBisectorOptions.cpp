@@ -20,7 +20,7 @@
 
 #include "UILineBisectorOptions.h"
 
-#include "ActionDrawLineBisector.h"
+#include "DrawLineBisectorCommand.h"
 #include "DmSettings.h"
 #include "Math2d.h"
 #include "Debug.h"
@@ -51,18 +51,17 @@ void UILineBisectorOptions::saveSettings()
 	DMSETTINGS->endGroup();
 }
 
-void UILineBisectorOptions::setAction(ActionInterface* a, bool update)
+void UILineBisectorOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a && a->getEntityType() == DM::ActionDrawLineBisector)
+	command = dynamic_cast<DrawLineBisectorCommand*>(c);
+	if (command)
 	{
-		action = static_cast<ActionDrawLineBisector*>(a);
-
 		QString sl;
 		QString sn;
 		if (update)
 		{
-			sl = QString("%1").arg(action->getLength());
-			sn = QString("%1").arg(action->getNumber());
+			sl = QString("%1").arg(command->getLength());
+			sn = QString("%1").arg(command->getNumber());
 		}
 		else
 		{
@@ -74,24 +73,20 @@ void UILineBisectorOptions::setAction(ActionInterface* a, bool update)
 		ui->leLength->setText(sl);
 		ui->sbNumber->setValue(sn.toInt());
 	}
-	else
-	{
-		action = nullptr;
-	}
 }
 
 void UILineBisectorOptions::updateLength(const QString& l)
 {
-	if (action)
+	if (command)
 	{
-		action->setLength(Math2d::eval(l));
+		command->setLength(Math2d::eval(l));
 	}
 }
 
 void UILineBisectorOptions::updateNumber(int n)
 {
-	if (action)
+	if (command)
 	{
-		action->setNumber(n);
+		command->setNumber(n);
 	}
 }

@@ -20,7 +20,7 @@
 
 #include "UILineOptions.h"
 
-#include "ActionDrawLine.h"
+#include "DrawLineCommand.h"
 #include "ui_UILineOptions.h"
 #include "Debug.h"
 
@@ -38,38 +38,31 @@ void UILineOptions::languageChange()
 	ui->retranslateUi(this);
 }
 
-void UILineOptions::setAction(ActionInterface* a)
+void UILineOptions::setCommand(IExclusiveCommand* c)
 {
-	if (a && a->getEntityType() == DM::ActionDrawLine)
-	{
-		action = static_cast<ActionDrawLine*>(a);
-	}
-	else
-	{
-		action = nullptr;
-	}
+	command = dynamic_cast<DrawLineCommand*>(c);
 }
 
 void UILineOptions::close()
 {
-	if (action)
+	if (command)
 	{
-		action->close();
+		command->close();
 	}
 }
 
 void UILineOptions::undo()
 {
-	if (action)
+	if (command)
 	{
-		action->undo();
+		command->undo();
 	}
 }
 
 void UILineOptions::redo()
 {
-	if (action)
+	if (command)
 	{
-		action->redo();
+		command->redo();
 	}
 }

@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawLineBisector;
+class IExclusiveCommand;
+class DrawLineBisectorCommand;
 namespace Ui {
 	class Ui_LineBisectorOptions;
 }
@@ -44,10 +44,10 @@ public:
 	~UILineBisectorOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	/// @param update 是否从命令更新 UI
+	virtual void setCommand(IExclusiveCommand* c, bool update);
 
 	/// @brief 更新角平分线长度
 	/// @param l 长度字符串
@@ -58,7 +58,7 @@ public slots:
 	virtual void updateNumber(int n);
 
 protected:
-	ActionDrawLineBisector* action = nullptr; ///< 角平分线 Action 指针
+	DrawLineBisectorCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

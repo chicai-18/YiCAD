@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawPolyline;
+class IExclusiveCommand;
+class DrawPolylineCommand;
 namespace Ui
 {
 	class Ui_PolylineOptions;
@@ -46,10 +46,10 @@ public:
 	~UIPolylineOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	/// @param update 是否从命令更新 UI
+	virtual void setCommand(IExclusiveCommand* c, bool update);
 	virtual void close();
 	virtual void undo();
 	virtual void updateRadius(const QString& s);
@@ -61,7 +61,7 @@ public slots:
 	void updateEndLineWeight();
 
 protected:
-	ActionDrawPolyline* action = nullptr; ///< 多段线 Action 指针
+	DrawPolylineCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

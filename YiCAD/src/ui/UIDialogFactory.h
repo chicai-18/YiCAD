@@ -97,10 +97,11 @@ protected:
 	void setOptionWidget(QWidget* ow);
 
 	//void requestPrintPreviewOptions(ActionInterface* action,bool on, bool update);
-	void requestLineOptions(ActionInterface* action, bool on);
-	void requestPolylineOptions(ActionInterface* action, bool on, bool update);
-	void requestLineBisectorOptions(ActionInterface* action, bool on, bool update);
-	void requestLinePolygonOptions(ActionInterface* action, bool on, bool update);
+	// 内置交互命令的选项条（按命令 ID 由 requestCommandOptions 分派）
+	void requestLineOptions(IExclusiveCommand* command, bool on, bool update);
+	void requestPolylineOptions(IExclusiveCommand* command, bool on, bool update);
+	void requestLineBisectorOptions(IExclusiveCommand* command, bool on, bool update);
+	void requestLinePolygonOptions(IExclusiveCommand* command, bool on, bool update);
 	void requestCloudLineOptions(ActionInterface* action, bool on, bool update);
 
 	void requestArcOptions(ActionInterface* action, bool on, bool update);

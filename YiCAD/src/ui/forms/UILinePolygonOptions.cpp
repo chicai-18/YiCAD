@@ -20,7 +20,7 @@
 
 #include "UILinePolygonOptions.h"
 
-#include "ActionDrawLinePolygon.h"
+#include "DrawLinePolygonCommand.h"
 #include "DmSettings.h"
 #include "ui_UILinePolygonOptions.h"
 #include "Debug.h"
@@ -54,16 +54,15 @@ void UILinePolygonOptions::saveSettings()
 	DMSETTINGS->endGroup();
 }
 
-void UILinePolygonOptions::setAction(ActionInterface* a, bool update)
+void UILinePolygonOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a && a->getEntityType() == DM::ActionDrawLinePolygonCenCor)
+	command = dynamic_cast<LinePolygonCommand*>(c);
+	if (command)
 	{
-		action = static_cast<ActionDrawLinePolygonCenCor*>(a);
-
 		QString sn;
 		if (update)
 		{
-			sn = QString("%1").arg(action->getNumber());
+			sn = QString("%1").arg(command->getNumber());
 		}
 		else
 		{
@@ -73,16 +72,12 @@ void UILinePolygonOptions::setAction(ActionInterface* a, bool update)
 		}
 		ui->sbNumber->setValue(sn.toInt());
 	}
-	else
-	{
-		action = nullptr;
-	}
 }
 
 void UILinePolygonOptions::updateNumber(int n)
 {
-	if (action)
+	if (command)
 	{
-		action->setNumber(n);
+		command->setNumber(n);
 	}
 }

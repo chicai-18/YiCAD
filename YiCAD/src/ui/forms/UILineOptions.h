@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawLine;
+class IExclusiveCommand;
+class DrawLineCommand;
 
 namespace Ui
 {
@@ -48,15 +48,15 @@ public:
 	~UILineOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	virtual void setAction(ActionInterface* a);
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	virtual void setCommand(IExclusiveCommand* c);
 	virtual void close();
 	virtual void undo();
 	virtual void redo();
 
 protected:
-	ActionDrawLine* action = nullptr; ///< 画线 Action 指针
+	DrawLineCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

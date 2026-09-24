@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,232 +18,72 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file DrawLineTangent2Command.cpp
+/// @brief 两圆公切线命令 draw.line_tangent2，取代原 ActionDrawLineTangent2：
+///        选两个圆、圆弧或椭圆，画最靠近鼠标的公切线
 
-/// @file ActionDrawLineTangent2.cpp
-/// @brief 两圆/椭圆公切线绘制交互动作的实现
+#include <cmath>
+#include <memory>
+#include <vector>
 
-#include "ActionDrawLineTangent2.h"
-#include "CommandRegistry.h"
-
-#include <QAction>
+#include <QCoreApplication>
 #include <QMouseEvent>
 
-#include "Debug.h"
+#include "BasePlaceTool.h"
+#include "CommandPreview.h"
+#include "CommandRegistry.h"
+#include "DmDocument.h"
+#include "DmEllipse.h"
 #include "DmLine.h"
+#include "EntityTable.h"
+#include "GeUtility.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
-#include "Preview.h"
+#include "ISnapService.h"
 #include "Math2d.h"
-#include "DmEllipse.h"
+#include "PlaceCommand.h"
 #include "Transaction.h"
-#include "GeUtility.h"
+
+/// @brief 两圆公切线命令；交互由 DrawLineTangent2Tool 驱动
+class DrawLineTangent2Command : public PlaceCommand
+{
+    Q_DECLARE_TR_FUNCTIONS(DrawLineTangent2Command)
+
+public:
+    /// @brief 预览切线
+    void previewTangent(const LineData& data)
+    {
+        preview().clear();
+        auto l = new DmLine(preview().entities().getEntityContainer(), data);
+        l->setDocument(document());
+        preview().entities().addEntity(l);
+        preview().draw();
+    }
+
+    /// @brief 提交切线
+    void commitTangent(const LineData& data)
+    {
+        preview().clear();
+        DmEntity* newEntity = new DmLine(nullptr, data);
+        newEntity->setDocument(document());
+        Transaction t(tr("Create line tangent").toStdString(), document());
+        t.start();
+        document()->getEntityTable()->add(newEntity);
+        t.commit();
+    }
+
+protected:
+    std::unique_ptr<BasePlaceTool> createTool() override;
+};
 
 namespace
 {
-    constexpr double DISTANCE_TOLERANCE = 1.0e-6; ///< 圆心距离容差阈值
-}
+/// @brief 圆心距离容差阈值
+constexpr double DISTANCE_TOLERANCE = 1.0e-6;
 
-/// @brief 构造函数
-/// @param [in] doc 文档指针
-/// @param [in] docView 文档视图指针
-ActionDrawLineTangent2::ActionDrawLineTangent2(DmDocument* doc,
-                                               IDocumentView* docView)
-    : PreviewActionInterface("Draw Tangents 2", doc, docView)
-    , m_circle1(nullptr)
-    , m_circle2(nullptr)
-    , m_valid(false)
-{
-    actionType = DM::ActionDrawLineTangent2;
-    setStatus(SetCircle1);
-}
-
-ActionDrawLineTangent2::~ActionDrawLineTangent2() = default;
-
-/// @brief 完成动作, 清除高亮和预览
-/// @param [in] updateTB 是否更新工具栏状态
-void ActionDrawLineTangent2::finish(bool updateTB)
-{
-    if (m_circle1)
-    {
-        m_circle1->setHighlighted(false);
-        m_circle2->setHighlighted(false);
-        docView->specifyDocumentModified();
-        docView->redraw();
-    }
-    PreviewActionInterface::finish(updateTB);
-}
-
-/// @brief 执行绘制动作, 将切线添加到文档
-void ActionDrawLineTangent2::trigger()
-{
-    PreviewActionInterface::trigger();
-
-    DmEntity* newEntity = new DmLine(nullptr, *m_lineData);
-    newEntity->setDocument(pDocument);
-    Transaction t(tr("Create line tangent").toStdString(), pDocument);
-    t.start();
-    pDocument->getEntityTable()->add(newEntity);
-    t.commit();
-
-    clearHighlighted();
-    setStatus(SetCircle1);
-    m_tangent.reset();
-}
-
-/// @brief 清除所有高亮选中的实体
-void ActionDrawLineTangent2::clearHighlighted()
-{
-    for (DmEntity** p : { &m_circle1, &m_circle2 })
-    {
-        if (*p)
-        {
-            (*p)->setHighlighted(false);
-            *p = nullptr;
-        }
-    }
-    docView->specifyDocumentModified();
-    docView->redraw();
-}
-
-/// @brief 处理鼠标移动事件, 实时预览切线
-/// @param [in] e 鼠标事件指针
-void ActionDrawLineTangent2::mouseMoveEvent(QMouseEvent* e)
-{
-    e->accept();
-    if (getStatus() != SetCircle2)
-    {
-        return;
-    }
-    DmEntity* en = catchEntity(e,
-        EntityTypeList{
-            DM::EntityArc,
-            DM::EntityCircle,
-            DM::EntityEllipse
-        },
-        DM::ResolveAll);
-    if (!en || en == m_circle1)
-    {
-        return;
-    }
-
-    if (m_circle2)
-    {
-        m_circle2->setHighlighted(false);
-    }
-    m_circle2 = en;
-    m_circle2->setHighlighted(true);
-    docView->specifyDocumentModified();
-    docView->redraw();
-    DmVector mouse(docView->toGraphX(e->x()),
-                   docView->toGraphY(e->y()));
-    m_tangent.reset(createTangent2(mouse, m_circle1, m_circle2));
-    if (!m_tangent.get())
-    {
-        m_valid = false;
-        return;
-    }
-    m_valid = true;
-    m_lineData.reset(new LineData(m_tangent->getData()));
-
-    deletePreview();
-    auto l = new DmLine(preview->getEntityContainer(), *m_lineData);
-    l->setDocument(pDocument);
-    preview->addEntity(l);
-    drawPreview();
-}
-
-/// @brief 处理鼠标释放事件, 选择圆或确认切线
-/// @param [in] e 鼠标事件指针
-void ActionDrawLineTangent2::mouseReleaseEvent(QMouseEvent* e)
-{
-    if (e->button() == Qt::RightButton)
-    {
-        deletePreview();
-        init(getStatus() - 1);
-        if (getStatus() >= 0)
-        {
-            clearHighlighted();
-        }
-        return;
-    }
-    switch (getStatus())
-    {
-    case SetCircle1:
-    {
-        m_circle1 = catchEntity(e,
-            EntityTypeList{
-                DM::EntityArc,
-                DM::EntityCircle,
-                DM::EntityEllipse
-            },
-            DM::ResolveAll);
-        if (!m_circle1)
-        {
-            return;
-        }
-        m_circle1->setHighlighted(true);
-        docView->specifyDocumentModified();
-        docView->redraw();
-        setStatus(getStatus() + 1);
-        break;
-    }
-
-    case SetCircle2:
-    {
-        if (m_valid)
-        {
-            trigger();
-        }
-        break;
-    }
-
-    default:
-    {
-        break;
-    }
-    }
-}
-
-/// @brief 更新鼠标按钮提示文本
-void ActionDrawLineTangent2::updateMouseButtonHints()
-{
-    switch (getStatus())
-    {
-    case SetCircle1:
-        GUIDIALOGFACTORY->updateMouseWidget(
-            tr("Select first circle or ellipse"),
-            tr("Cancel"));
-        break;
-    case SetCircle2:
-        GUIDIALOGFACTORY->updateMouseWidget(
-            tr("Select second circle or ellipse"),
-            tr("Back"));
-        break;
-    default:
-        GUIDIALOGFACTORY->updateMouseWidget();
-        break;
-    }
-}
-
-/// @brief 更新鼠标光标样式
-void ActionDrawLineTangent2::updateMouseCursor()
-{
-    docView->setMouseCursor(DM::SelectCursor);
-}
-
-/// @brief 根据给定参考点和两个圆/椭圆计算并创建公切线
-///
-/// 该函数计算两个圆/椭圆之间的公切线(包含外公切线和内公切线),
-/// 并返回距离参考点 coord 最近的那条切线。
-///
-/// @param [in] coord 参考点坐标(通常为鼠标位置)
-/// @param [in] circle1Entity 第一个圆/椭圆实体
-/// @param [in] circle2Entity 第二个圆/椭圆实体
-/// @return 最近公切线的 DmLine 对象, 调用者负责释放; 无解时返回 nullptr
-/// TODO: 该函数约190行, 超过100行限制, 建议拆分为多个子函数
-DmLine* ActionDrawLineTangent2::createTangent2(const DmVector& coord,
-                                               DmEntity* circle1Entity,
-                                               DmEntity* circle2Entity)
+/// @brief 两个圆、圆弧或椭圆的公切线中最靠近 coord 的一条；没有时返回空
+/// @details 从原 ActionDrawLineTangent2::createTangent2 原样搬来
+DmLine* createTangent2(const DmVector& coord, DmEntity* circle1Entity, DmEntity* circle2Entity)
 {
     DmLine* ret = nullptr;
     DmVector circleCenter1 = {};
@@ -453,10 +293,170 @@ DmLine* ActionDrawLineTangent2::createTangent2(const DmVector& coord,
     return ret;
 }
 
+/// @brief 两圆公切线工具：选第一个圆，再选第二个圆
+class DrawLineTangent2Tool : public BasePlaceTool
+{
+public:
+    /// @brief 交互状态
+    enum Status
+    {
+        SetCircle1, ///< 选择第一个圆或椭圆
+        SetCircle2  ///< 选择第二个圆或椭圆
+    };
+
+    DrawLineTangent2Tool(DrawLineTangent2Command& command, DmDocument* doc, IDocumentView* view)
+        : BasePlaceTool(command, doc, view)
+        , m_command(command)
+    {
+    }
+
+    std::optional<DM::CursorType> getCursor() const override { return DM::SelectCursor; }
+
+protected:
+    void updateHints() override
+    {
+        switch (status())
+        {
+        case SetCircle1:
+            GUIDIALOGFACTORY->updateMouseWidget(DrawLineTangent2Command::tr("Select first circle or ellipse"),
+                                                DrawLineTangent2Command::tr("Cancel"));
+            break;
+        case SetCircle2:
+            GUIDIALOGFACTORY->updateMouseWidget(DrawLineTangent2Command::tr("Select second circle or ellipse"),
+                                                DrawLineTangent2Command::tr("Back"));
+            break;
+        default:
+            GUIDIALOGFACTORY->updateMouseWidget();
+            break;
+        }
+    }
+
+    void onMouseMove(QMouseEvent* e) override
+    {
+        if (status() != SetCircle2)
+        {
+            return;
+        }
+
+        DmEntity* en = snapper()->catchEntity(
+            e, EntityTypeList{DM::EntityArc, DM::EntityCircle, DM::EntityEllipse}, DM::ResolveAll);
+        if (!en || en == m_circle1)
+        {
+            return;
+        }
+        if (m_circle2)
+        {
+            m_circle2->setHighlighted(false);
+        }
+        m_circle2 = en;
+        m_circle2->setHighlighted(true);
+        view()->specifyDocumentModified();
+        view()->redraw();
+
+        DmVector mouse(view()->toGraphX(e->x()), view()->toGraphY(e->y()));
+        std::unique_ptr<DmLine> tangent(createTangent2(mouse, m_circle1, m_circle2));
+        if (!tangent)
+        {
+            m_valid = false;
+            return;
+        }
+        m_valid = true;
+        m_lineData = tangent->getData();
+        m_command.previewTangent(m_lineData);
+    }
+
+    void onMouseRelease(QMouseEvent* e) override
+    {
+        if (e->button() == Qt::RightButton)
+        {
+            m_command.preview().clear();
+            if (status() <= 0)
+            {
+                command().finish();
+                return;
+            }
+            restart(status() - 1);
+            clearHighlighted();
+            return;
+        }
+
+        switch (status())
+        {
+        case SetCircle1:
+            m_circle1 = snapper()->catchEntity(
+                e, EntityTypeList{DM::EntityArc, DM::EntityCircle, DM::EntityEllipse}, DM::ResolveAll);
+            if (!m_circle1)
+            {
+                return;
+            }
+            m_circle1->setHighlighted(true);
+            view()->specifyDocumentModified();
+            view()->redraw();
+            setStatus(status() + 1);
+            break;
+
+        case SetCircle2:
+            // 与原 Action 一致：m_valid 提交后不复位
+            if (m_valid)
+            {
+                m_command.commitTangent(m_lineData);
+                clearHighlighted();
+                setStatus(SetCircle1);
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    void onFinish() override
+    {
+        if (m_circle1)
+        {
+            // 原 Action 在还没选中第二个圆时结束会解引用空指针，这里跳过
+            m_circle1->setHighlighted(false);
+            if (m_circle2)
+            {
+                m_circle2->setHighlighted(false);
+            }
+            view()->specifyDocumentModified();
+            view()->redraw();
+        }
+    }
+
+private:
+    /// @brief 取消两个圆的高亮
+    void clearHighlighted()
+    {
+        for (DmEntity** p : {&m_circle1, &m_circle2})
+        {
+            if (*p)
+            {
+                (*p)->setHighlighted(false);
+                *p = nullptr;
+            }
+        }
+        view()->specifyDocumentModified();
+        view()->redraw();
+    }
+
+    DrawLineTangent2Command& m_command;
+    LineData m_lineData;          ///< 最近一次求出的切线
+    DmEntity* m_circle1 = nullptr; ///< 第一个被选中的实体
+    DmEntity* m_circle2 = nullptr; ///< 第二个被选中的实体
+    bool m_valid = false;         ///< 最近一次是否求出了切线
+};
+}  // namespace
+
+std::unique_ptr<BasePlaceTool> DrawLineTangent2Command::createTool()
+{
+    return std::make_unique<DrawLineTangent2Tool>(*this, document(), view());
+}
+
 namespace
 {
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
     DM::ActionDrawLineTangent2, QStringLiteral("draw.line_tangent2"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionDrawLineTangent2(ctx.document, ctx.view); });
+    exclusiveCommandFactory<DrawLineTangent2Command>());
 }  // namespace

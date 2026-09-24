@@ -20,6 +20,8 @@
 
 #include "UIDialogFactory.h"
 
+#include <map>
+
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QImageReader>
@@ -421,26 +423,10 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 
 	switch (action->getEntityType())
 	{
-	case DM::ActionDrawLine:
-		requestLineOptions(action, on);
-		break;
-
-	case DM::ActionDrawPolyline:
-		requestPolylineOptions(action, on, update);
-		break;
-
 	case DM::ActionCloudLineRectangle:
 	case DM::ActionCloudLinePolygon:
 	case DM::ActionCloudLineFree:
 		requestCloudLineOptions(action, on, update);
-		break;
-
-	case DM::ActionDrawLineBisector:
-		requestLineBisectorOptions(action, on, update);
-		break;
-
-	case DM::ActionDrawLinePolygonCenCor:
-		requestLinePolygonOptions(action, on, update);
 		break;
 
 	case DM::ActionDrawArc:
@@ -515,7 +501,7 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 //}
 
 // Shows a widget for options for the action: "draw line"
-void UIDialogFactory::requestLineOptions(ActionInterface* action, bool on)
+void UIDialogFactory::requestLineOptions(IExclusiveCommand* command, bool on, bool /*update*/)
 {
 	if (optionWidget)
 	{
@@ -529,7 +515,7 @@ void UIDialogFactory::requestLineOptions(ActionInterface* action, bool on)
 		if (on)
 		{
 			toolWidget = new UILineOptions(optionWidget);
-			toolWidget->setAction(action);
+			toolWidget->setCommand(command);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -538,7 +524,7 @@ void UIDialogFactory::requestLineOptions(ActionInterface* action, bool on)
 }
 
 // Shows a widget for options for the action: "draw polyline"
-void UIDialogFactory::requestPolylineOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestPolylineOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -552,7 +538,7 @@ void UIDialogFactory::requestPolylineOptions(ActionInterface* action, bool on, b
 		if (on)
 		{
 			toolWidget = new UIPolylineOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -561,7 +547,7 @@ void UIDialogFactory::requestPolylineOptions(ActionInterface* action, bool on, b
 }
 
 // Shows a widget for options for the action: "line angle"
-void UIDialogFactory::requestLineBisectorOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestLineBisectorOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -575,7 +561,7 @@ void UIDialogFactory::requestLineBisectorOptions(ActionInterface* action, bool o
 		if (on)
 		{
 			toolWidget = new UILineBisectorOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -584,7 +570,7 @@ void UIDialogFactory::requestLineBisectorOptions(ActionInterface* action, bool o
 }
 
 // Shows a widget for options for the action: "draw polygon"
-void UIDialogFactory::requestLinePolygonOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestLinePolygonOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -598,7 +584,7 @@ void UIDialogFactory::requestLinePolygonOptions(ActionInterface* action, bool on
 		if (on)
 		{
 			toolWidget = new UILinePolygonOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -840,6 +826,22 @@ void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on,
 	if (ExclusiveCommandOptionsFactory factory = CommandRegistry::instance().commandOptionsFactory(command->commandId()))
 	{
 		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, command, update); }, on);
+		return;
+	}
+
+	// 内置命令的选项条按命令 ID 分派（原先按 Action 类型，见 requestOptions）
+	using BuiltinOptions = void (UIDialogFactory::*)(IExclusiveCommand*, bool, bool);
+	static const std::map<QString, BuiltinOptions> builtins = {
+		{QStringLiteral("draw.line"), &UIDialogFactory::requestLineOptions},
+		{QStringLiteral("draw.polyline"), &UIDialogFactory::requestPolylineOptions},
+		{QStringLiteral("draw.line_bisector"), &UIDialogFactory::requestLineBisectorOptions},
+		{QStringLiteral("draw.line_polygon_cen_cor"), &UIDialogFactory::requestLinePolygonOptions},
+		{QStringLiteral("draw.line_polygon_cen_tan"), &UIDialogFactory::requestLinePolygonOptions},
+	};
+	auto it = builtins.find(command->commandId());
+	if (it != builtins.end())
+	{
+		(this->*(it->second))(command, on, update);
 	}
 }
 
