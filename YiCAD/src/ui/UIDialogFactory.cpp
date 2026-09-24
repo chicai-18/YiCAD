@@ -70,7 +70,6 @@
 #include "UIDlgSpline.h"
 #include "UIDlgText.h"
 #include "UIImageOptions.h"
-#include "UIInsertOptions.h"
 #include "UILayerDialog.h"
 #include "UILineBisectorOptions.h"
 #include "UILineOptions.h"
@@ -427,10 +426,6 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 		requestTextOptions(action, on, update);
 		break;
 
-	case DM::ActionBlocksInsert:
-		requestInsertOptions(action, on, update);
-		break;
-
 	default:
 		break;
 	}
@@ -706,29 +701,6 @@ void UIDialogFactory::requestTextOptions(ActionInterface* action, bool on, bool 
 		if (on)
 		{
 			toolWidget = new UITextOptions(optionWidget);
-			toolWidget->setAction(action, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for insert options.
-void UIDialogFactory::requestInsertOptions(ActionInterface* action, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIInsertOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIInsertOptions(optionWidget);
 			toolWidget->setAction(action, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);

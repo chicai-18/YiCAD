@@ -28,7 +28,6 @@
 
 #include <utility>
 
-#include "BlockEditTool.h"
 #include "ExclusiveCommandBus.h"
 
 #include "Selection.h"
@@ -620,16 +619,6 @@ void UIActionHandler::slotIndoSelected()
     setCurrentAction(DM::ActionInfoSelected);
 }
 
-void UIActionHandler::slotBlocksSave() 
-{
-	setCurrentAction(DM::ActionBlocksSave);
-}
-
-void UIActionHandler::slotBlocksInsert() 
-{
-	setCurrentAction(DM::ActionBlocksInsert);
-}
-
 void UIActionHandler::slotSecectedChanged()
 {
 	setCurrentAction(DM::ActionSelectedChanged);
@@ -650,11 +639,10 @@ void UIActionHandler::slotCmdStateChanged()
 
 	if (editingBlock && !inBlockEdit)
 	{
-		// 撤销/重做后重新进入块编辑：文档已处于块编辑，只恢复编辑模式
-		auto mode = std::make_unique<BlockEditTool>(*bus);
-		BlockEditTool* blockEdit = mode.get();
-		bus->enterEditMode(std::move(mode));
-		blockEdit->reenter(editingBlock);
+		// 撤销/重做后重新进入块编辑：文档已处于块编辑，由块扩展恢复编辑模式
+		// （只有块扩展的命令会让文档进入块编辑，没有它时不会走到这里）
+		CommandRegistry::instance().runInstant(QStringLiteral("ext.block.reenter_edit"),
+		                                       CommandContext{m_pDocument, m_pView});
 	}
 	else if (!editingBlock && inBlockEdit)
 	{

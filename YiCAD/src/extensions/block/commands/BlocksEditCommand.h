@@ -28,14 +28,22 @@
 #ifndef BLOCKSEDITCOMMAND_H
 #define BLOCKSEDITCOMMAND_H
 
+#include <memory>
+
 #include <QCoreApplication>
 
 #include "SelectFirstCommand.h"
+
+struct CommandContext;
 
 /// @brief 编辑块命令
 class BlocksEditCommand : public SelectFirstCommand
 {
     Q_DECLARE_TR_FUNCTIONS(BlocksEditCommand)
+
+public:
+    /// @brief 命令工厂：已在块编辑中时给出警告，不构造命令
+    static std::unique_ptr<IExclusiveCommand> create(const CommandContext& ctx);
 
 protected:
     /// @brief 取选择集里第一个块参照进入块编辑模式后结束；没有块参照或用户取消时启动失败

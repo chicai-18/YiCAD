@@ -32,7 +32,6 @@
 #include <algorithm>
 
 #include "DmBlockTable.h"
-#include "UIActionHandler.h"
 #include "Debug.h"
 #include "GuiPreviewWidget.h"
 
@@ -57,10 +56,10 @@ void ModelWidget::mouseReleaseEvent(QMouseEvent* ev)
     emit clicked();
 }
 
-UIBlockListWidget::UIBlockListWidget(UIActionHandler* pActionHandler, QWidget* parent, const char* name, Qt::WindowFlags f)
+UIBlockListWidget::UIBlockListWidget(std::function<void(DmBlock*)> onChosen, QWidget* parent, const char* name, Qt::WindowFlags f)
     : QWidget(parent, f)
     , m_pBlockList(nullptr)
-    , m_pActionHandler(pActionHandler)
+    , m_onChosen(std::move(onChosen))
     , m_pBackWidget(new QWidget(parent))
 {
 }
@@ -146,7 +145,10 @@ void UIBlockListWidget::update()
         connect(pan, &ModelWidget::clicked, this, [this, block]
         {
             m_pBlockList->activate(block);
-            m_pActionHandler->slotBlocksInsert();
+            if (m_onChosen)
+            {
+                m_onChosen(block);
+            }
         });
 
         num++;

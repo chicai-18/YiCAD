@@ -192,20 +192,8 @@ void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
                  .panelId = kPanelDraw2dLayer,
                  .factory = [this](QWidget* parent) { return createLayerTable(parent); }});
 
-    // 图块
+    // 图块：只占位，按钮由块扩展（src/extensions/block/）注册。
     r.addPanel({.id = kPanelDraw2dBlock, .categoryId = kCategoryDraw2d, .title = QObject::tr("Block")});
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("Create Block"), ":/ribbon/block/block_create.svg", "blocks.create");
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("Insert the active block"), ":/ribbon/block/block_insert.svg",
-               "blocks.insert_prepare");
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("save the block to a file"), ":/ribbon/block/block_save.svg",
-               "blocks.save_as");
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("Define attributes"), ":/ribbon/block/define_attribute.svg",
-               "blocks.define_attributes");
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("Delete Block"), ":/ribbon/block/block_delete.svg",
-               "blocks.delete");
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("Edit Block"), ":/ribbon/block/block_edit.svg", "blocks.edit");
-    addCommand(r, kPanelDraw2dBlock, QObject::tr("Import Block"), ":/ribbon/file/import_block.svg",
-               "blocks.import");
 }
 
 void ApplicationWindow::registerRibbonOptions(UIRibbonRegistrar& r)

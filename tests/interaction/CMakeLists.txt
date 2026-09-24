@@ -19,5 +19,6 @@ yicad_add_test(interaction
         test_select_first_commands.cpp
         test_extension_manager.cpp
         test_host_extensions.cpp
+        test_block_extension.cpp
         test_ribbon_registry.cpp
     LABELS "interaction;unit")

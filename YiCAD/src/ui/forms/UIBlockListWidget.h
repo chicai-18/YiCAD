@@ -21,10 +21,12 @@
 #ifndef UIBLOCKLISTWIDGET_H
 #define UIBLOCKLISTWIDGET_H
 
+#include <functional>
+
 #include <QWidget>
 #include <QIcon>
 
-class UIActionHandler;
+class DmBlock;
 class DmBlockTable;
 class DmEntityContainer;
 
@@ -60,11 +62,11 @@ class UIBlockListWidget : public QWidget
 
 public:
     /// @brief 构造函数
-    /// @param [in] pActionHandler Action 处理器指针
+    /// @param [in] onChosen 用户点了列表里的一个块（已激活它）之后调用，如插入块命令进入放置
     /// @param [in] parent 父窗口指针
     /// @param [in] name 对象名称
     /// @param [in] fl 窗口标志
-    UIBlockListWidget(UIActionHandler* pActionHandler, QWidget* parent, const char* name = 0, Qt::WindowFlags fl = Qt::WindowFlags());
+    UIBlockListWidget(std::function<void(DmBlock*)> onChosen, QWidget* parent, const char* name = 0, Qt::WindowFlags fl = Qt::WindowFlags());
 
     /// @brief 析构函数
     ~UIBlockListWidget();
@@ -83,7 +85,7 @@ public:
 private:
     DmBlockTable*       m_pBlockList;                                           ///< 块表指针
     std::map<int, std::unique_ptr<DmEntityContainer>> m_blockIdxMap;            ///< 块索引到预览容器的映射
-    UIActionHandler*    m_pActionHandler;                                       ///< Action 处理器指针
+    std::function<void(DmBlock*)> m_onChosen;                                   ///< 点了一个块之后的回调
     QWidget*            m_pBackWidget;                                          ///< 背景控件
 };
 

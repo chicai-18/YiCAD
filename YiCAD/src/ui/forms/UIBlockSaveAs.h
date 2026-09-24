@@ -22,12 +22,12 @@
 #define UIBLOCKSAVEAS_H
 
 #include "ui_UIBlockSaveAs.h"
+#include <functional>
 #include <memory>
 
 #include <QComboBox>
 
 class DmBlockTable;
-class UIActionHandler;
 
 /// @class ModelComboBox
 /// @brief 块选择下拉框，支持文本变化信号
@@ -61,11 +61,11 @@ class UIBlockSaveAs : public QDialog, public Ui::UIBlockSaveAs
 
 public:
     /// @brief 构造函数
-    /// @param [in] pActionHandler Action 处理器指针
+    /// @param [in] onSave 点"另存为"时调用（此时当前块已激活），由调用方弹出文件对话框并保存
     /// @param [in] parent 父窗口指针
     /// @param [in] modal 是否模态
     /// @param [in] fl 窗口标志
-    UIBlockSaveAs(UIActionHandler* pActionHandler, QWidget* parent = nullptr, bool modal = false, Qt::WindowFlags fl = Qt::WindowFlags());
+    UIBlockSaveAs(std::function<void()> onSave, QWidget* parent = nullptr, bool modal = false, Qt::WindowFlags fl = Qt::WindowFlags());
 
     /// @brief 析构函数
     ~UIBlockSaveAs();
@@ -91,7 +91,7 @@ private:
     ModelComboBox*      m_pBlockComboBox;   ///< 块选择下拉框
     DmBlockTable*       m_pBlockList;       ///< 块表指针
     DmEntityContainer*  m_pPreview;         ///< 预览容器
-    UIActionHandler*    m_pActionHandler;   ///< Action 处理器指针
+    std::function<void()> m_onSave;         ///< 点"另存为"时的回调
 };
 
 #endif // UIBLOCKSAVEAS_H

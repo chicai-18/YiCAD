@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionBlocksInsert;
+class IExclusiveCommand;
+class BlockInsertCommand;
 namespace Ui {
 	class Ui_InsertOptions;
 }
@@ -44,16 +44,16 @@ public:
 	~UIInsertOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	/// @param update 是否从命令更新 UI
+	virtual void setCommand(IExclusiveCommand* c, bool update);
 
-	/// @brief 将 UI 数据更新到 Action
+	/// @brief 将 UI 数据更新到命令
 	virtual void updateData();
 
 protected:
-	ActionBlocksInsert* action = nullptr; ///< 块插入 Action 指针
+	BlockInsertCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

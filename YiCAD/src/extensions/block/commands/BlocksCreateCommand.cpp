@@ -26,7 +26,6 @@
 #include <QMouseEvent>
 
 #include "BasePlaceTool.h"
-#include "CommandRegistry.h"
 #include "DmAttribute.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
@@ -181,9 +180,3 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
     finish();
     return true;
 }
-
-namespace
-{
-const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionBlocksCreate, QStringLiteral("blocks.create"), exclusiveCommandFactory<BlocksCreateCommand>());
-}  // namespace

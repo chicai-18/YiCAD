@@ -89,6 +89,7 @@
 // 进程内扩展（src/extensions/<扩展>/，构建系统自动 glob 收集）。移除一个扩展：
 // 删除其目录、这里的 #include，以及 registerExtensions() 里的 Register 一行。
 #include "AIExtension.h"
+#include "BlockExtension.h"
 #include "DimExtension.h"
 #include "FileExtension.h"
 #include "LayerExtension.h"
@@ -401,6 +402,7 @@ void ApplicationWindow::registerExtensions()
 	ExtensionManager::instance().Register(std::make_unique<OptionsExtension>());
 	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
 	ExtensionManager::instance().Register(std::make_unique<DimExtension>());
+	ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
 	ExtensionManager::instance().BootAll(*m_extensionHost);
 }
 

@@ -20,8 +20,7 @@
 
 #include "UIInsertOptions.h"
 
-#include "ActionInterface.h"
-#include "ActionBlocksInsert.h"
+#include "BlockInsertCommand.h"
 #include "DmSettings.h"
 #include "Math2d.h"
 #include "ui_UIInsertOptions.h"
@@ -58,12 +57,11 @@ void UIInsertOptions::saveSettings()
 	DMSETTINGS->endGroup();
 }
 
-void UIInsertOptions::setAction(ActionInterface* a, bool update)
+void UIInsertOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a && a->getEntityType() == DM::ActionBlocksInsert)
+	command = dynamic_cast<BlockInsertCommand*>(c);
+	if (command)
 	{
-		action = static_cast<ActionBlocksInsert*>(a);
-
 		QString sAngle;
 		QString sFactor;
 		QString sColumns;
@@ -72,12 +70,12 @@ void UIInsertOptions::setAction(ActionInterface* a, bool update)
 		QString sRowSpacing;
 		if (update)
 		{
-			sAngle = QString("%1").arg(Math2d::rad2deg(action->getAngle()));
-			sFactor = QString("%1").arg(action->getFactor());
-			sColumns = QString("%1").arg(action->getColumns());
-			sRows = QString("%1").arg(action->getRows());
-			sColumnSpacing = QString("%1").arg(action->getColumnSpacing());
-			sRowSpacing = QString("%1").arg(action->getRowSpacing());
+			sAngle = QString("%1").arg(Math2d::rad2deg(command->angle()));
+			sFactor = QString("%1").arg(command->factor());
+			sColumns = QString("%1").arg(command->columns());
+			sRows = QString("%1").arg(command->rows());
+			sColumnSpacing = QString("%1").arg(command->columnSpacing());
+			sRowSpacing = QString("%1").arg(command->rowSpacing());
 		}
 		else
 		{
@@ -97,21 +95,17 @@ void UIInsertOptions::setAction(ActionInterface* a, bool update)
 		ui->leColumnSpacing->setText(sColumnSpacing);
 		ui->leRowSpacing->setText(sRowSpacing);
 	}
-	else
-	{
-		action = nullptr;
-	}
 }
 
 void UIInsertOptions::updateData()
 {
-	if (action)
+	if (command)
 	{
-		action->setAngle(Math2d::deg2rad(Math2d::eval(ui->leAngle->text())));
-		action->setFactor(Math2d::eval(ui->leFactor->text()));
-		action->setColumns(ui->sbColumns->value());
-		action->setRows(ui->sbRows->value());
-		action->setColumnSpacing(Math2d::eval(ui->leColumnSpacing->text()));
-		action->setRowSpacing(Math2d::eval(ui->leRowSpacing->text()));
+		command->setAngle(Math2d::deg2rad(Math2d::eval(ui->leAngle->text())));
+		command->setFactor(Math2d::eval(ui->leFactor->text()));
+		command->setColumns(ui->sbColumns->value());
+		command->setRows(ui->sbRows->value());
+		command->setColumnSpacing(Math2d::eval(ui->leColumnSpacing->text()));
+		command->setRowSpacing(Math2d::eval(ui->leRowSpacing->text()));
 	}
 }

@@ -977,3 +977,53 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 （`test_interaction` 229 例）；`check_layering.py` 通过；安装后程序能启动，"文件""绘图""设置"
 三个类目与图层面板正常显示（截图核对；这台机器上注入的鼠标点击到不了程序，没有逐个点开类目）。
 交互回归清单新增 X1–X6，尚待手工核对。
+
+**提交⑥：扩展 `ext.block`**
+
+1. **块扩展**（`src/extensions/block/`）：
+   - 交互命令：创建块 `ext.block.create`、编辑块 `ext.block.edit`（第二步的两个命令与块编辑
+     模式 `BlockEditTool` 原样搬入 `commands/`，去掉自注册与枚举桥接，由扩展注册）、插入块
+     `ext.block.insert`、定义属性 `ext.block.define_attributes`；
+   - 即时命令：删除 `ext.block.delete`、保存 `ext.block.save`、另存为 `ext.block.save_as`、
+     导入 `ext.block.import`（`BlockFileCommands`，主体从原 Action 搬来），以及宿主用的
+     `ext.block.reenter_edit`；
+   - 按钮注册进宿主占位的"绘图/块"面板，顺序与迁移前一致。
+
+   删除 7 个旧 Action（插入准备、插入、删除、保存、另存为、导入、定义属性）；keyconfig.xml 删去
+   `ActionBlocksCreate`、`ActionBlocksSave` 共 4 条（别名为空）。
+2. **插入块合为一个两阶段命令**：启动时在主窗口右侧弹出块列表（原"插入准备"），这时在画布上
+   单击结束命令；在列表里点一个块进入放置（原"插入"），可连续放置，右键回到选块；命令结束时
+   关闭并释放块列表。选项（角度、比例、阵列）在命令上，选项条 `UIInsertOptions` 随扩展搬走，
+   经 `CommandInfo::commandOptionsFactory` 注册，只在放置阶段显示；`UIDialogFactory` 删去
+   `requestInsertOptions`，`requestOptions` 的 switch 只剩文字一个分支。原"插入准备"是排他的：
+   命令工厂先按 `InstantInterrupt::EndAll` 结束全部命令与块编辑，被否决时不启动。
+3. **撤销/重做后恢复块编辑**：宿主（`UIActionHandler::slotCmdStateChanged`）不再直接构造
+   `BlockEditTool`，改为运行 `ext.block.reenter_edit`；只有块扩展的命令会让文档进入块编辑，
+   没有它时走不到这里。退出块编辑的一支不依赖块的类型，仍在宿主。
+4. **对话框**：`UIBlockListWidget`、`UIBlockSaveAs` 不再依赖 `UIActionHandler`（原先经
+   `slotBlocksInsert`/`slotBlocksSave` 启动插入、保存），改为构造时传入回调；这两个槽随之删除。
+   其余块相关对话框（新建块、嵌套块选择、属性编辑、属性定义、块编辑选项条）仍在 `ui/`，经
+   `GuiDialogFactoryInterface` 调用，本批不搬。
+5. **翻译**：7 个按钮文字从 `QObject` 上下文、6 个类的上下文（含 `Ui_InsertOptions`）并入
+   `block_zh_cn.ts`；原插入、保存、导入、定义属性的上下文改为新类名。
+6. **测试**：新增 `test_block_extension`（7 例：命令类型与打断方式、原 ID 与枚举桥接不再存在、
+   按钮所在面板、插入块的两个阶段与选项条、命令行改角度、定义属性取消对话框时启动失败、没有
+   文档时即时命令什么也不做）；`test_select_first_commands` 的夹具启动块扩展，命令 ID 改名。
+
+**与方案的偏差与补充**
+
+1. **插入块的细微变化**：
+   - 选块阶段清空按键提示（原"插入准备"没有提示，留着上一个命令的）；
+   - 放置时在列表里换块，直接换成新块继续放置（原先再叠一个插入 Action，右键要退两次）；
+   - 块列表在命令结束时释放（原先隐藏后一直留在内存）；
+   - 命令行选项的文字照旧不被接受，随后还会被当作新命令解析（原有行为，测试注明）。
+2. **定义属性**：原 ShowDialog 一步改为启动前弹出对话框，取消时启动失败（同插入图片）；
+   命令行输入的插入点生效（原 Action 取最后一次鼠标移动的位置，输入的坐标不起作用）。
+3. **另存为块**：对话框关闭时释放（原 Action 每次新建一个、从不释放）；原先第三个参数由
+   字符串字面量隐式转成 true，对话框一直是模态的，现在显式传 true。
+4. **对话框的父窗口**：删除、保存、导入用扩展上下文的主窗口作父窗口（原先文件对话框挂在
+   当前 MDI 子窗口上），只影响对话框的初始位置。
+
+提交⑥验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 236 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/块"面板的
+7 个按钮正常显示（截图核对）。交互回归清单新增 K1–K6，尚待手工核对。

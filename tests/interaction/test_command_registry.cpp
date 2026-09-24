@@ -286,9 +286,7 @@ TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
         {DM::ActionModifyMirror, "modify.mirror"},   {DM::ActionModifyExplode, "modify.explode"},
         {DM::ActionModifyReverse, "modify.reverse"}, {DM::ActionModifyDelete, "modify.delete"},
         {DM::ActionEditCopy, "edit.copy"},           {DM::ActionEditCut, "edit.cut"},
-        {DM::ActionCopyToLayer, "modify.copy_to_layer"}, {DM::ActionBlocksCreate, "blocks.create"},
-        {DM::ActionBlocksEdit, "blocks.edit"},
-        {DM::ActionInfoTotalLength, "info.total_length"},
+        {DM::ActionCopyToLayer, "modify.copy_to_layer"}, {DM::ActionInfoTotalLength, "info.total_length"},
     };
     for (const auto& [type, id] : migrated)
     {

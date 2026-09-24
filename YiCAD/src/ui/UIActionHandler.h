@@ -113,8 +113,6 @@ public slots:
 
     void slotIndoSelected();
 
-    void slotBlocksSave();
-    void slotBlocksInsert();
 
     void slotViewGrid();
 

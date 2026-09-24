@@ -66,18 +66,13 @@ bool BlocksEditCommand::onSelectionReady()
     return true;
 }
 
-namespace
+std::unique_ptr<IExclusiveCommand> BlocksEditCommand::create(const CommandContext& ctx)
 {
-const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionBlocksEdit, QStringLiteral("blocks.edit"),
-    [](const CommandContext& ctx) -> std::unique_ptr<IExclusiveCommand>
+    if (ctx.document->getEditingBlock() != nullptr)
     {
-        if (ctx.document->getEditingBlock() != nullptr)
-        {
-            QMessageBox::warning(nullptr, BlocksEditCommand::tr("Block Edit"),
-                                 BlocksEditCommand::tr("Cannot edit block references while already editing a block."));
-            return nullptr;
-        }
-        return std::make_unique<BlocksEditCommand>();
-    });
-}  // namespace
+        QMessageBox::warning(nullptr, BlocksEditCommand::tr("Block Edit"),
+                             BlocksEditCommand::tr("Cannot edit block references while already editing a block."));
+        return nullptr;
+    }
+    return std::make_unique<BlocksEditCommand>();
+}

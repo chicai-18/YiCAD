@@ -114,7 +114,6 @@ protected:
 
 	void requestTextOptions(ActionInterface* action, bool on, bool update);
 
-	void requestInsertOptions(ActionInterface* action, bool on, bool update);
 	void requestImageOptions(IExclusiveCommand* command, bool on, bool update);
 
 	void requestBevelOptions(IExclusiveCommand* command, bool on, bool update);

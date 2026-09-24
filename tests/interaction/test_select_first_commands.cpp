@@ -19,6 +19,9 @@
 
 #include "ActionInterface.h"
 #include "BlockEditTool.h"
+#include "BlockExtension.h"
+#include "ExtensionManager.h"
+#include "support/FakeExtensionHost.h"
 #include "CircleData.h"
 #include "CommandRegistry.h"
 #include "DmCircle.h"
@@ -97,7 +100,7 @@ struct LegacyStackBase : ILegacyStackBase
 const char* const kSelectFirstCommands[] = {
     "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
     "modify.explode", "modify.reverse", "modify.delete", "edit.copy",    "edit.cut",
-    "modify.copy_to_layer", "blocks.create", "blocks.edit", "info.total_length"};
+    "modify.copy_to_layer", "ext.block.create", "ext.block.edit", "info.total_length"};
 
 /// @brief 有放置工具、提示写在按键提示栏的命令，及其第一步提示的开头
 struct FirstStep
@@ -113,7 +116,7 @@ const FirstStep kPlaceToolCommands[] = {
     {"modify.mirror", "Specify first point of mirror line"},
     {"edit.copy", "Specify reference point"},
     {"edit.cut", "Specify reference point"},
-    {"blocks.create", "Specify reference point"},
+    {"ext.block.create", "Specify reference point"},
 };
 
 /// @brief 与 UIView 相同的装配；UiRecorder 在用例期间装进 GUIDIALOGFACTORY
@@ -130,9 +133,13 @@ struct SelectFirstFixture : ::testing::Test
     /// @brief 用例装上旧版 Action 栈时设置；声明在总线之前，总线析构时还会经选择层查询它
     GuiEventHandler* legacyHandler = nullptr;
     ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
+    /// @brief 创建块、编辑块在块扩展里（第三步⑥），用例期间启动它
+    yicad_test::FakeExtensionHost extensionHost;
 
     SelectFirstFixture()
     {
+        ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
+        ExtensionManager::instance().BootAll(extensionHost);
         GuiDialogFactory::instance()->setFactoryObject(&ui);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
@@ -150,7 +157,12 @@ struct SelectFirstFixture : ::testing::Test
                                                              : SelectTool::Overlay::None;
                                    });
     }
-    ~SelectFirstFixture() override { GuiDialogFactory::instance()->setFactoryObject(nullptr); }
+    ~SelectFirstFixture() override
+    {
+        // 注销扩展的命令；已构造的命令与编辑模式照旧由总线析构时结束
+        ExtensionManager::instance().Shutdown();
+        GuiDialogFactory::instance()->setFactoryObject(nullptr);
+    }
 
     /// @brief 按命令 ID 构造并启动命令
     bool start(const char* id)
@@ -697,7 +709,7 @@ TEST_F(SelectFirstFixture, 旧Action叠在放置工具之上时停用工具结�
 TEST_F(SelectFirstFixture, 编辑块时选择集里没有块参照则启动失败)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    ASSERT_TRUE(start("blocks.edit"));
+    ASSERT_TRUE(start("ext.block.edit"));
     ASSERT_TRUE(selectTool.inSelectionPhase());
 
     line->setSelected(true);

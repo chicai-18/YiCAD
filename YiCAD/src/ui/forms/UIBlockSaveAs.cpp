@@ -27,7 +27,6 @@
 #include "DmBlockTable.h"
 #include "DmBlock.h"
 #include "DmBlockReference.h"
-#include "UIActionHandler.h"
 
 namespace
 {
@@ -46,12 +45,12 @@ void ModelComboBox::slotsCurrentTextChanged(const QString& name)
     emit currentTextChanged();
 }
 
-UIBlockSaveAs::UIBlockSaveAs(UIActionHandler* pActionHandler, QWidget* parent, bool modal, Qt::WindowFlags fl)
+UIBlockSaveAs::UIBlockSaveAs(std::function<void()> onSave, QWidget* parent, bool modal, Qt::WindowFlags fl)
     : QDialog(parent, fl)
     , m_pBlockComboBox(nullptr)
     , m_pBlockList(nullptr)
     , m_pPreview(nullptr)
-    , m_pActionHandler(pActionHandler)
+    , m_onSave(std::move(onSave))
 {
     setModal(modal);
     setupUi(this);
@@ -125,7 +124,10 @@ void UIBlockSaveAs::updateBlockList()
 
 void UIBlockSaveAs::saveAs()
 {
-    m_pActionHandler->slotBlocksSave();
+    if (m_onSave)
+    {
+        m_onSave();
+    }
     this->close();
 }
 
