@@ -90,13 +90,9 @@
 // 删除其目录、这里的 #include，以及 registerExtensions() 里的 Register 一行。
 #include "AIExtension.h"
 #include "DimExtension.h"
-
-#include "ActionLayersActivate.h"
-#include "ActionLayersFreeze.h"
-#include "ActionLayersLock.h"
-#include "ActionLayersPrint.h"
-#include "ActionLayersColor.h"
-#include "ActionLayersDelete.h"
+#include "FileExtension.h"
+#include "LayerExtension.h"
+#include "OptionsExtension.h"
 
 #include "MDIWindow.h"
 #include "GuiDocumentView.h"
@@ -208,6 +204,7 @@ public:
     QWidget* mainWindow() override { return &m_window; }
     DmDocument* currentDocument() const override { return m_window.getDocument(); }
     GuiDocumentView* currentDocumentView() const override { return m_window.getDocumentView(); }
+    UITabDrawWidget* tabDrawWidget() override { return m_window.getTabDrawWidget(); }
 
     bool registerSettingsPage(const QString& id, const QString& title, const QString& iconPath,
                               std::function<void()> open) override
@@ -398,6 +395,10 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 void ApplicationWindow::registerExtensions()
 {
 	m_extensionHost = std::make_unique<ApplicationWindowExtensionHost>(*m_ribbonRegistry, *this);
+	// 文件、图层、选项排在前面：选项扩展的两个按钮要排在其它扩展的设置页入口之前（与迁移前一致）
+	ExtensionManager::instance().Register(std::make_unique<FileExtension>());
+	ExtensionManager::instance().Register(std::make_unique<LayerExtension>());
+	ExtensionManager::instance().Register(std::make_unique<OptionsExtension>());
 	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
 	ExtensionManager::instance().Register(std::make_unique<DimExtension>());
 	ExtensionManager::instance().BootAll(*m_extensionHost);
@@ -547,15 +548,15 @@ void ApplicationWindow::keyPressEvent(QKeyEvent* e)
 	}
 	else if (e->matches(QKeySequence::New))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("file.new"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.file.new"));
 	}
 	else if (e->matches(QKeySequence::Open))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("file.open"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.file.open"));
 	}
 	else if (e->matches(QKeySequence::Save))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("file.save"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.file.save"));
 	}
 	else if (e->matches(QKeySequence::Undo))
 	{
@@ -1164,7 +1165,7 @@ ApplicationWindow* ApplicationWindow::getAppWindow()
 void ApplicationWindow::createQuickAccessBar(SARibbonQuickAccessBar* quickAccessBar)
 {
 	auto actNew = createAction(QObject::tr("new"), ":/ribbon/file/new.svg", "new-quickbar");
-	connect(actNew, &QAction::triggered, this, [this, actNew]() { m_pActionHandler->activateCommand(QStringLiteral("file.new"), actNew); });
+	connect(actNew, &QAction::triggered, this, [this, actNew]() { m_pActionHandler->activateCommand(QStringLiteral("ext.file.new"), actNew); });
 	quickAccessBar->addAction(actNew);																		// 新建
 
 	auto actOpen = createAction(QObject::tr("open"), ":/ribbon/file/open.svg", "open-quickbar");
@@ -1172,16 +1173,15 @@ void ApplicationWindow::createQuickAccessBar(SARibbonQuickAccessBar* quickAccess
 		Q_UNUSED(b);
 		DMSYSTEM->setCurrentFormatType("ycd");
 		m_pTabDrawWidget->slotFileOpen();
-		m_pActionHandler->slotSetSnaps(m_pBottomWidget->getSnapToolBar()->getSnaps());
 		});
 	quickAccessBar->addAction(actOpen);																		// 打开
 
 	auto actSave = createAction(QObject::tr("save"), ":/ribbon/file/save.svg", "save-quickbar");
-	connect(actSave, &QAction::triggered, this, [this, actSave]() { m_pActionHandler->activateCommand(QStringLiteral("file.save"), actSave); });
+	connect(actSave, &QAction::triggered, this, [this, actSave]() { m_pActionHandler->activateCommand(QStringLiteral("ext.file.save"), actSave); });
 	quickAccessBar->addAction(actSave);																		// 保存
 
 	auto actSaveas = createAction(QObject::tr("save as"), ":/ribbon/file/save_as.svg", "saveas-quickbar");
-	connect(actSaveas, &QAction::triggered, this, [this, actSaveas]() { m_pActionHandler->activateCommand(QStringLiteral("file.save_as"), actSaveas); });
+	connect(actSaveas, &QAction::triggered, this, [this, actSaveas]() { m_pActionHandler->activateCommand(QStringLiteral("ext.file.save_as"), actSaveas); });
 	quickAccessBar->addAction(actSaveas);																	// 另存为
 	quickAccessBar->addSeparator();																			// 分割条
 
@@ -1255,15 +1255,15 @@ QWidget* ApplicationWindow::createLayerTable(QWidget* parent)
 
 	// 打开所有图层
 	m_pActOnOff = createAction(QObject::tr("on all"), ":/ribbon/layer/layer_all_visible.svg");
-	connect(m_pActOnOff, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("layers.defreeze_all"), m_pActOnOff); });
+	connect(m_pActOnOff, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.defreeze_all"), m_pActOnOff); });
 	
 	// 解锁所有图层
 	m_pActLock = createAction(QObject::tr("unlock all"), ":/ribbon/layer/layer_all_unlock.svg");
-	connect(m_pActLock, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("layers.unlock_all"), m_pActLock); });
+	connect(m_pActLock, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.unlock_all"), m_pActLock); });
 	
 	// 新增图层
 	QAction* actNewLayer = createAction(QObject::tr("new layer"), ":/ribbon/layer/add_layer.svg");
-	connect(actNewLayer, &QAction::triggered, this, [this, actNewLayer]() { m_pActionHandler->activateCommand(QStringLiteral("layers.add"), actNewLayer); });
+	connect(actNewLayer, &QAction::triggered, this, [this, actNewLayer]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.add"), actNewLayer); });
 
 	//复制实体到图层
 	QAction* actCopyLayer = createAction(QObject::tr("copy to layer"), ":/ribbon/layer/copy_entity_to_layer.svg");
@@ -1271,7 +1271,7 @@ QWidget* ApplicationWindow::createLayerTable(QWidget* parent)
 
 	// 修改图层
 	QAction* actRenameLayer = createAction(QObject::tr("rename layer"), ":/ribbon/layer/rename_layer.svg");
-	connect(actRenameLayer, &QAction::triggered, this, [this, actRenameLayer]() { m_pActionHandler->activateCommand(QStringLiteral("layers.rename"), actRenameLayer); });
+	connect(actRenameLayer, &QAction::triggered, this, [this, actRenameLayer]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.rename"), actRenameLayer); });
 
 	// 下面这排使用 Ribbon 按钮控件，但用自定义等分布局，确保图标尽量铺满且整行平铺。
 	QWidget* layerActionRow = new QWidget(allGroup);
@@ -1336,23 +1336,23 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 	// 显示、隐藏
 	data->btnOn = new QToolButton(parent);
 	data->setIsOn(!layer->isFrozen());
-	connect(data->btnOn, &QAbstractButton::clicked, this, [this, source = data->btnOn]() { m_pActionHandler->activateCommand(QStringLiteral("layers.freeze"), source); });
+	connect(data->btnOn, &QAbstractButton::clicked, this, [this, source = data->btnOn]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.freeze"), source); });
 
 	// 锁定、解锁
 	data->btnLock = new QToolButton(parent);		
 	data->setIsLock(layer->isLocked());
-	connect(data->btnLock, &QAbstractButton::clicked, this, [this, source = data->btnLock]() { m_pActionHandler->activateCommand(QStringLiteral("layers.lock"), source); });
+	connect(data->btnLock, &QAbstractButton::clicked, this, [this, source = data->btnLock]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.lock"), source); });
 
 	// 打印、不打印
 	data->btnPrint = new QToolButton(parent);
 	data->setIsPrint(layer->isPrint());
-	connect(data->btnPrint, &QAbstractButton::clicked, this, [this, source = data->btnPrint]() { m_pActionHandler->activateCommand(QStringLiteral("layers.print"), source); });
+	connect(data->btnPrint, &QAbstractButton::clicked, this, [this, source = data->btnPrint]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.print"), source); });
 
 	// 颜色
 	data->btnColor = new QToolButton(parent);
 	DmColor layerColor = layer->getPen().getColor();
 	data->setColor(QColor(layerColor.red(), layerColor.green(), layerColor.blue(), layerColor.alpha()));
-	connect(data->btnColor, &QAbstractButton::clicked, this, [this, source = data->btnColor]() { m_pActionHandler->activateCommand(QStringLiteral("layers.color"), source); });
+	connect(data->btnColor, &QAbstractButton::clicked, this, [this, source = data->btnColor]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.color"), source); });
 
 	// 名字
 	data->labelName = new QPushButton(parent);
@@ -1372,7 +1372,7 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 	}
 	else
 	{
-		connect(data->labelName, &QAbstractButton::clicked, this, [this, source = data->labelName]() { m_pActionHandler->activateCommand(QStringLiteral("layers.activate"), source); });
+		connect(data->labelName, &QAbstractButton::clicked, this, [this, source = data->labelName]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.activate"), source); });
 	}
 
 	// 删除
@@ -1380,7 +1380,9 @@ ComboBoxData* ApplicationWindow::initLayerComboboxItem(DmLayer* layer, QWidget* 
 	{
 		data->btnDelete = new QToolButton(parent);
 		data->btnDelete->setIcon(QIcon(":/ribbon/layer/delete_layer.svg"));
-		connect(data->btnDelete, &QAbstractButton::clicked, this, [this, source = data->btnDelete]() { m_pActionHandler->activateCommand(QStringLiteral("layers.delete"), source); });
+		connect(data->btnDelete, &QAbstractButton::clicked, this, [this, source = data->btnDelete]() { m_pActionHandler->activateCommand(QStringLiteral("ext.layer.delete"), source); });
+		// 删除按钮建在图层名之后，补记图层名（图层命令由按钮找到所在的图层）
+		data->tagButtons();
 	}
 	else
 	{

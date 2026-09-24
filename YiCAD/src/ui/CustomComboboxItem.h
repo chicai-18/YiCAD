@@ -63,6 +63,15 @@ struct ComboBoxData
 
     void setLayerName(const QString& name);
     QString getLayerName();
+
+    /// @brief 把图层名记到本行已建的各个按钮上。图层命令（ext.layer）由触发它的按钮
+    ///        找到所在的图层，不再遍历主窗口的图层下拉列表。setLayerName 时自动调用；
+    ///        按钮建全之后也要调用一次
+    void tagButtons();
+
+    /// @brief 按钮所在行的图层名（见 tagButtons）
+    /// @return 不是图层行里的按钮时返回空
+    static QString layerNameOf(const QObject* button);
 };
 
 

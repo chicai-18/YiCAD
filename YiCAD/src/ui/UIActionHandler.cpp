@@ -142,7 +142,10 @@ ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObj
 		// 即时命令不占命令总线，没有打开图纸时也执行（document/view 为空）
 		if (UIView* view = qobject_cast<UIView*>(m_pView))
 		{
-			view->prepareInstantCommand(registry.instantInterrupt(commandId));
+			if (!view->prepareInstantCommand(registry.instantInterrupt(commandId)))
+			{
+				return nullptr;
+			}
 		}
 		registry.runInstant(commandId, ctx);
 		return nullptr;
@@ -615,16 +618,6 @@ void UIActionHandler::disableRestrictions()
 void UIActionHandler::slotIndoSelected()
 {
     setCurrentAction(DM::ActionInfoSelected);
-}
-
-void UIActionHandler::slotLayersFreezeAll() 
-{
-	setCurrentAction(DM::ActionLayersFreezeAll);
-}
-
-void UIActionHandler::slotLayersLockAll() 
-{
-	setCurrentAction(DM::ActionLayersLockAll);
 }
 
 void UIActionHandler::slotBlocksSave() 

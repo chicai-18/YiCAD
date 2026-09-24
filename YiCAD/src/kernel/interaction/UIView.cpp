@@ -130,13 +130,33 @@ bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
     return m_pCommandBus->start(std::move(command));
 }
 
-void UIView::prepareInstantCommand(InstantInterrupt interrupt)
+bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
 {
-    if (interrupt == InstantInterrupt::KeepAll)
+    switch (interrupt)
     {
-        return;
+    case InstantInterrupt::KeepAll:
+        return true;
+
+    case InstantInterrupt::EndAll:
+        if (m_pCommandBus)
+        {
+            // 与排他的旧 Action 相同：先请命令与编辑模式让位，被否决时不执行
+            if (m_pCommandBus->isInCallback() || !m_pCommandBus->approveEndAll(CommandEndReason::Replaced))
+            {
+                return false;
+            }
+            m_pCommandBus->endAll();
+        }
+        endViewTool();
+        getEventHandler()->killAllActions();
+        getEventHandler()->cleanUp();
+        return true;
+
+    case InstantInterrupt::EndUninterruptible:
+        break;
     }
     getEventHandler()->interruptForInstantCommand();
+    return true;
 }
 
 bool UIView::startViewTool(std::unique_ptr<TransientViewTool> tool)

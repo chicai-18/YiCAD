@@ -29,6 +29,7 @@
 #include <QPrinter>
 #include <QPrintDialog>
 #include <QHBoxLayout>
+#include <QMdiSubWindow>
 
 #include "DmDocument.h"
 #include "GuiDocumentView.h"
@@ -126,7 +127,7 @@ QWidget* UITabDrawWidget::createTabDrawWidget(QMdiArea* drawBackWidget, UIAction
 	newDraw->setIcon(QIcon(":/ribbon/tabbar/new.svg"));
 	newDraw->setIconSize(QSize(13, 13));
 	connect(newDraw, &QToolButton::clicked, this, [this, newDraw]() {
-		m_pActionHandler->activateCommand(QStringLiteral("file.new"), newDraw);
+		m_pActionHandler->activateCommand(QStringLiteral("ext.file.new"), newDraw);
 	});
 
 	// docView绘图区域的当前画笔栏
@@ -231,6 +232,20 @@ std::vector<DmDocument*> UITabDrawWidget::getDocuments() const
 		docs.emplace_back(doc->mdiWindow->getDocument());
 	}
 	return docs;
+}
+
+std::vector<GuiDocumentView*> UITabDrawWidget::getDocumentViews() const
+{
+	std::vector<GuiDocumentView*> views;
+	for (QMdiSubWindow* window : m_pDrawBackWidget->subWindowList())
+	{
+		auto* m = qobject_cast<MDIWindow*>(window);
+		if (m && m->getDocumentView())
+		{
+			views.push_back(m->getDocumentView());
+		}
+	}
+	return views;
 }
 
 void UITabDrawWidget::newTabDraw(SingleTabDrawDataRibbon* newTab)
@@ -550,6 +565,8 @@ void UITabDrawWidget::slotFileOpen()
  	QString fileName = dlg.getOpenFile();
 	slotFileOpen(fileName);
 	tabChangeEvent();
+	// 原先由两个调用方（打开命令与快速访问栏）各自在之后同步
+	m_pActionHandler->slotSetSnaps(m_pBottomWidget->getSnapToolBar()->getSnaps());
 }
 
 void UITabDrawWidget::slotFileExportImage()

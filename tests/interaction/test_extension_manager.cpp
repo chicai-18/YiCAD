@@ -27,6 +27,9 @@
 #include "IExtensionContext.h"
 #include "IExtensionHost.h"
 #include "UIRibbonRegistry.h"
+#include "support/FakeExtensionHost.h"
+
+using yicad_test::FakeExtensionHost;
 
 namespace
 {
@@ -67,46 +70,6 @@ private:
     std::vector<std::string>& m_log;
     std::function<void(IExtensionContext&)> m_onRegister;
     std::function<void()> m_onShutdown;
-};
-
-/// @brief 最小的 IExtensionHost 测试替身：Ribbon 用真实的注册表（按扩展
-/// 限定命名空间的入口也是真实实现），其余服务只记录调用。
-class FakeExtensionHost : public IExtensionHost
-{
-public:
-    UIRibbonRegistrar& ribbonFor(std::string_view extensionId) override
-    {
-        auto& registrar = m_scoped[std::string(extensionId)];
-        if (!registrar)
-        {
-            registrar = std::make_unique<UIRibbonScopedRegistrar>(ribbon, extensionId);
-        }
-        return *registrar;
-    }
-
-    QWidget* mainWindow() override { return nullptr; }
-    DmDocument* currentDocument() const override { return nullptr; }
-    GuiDocumentView* currentDocumentView() const override { return nullptr; }
-
-    bool registerSettingsPage(const QString& id, const QString&, const QString&,
-                              std::function<void()>) override
-    {
-        settingsPages.push_back(id);
-        return true;
-    }
-
-    bool activateCommand(const QString& commandId) override
-    {
-        activated.push_back(commandId);
-        return CommandRegistry::instance().hasCommand(commandId);
-    }
-
-    UIRibbonRegistry ribbon;
-    std::vector<QString> settingsPages;
-    std::vector<QString> activated;
-
-private:
-    std::map<std::string, std::unique_ptr<UIRibbonScopedRegistrar>> m_scoped;
 };
 
 CommandFactory nullFactory()

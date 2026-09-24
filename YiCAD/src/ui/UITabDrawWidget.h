@@ -31,6 +31,7 @@ class QToolButton;
 class QPushButton;
 class MDIWindow;
 class DmDocument;
+class GuiDocumentView;
 class UIActionHandler;
 class UIBottomWindow;
 class UICurrentActivePen;
@@ -82,6 +83,9 @@ public:
 	/// @brief 获得打开的文档
 	std::vector<DmDocument*> getDocuments() const;
 
+	/// @brief 获得绘图区域里全部图纸的视图（按子窗口顺序），如改了显示选项后逐个刷新
+	std::vector<GuiDocumentView*> getDocumentViews() const;
+
 	/// @brief 新建选项卡和绘图区域
 	void newTabDraw(SingleTabDrawDataRibbon* newTab);
 
@@ -119,7 +123,7 @@ public:
 	/// @brief 设置当前选项卡名字和提示
 	void soltSetDrawingTabName(const QString& fileName);
 
-	/// @brief 打开图纸
+	/// @brief 选择并打开图纸，然后按捕捉工具栏同步新视图的捕捉设置
 	void slotFileOpen();
 
 	/// @brief 导出图片

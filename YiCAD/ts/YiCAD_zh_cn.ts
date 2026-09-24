@@ -241,94 +241,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionLayersActivate</name>
-    <message>
-        <location filename="../src/actions/ActionLayersActivate.cpp" line="77"/>
-        <source>Activate Layer</source>
-        <translation>激活图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersColor</name>
-    <message>
-        <location filename="../src/actions/ActionLayersColor.cpp" line="83"/>
-        <source>Select Color</source>
-        <translation>选择颜色</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionLayersColor.cpp" line="91"/>
-        <source>Layer Color</source>
-        <translation>图层颜色</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersDelete</name>
-    <message>
-        <location filename="../src/actions/ActionLayersDelete.cpp" line="78"/>
-        <source>The layer: %1 can not be remove. The following layers can not be removed: 
-1. &quot;0&quot; layer; 
-2. current layer; 
-3. layer contains entities</source>
-        <translation>图层：%1 不能被删除。以下图层不能被删除：
-1. &quot;0&quot;图层；
-2. 当前图层；
-3. 包含实体的图层</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionLayersDelete.cpp" line="82"/>
-        <source>Delete Layer</source>
-        <translation>删除图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersFreeze</name>
-    <message>
-        <location filename="../src/actions/ActionLayersFreeze.cpp" line="86"/>
-        <source>Freeze Layer</source>
-        <translation>隐藏图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersFreezeAll</name>
-    <message>
-        <location filename="../src/actions/ActionLayersFreezeAll.cpp" line="47"/>
-        <source>Freeze Layer</source>
-        <translation>隐藏图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersLock</name>
-    <message>
-        <location filename="../src/actions/ActionLayersLock.cpp" line="83"/>
-        <source>Lock Layer</source>
-        <translation>锁定图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersLockAll</name>
-    <message>
-        <location filename="../src/actions/ActionLayersLockAll.cpp" line="56"/>
-        <source>Lock All Layers</source>
-        <translation>锁定所有图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersPrint</name>
-    <message>
-        <location filename="../src/actions/ActionLayersPrint.cpp" line="84"/>
-        <source>Print Layer</source>
-        <translation>打印图层</translation>
-    </message>
-</context>
-<context>
-    <name>ActionLayersRename</name>
-    <message>
-        <location filename="../src/actions/ActionLayersRename.cpp" line="53"/>
-        <source>Rename Layer</source>
-        <translation>重命名图层</translation>
-    </message>
-</context>
-<context>
     <name>ActionModifyMText</name>
     <message>
         <location filename="../src/actions/ActionModifyMText.cpp" line="169"/>
@@ -2871,21 +2783,6 @@ This block cannot be inserted.</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1128"/>
-        <source>Export Image</source>
-        <translation>导出图片</translation>
-    </message>
-    <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1235"/>
-        <source>System Setting</source>
-        <translation>系统设置</translation>
-    </message>
-    <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1244"/>
-        <source>Draw Setting</source>
-        <translation>图纸设置</translation>
-    </message>
-    <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1299"/>
         <source>Tangent (C,C)</source>
         <translation>切线(圆,圆)</translation>
@@ -3076,11 +2973,6 @@ This block cannot be inserted.</source>
         <location filename="../src/main/ApplicationWindow.cpp" line="1626"/>
         <source>Define attributes</source>
         <translation>定义属性</translation>
-    </message>
-	<message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1626"/>
-        <source>Edit Block</source>
-        <translation>编辑块</translation>
     </message>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1794"/>

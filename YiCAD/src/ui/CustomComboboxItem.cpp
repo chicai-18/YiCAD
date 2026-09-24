@@ -285,9 +285,34 @@ void ComboBoxData::setLayerName(const QString& name)
 	constexpr int kLabelNameHeight = 20;
 	labelName->setMinimumSize(kLabelNameWidth, kLabelNameHeight);
 	labelName->setMaximumSize(kLabelNameWidth, kLabelNameHeight);
+	tagButtons();
 }
 
 QString ComboBoxData::getLayerName()
 {
 	return strName;
+}
+
+namespace
+{
+/// @brief 图层行按钮上记录图层名的动态属性
+constexpr const char* kLayerNameProperty = "yicadLayerName";
+}  // namespace
+
+void ComboBoxData::tagButtons()
+{
+	for (QObject* button : {static_cast<QObject*>(btnOn), static_cast<QObject*>(btnLock),
+	                        static_cast<QObject*>(btnPrint), static_cast<QObject*>(btnColor),
+	                        static_cast<QObject*>(labelName), static_cast<QObject*>(btnDelete)})
+	{
+		if (button)
+		{
+			button->setProperty(kLayerNameProperty, strName);
+		}
+	}
+}
+
+QString ComboBoxData::layerNameOf(const QObject* button)
+{
+	return button ? button->property(kLayerNameProperty).toString() : QString();
 }

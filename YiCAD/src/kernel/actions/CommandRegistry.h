@@ -98,7 +98,8 @@ using InstantCommand = std::function<void(const CommandContext&)>;
 enum class InstantInterrupt
 {
     EndUninterruptible, ///< 结束不可打断的命令（多行文字编辑），默认：与原先压栈时一致
-    KeepAll             ///< 什么也不结束：原 isViewAction() 的 Action（缩放）不打断任何命令
+    KeepAll,            ///< 什么也不结束：原 isViewAction() 的 Action（缩放）不打断任何命令
+    EndAll              ///< 先结束全部命令，被否决时不执行：原 isExclusive() 的 Action（新建、打开、保存图纸）
 };
 
 /// @brief 临时视图工具工厂：构造一个新的工具实例；返回空表示本次不启动。

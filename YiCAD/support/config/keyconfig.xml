@@ -93,7 +93,6 @@
 		<item action="ActionBlocksSave" description="当前激活的块另存为" keys=""/>
 		
 		<!--设置-->
-		<item action="ActionOptionsDrawing" description="图纸设置" keys=""/>
 		
 		<!--矩形阵列-->
 		<item action="ActionArrayRect" description="矩形阵列" keys="arrayrect, ar"/>
@@ -191,7 +190,6 @@
 		<item action="ActionBlocksSave" description="当前激活的块另存为" keys=""/>
 		
 		<!--设置-->
-		<item action="ActionOptionsDrawing" description="图纸设置" keys=""/>
 		
 		<!--矩形阵列-->
 		<item action="ActionArrayRect" description="矩形阵列" keys="jz"/>

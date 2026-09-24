@@ -92,8 +92,11 @@ public:
 
     /// @brief 即时命令执行前调用
     /// @param interrupt EndUninterruptible 时结束不可打断的旧 Action（见
-    ///        GuiEventHandler::interruptForInstantCommand）；KeepAll 时什么也不做
-    void prepareInstantCommand(InstantInterrupt interrupt = InstantInterrupt::EndUninterruptible);
+    ///        GuiEventHandler::interruptForInstantCommand）；KeepAll 时什么也不做；
+    ///        EndAll 时先征求命令与编辑模式同意，再结束全部命令、平移模式与旧 Action
+    ///        （原 isExclusive() 的 Action 启动时的做法）
+    /// @return 可以执行时返回 true；EndAll 被否决或处在 5.1 节的回调中时返回 false
+    bool prepareInstantCommand(InstantInterrupt interrupt = InstantInterrupt::EndUninterruptible);
 
     /// @brief 启动临时视图工具（平移模式）：结束已有的，挂起其下各层，叠在业务栈顶
     /// @param tool 新工具，视图接管所有权

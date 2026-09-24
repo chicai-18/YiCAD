@@ -113,9 +113,6 @@ public slots:
 
     void slotIndoSelected();
 
-    void slotLayersFreezeAll();
-    void slotLayersLockAll();
-
     void slotBlocksSave();
     void slotBlocksInsert();
 

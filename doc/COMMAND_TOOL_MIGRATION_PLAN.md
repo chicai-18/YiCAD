@@ -925,3 +925,55 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交④验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 223 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单
 新增 D25–D34，尚待手工核对。
+
+**提交⑤：扩展 `ext.file`、`ext.layer`、`ext.options`**
+
+1. **三个扩展**（`src/extensions/file|layer|options/`）：
+   - `ext.file`：即时命令 `ext.file.new/open/save/save_as/export_image`，按钮注册进宿主占位的
+     "文件""导出"面板；
+   - `ext.layer`：即时命令 `ext.layer.activate/add/rename/color/delete/freeze/lock/print/
+     freeze_all/defreeze_all/lock_all/unlock_all`；
+   - `ext.options`：即时命令 `ext.options.general/drawing`，按钮注册进"设置"面板。
+
+   删除 17 个旧 Action（文件 5、图层 10、选项 2），原内置 ID 与枚举桥接随之去掉；
+   keyconfig.xml 删去两条别名为空的 `ActionOptionsDrawing`。文字样式（`text.style`）按第 6 节
+   的分批留给第⑦批 `ext.text`。
+2. **新的打断方式 `InstantInterrupt::EndAll`**：原 `isExclusive()` 的 Action（新建、打开、保存、
+   另存为、导出图片）启动前先结束全部命令。`UIView::prepareInstantCommand` 改为返回能否执行：
+   先征求命令与编辑模式同意（原因 `Replaced`，与排他的旧 Action 相同），被否决（如块编辑中在
+   保存提示里取消）或处在 5.1 节的回调中时不执行，否则结束命令总线、平移模式与旧 Action 栈。
+3. **访问宿主**：`IExtensionHost`/`IExtensionContext` 新增 `tabDrawWidget()`（图纸标签页；类型
+   在 `ui/`，内核只前置声明）。`UITabDrawWidget` 新增 `getDocumentViews()`，系统设置改了颜色后
+   逐个刷新视图，取代遍历 `ApplicationWindow` 的 MDI 区域；`slotFileOpen()` 打开后自己同步捕捉
+   设置（原先打开命令与快速访问栏各自同步）。
+4. **图层面板仍由宿主构造**：它在 `ApplicationWindow` 里有 46 处引用，搬进扩展超出本批范围；
+   面板的按钮改为按 `ext.layer.*` 启动。原 Action 遍历主窗口的图层下拉列表，按按钮指针找到所在
+   的行；现在 `ComboBoxData::tagButtons()` 把图层名记在每行按钮上（动态属性，改名时随之更新），
+   命令用 `ComboBoxData::layerNameOf(sender)` 找到图层，不再包含 `main/` 的头文件。
+5. **宿主按 ID 启动扩展命令**：快速访问栏的新建/保存/另存为、Ctrl+N/O/S、标签栏的"+"启动
+   `ext.file.*`，图层面板启动 `ext.layer.*`。移除这两个扩展后这些入口什么也不做，"文件"类目
+   不再装配（与移除 `ext.dim` 后标注面板消失同理）。
+6. **删除死代码**：`UIActionHandler::slotLayersFreezeAll/slotLayersLockAll` 没有调用方（主计划
+   7.10 节已列出），且依赖本批去掉的枚举桥接。
+7. **翻译**：图层的 9 个上下文并入 `layer_zh_cn.ts` 的 `LayerExtension` 上下文；按钮文字从主程序
+   的 `QObject` 上下文拆到 `FileExtension`、`OptionsExtension`（新建、打开、保存、另存为仍被快速
+   访问栏使用，复制而不搬走）。
+8. **测试**：新增 `test_host_extensions`（6 例：即时命令与打断方式、原 ID 与枚举桥接不再存在、
+   按钮所在面板、没有标签页或文档时什么也不做、Shutdown 后注销、图层行按钮记着图层名）。假扩展
+   宿主移到 `tests/support/FakeExtensionHost.h`，与 `test_extension_manager` 共用。
+
+**与方案的偏差与补充**
+
+1. **图层按钮的切换目标**：显示/隐藏、锁定、打印原先取下拉框显示的状态取反，现在取图层自身的
+   状态取反；两者由 `updateLayerTable` 同步，正常情况下相同。
+2. **扩展的注册顺序**：文件、图层、选项排在 AI、标注之前，"系统设置""图纸设置"仍排在 AI
+   扩展的设置页入口之前，与迁移前一致。
+3. **图标留在主程序资源里**：新建、打开、保存、另存为的图标快速访问栏也在用；导出图片、图纸
+   设置的图标没有搬，只影响资源位置。
+4. **没有打开图纸时**：即时命令不占命令总线，新建、打开照样执行，与原先"没有视图时直接
+   trigger"一致。
+
+提交⑤验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 229 例）；`check_layering.py` 通过；安装后程序能启动，"文件""绘图""设置"
+三个类目与图层面板正常显示（截图核对；这台机器上注入的鼠标点击到不了程序，没有逐个点开类目）。
+交互回归清单新增 X1–X6，尚待手工核对。

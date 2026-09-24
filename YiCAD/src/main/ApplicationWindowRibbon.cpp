@@ -58,19 +58,11 @@ void ApplicationWindow::registerRibbonFile(UIRibbonRegistrar& r)
 
     r.addCategory({.id = kCategoryFile, .title = QObject::tr("File"), .objectName = "categoryFile"});
 
-    // 新建、打开始终可用；其余需要打开的文档。
+    // 文件、导出：只占位，按钮由文件扩展（src/extensions/file/）注册。
     r.addPanel({.id = kPanelFileFile, .categoryId = kCategoryFile, .title = QObject::tr("File"),
                 .rows = 1, .iconOnly = true});
-    addCommand(r, kPanelFileFile, QObject::tr("new"), ":/ribbon/file/new.svg", "file.new");
-    addCommand(r, kPanelFileFile, QObject::tr("open"), ":/ribbon/file/open.svg", "file.open");
-    addCommand(r, kPanelFileFile, QObject::tr("save"), ":/ribbon/file/save.svg", "file.save", documentOpen);
-    addCommand(r, kPanelFileFile, QObject::tr("save as"), ":/ribbon/file/save_as.svg", "file.save_as",
-               documentOpen);
-
     r.addPanel({.id = kPanelFileExport, .categoryId = kCategoryFile, .title = QObject::tr("Export"),
                 .rows = 1, .iconOnly = true, .enableFn = documentOpen});
-    addCommand(r, kPanelFileExport, QObject::tr("Export Image"), ":/ribbon/file/export_image.svg",
-               "file.export_image");
 }
 
 void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
@@ -223,12 +215,9 @@ void ApplicationWindow::registerRibbonOptions(UIRibbonRegistrar& r)
     r.addCategory({.id = kCategoryOptions, .title = QObject::tr("Options"), .objectName = "categoryOptions",
                    .enableFn = UIRibbonCondition::requireAll(UIRibbonRequires::DocumentOpen)});
 
-    // 扩展经 IExtensionContext::registerSettingsPage 注册的设置页入口也进这个
-    // 面板，排在下面两个内置按钮之后。
+    // 只占位：系统设置、图纸设置两个按钮由选项扩展（src/extensions/options/）注册；
+    // 其它扩展经 IExtensionContext::registerSettingsPage 注册的设置页入口也进这个
+    // 面板，按扩展的注册顺序排列。
     r.addPanel({.id = kPanelOptionsSettings, .categoryId = kCategoryOptions, .title = QObject::tr("Options"),
                 .rows = 1, .iconOnly = true});
-    addCommand(r, kPanelOptionsSettings, QObject::tr("System Setting"), ":/ribbon/options/settings.svg",
-               "options.general");
-    addCommand(r, kPanelOptionsSettings, QObject::tr("Draw Setting"), ":/ribbon/options/draw_settings.svg",
-               "options.drawing");
 }

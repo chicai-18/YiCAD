@@ -36,6 +36,7 @@ class DmDocument;
 class GuiDocumentView;
 class QWidget;
 class UIRibbonRegistrar;
+class UITabDrawWidget;
 
 class IExtensionHost
 {
@@ -55,6 +56,9 @@ public:
 
     /// @brief 当前活动文档视图；无打开文档时为 nullptr。
     virtual GuiDocumentView* currentDocumentView() const = 0;
+
+    /// @brief 宿主的图纸标签页（见 IExtensionContext::tabDrawWidget）。
+    virtual UITabDrawWidget* tabDrawWidget() = 0;
 
     /// @brief 在"设置"类目里加一个设置页入口。ID 已由调用方校验。
     /// @return Ribbon 注册表拒绝（如 ID 重复、已冻结）时返回 false。
