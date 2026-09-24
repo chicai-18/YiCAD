@@ -147,7 +147,7 @@ void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
 
     // 其他
     r.addPanel({.id = kPanelDraw2dOther, .categoryId = kCategoryDraw2d, .title = QObject::tr("Other")});
-    addCommand(r, kPanelDraw2dOther, QObject::tr("Hatch"), ":/ribbon/draw2d/hatch.svg", "draw.hatch");
+    // 填充按钮由填充扩展（src/extensions/hatch/）注册，排在插入图片之后
     addCommand(r, kPanelDraw2dOther, QObject::tr("Insert Image"), ":/ribbon/draw2d/insert_image.svg", "draw.image");
 
     // 修改

@@ -56,7 +56,6 @@
 		<item action="ActionModifyExplodeText" description="分解文字" keys=""/>
 		
 		<!--其他-->
-		<item action="ActionDrawHatch" description="填充" keys=""/>
 		<item action="ActionDrawImage" description="插入图片" keys=""/>
 		
 		<!--修改-->
@@ -149,7 +148,6 @@
 		<item action="ActionModifyExplodeText" description="分解文字" keys="fjwz"/>
 		
 		<!--其他-->
-		<item action="ActionDrawHatch" description="填充" keys="tc"/>
 		<item action="ActionDrawImage" description="插入图片" keys="tp"/>
 		
 		<!--修改-->

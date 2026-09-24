@@ -2,34 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>ActionDrawHatch</name>
-    <message>
-        <location filename="../src/actions/ActionDrawHatch.cpp" line="104"/>
-        <source>Hatch</source>
-        <translation>填充</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawHatch.cpp" line="116"/>
-        <source>Tips</source>
-        <translation>提示</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawHatch.cpp" line="116"/>
-        <source>Failure to create hatch, can&apos;t find the region!</source>
-        <translation>创建填充失败，找不到有效区域！</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawHatch.cpp" line="177"/>
-        <source>Specify point to create hatch.</source>
-        <translation>指定点以创建填充。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionDrawHatch.cpp" line="177"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
     <name>ApplicationWindow</name>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1283"/>
@@ -2459,11 +2431,6 @@
         <location filename="../src/ui/UIActionGroupManager.cpp" line="67"/>
         <source>Other</source>
         <translation>其他</translation>
-    </message>
-    <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1504"/>
-        <source>Hatch</source>
-        <translation>填充</translation>
     </message>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1508"/>

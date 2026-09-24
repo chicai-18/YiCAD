@@ -92,6 +92,7 @@
 #include "BlockExtension.h"
 #include "DimExtension.h"
 #include "FileExtension.h"
+#include "HatchExtension.h"
 #include "LayerExtension.h"
 #include "OptionsExtension.h"
 #include "TextExtension.h"
@@ -405,6 +406,7 @@ void ApplicationWindow::registerExtensions()
 	ExtensionManager::instance().Register(std::make_unique<DimExtension>());
 	ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
 	ExtensionManager::instance().Register(std::make_unique<TextExtension>());
+	ExtensionManager::instance().Register(std::make_unique<HatchExtension>());
 	ExtensionManager::instance().BootAll(*m_extensionHost);
 }
 

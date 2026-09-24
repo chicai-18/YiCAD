@@ -1084,3 +1084,25 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交⑦验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 248 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/文字"面板
 的 3 个按钮正常显示（截图核对）。第 6 节的 M1–M4、T1–T4 与新增的 T5–T7 尚待手工核对。
+
+**提交⑧：扩展 `ext.hatch`**
+
+1. **填充扩展**（`src/extensions/hatch/`）：交互命令 `ext.hatch.draw`（`DrawHatchCommand`：
+   启动前弹出填充对话框，取消时启动失败；在封闭区域里单击生成填充，可连续，右键结束），
+   命令行别名 `tc`（原 keyconfig.xml"拼音简写"组），按钮注册进"绘图/其他"面板。删除
+   `ActionDrawHatch`，连同只映射到同一构造的 `draw.hatch_no_select`；keyconfig.xml 删去 2 条。
+2. **填充对话框留在 `ui/`**：`UIDlgHatch` 修改填充实体（`requestModifyEntityDialog`）时也要用，
+   仍经 `GuiDialogFactoryInterface::requestHatchDialog` 调用。
+3. **视图变化**：命令开始时没有选中实体则在视图内的实体里找区域，视图变化后补充；原 Action
+   用槽接 `viewChanged()`，命令改为保存 `QMetaObject::Connection`，析构时断开（同延伸）。
+4. **测试**：新增 `test_hatch_extension`（3 例：命令类型与别名、原 ID 与枚举桥接不再存在、按钮
+   所在面板、取消对话框时启动失败）。
+
+**与方案的偏差与补充**
+
+1. **按钮顺序**：填充按钮由扩展注册，排在宿主注册的"插入图片"之后（原先在它之前）。Ribbon
+   注册表按注册顺序排列，扩展的条目总在内置条目之后。
+
+提交⑧验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 251 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/其他"面板
+显示插入图片与填充两个按钮（截图核对）。交互回归清单新增 H1，尚待手工核对。
