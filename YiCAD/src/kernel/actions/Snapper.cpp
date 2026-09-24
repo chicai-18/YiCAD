@@ -173,14 +173,6 @@ void Snapper::finish()
     deleteSnapper();
 }
 
-void Snapper::finishOrthogonal()
-{
-    if (this->snapMode.restriction == DM::RestrictOrthogonal)
-    {
-        docView->getCurrentAction()->finish();
-    }
-}
-
 void Snapper::resetOrthogonal()
 {
     m_orthogonalPoint = DmVector{ false };

@@ -25,7 +25,7 @@
 #include "Debug.h"
 
 #include "ui_UIDimLinearOptions.h"
-#include "ActionDimLinear.h"
+#include "DimCommands.h"
 
 /// @brief 构造 UIDimLinearOptions
 /// @param [in] parent 父窗口指针
@@ -56,16 +56,15 @@ void UIDimLinearOptions::saveSettings()
     DMSETTINGS->endGroup();
 }
 
-void UIDimLinearOptions::setAction(ActionInterface* a, bool update)
+void UIDimLinearOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a && a->getEntityType() == DM::ActionDimLinear)
+    command = dynamic_cast<DimLinearCommand*>(c);
+    if (command)
     {
-        action = static_cast<ActionDimLinear*>(a);
-
         QString sa;
         if (!update)
         {
-            sa = QString("%1").arg(Math2d::rad2deg(action->getAngle()));
+            sa = QString("%1").arg(Math2d::rad2deg(command->angle()));
         }
         else
         {
@@ -75,16 +74,12 @@ void UIDimLinearOptions::setAction(ActionInterface* a, bool update)
         }
         ui->leAngle->setText(sa);
     }
-    else
-    {
-        action = nullptr;
-    }
 }
 
 void UIDimLinearOptions::updateAngle(const QString& a)
 {
-    if (action)
+    if (command)
     {
-        action->setAngle(Math2d::deg2rad(Math2d::eval(a)));
+        command->setAngle(Math2d::deg2rad(Math2d::eval(a)));
     }
 }

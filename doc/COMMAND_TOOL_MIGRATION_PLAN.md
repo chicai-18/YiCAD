@@ -728,9 +728,12 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 `ActionSelectMultiple` 与 `makeSelectFirstFactory` 删除。其余 Action 仍经
 `LegacyActionTool` 运行，按第三步分批迁移。
 
-### 9.3 第三步（2026-09-24 起）
+### 9.3 第三步（2026-09-24 至 2026-09-25，已完成）
 
-按 5.2 节调整后的分批，每批一个提交，每批完成后停下核对。
+按 5.2 节调整后的分批，每批一个提交。前两批完成后停下核对，此后按用户要求连续完成
+其余各批。九批完成后 `src/actions/` 与各扩展里不再有业务 Action：旧体系只剩
+`ActionInterface`、`PreviewActionInterface`、`GuiEventHandler`、`LegacyActionTool` 等框架类，
+以及插件运行时经 `HostApi` 注册的命令，由第四步删除或改造。
 
 **提交①：视图与核心即时命令**
 
@@ -1106,3 +1109,34 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交⑧验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 251 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/其他"面板
 显示插入图片与填充两个按钮（截图核对）。交互回归清单新增 H1，尚待手工核对。
+
+**提交⑨：标注扩展的 Action 改为命令 + 放置工具**
+
+1. **迁移**（9 个 Action）：对齐、线性、半径、直径、角度、基线标注与引线改为交互命令
+   （`extensions/dim/commands/`：`DimCommands.h` 声明 7 个命令，工具在各自的 `Dim*Tool.cpp`，
+   从原 Action 机械改写）；共同基类 `DimensionCommand`/`DimensionTool` 取代 `ActionDimension`
+   （通用标注数据、标签、公差、直径标志归工具，选项条随命令显示、收起）；标注样式改为即时
+   命令，对话框的父窗口取扩展上下文的主窗口（原先直接取 `ApplicationWindow`，扩展不应包含
+   `main/` 的头文件）。命令 ID、别名、按钮与原先相同。
+2. **选项条**：`UIDimLinearOptions` 改为接收命令，随命令以 `commandOptionsFactory` 注册；标注
+   线角度记在工具的标注数据上，命令转给工具（同圆心圆弧的方向）。
+3. **删除 `finishOrthogonal`**：`Snapper::finishOrthogonal`、`ISnapService::finishOrthogonal` 与
+   `ActionInterface` 的转发经 `getCurrentAction()` 结束当前 Action，对命令无效；最后的调用方
+   （本批的标注）迁走后删除，命令用 `BasePlaceTool::finishIfOrthogonal()`。
+4. **翻译**：`dim_zh_cn.ts` 里 7 个 `ActionDim*` 上下文改为命令类名，位置指向新文件；基线标注
+   一条被拆成两段字面量的提示合成一段，译文照旧。
+5. **测试**：新增 `test_dim_extension`（6 例：命令类型、别名、选项条与按钮、各命令的第一步
+   提示与右键结束、线性标注逐步提示与退回、选项条角度转给工具、引线的退回、没有文档时标注
+   样式什么也不做）。
+
+**与方案的偏差与补充**
+
+1. **原样保留**：线性、对齐、角度标注放下一个标注后复位标注数据（线性标注随后让选项条重新
+   读取设置）；角度、直径、半径标注提交后结束捕捉（`snapper()->finish()`）；引线只响应小键盘
+   回车与命令行空行；角度标注的"上一状态"原先未初始化，现在初值为第一步。
+2. **构造时不刷新选项条**：原 Action 在构造函数里调用 `reset()`，其中的 `requestOptions`
+   在 Action 成为当前 Action 之前就显示了选项条；工具在构造时不刷新，由命令激活时显示。
+
+提交⑨验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 257 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/标注"面板
+的 8 个按钮正常显示（截图核对）。交互回归清单新增 A1–A3，尚待手工核对。

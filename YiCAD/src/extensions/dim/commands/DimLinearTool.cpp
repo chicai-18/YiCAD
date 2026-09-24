@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,71 +18,109 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file DimLinearTool.cpp
+/// @brief DimLinearCommand 与工具（从原 ActionDimLinear 机械改写）
 
-/// @file ActionDimLinear.cpp
-/// @brief 线性标注交互操作类实现
+#include <memory>
 
-#include <cmath>
-#include "ActionDimLinear.h"
-
-#include <QAction>
+#include <QKeyEvent>
 #include <QMouseEvent>
-
-#include "Debug.h"
+#include <QStringList>
+#include <cmath>
+#include <utility>
 #include "DmConstructionLine.h"
 #include "DmDimLinear.h"
 #include "DmLine.h"
 #include "GeometryMethods.h"
+#include "Math2d.h"
+
+#include "CommandPreview.h"
+#include "Commands.h"
+#include "DimCommands.h"
+#include "DmDocument.h"
+#include "DmEntityContainer.h"
+#include "EntityTable.h"
 #include "GuiCommandEvent.h"
-#include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
-#include "Math2d.h"
+#include "ISnapService.h"
 #include "Preview.h"
-#include <utility>
 #include "Transaction.h"
 
-ActionDimLinear::ActionDimLinear(DmDocument* doc, IDocumentView* docView,
-                                  DM::ActionType /*type*/) :
-    ActionDimension("Draw linear dimensions", doc, docView),
-    edata(new DmDimLinearData(DmVector(0., 0.), DmVector(0., 0.))),
-    lastStatus(SetExtPoint1)
+namespace
 {
-    actionType = DM::ActionDimLinear;
-    reset();
-}
-
-ActionDimLinear::~ActionDimLinear() = default;
-
-void ActionDimLinear::reset()
+/// @brief 线性标注工具：两条延伸线起点，再指定标注线位置（水平或竖直随鼠标）；可连续标注
+class DimLinearTool : public DimensionTool
 {
-    ActionDimension::reset();
+public:
+    /// @brief 交互状态
+    enum Status
+    {
+        SetExtPoint1, ///< 设置第一条延伸线起点
+        SetExtPoint2, ///< 设置第二条延伸线起点
+        SetDefPoint,  ///< 设置标注线位置
+        SetText,      ///< 在命令行中设置文本标签
+        SetAngle      ///< 在命令行中设置角度
+    };
+
+    DimLinearTool(DimLinearCommand& command, DmDocument* doc, IDocumentView* view)
+        : DimensionTool(command, doc, view)
+        , m_command(command)
+    {
+        edata = std::make_unique<DmDimLinearData>(DmVector(false), DmVector(false));
+    }
+
+    double getAngle() const;
+    void setAngle(double a);
+
+protected:
+    void updateHints() override;
+    void onMouseMove(QMouseEvent* e) override;
+    void onMouseRelease(QMouseEvent* e) override;
+    void onCoordinate(const DmVector& coord) override;
+    void onCommand(GuiCommandEvent* e) override;
+
+private:
+    void reset();
+    void trigger();
+    void preparePreview();
+    QStringList availableCommands() const;
+
+    DimLinearCommand& m_command;
+    std::unique_ptr<DmDimLinearData> edata; ///< 线性标注数据
+    Status lastStatus = SetExtPoint1;      ///< 进入文字或角度输入前的状态
+};
+}  // namespace
+
+void DimLinearTool::reset()
+{
+    resetDimension();
 
     edata.reset(new DmDimLinearData(DmVector(false), DmVector(false)));
 
-    GUIDIALOGFACTORY->requestOptions(this, true, true);
+    m_command.refreshOptions();
 }
 
-void ActionDimLinear::trigger()
+void DimLinearTool::trigger()
 {
-    ActionDimension::trigger();
+    m_command.preview().clear();
 
     preparePreview();
 
     DmDimLinear* dim = new DmDimLinear(nullptr, *data, *edata);
-    dim->setDocument(pDocument);
+    dim->setDocument(document());
     dim->update();
 
-    Transaction t(tr("Add dimension linear").toStdString(), pDocument);
+    Transaction t(DimLinearCommand::tr("Add dimension linear").toStdString(), document());
     t.start();
-    pDocument->getEntityTable()->add(dim);
+    document()->getEntityTable()->add(dim);
     t.commit();
 
-    DmVector rz = docView->getRelativeZero();
-    docView->moveRelativeZero(rz);
+    DmVector rz = view()->getRelativeZero();
+    view()->moveRelativeZero(rz);
 }
 
-void ActionDimLinear::preparePreview()
+void DimLinearTool::preparePreview()
 {
     DmVector dirV = DmVector::polar(100., data->angle - M_PI_2);
     DmConstructionLine cl(nullptr,
@@ -91,11 +129,11 @@ void ActionDimLinear::preparePreview()
     data->definitionPoint = cl.getNearestPointOnEntity(data->definitionPoint);
 }
 
-void ActionDimLinear::mouseMoveEvent(QMouseEvent* e)
+void DimLinearTool::onMouseMove(QMouseEvent* e)
 {
-    DmVector mouse = snapPoint(e);
+    DmVector mouse = snapper()->snapPoint(e);
 
-    switch (getStatus())
+    switch (status())
     {
         case SetExtPoint1:
             break;
@@ -103,16 +141,16 @@ void ActionDimLinear::mouseMoveEvent(QMouseEvent* e)
         case SetExtPoint2:
             if (edata->extensionPoint1.valid)
             {
-                deletePreview();
-                preview->addEntity(new DmLine(nullptr, edata->extensionPoint1, mouse));
-                drawPreview();
+                m_command.preview().clear();
+                m_command.preview().entities().addEntity(new DmLine(nullptr, edata->extensionPoint1, mouse));
+                m_command.preview().draw();
             }
             break;
 
         case SetDefPoint:
             if (edata->extensionPoint1.valid && edata->extensionPoint2.valid)
             {
-                deletePreview();
+                m_command.preview().clear();
                 data->definitionPoint = mouse;
 
                 // 判断鼠标位置情况，确定标注方向（有2个相互垂直的方向）
@@ -161,55 +199,49 @@ void ActionDimLinear::mouseMoveEvent(QMouseEvent* e)
 
                 DmDimLinear* dim = new DmDimLinear(
                             nullptr, *data, *edata);
-                preview->addEntity(dim);
+                m_command.preview().entities().addEntity(dim);
                 dim->update();
-                drawPreview();
+                m_command.preview().draw();
             }
             break;
     }
 }
 
-void ActionDimLinear::mouseReleaseEvent(QMouseEvent* e)
+void DimLinearTool::onMouseRelease(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton)
     {
-        GuiCoordinateEvent ce(snapPoint(e));
-        coordinateEvent(&ce);
+        onCoordinate(snapper()->snapPoint(e));
     }
     else if (e->button() == Qt::RightButton)
     {
-        deletePreview();
-        init(getStatus() - 1);
+        m_command.preview().clear();
+        init(status() - 1);
     }
 }
 
-void ActionDimLinear::coordinateEvent(GuiCoordinateEvent* e)
+void DimLinearTool::onCoordinate(const DmVector& coord)
 {
-    if (!e)
-    {
-        return;
-    }
+    DmVector pos = coord;
 
-    DmVector pos = e->getCoordinate();
-
-    switch (getStatus())
+    switch (status())
     {
         case SetExtPoint1:
             edata->extensionPoint1 = pos;
-            docView->moveRelativeZero(pos);
+            view()->moveRelativeZero(pos);
             setStatus(SetExtPoint2);
             break;
 
         case SetExtPoint2:
             edata->extensionPoint2 = pos;
-            docView->moveRelativeZero(pos);
+            view()->moveRelativeZero(pos);
             setStatus(SetDefPoint);
             break;
 
         case SetDefPoint:
             data->definitionPoint = pos;
             trigger();
-            finishOrthogonal();
+            finishIfOrthogonal();
             reset();
             setStatus(SetExtPoint1);
             break;
@@ -219,35 +251,35 @@ void ActionDimLinear::coordinateEvent(GuiCoordinateEvent* e)
     }
 }
 
-double ActionDimLinear::getAngle() const
+double DimLinearTool::getAngle() const
 {
     return data->angle;
 }
 
-void ActionDimLinear::setAngle(double a)
+void DimLinearTool::setAngle(double a)
 {
     data->angle = a;
 }
 
-void ActionDimLinear::commandEvent(GuiCommandEvent* e)
+void DimLinearTool::onCommand(GuiCommandEvent* e)
 {
     QString c = e->getCommand().toLower();
 
-    if (checkCommand("help", c))
+    if (Commands::checkCommand("help", c))
     {
         GUIDIALOGFACTORY->commandMessage(
-                    msgAvailableCommands()
-                    + getAvailableCommands().join(", "));
+                    Commands::msgAvailableCommands()
+                    + availableCommands().join(", "));
         return;
     }
 
-    switch (getStatus())
+    switch (status())
     {
         case SetText:
             setText(c);
             // TODO: GUI 选项请求暂时禁用，待确认后启用
-            // GUIDIALOGFACTORY->requestOptions(this, true, true);
-            docView->enableCoordinateInput();
+            // m_command.refreshOptions();
+            view()->enableCoordinateInput();
             setStatus(lastStatus);
             break;
 
@@ -262,24 +294,24 @@ void ActionDimLinear::commandEvent(GuiCommandEvent* e)
             else
             {
                 GUIDIALOGFACTORY->commandMessage(
-                            tr("Not a valid expression"));
+                            DimLinearCommand::tr("Not a valid expression"));
             }
             // TODO: GUI 选项请求暂时禁用，待确认后启用
-            // GUIDIALOGFACTORY->requestOptions(this, true, true);
+            // m_command.refreshOptions();
             setStatus(lastStatus);
         }
         break;
 
         default:
-            lastStatus = (Status)getStatus();
-            deletePreview();
-            if (checkCommand("text", c))
+            lastStatus = (Status)status();
+            m_command.preview().clear();
+            if (Commands::checkCommand("text", c))
             {
-                docView->disableCoordinateInput();
+                view()->disableCoordinateInput();
                 setStatus(SetText);
                 return;
             }
-            else if (checkCommand("angle", c))
+            else if (Commands::checkCommand("angle", c))
             {
                 setStatus(SetAngle);
             }
@@ -287,17 +319,17 @@ void ActionDimLinear::commandEvent(GuiCommandEvent* e)
     }
 }
 
-QStringList ActionDimLinear::getAvailableCommands()
+QStringList DimLinearTool::availableCommands() const
 {
     QStringList cmd;
 
-    switch (getStatus())
+    switch (status())
     {
         case SetExtPoint1:
         case SetExtPoint2:
         case SetDefPoint:
-            cmd += command("text");
-            cmd += command("angle");
+            cmd += Commands::command("text");
+            cmd += Commands::command("angle");
             break;
 
         default:
@@ -307,24 +339,24 @@ QStringList ActionDimLinear::getAvailableCommands()
     return cmd;
 }
 
-void ActionDimLinear::updateMouseButtonHints()
+void DimLinearTool::updateHints()
 {
-    switch (getStatus())
+    switch (status())
     {
         case SetExtPoint1:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Specify first extension line origin"), tr("Cancel"));
+            GUIDIALOGFACTORY->updateMouseWidget(DimLinearCommand::tr("Specify first extension line origin"), DimLinearCommand::tr("Cancel"));
             break;
         case SetExtPoint2:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Specify second extension line origin"), tr("Back"));
+            GUIDIALOGFACTORY->updateMouseWidget(DimLinearCommand::tr("Specify second extension line origin"), DimLinearCommand::tr("Back"));
             break;
         case SetDefPoint:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Specify dimension line location"), tr("Back"));
+            GUIDIALOGFACTORY->updateMouseWidget(DimLinearCommand::tr("Specify dimension line location"), DimLinearCommand::tr("Back"));
             break;
         case SetText:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Enter dimension text:"), "");
+            GUIDIALOGFACTORY->updateMouseWidget(DimLinearCommand::tr("Enter dimension text:"), "");
             break;
         case SetAngle:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Enter dimension line angle:"), "");
+            GUIDIALOGFACTORY->updateMouseWidget(DimLinearCommand::tr("Enter dimension line angle:"), "");
             break;
         default:
             GUIDIALOGFACTORY->updateMouseWidget();
@@ -332,18 +364,30 @@ void ActionDimLinear::updateMouseButtonHints()
     }
 }
 
-void ActionDimLinear::showOptions()
+std::unique_ptr<BasePlaceTool> DimLinearCommand::createTool()
 {
-    ActionInterface::showOptions();
-
-    GUIDIALOGFACTORY->requestOptions(this, true, true);
+    return std::make_unique<DimLinearTool>(*this, document(), view());
 }
 
-void ActionDimLinear::hideOptions()
+double DimLinearCommand::angle() const
 {
-    ActionInterface::hideOptions();
-
-    GUIDIALOGFACTORY->requestOptions(this, false);
+    auto* tool = static_cast<DimLinearTool*>(placeTool());
+    return tool ? tool->getAngle() : 0.0;
 }
 
-// EOF
+void DimLinearCommand::setAngle(double a)
+{
+    if (auto* tool = static_cast<DimLinearTool*>(placeTool()))
+    {
+        tool->setAngle(a);
+    }
+}
+
+void DimLinearCommand::refreshOptions()
+{
+    // 工具还在构造时（命令尚未持有它）不刷新，激活时 showOptions 会显示
+    if (placeTool())
+    {
+        GUIDIALOGFACTORY->requestCommandOptions(this, true, true);
+    }
+}

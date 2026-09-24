@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,71 +18,108 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file DimRadialTool.cpp
+/// @brief DimRadialCommand 与工具（从原 ActionDimRadial 机械改写）
 
-/// @file ActionDimRadial.cpp
-/// @brief 径向/直径标注交互操作类实现
+#include <memory>
 
-#include <QAction>
-#include "ActionDimRadial.h"
-
+#include <QKeyEvent>
 #include <QMouseEvent>
-
-#include "Debug.h"
+#include <QStringList>
 #include "DmArc.h"
 #include "DmCircle.h"
 #include "DmDimRadial.h"
+#include "Math2d.h"
+
+#include "CommandPreview.h"
+#include "Commands.h"
+#include "DimCommands.h"
+#include "DmDocument.h"
+#include "DmEntityContainer.h"
+#include "EntityTable.h"
 #include "GuiCommandEvent.h"
-#include "GuiCoordinateEvent.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
-#include "Math2d.h"
+#include "ISnapService.h"
 #include "Preview.h"
 #include "Transaction.h"
 
-ActionDimRadial::ActionDimRadial(DmDocument* doc, IDocumentView* docView) :
-    ActionDimension("Draw Radial Dimensions", doc, docView), entity(nullptr), pos(new DmVector{}),
-    lastStatus(SetEntity)
+namespace
 {
-    actionType = DM::ActionDimRadial;
-    reset();
-}
-
-ActionDimRadial::~ActionDimRadial() = default;
-
-void ActionDimRadial::reset()
+/// @brief 半径标注工具：选圆或圆弧，再指定标注线位置（命令行可输入角度）；可连续标注
+class DimRadialTool : public DimensionTool
 {
-    ActionDimension::reset();
+public:
+    /// @brief 交互状态
+    enum Status
+    {
+        SetEntity, ///< 选择实体
+        SetPos,    ///< 选择位置
+        SetText    ///< 在命令行中设置文本标签
+    };
+
+    DimRadialTool(DimRadialCommand& command, DmDocument* doc, IDocumentView* view)
+        : DimensionTool(command, doc, view)
+        , m_command(command)
+    {
+        edata = std::make_unique<DmDimRadialData>(DmVector{}, 0.0);
+    }
+
+protected:
+    void updateHints() override;
+    void onMouseMove(QMouseEvent* e) override;
+    void onMouseRelease(QMouseEvent* e) override;
+    void onCoordinate(const DmVector& coord) override;
+    void onCommand(GuiCommandEvent* e) override;
+
+private:
+    void reset();
+    void trigger();
+    void preparePreview();
+    QStringList availableCommands() const;
+
+    DimRadialCommand& m_command;
+    DmEntity* entity = nullptr;                          ///< 已选中的实体（圆弧/圆）
+    std::unique_ptr<DmVector> pos = std::make_unique<DmVector>(); ///< 拾取圆后鼠标移动时的位置
+    std::unique_ptr<DmDimRadialData> edata;              ///< 新标注数据
+    Status lastStatus = SetEntity;                       ///< 进入文字输入前的状态
+};
+}  // namespace
+
+void DimRadialTool::reset()
+{
+    resetDimension();
 
     edata.reset(new DmDimRadialData{{}, 0.0});
     entity     = nullptr;
     *pos       = {};
     lastStatus = SetEntity;
-    //GUIDIALOGFACTORY->requestOptions(this, true, true);
+    //GUIDIALOGFACTORY->requestCommandOptions(&m_command, true, true);
 }
 
-void ActionDimRadial::trigger()
+void DimRadialTool::trigger()
 {
-    ActionDimension::trigger();
+    m_command.preview().clear();
 
     preparePreview();
     if (entity)
     {
         DmDimRadial* newEntity =
                     new DmDimRadial(nullptr, *data, *edata);
-        newEntity->setDocument(pDocument);
+        newEntity->setDocument(document());
         newEntity->update();
-        Transaction t(tr("Add dimension radial").toStdString(), pDocument);
+        Transaction t(DimRadialCommand::tr("Add dimension radial").toStdString(), document());
         t.start();
-        pDocument->getEntityTable()->add(newEntity);
+        document()->getEntityTable()->add(newEntity);
         t.commit();
 
-        DmVector rz = docView->getRelativeZero();
-        docView->moveRelativeZero(rz);
-        snapService()->finish();
+        DmVector rz = view()->getRelativeZero();
+        view()->moveRelativeZero(rz);
+        snapper()->finish();
     }
 }
 
-void ActionDimRadial::preparePreview()
+void DimRadialTool::preparePreview()
 {
     if (entity)
     {
@@ -105,26 +142,26 @@ void ActionDimRadial::preparePreview()
     }
 }
 
-void ActionDimRadial::mouseMoveEvent(QMouseEvent* e)
+void DimRadialTool::onMouseMove(QMouseEvent* e)
 {
-    switch (getStatus())
+    switch (status())
     {
         case SetPos:
             if (entity)
             {
-                *pos = snapPoint(e);
+                *pos = snapper()->snapPoint(e);
 
                 preparePreview();
 
                 DmDimRadial* d = new DmDimRadial(
-                            preview->getEntityContainer(), *data, *edata);
-                d->setDocument(pDocument);
+                            m_command.preview().entities().getEntityContainer(), *data, *edata);
+                d->setDocument(document());
                 d->update();
 
-                deletePreview();
-                preview->addEntity(d);
+                m_command.preview().clear();
+                m_command.preview().entities().addEntity(d);
                 d->update();
-                drawPreview();
+                m_command.preview().draw();
             }
             break;
 
@@ -133,14 +170,14 @@ void ActionDimRadial::mouseMoveEvent(QMouseEvent* e)
     }
 }
 
-void ActionDimRadial::mouseReleaseEvent(QMouseEvent* e)
+void DimRadialTool::onMouseRelease(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton)
     {
-        switch (getStatus())
+        switch (status())
         {
             case SetEntity: {
-                DmEntity* en = catchEntity(e, DM::ResolveAll);
+                DmEntity* en = snapper()->catchEntity(e, DM::ResolveAll);
                 if (en)
                 {
                     if (en->getEntityType() == DM::EntityArc || en->getEntityType() == DM::EntityCircle)
@@ -154,21 +191,20 @@ void ActionDimRadial::mouseReleaseEvent(QMouseEvent* e)
                         {
                             data->definitionPoint = static_cast<DmCircle*>(entity)->getCenter();
                         }
-                        docView->moveRelativeZero(data->definitionPoint);
+                        view()->moveRelativeZero(data->definitionPoint);
                         setStatus(SetPos);
                     }
                     else
                     {
                         GUIDIALOGFACTORY->commandMessage(
-                                    tr("Not a circle or arc entity"));
+                                    DimRadialCommand::tr("Not a circle or arc entity"));
                     }
                 }
             }
             break;
 
             case SetPos: {
-                GuiCoordinateEvent ce(snapPoint(e));
-                coordinateEvent(&ce);
+                onCoordinate(snapper()->snapPoint(e));
             }
             break;
 
@@ -178,22 +214,17 @@ void ActionDimRadial::mouseReleaseEvent(QMouseEvent* e)
     }
     else if (e->button() == Qt::RightButton)
     {
-        deletePreview();
-        init(getStatus() - 1);
+        m_command.preview().clear();
+        init(status() - 1);
     }
 }
 
-void ActionDimRadial::coordinateEvent(GuiCoordinateEvent* e)
+void DimRadialTool::onCoordinate(const DmVector& coord)
 {
-    if (!e)
-    {
-        return;
-    }
-
-    switch (getStatus())
+    switch (status())
     {
         case SetPos:
-            *pos = e->getCoordinate();
+            *pos = coord;
             trigger();
             reset();
             setStatus(SetEntity);
@@ -204,36 +235,36 @@ void ActionDimRadial::coordinateEvent(GuiCoordinateEvent* e)
     }
 }
 
-void ActionDimRadial::commandEvent(GuiCommandEvent* e)
+void DimRadialTool::onCommand(GuiCommandEvent* e)
 {
     QString c = e->getCommand().toLower();
 
-    if (checkCommand("help", c))
+    if (Commands::checkCommand("help", c))
     {
-        GUIDIALOGFACTORY->commandMessage(msgAvailableCommands() + getAvailableCommands().join(", "));
+        GUIDIALOGFACTORY->commandMessage(Commands::msgAvailableCommands() + availableCommands().join(", "));
         return;
     }
 
     // setting new text label:
-    if (getStatus() == SetText)
+    if (status() == SetText)
     {
         setText(c);
-        //GUIDIALOGFACTORY->requestOptions(this, true, true);
-        docView->enableCoordinateInput();
+        //GUIDIALOGFACTORY->requestCommandOptions(&m_command, true, true);
+        view()->enableCoordinateInput();
         setStatus(lastStatus);
         return;
     }
 
     // command: text
-    if (checkCommand("text", c))
+    if (Commands::checkCommand("text", c))
     {
-        lastStatus = (Status)getStatus();
-        docView->disableCoordinateInput();
+        lastStatus = (Status)status();
+        view()->disableCoordinateInput();
         setStatus(SetText);
     }
 
     // setting angle
-    if (getStatus() == SetPos)
+    if (status() == SetPos)
     {
         bool ok;
         double a = Math2d::eval(c, &ok);
@@ -247,21 +278,21 @@ void ActionDimRadial::commandEvent(GuiCommandEvent* e)
         }
         else
         {
-            GUIDIALOGFACTORY->commandMessage(tr("Not a valid expression"));
+            GUIDIALOGFACTORY->commandMessage(DimRadialCommand::tr("Not a valid expression"));
         }
         return;
     }
 }
 
-QStringList ActionDimRadial::getAvailableCommands()
+QStringList DimRadialTool::availableCommands() const
 {
     QStringList cmd;
 
-    switch (getStatus())
+    switch (status())
     {
         case SetEntity:
         case SetPos:
-            cmd += command("text");
+            cmd += Commands::command("text");
             break;
 
         default:
@@ -271,18 +302,18 @@ QStringList ActionDimRadial::getAvailableCommands()
     return cmd;
 }
 
-void ActionDimRadial::updateMouseButtonHints()
+void DimRadialTool::updateHints()
 {
-    switch (getStatus())
+    switch (status())
     {
         case SetEntity:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Select arc or circle entity"), tr("Cancel"));
+            GUIDIALOGFACTORY->updateMouseWidget(DimRadialCommand::tr("Select arc or circle entity"), DimRadialCommand::tr("Cancel"));
             break;
         case SetPos:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Specify dimension line position or enter angle:"), tr("Cancel"));
+            GUIDIALOGFACTORY->updateMouseWidget(DimRadialCommand::tr("Specify dimension line position or enter angle:"), DimRadialCommand::tr("Cancel"));
             break;
         case SetText:
-            GUIDIALOGFACTORY->updateMouseWidget(tr("Enter dimension text:"), "");
+            GUIDIALOGFACTORY->updateMouseWidget(DimRadialCommand::tr("Enter dimension text:"), "");
             break;
         default:
             GUIDIALOGFACTORY->updateMouseWidget();
@@ -290,16 +321,7 @@ void ActionDimRadial::updateMouseButtonHints()
     }
 }
 
-void ActionDimRadial::showOptions()
+std::unique_ptr<BasePlaceTool> DimRadialCommand::createTool()
 {
-    ActionInterface::showOptions();
-    //GUIDIALOGFACTORY->requestOptions(this, true);
+    return std::make_unique<DimRadialTool>(*this, document(), view());
 }
-
-void ActionDimRadial::hideOptions()
-{
-    ActionInterface::hideOptions();
-    //GUIDIALOGFACTORY->requestOptions(this, false);
-}
-
-// EOF

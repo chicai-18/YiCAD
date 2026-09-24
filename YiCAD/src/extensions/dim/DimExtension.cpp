@@ -22,28 +22,16 @@
 #include <QCoreApplication>
 #include <QStringList>
 
-#include "ActionDimAligned.h"
-#include "ActionDimAngular.h"
-#include "ActionDimBaseline.h"
-#include "ActionDimDiametric.h"
-#include "ActionDimLeader.h"
-#include "ActionDimLinear.h"
-#include "ActionDimRadial.h"
-#include "ActionDimStyle.h"
+#include "DimCommands.h"
+#include "DmDocument.h"
 #include "DmSystem.h"
 #include "IExtensionContext.h"
 #include "UIDimLinearOptions.h"
+#include "UIDlgDimensionStyleMgr.h"
 #include "UIRibbonRegistry.h"
 
 namespace
 {
-/// @brief 构造某个 Action 类型的命令工厂。
-template <typename TAction>
-CommandFactory factoryOf()
-{
-    return [](const CommandContext& ctx) -> ActionInterface* { return new TAction(ctx.document, ctx.view); };
-}
-
 /// @brief 一条标注命令：命令 ID、按钮文字（兼作命令行提示里的说明）、图标、命令行别名。
 struct DimCommand
 {
@@ -51,8 +39,8 @@ struct DimCommand
     const char* text;
     const char* iconPath;
     QStringList aliases;
-    CommandFactory factory;
-    CommandOptionsFactory optionsFactory;
+    ExclusiveCommandFactory factory;
+    ExclusiveCommandOptionsFactory optionsFactory;
 };
 }  // namespace
 
@@ -66,34 +54,34 @@ void DimExtension::OnRegister(IExtensionContext& ctx)
     // keyconfig.xml 里，两组的别名同时生效；与内置命令重名的别名由内置命令优先。
     const DimCommand commands[] = {
         {"ext.dim.aligned", QT_TRANSLATE_NOOP("DimExtension", "Aligned"), ":/extensions/dim/dim_align.svg",
-         {"dimaligned", "da", "dqbx", "dq"}, factoryOf<ActionDimAligned>(), {}},
+         {"dimaligned", "da", "dqbx", "dq"}, exclusiveCommandFactory<DimAlignedCommand>(), {}},
         {"ext.dim.linear", QT_TRANSLATE_NOOP("DimExtension", "Linear"), ":/extensions/dim/dim_linear.svg",
-         {"dimlinear", "dl", "dr", "xxbz", "xx"}, factoryOf<ActionDimLinear>(),
-         [](QWidget* parent, ActionInterface* action, bool update) -> QWidget*
+         {"dimlinear", "dl", "dr", "xxbz", "xx"}, exclusiveCommandFactory<DimLinearCommand>(),
+         [](QWidget* parent, IExclusiveCommand* command, bool update) -> QWidget*
          {
              auto* options = new UIDimLinearOptions(parent);
-             options->setAction(action, update);
+             options->setCommand(command, update);
              return options;
          }},
         {"ext.dim.radial", QT_TRANSLATE_NOOP("DimExtension", "Radial"), ":/extensions/dim/dim_radius.svg",
-         {"dimradial", "dimradius", "bjbz", "bj"}, factoryOf<ActionDimRadial>(), {}},
+         {"dimradial", "dimradius", "bjbz", "bj"}, exclusiveCommandFactory<DimRadialCommand>(), {}},
         {"ext.dim.diametric", QT_TRANSLATE_NOOP("DimExtension", "Diametric"), ":/extensions/dim/dim_diam.svg",
-         {"dimdiametric", "dimdiameter", "dd", "zjbz", "zj"}, factoryOf<ActionDimDiametric>(), {}},
+         {"dimdiametric", "dimdiameter", "dd", "zjbz", "zj"}, exclusiveCommandFactory<DimDiametricCommand>(), {}},
         {"ext.dim.angular", QT_TRANSLATE_NOOP("DimExtension", "Angular"), ":/extensions/dim/dim_angle.svg",
-         {"dimangular", "dan", "jdbz", "jd"}, factoryOf<ActionDimAngular>(), {}},
+         {"dimangular", "dan", "jdbz", "jd"}, exclusiveCommandFactory<DimAngularCommand>(), {}},
         {"ext.dim.leader", QT_TRANSLATE_NOOP("DimExtension", "Leader"), ":/extensions/dim/dim_leader.svg",
-         {"dimleader", "ld", "yxbz", "yx"}, factoryOf<ActionDimLeader>(), {}},
+         {"dimleader", "ld", "yxbz", "yx"}, exclusiveCommandFactory<DimLeaderCommand>(), {}},
         {"ext.dim.baseline", QT_TRANSLATE_NOOP("DimExtension", "Baseline"), ":/extensions/dim/dim_baseline.svg",
-         {}, factoryOf<ActionDimBaseline>(), {}},
-        {"ext.dim.style", QT_TRANSLATE_NOOP("DimExtension", "Dimension style"), ":/extensions/dim/dim_style.svg",
-         {}, factoryOf<ActionDimStyle>(), {}},
+         {}, exclusiveCommandFactory<DimBaselineCommand>(), {}},
     };
 
     for (const DimCommand& command : commands)
     {
         const QString text = QCoreApplication::translate("DimExtension", command.text);
-        ctx.registerCommand(command.id, command.factory,
-                            {.description = text, .aliases = command.aliases, .optionsFactory = command.optionsFactory});
+        ctx.registerExclusiveCommand(command.id, command.factory,
+                                     {.description = text,
+                                      .aliases = command.aliases,
+                                      .commandOptionsFactory = command.optionsFactory});
         ctx.ribbon().addAction({
             .panelId = UIRibbonIds::kPanelDraw2dDimension,
             .text = text,
@@ -101,4 +89,27 @@ void DimExtension::OnRegister(IExtensionContext& ctx)
             .commandId = command.id,
         });
     }
+
+    // 标注样式管理（原 ActionDimStyle）：即时命令，对话框挂在主窗口上
+    const QString styleText = QCoreApplication::translate("DimExtension", QT_TRANSLATE_NOOP("DimExtension", "Dimension style"));
+    IExtensionContext* context = &ctx;
+    ctx.registerInstantCommand(
+        QStringLiteral("ext.dim.style"),
+        [context](const CommandContext& c)
+        {
+            if (!c.document)
+            {
+                return;
+            }
+            UIDlgDimensionStyleMgr dlg(context->mainWindow(), true);
+            dlg.init(c.document->getDimStyleTable(), c.document);
+            dlg.exec();
+        },
+        {.description = styleText});
+    ctx.ribbon().addAction({
+        .panelId = UIRibbonIds::kPanelDraw2dDimension,
+        .text = styleText,
+        .iconPath = QStringLiteral(":/extensions/dim/dim_style.svg"),
+        .commandId = QStringLiteral("ext.dim.style"),
+    });
 }

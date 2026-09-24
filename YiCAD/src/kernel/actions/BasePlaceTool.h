@@ -103,7 +103,8 @@ protected:
     /// @brief 结束时是否复位正交零点：原 ActionInterface::finish 只在 Action 类型
     ///        不是 ActionNone 时复位（剪切/复制到剪贴板没有设置类型，不复位）
     void setResetsOrthogonalOnFinish(bool resets) { m_resetsOrthogonal = resets; }
-    /// @brief 正交限制下结束命令（原 Snapper::finishOrthogonal：结束当前 Action）
+    /// @brief 正交限制下结束命令（取代已删除的 Snapper::finishOrthogonal：它经 getCurrentAction()
+    ///        结束当前 Action，对命令无效）
     void finishIfOrthogonal();
 
     BaseExclusiveCommand& command() const { return m_command; }

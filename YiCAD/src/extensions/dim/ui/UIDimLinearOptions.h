@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDimLinear;
+class IExclusiveCommand;
+class DimLinearCommand;
 
 namespace Ui
 {
@@ -46,17 +46,17 @@ public:
     ~UIDimLinearOptions();
 
 public slots:
-    /// @brief 设置当前 Action
-    /// @param [in] a Action 接口指针
-    /// @param [in] update 是否从 Action 更新界面
-    virtual void setAction(ActionInterface* a, bool update);
+    /// @brief 设置关联的命令
+    /// @param [in] c 命令；类型不符时视为没有命令
+    /// @param [in] update 是否从命令更新界面
+    virtual void setCommand(IExclusiveCommand* c, bool update);
 
     /// @brief 更新角度显示
     /// @param [in] a 角度字符串
     virtual void updateAngle(const QString& a);
 
 protected:
-    ActionDimLinear* action;                         ///< 线性标注 Action 指针
+    DimLinearCommand* command = nullptr; ///< 命令
 
 protected slots:
     /// @brief 语言切换槽

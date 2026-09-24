@@ -269,8 +269,6 @@ protected:
 
     DmVector getSnapCoord() const { return m_snapService->getSnapCoord(); }
 
-    void finishOrthogonal() { m_snapService->finishOrthogonal(); }
-
     DmVector snapPoint(const DmVector& coord, bool setSpot = false) { return m_snapService->snapPoint(coord, setSpot); }
     DmVector snapPoint(QMouseEvent* e) { return m_snapService->snapPoint(e); }
     DmVector snapFree(QMouseEvent* e) { return m_snapService->snapFree(e); }

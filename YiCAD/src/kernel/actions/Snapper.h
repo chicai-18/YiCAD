@@ -45,7 +45,6 @@ public:
     /// @brief 结束捕捉
     void finish() override;
 
-    void finishOrthogonal() override;
     void resetOrthogonal() override;
 
     DmEntity* getKeyEntity() const override;

@@ -2,317 +2,310 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
+    <name>DimAlignedCommand</name>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="109"/>
+        <source>Add dimension aligned</source>
+        <translation>对齐标注</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="293"/>
+        <source>Specify first extension line origin</source>
+        <translation>指定第一条尺寸界线原点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="293"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="298"/>
+        <source>Specify second extension line origin</source>
+        <translation>指定第二条尺寸界线原点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="298"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="303"/>
+        <source>Specify dimension line location</source>
+        <translation>指定标注线位置</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAlignedTool.cpp" line="308"/>
+        <source>Enter dimension text:</source>
+        <translation>输入标注文本：</translation>
+    </message>
+</context>
+<context>
+    <name>DimAngularCommand</name>
+    <message>
+        <location filename="../commands/DimAngularTool.cpp" line="113"/>
+        <source>Add dimension angular</source>
+        <translation>角度标注</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAngularTool.cpp" line="280"/>
+        <source>Select first line</source>
+        <translation>选择第一条线</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAngularTool.cpp" line="280"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAngularTool.cpp" line="285"/>
+        <source>Select second line</source>
+        <translation>选择第二条线</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAngularTool.cpp" line="290"/>
+        <source>Specify dimension arc line location</source>
+        <translation>指定标注弧线位置</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimAngularTool.cpp" line="295"/>
+        <source>Enter dimension text:</source>
+        <translation>输入标注文本：</translation>
+    </message>
+</context>
+<context>
+    <name>DimBaselineCommand</name>
+    <message>
+        <location filename="../commands/DimBaselineTool.cpp" line="105"/>
+        <source>Add dimension baseline</source>
+        <translation>基线标注</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimBaselineTool.cpp" line="170"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimBaselineTool.cpp" line="243"/>
+        <source>Specify origin dimension</source>
+        <translation>指定原始标注</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimBaselineTool.cpp" line="243"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimBaselineTool.cpp" line="248"/>
+        <source>Specify the point to define dimension</source>
+        <translation>指定一个点来定义标注</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimBaselineTool.cpp" line="181"/>
+        <source>Entity must be a aligned dimension, angular dimension or linear dimension.</source>
+        <translation>实体必须是对齐标注，或角度标注，或线性标注。</translation>
+    </message>
+</context>
+<context>
+    <name>DimDiametricCommand</name>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="113"/>
+        <source>Add dimension diametric</source>
+        <translation>直径标注</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="224"/>
+        <source>Not a circle or arc entity</source>
+        <translation>没有圆或弧</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="312"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="345"/>
+        <source>Select arc or circle entity</source>
+        <translation>选择圆或弧</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="345"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="350"/>
+        <source>Specify dimension line location</source>
+        <translation>指定标注线位置</translation>
+    </message>
+    <message>
+        <location filename="../commands/DimDiametricTool.cpp" line="355"/>
+        <source>Enter dimension text:</source>
+        <translation>输入标注文本：</translation>
+    </message>
+</context>
+<context>
     <name>DimExtension</name>
     <message>
-        <location filename="../DimExtension.cpp" line="68"/>
+        <location filename="../DimExtension.cpp" line="56"/>
         <source>Aligned</source>
         <translation>对齐标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="70"/>
+        <location filename="../DimExtension.cpp" line="58"/>
         <source>Linear</source>
         <translation>线性标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="78"/>
+        <location filename="../DimExtension.cpp" line="66"/>
         <source>Radial</source>
         <translation>半径标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="80"/>
+        <location filename="../DimExtension.cpp" line="68"/>
         <source>Diametric</source>
         <translation>直径标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="82"/>
+        <location filename="../DimExtension.cpp" line="70"/>
         <source>Angular</source>
         <translation>角度标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="84"/>
+        <location filename="../DimExtension.cpp" line="72"/>
         <source>Leader</source>
         <translation>引线标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="86"/>
+        <location filename="../DimExtension.cpp" line="74"/>
         <source>Baseline</source>
         <translation>基线</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="88"/>
+        <location filename="../DimExtension.cpp" line="94"/>
         <source>Dimension style</source>
         <translation>标注样式</translation>
     </message>
 </context>
 <context>
-    <name>ActionDimAligned</name>
+    <name>DimLeaderCommand</name>
     <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="72"/>
-        <source>Add dimension aligned</source>
-        <translation>对齐标注</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="262"/>
-        <source>Specify first extension line origin</source>
-        <translation>指定第一条尺寸界线原点</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="262"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="267"/>
-        <source>Specify second extension line origin</source>
-        <translation>指定第二条尺寸界线原点</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="267"/>
-        <location filename="../actions/ActionDimAligned.cpp" line="272"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="272"/>
-        <source>Specify dimension line location</source>
-        <translation>指定标注线位置</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAligned.cpp" line="277"/>
-        <source>Enter dimension text:</source>
-        <translation>输入标注文本：</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDimAngular</name>
-    <message>
-        <location filename="../actions/ActionDimAngular.cpp" line="71"/>
-        <source>Add dimension angular</source>
-        <translation>角度标注</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAngular.cpp" line="258"/>
-        <source>Select first line</source>
-        <translation>选择第一条线</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAngular.cpp" line="258"/>
-        <location filename="../actions/ActionDimAngular.cpp" line="263"/>
-        <location filename="../actions/ActionDimAngular.cpp" line="268"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAngular.cpp" line="263"/>
-        <source>Select second line</source>
-        <translation>选择第二条线</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAngular.cpp" line="268"/>
-        <source>Specify dimension arc line location</source>
-        <translation>指定标注弧线位置</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimAngular.cpp" line="273"/>
-        <source>Enter dimension text:</source>
-        <translation>输入标注文本：</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDimBaseline</name>
-    <message>
-        <location filename="../actions/ActionDimBaseline.cpp" line="62"/>
-        <source>Add dimension baseline</source>
-        <translation>基线标注</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimBaseline.cpp" line="127"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimBaseline.cpp" line="138"/>
-        <source>Entity must be a aligned dimension, angular dimension or linear dimension.</source>
-        <translation>实体必须是对齐标注，或角度标注，或线性标注。</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimBaseline.cpp" line="206"/>
-        <source>Specify origin dimension</source>
-        <translation>指定原始标注</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimBaseline.cpp" line="206"/>
-        <location filename="../actions/ActionDimBaseline.cpp" line="211"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimBaseline.cpp" line="211"/>
-        <source>Specify the point to define dimension</source>
-        <translation>指定一个点来定义标注</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDimDiametric</name>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="75"/>
-        <source>Add dimension diametric</source>
-        <translation>直径标注</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="186"/>
-        <source>Not a circle or arc entity</source>
-        <translation>没有圆或弧</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="280"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="313"/>
-        <source>Select arc or circle entity</source>
-        <translation>选择圆或弧</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="313"/>
-        <location filename="../actions/ActionDimDiametric.cpp" line="318"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="318"/>
-        <source>Specify dimension line location</source>
-        <translation>指定标注线位置</translation>
-    </message>
-    <message>
-        <location filename="../actions/ActionDimDiametric.cpp" line="323"/>
-        <source>Enter dimension text:</source>
-        <translation>输入标注文本：</translation>
-    </message>
-</context>
-<context>
-    <name>ActionDimLeader</name>
-    <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="73"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="120"/>
         <source>Set leader text</source>
         <translation>设置引线文字</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="73"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="120"/>
         <source>Leader text:</source>
         <translation>引线文字：</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="83"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="130"/>
         <source>Add leader</source>
         <translation>引线</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="249"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="291"/>
         <source>Specify target point</source>
         <translation>指定目标点</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="249"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="291"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="253"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="295"/>
         <source>Specify next point</source>
         <translation>指定下一个点</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLeader.cpp" line="253"/>
+        <location filename="../commands/DimLeaderTool.cpp" line="295"/>
         <source>Finish</source>
         <translation>结束</translation>
     </message>
 </context>
 <context>
-    <name>ActionDimLinear</name>
+    <name>DimLinearCommand</name>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="71"/>
+        <location filename="../commands/DimLinearTool.cpp" line="114"/>
         <source>Add dimension linear</source>
         <translation>线性标注</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="260"/>
+        <location filename="../commands/DimLinearTool.cpp" line="297"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="310"/>
+        <location filename="../commands/DimLinearTool.cpp" line="347"/>
         <source>Specify first extension line origin</source>
         <translation>指定第一条尺寸界线原点</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="310"/>
+        <location filename="../commands/DimLinearTool.cpp" line="347"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="313"/>
+        <location filename="../commands/DimLinearTool.cpp" line="350"/>
         <source>Specify second extension line origin</source>
         <translation>指定第二条尺寸界线原点</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="313"/>
-        <location filename="../actions/ActionDimLinear.cpp" line="316"/>
+        <location filename="../commands/DimLinearTool.cpp" line="350"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="316"/>
+        <location filename="../commands/DimLinearTool.cpp" line="353"/>
         <source>Specify dimension line location</source>
         <translation>指定标注线位置</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="319"/>
+        <location filename="../commands/DimLinearTool.cpp" line="356"/>
         <source>Enter dimension text:</source>
         <translation>输入标注文本：</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimLinear.cpp" line="322"/>
+        <location filename="../commands/DimLinearTool.cpp" line="359"/>
         <source>Enter dimension line angle:</source>
         <translation>输入标注线角度：</translation>
     </message>
 </context>
 <context>
-    <name>ActionDimRadial</name>
+    <name>DimRadialCommand</name>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="69"/>
+        <location filename="../commands/DimRadialTool.cpp" line="111"/>
         <source>Add dimension radial</source>
         <translation>半径标注</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="158"/>
+        <location filename="../commands/DimRadialTool.cpp" line="200"/>
         <source>Not a circle or arc entity</source>
         <translation>没有圆或弧</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="245"/>
+        <location filename="../commands/DimRadialTool.cpp" line="281"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="274"/>
+        <location filename="../commands/DimRadialTool.cpp" line="310"/>
         <source>Select arc or circle entity</source>
         <translation>选择圆或弧</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="274"/>
-        <location filename="../actions/ActionDimRadial.cpp" line="277"/>
+        <location filename="../commands/DimRadialTool.cpp" line="310"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="277"/>
+        <location filename="../commands/DimRadialTool.cpp" line="313"/>
         <source>Specify dimension line position or enter angle:</source>
         <translation>指定标注线位置或输入角度：</translation>
     </message>
     <message>
-        <location filename="../actions/ActionDimRadial.cpp" line="280"/>
+        <location filename="../commands/DimRadialTool.cpp" line="316"/>
         <source>Enter dimension text:</source>
         <translation>输入标注文本：</translation>
     </message>

@@ -111,7 +111,6 @@ public:
     /// @brief 结束捕捉
     virtual void finish() = 0;
 
-    virtual void finishOrthogonal() = 0;
     virtual void resetOrthogonal() = 0;
 
     virtual DmEntity* getKeyEntity() const = 0;
