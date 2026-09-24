@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawSpline;
+class IExclusiveCommand;
+class SplineCommand;
 namespace Ui {
 	class Ui_SplineOptions;
 }
@@ -45,10 +45,10 @@ public:
 	~UISplineOptions();
 
 public slots:
-	/// @brief 设置关联的 Action
-	/// @param a Action 接口指针
-	/// @param update 是否从 Action 更新 UI
-	virtual void setAction(ActionInterface* a, bool update);
+	/// @brief 设置关联的命令
+	/// @param c 命令；不是样条命令时视为没有命令
+	/// @param update 是否从命令更新 UI
+	virtual void setCommand(IExclusiveCommand* c, bool update);
 
 	/// @brief 设置闭合状态
 	/// @param c 是否闭合
@@ -61,7 +61,7 @@ public slots:
 	virtual void setDegree(const QString& deg);
 
 protected:
-	ActionInterface* action = nullptr; ///< Action 接口指针
+	SplineCommand* command = nullptr; ///< 控制点样条或拟合点样条命令
 
 protected slots:
 	virtual void languageChange();

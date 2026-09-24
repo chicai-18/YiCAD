@@ -102,20 +102,20 @@ protected:
 	void requestPolylineOptions(IExclusiveCommand* command, bool on, bool update);
 	void requestLineBisectorOptions(IExclusiveCommand* command, bool on, bool update);
 	void requestLinePolygonOptions(IExclusiveCommand* command, bool on, bool update);
-	void requestCloudLineOptions(ActionInterface* action, bool on, bool update);
+	void requestCloudLineOptions(IExclusiveCommand* command, bool on, bool update);
 
-	void requestArcOptions(ActionInterface* action, bool on, bool update);
+	void requestArcOptions(IExclusiveCommand* command, bool on, bool update);
 
-	void requestArcTangentialOptions(ActionInterface* action, bool on, bool update);
+	void requestArcTangentialOptions(IExclusiveCommand* command, bool on, bool update);
 
-	void requestCircleTan2Options(ActionInterface* action, bool on, bool update);
+	void requestCircleTan2Options(IExclusiveCommand* command, bool on, bool update);
 
-	void requestSplineOptions(ActionInterface* action, bool on, bool update);
+	void requestSplineOptions(IExclusiveCommand* command, bool on, bool update);
 
 	void requestTextOptions(ActionInterface* action, bool on, bool update);
 
 	void requestInsertOptions(ActionInterface* action, bool on, bool update);
-	void requestImageOptions(ActionInterface* action, bool on, bool update);
+	void requestImageOptions(IExclusiveCommand* command, bool on, bool update);
 
 	void requestBevelOptions(ActionInterface* action, bool on, bool update);
 	void requestRoundOptions(ActionInterface* action, bool on, bool update);

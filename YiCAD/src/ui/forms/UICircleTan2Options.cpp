@@ -20,7 +20,7 @@
 
 #include "UICircleTan2Options.h"
 
-#include "ActionDrawCircleTan2.h"
+#include "DrawCircleTan2Command.h"
 #include "DmSettings.h"
 #include "Math2d.h"
 #include "Debug.h"
@@ -57,16 +57,15 @@ void UICircleTan2Options::saveSettings()
     DMSETTINGS->endGroup();
 }
 
-void UICircleTan2Options::setAction(ActionInterface* a, bool update)
+void UICircleTan2Options::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a && a->getEntityType() == DM::ActionDrawCircleTan2)
+    command = dynamic_cast<DrawCircleTan2Command*>(c);
+    if (command)
     {
-        action = static_cast<ActionDrawCircleTan2*>(a);
-
         QString sr;
         if (update)
         {
-            sr = QString("%1").arg(action->getRadius());
+            sr = QString("%1").arg(command->getRadius());
         }
         else
         {
@@ -76,21 +75,17 @@ void UICircleTan2Options::setAction(ActionInterface* a, bool update)
         }
         ui->leRadius->setText(sr);
     }
-    else
-    {
-        action = nullptr;
-    }
 }
 
 void UICircleTan2Options::updateRadius(const QString& r)
 {
-    if (action)
+    if (command)
     {
         bool ok;
         double radius = Math2d::eval(r, &ok);
         if (ok)
         {
-            action->setRadius(radius);
+            command->setRadius(radius);
         }/*else{
             ui->leRadius->setText("10.0");
         }*/

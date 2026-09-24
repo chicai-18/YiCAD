@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawImage;
+class IExclusiveCommand;
+class DrawImageCommand;
 namespace Ui {
     class Ui_ImageOptions;
 }
@@ -46,14 +46,14 @@ public slots:
     /// @brief 设置关联的动作
     /// @param [in] a 动作接口指针
     /// @param [in] update 是否更新数据
-    virtual void setAction(ActionInterface* a, bool update);
+    virtual void setCommand(IExclusiveCommand* c, bool update);
 
     virtual void updateData();
     virtual void updateDPI();
     virtual void updateFactor();
 
 protected:
-    ActionDrawImage* action = nullptr; ///< 关联的图片绘制动作
+    DrawImageCommand* command = nullptr; ///< 命令
 
 protected slots:
     virtual void languageChange();

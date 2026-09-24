@@ -20,8 +20,7 @@
 
 #include "UIImageOptions.h"
 
-#include "ActionInterface.h"
-#include "ActionDrawImage.h"
+#include "DrawImageCommand.h"
 #include "DmSettings.h"
 #include "Math2d.h"
 #include "Debug.h"
@@ -54,18 +53,18 @@ void UIImageOptions::saveSettings()
     DMSETTINGS->endGroup();
 }
 
-void UIImageOptions::setAction(ActionInterface* a, bool update)
+void UIImageOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a != nullptr && a->getEntityType() == DM::ActionDrawImage)
+    command = dynamic_cast<DrawImageCommand*>(c);
+    if (command)
     {
-        action = static_cast<ActionDrawImage*>(a);
 
         QString sAngle;
         QString sFactor;
         if (update)
         {
-            sAngle = QString("%1").arg(Math2d::rad2deg(action->getAngle()));
-            sFactor = QString("%1").arg(action->getFactor());
+            sAngle = QString("%1").arg(Math2d::rad2deg(command->getAngle()));
+            sFactor = QString("%1").arg(command->getFactor());
         }
         else
         {
@@ -79,41 +78,37 @@ void UIImageOptions::setAction(ActionInterface* a, bool update)
         updateData();
         updateFactor();
     }
-    else
-    {
-        action = nullptr;
-    }
 }
 
 void UIImageOptions::updateData()
 {
-    if (action != nullptr)
+    if (command != nullptr)
     {
-        action->setAngle(Math2d::deg2rad(Math2d::eval(ui->leAngle->text())));
+        command->setAngle(Math2d::deg2rad(Math2d::eval(ui->leAngle->text())));
     }
 }
 
 void UIImageOptions::updateDPI()
 {
-    if (action != nullptr)
+    if (command != nullptr)
     {
-        double f = action->dpiToScale(Math2d::eval(ui->leDPI->text()));
+        double f = command->dpiToScale(Math2d::eval(ui->leDPI->text()));
         ui->leFactor->blockSignals(true);
         ui->leFactor->setText(QString::number(f));
         ui->leFactor->blockSignals(false);
-        action->setFactor(f);
+        command->setFactor(f);
     }
 }
 
 void UIImageOptions::updateFactor()
 {
-    if (action != nullptr)
+    if (command != nullptr)
     {
         double f = Math2d::eval(ui->leFactor->text());
-        double dpi = action->scaleToDpi(f);
+        double dpi = command->scaleToDpi(f);
         ui->leDPI->blockSignals(true);
         ui->leDPI->setText(QString::number(dpi));
         ui->leDPI->blockSignals(false);
-        action->setFactor(f);
+        command->setFactor(f);
     }
 }

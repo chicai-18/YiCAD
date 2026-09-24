@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
-class ActionDrawCircleTan2;
+class IExclusiveCommand;
+class DrawCircleTan2Command;
 
 namespace Ui
 {
@@ -48,15 +48,15 @@ public:
 public slots:
     /// @brief 设置当前 Action
     /// @param [in] a Action 接口指针
-    /// @param [in] update 是否从 Action 更新界面
-    virtual void setAction(ActionInterface* a, bool update);
+    /// @param [in] update 是否从命令更新界面
+    virtual void setCommand(IExclusiveCommand* c, bool update);
 
     /// @brief 更新半径显示
     /// @param [in] l 半径字符串
     virtual void updateRadius(const QString& l);
 
 protected:
-    ActionDrawCircleTan2* action;                        ///< 双切圆 Action 指针
+    DrawCircleTan2Command* command = nullptr; ///< 命令
 
 protected slots:
     /// @brief 语言切换槽

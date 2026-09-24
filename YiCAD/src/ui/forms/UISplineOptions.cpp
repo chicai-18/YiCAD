@@ -20,8 +20,7 @@
 
 #include "UISplineOptions.h"
 
-#include "ActionDrawSpline.h"
-#include "ActionDrawSplinePoints.h"
+#include "DrawSplineCommand.h"
 #include "DmSettings.h"
 #include "ui_UISplineOptions.h"
 #include "Debug.h"
@@ -36,7 +35,6 @@ namespace
 /// @param fl 窗口标志
 UISplineOptions::UISplineOptions(QWidget* parent, Qt::WindowFlags fl)
 	: QWidget(parent, fl)
-	, action(nullptr)
 	, ui(new Ui::Ui_SplineOptions{})
 {
 	ui->setupUi(this);
@@ -57,9 +55,9 @@ void UISplineOptions::languageChange()
 void UISplineOptions::saveSettings()
 {
 	DMSETTINGS->beginGroup("/Draw");
-	if (action)
+	if (command)
 	{
-		if (action->getEntityType() == DM::ActionDrawSpline)
+		if (dynamic_cast<DrawSplineCommand*>(command))
 		{
 			DMSETTINGS->writeEntry("/SplineDegree", ui->cbDegree->currentText().toInt());
 		}
@@ -68,53 +66,40 @@ void UISplineOptions::saveSettings()
 	DMSETTINGS->endGroup();
 }
 
-void UISplineOptions::setAction(ActionInterface* a, bool update)
+void UISplineOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a->getEntityType() != DM::ActionDrawSpline && a->getEntityType() != DM::ActionDrawSplinePoints)
+	command = dynamic_cast<SplineCommand*>(c);
+	if (!command)
 	{
-		action = nullptr;
 		return;
 	}
 
-	action = a;
+	// 控制点样条有阶数，拟合点样条没有
+	auto* spline = dynamic_cast<DrawSplineCommand*>(command);
 	int degree = DEFAULT_SPLINE_DEGREE;
 	bool closed = false;
 
 	if (update)
 	{
-		if (a->getEntityType() == DM::ActionDrawSpline)
+		if (spline)
 		{
-			ActionDrawSpline* splineAction = static_cast<ActionDrawSpline*>(action);
-			degree = splineAction->getDegree();
-			closed = splineAction->isClosed();
+			degree = spline->getDegree();
 		}
-		else
-		{
-			ActionDrawSplinePoints* splinePointsAction = static_cast<ActionDrawSplinePoints*>(action);
-			closed = splinePointsAction->isClosed();
-		}
+		closed = command->isClosed();
 	}
 	else
 	{
 		DMSETTINGS->beginGroup("/Draw");
-		if (a->getEntityType() == DM::ActionDrawSpline)
+		if (spline)
 		{
-			ActionDrawSpline* splineAction = static_cast<ActionDrawSpline*>(action);
 			degree = DMSETTINGS->readNumEntry("/SplineDegree", DEFAULT_SPLINE_DEGREE);
-			splineAction->setDegree(degree);
-			closed = DMSETTINGS->readNumEntry("/SplineClosed", 0);
-			splineAction->setClosed(closed);
+			spline->setDegree(degree);
 		}
-		else
-		{
-			ActionDrawSplinePoints* splinePointsAction = static_cast<ActionDrawSplinePoints*>(action);
-			closed = DMSETTINGS->readNumEntry("/SplineClosed", 0);
-			splinePointsAction->setClosed(closed);
-		}
-
+		closed = DMSETTINGS->readNumEntry("/SplineClosed", 0);
+		command->setClosed(closed);
 		DMSETTINGS->endGroup();
 	}
-	if (a->getEntityType() == DM::ActionDrawSpline)
+	if (spline)
 	{
 		ui->cbDegree->setCurrentIndex(ui->cbDegree->findText(QString::number(degree)));
 		ui->lDegree->show();
@@ -130,49 +115,24 @@ void UISplineOptions::setAction(ActionInterface* a, bool update)
 
 void UISplineOptions::setClosed(bool c)
 {
-	if (!action)
+	if (command)
 	{
-		return;
-	}
-	if (action->getEntityType() == DM::ActionDrawSpline)
-	{
-		ActionDrawSpline* splineAction = static_cast<ActionDrawSpline*>(action);
-		splineAction->setClosed(c);
-	}
-	else
-	{
-		ActionDrawSplinePoints* splinePointsAction = static_cast<ActionDrawSplinePoints*>(action);
-		splinePointsAction->setClosed(c);
+		command->setClosed(c);
 	}
 }
 
 void UISplineOptions::undo()
 {
-	if (!action)
+	if (command)
 	{
-		return;
-	}
-	if (action->getEntityType() == DM::ActionDrawSpline)
-	{
-		ActionDrawSpline* splineAction = static_cast<ActionDrawSpline*>(action);
-		splineAction->undo();
-	}
-	else
-	{
-		ActionDrawSplinePoints* splinePointsAction = static_cast<ActionDrawSplinePoints*>(action);
-		splinePointsAction->undo();
+		command->undo();
 	}
 }
 
 void UISplineOptions::setDegree(const QString& deg)
 {
-	if (!action)
+	if (auto* spline = dynamic_cast<DrawSplineCommand*>(command))
 	{
-		return;
-	}
-	if (action->getEntityType() == DM::ActionDrawSpline)
-	{
-		ActionDrawSpline* splineAction = static_cast<ActionDrawSpline*>(action);
-		splineAction->setDegree(deg.toInt());
+		spline->setDegree(deg.toInt());
 	}
 }

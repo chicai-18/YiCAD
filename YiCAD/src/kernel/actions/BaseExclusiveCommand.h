@@ -56,6 +56,12 @@ public:
     ///          命令，调用之后仍可安全访问成员（见 ExclusiveCommandBus::requestFinish）
     void finish();
 
+    /// @brief 结束本命令并启动另一个命令
+    /// @details 取代原 Action 里 finish() 之后 setCurrentAction(new ...) 的写法（如三点
+    ///          圆弧在命令行切换为圆心圆弧）。按 5.1 节，本命令先被请求让位（Replaced）。
+    /// @param commandId 另一个命令在 CommandRegistry 里的 ID；未注册时什么也不做
+    void replaceWith(const QString& commandId);
+
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等
     /// @return false 表示启动失败；此时 onDeactivate() 不会被调用，需自行清理

@@ -24,7 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
+class CloudLineCommand;
+class IExclusiveCommand;
 
 namespace Ui
 {
@@ -45,10 +46,10 @@ public:
     ~UICloudLineOptions();
 
 public slots:
-    /// @brief 设置当前 Action
-    /// @param [in] a Action 接口指针
-    /// @param [in] update 是否从 Action 更新界面
-    virtual void setAction(ActionInterface* a, bool update);
+    /// @brief 设置当前命令
+    /// @param [in] c 命令；不是云线命令时视为没有命令
+    /// @param [in] update 是否从命令更新界面
+    virtual void setCommand(IExclusiveCommand* c, bool update);
 
     /// @brief 撤销操作
     virtual void undo();
@@ -66,7 +67,7 @@ public slots:
     virtual void updateReverse(int reverse);
 
 protected:
-    ActionInterface* action;                          ///< Action 接口指针
+    CloudLineCommand* command = nullptr;             ///< 矩形、多边形或自由云线命令
 
 protected slots:
     /// @brief 语言切换槽

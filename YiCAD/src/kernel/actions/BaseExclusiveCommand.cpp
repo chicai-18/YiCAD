@@ -20,6 +20,7 @@
 
 #include "BaseExclusiveCommand.h"
 
+#include "CommandRegistry.h"
 #include "ExclusiveCommandBus.h"
 #include "SelectTool.h"
 
@@ -52,6 +53,19 @@ void BaseExclusiveCommand::finish()
     if (m_active && m_bus)
     {
         m_bus->requestFinish(this);
+    }
+}
+
+void BaseExclusiveCommand::replaceWith(const QString& commandId)
+{
+    if (!m_active || !m_bus)
+    {
+        return;
+    }
+    if (std::unique_ptr<IExclusiveCommand> next =
+            CommandRegistry::instance().createCommand(commandId, CommandContext{document(), view()}))
+    {
+        m_bus->start(std::move(next));
     }
 }
 

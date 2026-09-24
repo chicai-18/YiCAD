@@ -25,7 +25,7 @@
 
 #include "UIArcTangentialOptions.h"
 
-#include "ActionDrawArcTangential.h"
+#include "DrawArcTangentialCommand.h"
 
 #include "DmSettings.h"
 #include "Math2d.h"
@@ -56,18 +56,17 @@ void UIArcTangentialOptions::languageChange()
     ui->retranslateUi(this);
 }
 
-void UIArcTangentialOptions::setAction(ActionInterface* a, bool update)
+void UIArcTangentialOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a && a->getEntityType() == DM::ActionDrawArcTangential)
+    command = dynamic_cast<DrawArcTangentialCommand*>(c);
+    if (command)
     {
-        action = static_cast<ActionDrawArcTangential*>(a);
-
         //半径
         double radius = 0.0;
         QString sr;
-        if (action->isLockRadius())
+        if (command->isLockRadius())
         {
-            radius = action->lockRadius();
+            radius = command->lockRadius();
             sr = QString("%1").arg(radius);
             ui->leRadius->setText(sr);
             ui->leRadius->setEnabled(false);
@@ -75,7 +74,7 @@ void UIArcTangentialOptions::setAction(ActionInterface* a, bool update)
         }
         else
         {
-            radius = action->getRadius();
+            radius = command->getRadius();
             sr = QString("%1").arg(radius);
             ui->leRadius->setText(sr);
             ui->leRadius->setEnabled(true);
@@ -85,9 +84,9 @@ void UIArcTangentialOptions::setAction(ActionInterface* a, bool update)
         //角度
         double angle = 0.0;
         QString sa;
-        if (action->isLockAngle())
+        if (command->isLockAngle())
         {
-            angle = action->lockAngle();
+            angle = command->lockAngle();
             sa = QString("%1").arg(Math2d::rad2deg(angle));
             ui->leAngle->setText(sa);
             ui->leAngle->setEnabled(false);
@@ -95,16 +94,12 @@ void UIArcTangentialOptions::setAction(ActionInterface* a, bool update)
         }
         else
         {
-            angle = action->getAngle();
+            angle = command->getAngle();
             sa = QString("%1").arg(Math2d::rad2deg(angle));
             ui->leAngle->setText(sa);
             ui->leAngle->setEnabled(true);
             ui->btnLockAngle->setChecked(false);
         }
-    }
-    else
-    {
-        action = nullptr;
     }
 }
 
@@ -138,17 +133,17 @@ void UIArcTangentialOptions::slotLockAngle(bool lock)
         }
         else
         {
-            action->setLockAngle(val * RAD_TO_DEG);
-            action->setIsLockAngle(true);
+            command->setLockAngle(val * RAD_TO_DEG);
+            command->setIsLockAngle(true);
             ui->leAngle->setEnabled(false);
         }
     }
     else
     {
-        action->setIsLockAngle(false);
+        command->setIsLockAngle(false);
         ui->leAngle->setEnabled(true);
     }
-    action->updatePreview();
+    command->updatePreview();
 }
 
 void UIArcTangentialOptions::slotLockRadius(bool lock)
@@ -164,17 +159,17 @@ void UIArcTangentialOptions::slotLockRadius(bool lock)
         }
         else
         {
-            action->setLockRadius(val);
-            action->setIsLockRadius(true);
+            command->setLockRadius(val);
+            command->setIsLockRadius(true);
             ui->leRadius->setEnabled(false);
         }
     }
     else
     {
-        action->setLockRadius(false);
+        command->setLockRadius(false);
         ui->leRadius->setEnabled(true);
     }
-    action->updatePreview();
+    command->updatePreview();
 }
 
 void UIArcTangentialOptions::on_leRadius_editingFinished()
@@ -185,8 +180,8 @@ void UIArcTangentialOptions::on_leRadius_editingFinished()
     //	if (!ok) return;
     //	if (d < DM_TOLERANCE) d = 1.0;
     //	//updateRadius(QString::number(d,'g',5));
-    //	action->setRadius(d);
-    //	action->setByRadius(true);
+    //	command->setRadius(d);
+    //	command->setByRadius(true);
     //	ui->leRadius->setText(QString::number(d, 'g', 5));
     //}
 }
@@ -198,23 +193,23 @@ void UIArcTangentialOptions::on_leAngle_editingFinished()
     //	double d = Math2d::correctAngle(Math2d::eval(ui->leAngle->text(), &ok) * M_PI / 180.);
     //	if (!ok) return;
     //	if (d < DM_TOLERANCE_ANGLE || d + DM_TOLERANCE_ANGLE > 2. * M_PI) d = M_PI; // can not do full circle
-    //	action->setAngle(d);
+    //	command->setAngle(d);
     //	//updateAngle(QString::number(d*180./M_PI,'g',5));
-    //	action->setByRadius(false);
+    //	command->setByRadius(false);
     //	ui->leAngle->setText(QString::number(Math2d::rad2deg(d), 'g', 5));
     //}
 }
 
 void UIArcTangentialOptions::on_rbRadius_clicked(bool /*checked*/)
 {
-    //action->setByRadius(true);
-    //action->setRadius(ui->leRadius->text().toDouble());
+    //command->setByRadius(true);
+    //command->setRadius(ui->leRadius->text().toDouble());
     //updateByRadius(true);
 }
 
 void UIArcTangentialOptions::on_rbAngle_clicked(bool /*checked*/)
 {
-    //action->setByRadius(false);
-    //action->setAngle(ui->leAngle->text().toDouble() * M_PI / 180.);
+    //command->setByRadius(false);
+    //command->setAngle(ui->leAngle->text().toDouble() * M_PI / 180.);
     //updateByRadius(false);
 }

@@ -20,7 +20,7 @@
 
 #include "UIArcOptions.h"
 
-#include "ActionDrawArc.h"
+#include "DrawArcCommand.h"
 #include "DmSettings.h"
 #include "Debug.h"
 #include "ui_UIArcOptions.h"
@@ -44,9 +44,9 @@ UIArcOptions::~UIArcOptions()
 
 void UIArcOptions::slotRdoToggled(bool checked)
 {
-    if (action)
+    if (command)
     {
-        action->setClockwise(ui->rbNeg->isChecked());
+        command->setClockwise(ui->rbNeg->isChecked());
     }
 }
 
@@ -63,28 +63,23 @@ void UIArcOptions::saveSettings()
     DMSETTINGS->endGroup();
 }
 
-void UIArcOptions::setAction(ActionInterface* a, bool update)
+void UIArcOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a && a->getEntityType() == DM::ActionDrawArc)
+    command = dynamic_cast<DrawArcCommand*>(c);
+    if (command)
     {
-        action = static_cast<ActionDrawArc*>(a);
-
         bool clockwise;
         if (update)
         {
-            clockwise = action->isClockwise();
+            clockwise = command->isClockwise();
         }
         else
         {
             DMSETTINGS->beginGroup("/Draw");
             clockwise = DMSETTINGS->readNumEntry("/ArcClockwise", 0);
             DMSETTINGS->endGroup();
-            action->setClockwise(clockwise);
+            command->setClockwise(clockwise);
         }
         ui->rbNeg->setChecked(clockwise);
-    }
-    else
-    {
-        action = nullptr;
     }
 }

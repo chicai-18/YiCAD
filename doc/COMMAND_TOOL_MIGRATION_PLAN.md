@@ -842,3 +842,42 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 没有重新链接，库与测试程序都已构建）；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 188 例）；`check_layering.py` 通过；安装后的 Debug 程序能启动。
 交互回归清单新增 D1–D16，尚待手工核对。
+
+**提交③：绘图·曲线类**
+
+1. **迁移**（16 个 Action，17 个命令 ID）：圆心圆弧 `DrawArcCommand` 与三点圆弧（同一文件）、
+   相切圆弧 `DrawArcTangentialCommand`、圆心/两点/三点画圆（`DrawCircleCommands.cpp`）、
+   两切圆 `DrawCircleTan2Command`、三切圆、轴端点椭圆与椭圆弧（一个命令类，两个 ID）、内切
+   椭圆、控制点样条与拟合点样条（`DrawSplineCommand.h`，共用基类 `SplineCommand`）、矩形/
+   多边形/自由云线（`DrawCloudLineCommand.h`，共用基类 `CloudLineCommand`）、插入图片
+   `DrawImageCommand`。填充归 `ext.hatch`（第⑧批）。
+2. **`BaseExclusiveCommand::replaceWith()`**：结束本命令并启动另一个命令，取代原 Action 里
+   `finish()` 之后 `setCurrentAction(new ...)` 的写法（三点圆弧在命令行切换为圆心圆弧）。
+3. **选项条**：`UIArcOptions`、`UIArcTangentialOptions`、`UICircleTan2Options`、
+   `UIImageOptions` 改为接收命令；`UISplineOptions`、`UICloudLineOptions` 原先按 Action
+   类型分支，现在按命令类型 `dynamic_cast`。`UIDialogFactory` 的命令 ID 表补上 10 个 ID。
+4. **做法**：大段几何计算（三切圆求解、云线分段、两圆公切线等）由脚本把原 Action 的成员
+   函数机械改写（状态、捕捉、预览、翻译上下文），再手工处理生命周期，避免手抄出错。
+5. **测试**：新增 `test_draw_curve_commands`（16 例：注册与桥接、16 个命令的第一步提示、
+   选项条与右键结束、插入图片取消对话框时启动失败、逐步提示与命令行输入、三点圆弧切换、
+   选项条参数转给工具、云线的结束与错误提示）。
+
+**与方案的偏差与补充**
+
+1. **选项条参数的归属**：圆心圆弧的方向、两切圆的半径、样条的阶数与闭合记在工具正在画的
+   数据里（与原 Action 一致：圆心圆弧每画完一段、每次右键退回都复位为逆时针），命令把
+   选项条的调用转给工具；相切圆弧的锁定参数、云线的弧长与反向、插入图片的角度与缩放在
+   命令上。
+2. **原样保留的既有行为**：三点圆弧命令行输入任何文字都切换为圆心圆弧（`checkCommand`
+   对 "center" 一律返回真），文字不被接受，随后还会被当作新命令解析；插入图片在指定插入点
+   时输入任何文字都进入"输入角度"；椭圆弧用鼠标指定终止角后结束命令、用命令行输入则不
+   结束；三种云线画完一条即结束命令；多边形云线点不够时回车只给出错误提示。
+3. **插入图片取消选择对话框**：原先 Action 被标记为结束、随后删除；现在命令启动失败，
+   效果相同（没有选项条、回到空闲态）。
+4. **多边形云线的弧长**：原 Action 没有初始化最小/最大弧长，选项条显示时才设置；现在取
+   矩形云线的默认值 5、10，选项条照样覆盖。
+5. **去掉的 UI 依赖**：原相切圆弧 Action 包含了没有用到的 `ui_UIArcTangentialOptions.h`。
+
+提交③验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 204 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单
+新增 D17–D24，尚待手工核对。

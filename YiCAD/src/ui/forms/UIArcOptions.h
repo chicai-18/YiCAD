@@ -24,8 +24,8 @@
 #include <memory>
 #include <QWidget>
 
-class ActionDrawArc;
-class ActionInterface;
+class DrawArcCommand;
+class IExclusiveCommand;
 
 namespace Ui
 {
@@ -48,15 +48,15 @@ public:
 public slots:
     /// @brief 设置当前 Action
     /// @param [in] a Action 接口指针
-    /// @param [in] update 是否从 Action 更新界面
-    virtual void setAction(ActionInterface* a, bool update);
+    /// @param [in] update 是否从命令更新界面
+    virtual void setCommand(IExclusiveCommand* c, bool update);
 
     /// @brief 方向切换槽
     /// @param [in] checked 是否选中
     void slotRdoToggled(bool checked);
 
 protected:
-    ActionDrawArc* action;                       ///< 圆弧绘制 Action 指针
+    DrawArcCommand* command = nullptr; ///< 命令
     std::unique_ptr<Ui::Ui_ArcOptions> ui;       ///< UI 对象
 
 protected slots:

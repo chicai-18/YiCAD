@@ -423,39 +423,12 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 
 	switch (action->getEntityType())
 	{
-	case DM::ActionCloudLineRectangle:
-	case DM::ActionCloudLinePolygon:
-	case DM::ActionCloudLineFree:
-		requestCloudLineOptions(action, on, update);
-		break;
-
-	case DM::ActionDrawArc:
-		requestArcOptions(action, on, update);
-		break;
-
-	case DM::ActionDrawArcTangential:
-		requestArcTangentialOptions(action, on, update);
-		break;
-
-	case DM::ActionDrawCircleTan2:
-		requestCircleTan2Options(action, on, update);
-		break;
-
-	case DM::ActionDrawSpline:
-	case DM::ActionDrawSplinePoints:
-		requestSplineOptions(action, on, update);
-		break;
-
 	case DM::ActionDrawText:
 		requestTextOptions(action, on, update);
 		break;
 
 	case DM::ActionBlocksInsert:
 		requestInsertOptions(action, on, update);
-		break;
-
-	case DM::ActionDrawImage:
-		requestImageOptions(action, on, update);
 		break;
 
 	case DM::ActionModifyBevel:
@@ -592,7 +565,7 @@ void UIDialogFactory::requestLinePolygonOptions(IExclusiveCommand* command, bool
 	}
 }
 
-void UIDialogFactory::requestCloudLineOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestCloudLineOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -606,7 +579,7 @@ void UIDialogFactory::requestCloudLineOptions(ActionInterface* action, bool on, 
 		if (on)
 		{
 			toolWidget = new UICloudLineOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -615,7 +588,7 @@ void UIDialogFactory::requestCloudLineOptions(ActionInterface* action, bool on, 
 }
 
 // Shows a widget for arc options.
-void UIDialogFactory::requestArcOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestArcOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -629,7 +602,7 @@ void UIDialogFactory::requestArcOptions(ActionInterface* action, bool on, bool u
 		if (on)
 		{
 			toolWidget = new UIArcOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -638,7 +611,7 @@ void UIDialogFactory::requestArcOptions(ActionInterface* action, bool on, bool u
 }
 
 // Shows a widget for tangential arc options.
-void UIDialogFactory::requestArcTangentialOptions(ActionInterface* action, bool on, bool /*update*/)
+void UIDialogFactory::requestArcTangentialOptions(IExclusiveCommand* command, bool on, bool /*update*/)
 {
 	if (optionWidget)
 	{
@@ -656,7 +629,7 @@ void UIDialogFactory::requestArcTangentialOptions(ActionInterface* action, bool 
 			{
 				toolWidget = new UIArcTangentialOptions(optionWidget);
 			}
-			toolWidget->setAction(action, useUpdate);
+			toolWidget->setCommand(command, useUpdate);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -680,7 +653,7 @@ void UIDialogFactory::updateArcTangentialOptions(const double& radius, const boo
 }
 
 // Shows a widget for arc options.
-void UIDialogFactory::requestCircleTan2Options(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestCircleTan2Options(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -694,7 +667,7 @@ void UIDialogFactory::requestCircleTan2Options(ActionInterface* action, bool on,
 		if (on)
 		{
 			toolWidget = new UICircleTan2Options(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -703,7 +676,7 @@ void UIDialogFactory::requestCircleTan2Options(ActionInterface* action, bool on,
 }
 
 // Shows a widget for spline options.
-void UIDialogFactory::requestSplineOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestSplineOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -717,7 +690,7 @@ void UIDialogFactory::requestSplineOptions(ActionInterface* action, bool on, boo
 		if (on)
 		{
 			toolWidget = new UISplineOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 26);
 			optionWidget->show();
@@ -795,7 +768,7 @@ void UIDialogFactory::requestBlockEditOptions(IBlockEditSession* session, bool o
 }
 
 // Shows a widget for image options.
-void UIDialogFactory::requestImageOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestImageOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -809,7 +782,7 @@ void UIDialogFactory::requestImageOptions(ActionInterface* action, bool on, bool
 		if (on)
 		{
 			toolWidget = new UIImageOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -837,6 +810,15 @@ void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on,
 		{QStringLiteral("draw.line_bisector"), &UIDialogFactory::requestLineBisectorOptions},
 		{QStringLiteral("draw.line_polygon_cen_cor"), &UIDialogFactory::requestLinePolygonOptions},
 		{QStringLiteral("draw.line_polygon_cen_tan"), &UIDialogFactory::requestLinePolygonOptions},
+		{QStringLiteral("draw.arc"), &UIDialogFactory::requestArcOptions},
+		{QStringLiteral("draw.arc_tangential"), &UIDialogFactory::requestArcTangentialOptions},
+		{QStringLiteral("draw.circle_tan2"), &UIDialogFactory::requestCircleTan2Options},
+		{QStringLiteral("draw.spline"), &UIDialogFactory::requestSplineOptions},
+		{QStringLiteral("draw.spline_points"), &UIDialogFactory::requestSplineOptions},
+		{QStringLiteral("draw.cloud_line_rectangle"), &UIDialogFactory::requestCloudLineOptions},
+		{QStringLiteral("draw.cloud_line_polygon"), &UIDialogFactory::requestCloudLineOptions},
+		{QStringLiteral("draw.cloud_line_free"), &UIDialogFactory::requestCloudLineOptions},
+		{QStringLiteral("draw.image"), &UIDialogFactory::requestImageOptions},
 	};
 	auto it = builtins.find(command->commandId());
 	if (it != builtins.end())

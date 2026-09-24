@@ -20,9 +20,7 @@
 
 #include "UICloudLineOptions.h"
 
-#include "ActionDrawCloudLineRectangle.h"
-#include "ActionDrawCloudLinePolygon.h"
-#include "ActionDrawCloudLineFree.h"
+#include "DrawCloudLineCommand.h"
 #include "ui_UICloudLineOptions.h"
 #include "Debug.h"
 #include "DmSettings.h"
@@ -39,15 +37,13 @@ UICloudLineOptions::~UICloudLineOptions()
     destroy();
 }
 
-void UICloudLineOptions::setAction(ActionInterface* a, bool update)
+void UICloudLineOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a && (a->getEntityType() == DM::ActionCloudLineRectangle || a->getEntityType() == DM::ActionCloudLinePolygon ||
-        a->getEntityType() == DM::ActionCloudLineFree))
+    command = dynamic_cast<CloudLineCommand*>(c);
+    if (command)
     {
-        action = a;
-        if (a->getEntityType() == DM::ActionCloudLineRectangle)
+        if (auto* actionRect = dynamic_cast<DrawCloudLineRectangleCommand*>(command))
         {
-            ActionDrawCloudLineRectangle* actionRect = dynamic_cast<ActionDrawCloudLineRectangle*>(a);
             QString strMinLen, strMaxLen;
             if (update)
             {
@@ -76,9 +72,8 @@ void UICloudLineOptions::setAction(ActionInterface* a, bool update)
             ui->chkReverse->hide();
             ui->btnUndo->hide();
         }
-        else if (a->getEntityType() == DM::ActionCloudLinePolygon)
+        else if (auto* actionPoly = dynamic_cast<DrawCloudLinePolygonCommand*>(command))
         {
-            ActionDrawCloudLinePolygon* actionPoly = dynamic_cast<ActionDrawCloudLinePolygon*>(a);
             QString strMinLen, strMaxLen;
             if (update)
             {
@@ -107,9 +102,8 @@ void UICloudLineOptions::setAction(ActionInterface* a, bool update)
             ui->chkReverse->hide();
             ui->btnUndo->show();
         }
-        else if (a->getEntityType() == DM::ActionCloudLineFree)
+        else if (auto* actionFree = dynamic_cast<DrawCloudLineFreeCommand*>(command))
         {
-            ActionDrawCloudLineFree* actionFree = dynamic_cast<ActionDrawCloudLineFree*>(a);
             bool isReversed;
             if (update)
             {
@@ -132,19 +126,14 @@ void UICloudLineOptions::setAction(ActionInterface* a, bool update)
             ui->btnUndo->hide();
         }
     }
-    else
-    {
-        action = nullptr;
-    }
 }
 
 void UICloudLineOptions::undo()
 {
-    if (action)
+    if (command)
     {
-        if (action->getEntityType() == DM::ActionCloudLinePolygon)
+        if (auto* actionPoly = dynamic_cast<DrawCloudLinePolygonCommand*>(command))
         {
-            ActionDrawCloudLinePolygon* actionPoly = dynamic_cast<ActionDrawCloudLinePolygon*>(action);
             actionPoly->undo();
         }
     }
@@ -152,16 +141,14 @@ void UICloudLineOptions::undo()
 
 void UICloudLineOptions::updateMinLength(const QString& s)
 {
-    if (action)
+    if (command)
     {
-        if (action->getEntityType() == DM::ActionCloudLineRectangle)
+        if (auto* actionRect = dynamic_cast<DrawCloudLineRectangleCommand*>(command))
         {
-            ActionDrawCloudLineRectangle* actionRect = dynamic_cast<ActionDrawCloudLineRectangle*>(action);
             actionRect->setMinLength(s.toDouble());
         }
-        else if (action->getEntityType() == DM::ActionCloudLinePolygon)
+        else if (auto* actionPoly = dynamic_cast<DrawCloudLinePolygonCommand*>(command))
         {
-            ActionDrawCloudLinePolygon* actionPoly = dynamic_cast<ActionDrawCloudLinePolygon*>(action);
             actionPoly->setMinLength(s.toDouble());
         }
     }
@@ -169,16 +156,14 @@ void UICloudLineOptions::updateMinLength(const QString& s)
 
 void UICloudLineOptions::updateMaxLength(const QString& s)
 {
-    if (action)
+    if (command)
     {
-        if (action->getEntityType() == DM::ActionCloudLineRectangle)
+        if (auto* actionRect = dynamic_cast<DrawCloudLineRectangleCommand*>(command))
         {
-            ActionDrawCloudLineRectangle* actionRect = dynamic_cast<ActionDrawCloudLineRectangle*>(action);
             actionRect->setMaxLength(s.toDouble());
         }
-        else if (action->getEntityType() == DM::ActionCloudLinePolygon)
+        else if (auto* actionPoly = dynamic_cast<DrawCloudLinePolygonCommand*>(command))
         {
-            ActionDrawCloudLinePolygon* actionPoly = dynamic_cast<ActionDrawCloudLinePolygon*>(action);
             actionPoly->setMaxLength(s.toDouble());
         }
     }
@@ -188,10 +173,12 @@ void UICloudLineOptions::updateReverse(int reverse)
 {
     constexpr int REVERSED_CHECKED_VALUE = 2;
 
-    if (action)
+    if (command)
     {
-        ActionDrawCloudLineFree* actionFree = dynamic_cast<ActionDrawCloudLineFree*>(action);
-        actionFree->setReversed(reverse == REVERSED_CHECKED_VALUE);
+        if (auto* actionFree = dynamic_cast<DrawCloudLineFreeCommand*>(command))
+        {
+            actionFree->setReversed(reverse == REVERSED_CHECKED_VALUE);
+        }
     }
 }
 
@@ -204,9 +191,9 @@ void UICloudLineOptions::languageChange()
 void UICloudLineOptions::destroy()
 {
     DMSETTINGS->beginGroup("/Draw");
-    if (action)
+    if (command)
     {
-        if (action->getEntityType() == DM::ActionCloudLineRectangle || action->getEntityType() == DM::ActionCloudLinePolygon)
+        if (!dynamic_cast<DrawCloudLineFreeCommand*>(command))
         {
             DMSETTINGS->writeEntry("/CloudLineMinLen", ui->leMinLen->text());
             DMSETTINGS->writeEntry("/CloudLineMaxLen", ui->leMaxLen->text());
