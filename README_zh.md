@@ -326,7 +326,7 @@ Visual Studio 2022 Developer PowerShell。可用以下命令诊断当前进程�
 | 层次 | 路径 | 说明 |
 |------|------|------|
 | **数据模型** | `YiCAD/src/kernel/data_model/` | Dm* 类 — CAD 实体数据 |
-| **视图** | `YiCAD/src/kernel/gui/` | QOpenGLWidget 子类，4 层渲染 |
+| **视图** | `YiCAD/src/kernel/view/` | QOpenGLWidget 子类，4 层渲染 |
 | **动作** | `YiCAD/src/actions/` | ~75 个 Action 类处理用户交互 |
 | **命令** | `YiCAD/src/cmd/` | 命令行输入解析与分发 |
 | **Undo/Redo** | `YiCAD/src/kernel/history/` | 命令栈、事务、宏命令 |

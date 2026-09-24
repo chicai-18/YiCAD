@@ -91,8 +91,8 @@ yicad_collect_sources(MATH
 # DmEntityContainer.cpp/DmHatch.cpp -> UIDialogFactory.h）均已修复：前者
 # 经 GuiDialogFactoryInterface 新增的 requestUntitledDocumentName() 接口注入
 # 解决；后两处的 include 本身就是死代码，直接删除。tools/check_layering.py
-# 的白名单已清空。DmCachePainter.{h,cpp} 已迁到 kernel/gui（本就是纯 GL
-# 封装，放错了目录）；DmImage.{h,cpp} 对 GuiDocumentView.h 的引用也是死
+# 的白名单已清空。DmCachePainter.{h,cpp} 已迁到 kernel/gui（现名 kernel/view；
+# 本就是纯 GL 封装，放错了目录）；DmImage.{h,cpp} 对 GuiDocumentView.h 的引用也是死
 # include，一并删除。详见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 节。
 yicad_collect_sources(MODEL
     src/kernel/builder_model
@@ -121,15 +121,19 @@ yicad_collect_sources(PERSISTENCE
 #
 # 本分区内部实现不在本方案排期内（渲染专项另行规划），此处仅作层次边界。
 #
-# 与方案不同：本分区在实现上与 INTERACTION 分区互相持有对方的具体类型
-# （GuiDocumentView 构造并持有 ViewToolControl/PanZoomTool/LegacyActionTool，
-# GuiEventHandler 直接持有 Action 栈），是阶段 1、2 已落地设计的一部分，
-# 不是本次拆库引入的问题。这两个分区因此不能拆成两个独立静态库，仍与
-# INTERACTION/UI/APP 一起编入 YiCadCore。详见 6.7 节。
+# kernel/view/（原 kernel/gui/）是画布 GuiDocumentView 及其事件、网格等，
+# 不认识交互层的工具；装配工具的交互视图 UIView 在 INTERACTION 分区的
+# kernel/interaction/。
+#
+# 与方案不同：本分区仍依赖 INTERACTION 分区——GuiEventHandler 直接持有旧版
+# Action 栈，IDocumentView 也要求画布实现 getEventHandler()/setCurrentAction()，
+# 是阶段 1、2 已落地设计的一部分，业务工具化第四步随 GuiEventHandler 删除
+# （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。在那之前这两个分区不能拆成两个独立
+# 静态库，仍与 INTERACTION/UI/APP 一起编入 YiCadCore。详见 6.7 节。
 yicad_collect_sources(RENDER
     src/kernel/painters
     src/kernel/painters/opengl
-    src/kernel/gui
+    src/kernel/view
     src/kernel/printing)
 
 # 对应阶段 3 的 YiCadInteraction。
@@ -141,8 +145,13 @@ yicad_collect_sources(RENDER
 # 文件选择器）与 APP（ApplicationWindow/MDIWindow）头文件——这是 Action
 # orchestrate 用户交互的正常需要，但意味着本分区不能反过来独立于 UI/APP
 # 之下。见上方 RENDER 分区说明与 6.7 节。
+#
+# kernel/interaction/ 是交互视图 UIView：继承 RENDER 分区的画布
+# GuiDocumentView，持有 kernel/actions/ 的 ViewToolControl 与各层工具（对应
+# DS 的 View/UIView）。业务工具化第四步 kernel/actions/ 并入这里。
 yicad_collect_sources(INTERACTION
     src/kernel/actions
+    src/kernel/interaction
     src/actions
     src/cmd)
 
@@ -154,15 +163,10 @@ yicad_collect_sources(INTERACTION
 #
 # src/ui/ribbon/ 是 Ribbon 注册表与装配器（UIRibbonRegistry/UIRibbonManager），
 # 内置类目与扩展共用。
-#
-# src/view/ 是交互视图 UIView：继承 RENDER 分区的画布 GuiDocumentView，持有
-# INTERACTION 分区的 ViewToolControl 与各层工具（对应 DS 的 View/UIView），
-# 所以位于二者之上、归入本分区。
 yicad_collect_sources(UI
     src/ui
     src/ui/forms
-    src/ui/ribbon
-    src/view)
+    src/ui/ribbon)
 
 # 对应阶段 3 的 YiCadApp（可执行目标）。
 #
@@ -470,7 +474,8 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cmd
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/actions
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/fileio
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/gui
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/interaction
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/view
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/printing
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters/opengl
@@ -480,7 +485,6 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/view
     ${YICAD_EXTENSION_INCLUDE_DIRS})
 
 target_precompile_headers(YiCadCore PRIVATE

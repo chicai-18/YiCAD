@@ -22,7 +22,7 @@
 /// 业务工具栈（后进先出，最高优先级）、选择工具（次优先）、导航工具
 /// （栈底，兜底）。事件按此顺序分发，直到某层返回 Handled/Cancel。
 ///
-/// 交互视图 UIView（view/UIView.h）持有本类并挂载三层：业务层 LegacyActionTool
+/// 交互视图 UIView（kernel/interaction/UIView.h）持有本类并挂载三层：业务层 LegacyActionTool
 /// （包装旧版 Action 栈）、选择层 SelectTool、导航层 PanZoomTool。画布的鼠标、
 /// 双击、滚轮后的补发移动与进入/离开事件都经本类分发；键盘事件由主窗口经
 /// GuiDocumentView::processKeyEvent() 转交（doc/COMMAND_TOOL_MIGRATION_PLAN.md

@@ -561,8 +561,8 @@ ActionTool` 的转发范围是否要进一步收窄（见"与方案的偏差"表
 flowchart TB
     App["YiCadApp<br/>exe: main/"]
     Ui["YiCadUi<br/>ui/, 49 个 .ui"]
-    Inter["YiCadInteraction<br/>actions/, kernel/actions/"]
-    Render["YiCadRender<br/>kernel/painters/, kernel/gui/"]
+    Inter["YiCadInteraction<br/>actions/, kernel/actions/,<br/>kernel/interaction/"]
+    Render["YiCadRender<br/>kernel/painters/, kernel/view/"]
     Persist["YiCadPersistence<br/>kernel/persistence/, filters/, fileio/"]
     Model["YiCadModel<br/>kernel/builder_model/, data_model/,<br/>history/, modification/, information/"]
     Math["YiCadMath<br/>kernel/math/, utility/"]
@@ -579,6 +579,10 @@ flowchart TB
 ```
 
 依赖方向严格单向，**`YiCadModel` 不得依赖 `YiCadUi` 或 `YiCadRender`**。
+
+> 2026-09-24：`kernel/gui/` 更名 `kernel/view/`；新增 `kernel/interaction/` 放交互视图
+> `UIView`（画布之上装配工具栈），见 `COMMAND_TOOL_MIGRATION_PLAN.md` 9.1 节偏差 7。
+> 本文其余各节的执行记录保留当时的目录名。
 
 `YiCadRender` 在此仅作为一个层次边界存在，本方案**不改动其内部实现**。
 未来的渲染专项将在这个边界内进行，届时不会波及其它库。

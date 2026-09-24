@@ -60,7 +60,7 @@ class GLPainter;
 
 /// @brief 文档的画布
 /// @details 包括4层：背景层，文档层，预览层，前景层。本类只负责渲染与视图状态，
-///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（view/UIView.h）
+///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（kernel/interaction/UIView.h）
 ///          接收并交给 ViewToolControl 分发，对应 DS 的 HQWidget 与 UIView 之分。
 class GuiDocumentView : public QOpenGLWidget, public IDocumentView
 {

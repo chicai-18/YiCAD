@@ -48,7 +48,7 @@ if (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
 
 $targets = @(
     @{ Name = "DmArc.cpp";          Path = "YiCAD/src/kernel/builder_model/DmArc.cpp" },
-    @{ Name = "GuiDocumentView.h";  Path = "YiCAD/src/kernel/gui/GuiDocumentView.h" },
+    @{ Name = "GuiDocumentView.h";  Path = "YiCAD/src/kernel/view/GuiDocumentView.h" },
     @{ Name = "Datamodel.h";        Path = "YiCAD/src/kernel/math/Datamodel.h" }
 )
 

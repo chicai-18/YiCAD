@@ -27,7 +27,7 @@
 /// `Dragging` 状态下移动超过阈值后才能判定，拆开需要在两个类之间转移
 /// 这次"未决"的拖拽状态。
 ///
-/// 由交互视图 `UIView`（view/UIView.h）持有（连同捕捉器与预览容器），注册为
+/// 由交互视图 `UIView`（kernel/interaction/UIView.h）持有（连同捕捉器与预览容器），注册为
 /// `ViewToolControl` 的选择层。没有旧版业务 Action 活动时，`LegacyActionTool`
 /// 整体让路，空闲态事件直接落到本类（doc/COMMAND_TOOL_MIGRATION_PLAN.md
 /// 第一步）。与导航层竞争优先级的三处让路：

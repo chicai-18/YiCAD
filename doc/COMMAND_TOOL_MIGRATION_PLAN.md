@@ -326,9 +326,9 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
    - 枚举只保留仍有非命令用途的值，没有则整个删除。
 4. **分层检查**：`tools/check_layering.py` 增加"命令与工具不得包含 `ui/`、`main/`
    头文件"的检查。
-5. **目录**：`src/actions/` 目录更名（候选 `src/commands/`），`kernel/actions/` 同样
-   更名（候选 `kernel/interaction/`，与分区名 `YiCadInteraction` 一致），名称届时再定；
-   同步 CMake 分区与 `check_layering.py`。
+5. **目录**：`src/actions/` 目录更名（候选 `src/commands/`，名称届时再定）；
+   `kernel/actions/` 并入第一步新建的 `kernel/interaction/`，与分区名
+   `YiCadInteraction` 一致。同步 CMake 分区与 `check_layering.py`。
 
 ## 7. 验收标准
 
@@ -386,7 +386,7 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
    先选后建、块编辑、手写板橡皮擦、多行文字分节，期望写现有行为；第 7 节登记各步
    有意的行为变化。
 2. **`SelectTool` 由视图持有**：对照 DS 的 `HQWidget`/`UIView`，把 `GuiDocumentView`
-   拆成两层（见下文偏差 7）。交互视图 `UIView`（`src/view/`）持有 `ViewToolControl`、
+   拆成两层（见下文偏差 7）。交互视图 `UIView`（`kernel/interaction/`）持有 `ViewToolControl`、
    `PanZoomTool`、`LegacyActionTool` 与 `SelectTool` 及其 `Snapper`、`Preview`；
    `setDefaultSnapMode`/`setSnapRestriction` 由 `UIView` 覆写，同步给这个捕捉器（它是
    捕捉器的拥有者，没有经 `GuiEventHandler` 转一道）。鼠标离开/进入画布由
@@ -458,19 +458,23 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
    整个选择集（清单 E2–E4 的既有行为）。
 7. **`GuiDocumentView` 拆成画布与交互视图两层**（2026-09-24 确认，对照 DS 的
    `HQWidget`/`UIView`）。方案原写"`GuiDocumentView` 直接持有 `SelectTool`"；但
-   `GuiDocumentView` 在 `kernel/gui/`（`YiCadRender`），按主计划 6.3 节不应认识交互层
+   `GuiDocumentView` 在 `kernel/gui/`（现 `kernel/view/`，`YiCadRender`），按主计划 6.3 节不应认识交互层
    类型，主计划 6.7 节已把它 new 工具记为第一处双向依赖。现在：
    - `GuiDocumentView` 只留渲染与视图状态，不再包含任何交互层工具或 Action 头文件；
      新增 `processKeyEvent()`（对应 DS 的 `HQWidget::processKeyEvent`）与捕捉结果的
      两个虚函数，基类实现都是"无交互层"；
-   - `UIView`（`src/view/`，对应 DS 的 `View/`；沿用 DS 类名，`UI*` 前缀与所属的
-     `YiCadUi` 分区一致）继承它，
-     持有 `ViewToolControl` 与三层工具，接收全部 Qt 输入事件，滚轮缩放
-     （`ActionZoomIn`）与橡皮擦删除（`ActionModifyDelete`）也随之移过来；
+   - `UIView`（沿用 DS 类名）继承它，持有 `ViewToolControl` 与三层工具，接收全部
+     Qt 输入事件，滚轮缩放（`ActionZoomIn`）与橡皮擦删除（`ActionModifyDelete`）也
+     随之移过来；
+   - 目录：`kernel/gui/` 更名 `kernel/view/`（`YiCadRender`），`UIView` 放在新建的
+     `kernel/interaction/`（`YiCadInteraction`）。两者不同目录，因为一个目录归一个
+     分区；DS 把 `HQWidget` 与 `UIView` 同放 `View/`，是因为它不按目录分库。
+     `UIView` 是内核里唯一以 `UI` 开头的类型，`check_layering.py` 的白名单只放行
+     `UIView.cpp` 包含自身头文件；
    - `MDIWindow` 创建 `UIView`；导出 PDF 用的临时无文档视图仍是基类，不需要交互；
    - 与 DS 的区别：DS 的 `EditTool`、`ExclusiveCommandBus` 以 `UIView*` 构造，工具层
-     反过来认识派生类。YiCAD 的内核禁止包含 `UI*` 头文件（`check_layering.py`），
-     命令与工具只能经 `IDocumentView`/`GuiDocumentView` 认识视图；第二步的总线也照此
+     反过来认识派生类。YiCAD 的命令与工具包含 `UIView.h` 会被 `check_layering.py`
+     拦下，只能经 `IDocumentView`/`GuiDocumentView` 认识视图；第二步的总线也照此
      设计，由 `UIView` 持有；
    - `GuiEventHandler` 暂留基类：`IDocumentView` 的 `getEventHandler()`/
      `setCurrentAction()`/`getCurrentAction()` 要求画布实现，第四步随它一起删除。

@@ -8,13 +8,13 @@ YiCadMath/YiCadModel/YiCadPersistence 拆成独立静态库，对这三层而言
 会直接编译失败，不必等这个脚本。
 
 本脚本继续覆盖整个 src/kernel/（含仍与 UI/APP 合编的 kernel/actions、
-kernel/gui、kernel/painters、kernel/printing），作为比重新配置+编译更快的
+kernel/interaction、kernel/view、kernel/painters、kernel/printing），作为比重新配置+编译更快的
 CI 早期预警，并把"这处例外是有意的"这件事强制写成白名单条目而不是悄悄
 新增一行 include。基线 d8e0be5 上的三处已知违规已在阶段 3 修复（见
 doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 节）：DmDocument.cpp 经
 GuiDialogFactoryInterface 新增的 requestUntitledDocumentName() 接口注入
 解决；DmEntityContainer.cpp/DmHatch.cpp 的 include 本身就是死代码，已删除。
-白名单现为空。
+白名单现在只有交互视图 UIView 包含自身头文件这一条，见 WHITELIST。
 
 用法:
     python tools/check_layering.py
@@ -32,9 +32,14 @@ KERNEL = os.path.join(REPO, 'YiCAD', 'src', 'kernel')
 FORBIDDEN_PREFIXES = ('UI',)
 
 # 键是相对 YiCAD/src/kernel 的路径，值是该文件允许包含的 UI 头文件集合。
-# 目前为空：kernel/actions、kernel/gui 等仍与 UI 合编的分区如果将来确实
-# 需要引用某个 UI 头文件，在这里显式登记。
+# kernel/actions、kernel/view 等仍与 UI 合编的分区如果将来确实需要引用某个
+# UI 头文件，在这里显式登记。
 WHITELIST = {
+    # 交互视图 UIView 沿用 DS 的类名，是内核里唯一以 UI 开头的类型。只放行
+    # 它的实现文件包含自身头文件；命令与工具包含 UIView.h 仍会报错，保证
+    # 它们只经 IDocumentView/GuiDocumentView 认识视图
+    # （doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.1 节偏差 7）。
+    'interaction/UIView.cpp': {'UIView.h'},
 }
 
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.MULTILINE)

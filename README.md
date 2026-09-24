@@ -336,7 +336,7 @@ The project uses an **MVC + Action** architecture:
 | Layer | Path | Description |
 |-------|------|-------------|
 | **Data Model** | `YiCAD/src/kernel/data_model/` | Dm* classes — CAD entity data |
-| **View** | `YiCAD/src/kernel/gui/` | QOpenGLWidget subclasses, 4-layer rendering |
+| **View** | `YiCAD/src/kernel/view/` | QOpenGLWidget subclasses, 4-layer rendering |
 | **Actions** | `YiCAD/src/actions/` | ~75 Action classes handling user interaction |
 | **Commands** | `YiCAD/src/cmd/` | Command-line input parsing and dispatch |
 | **Undo/Redo** | `YiCAD/src/kernel/history/` | Command stack, transactions, macro commands |

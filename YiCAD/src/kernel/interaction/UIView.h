@@ -25,11 +25,14 @@
 /// （LegacyActionTool）三层工具，接收画布的 Qt 输入事件交给 ViewToolControl
 /// 分发。第二步的命令总线也由本类持有（doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
 ///
-/// 放在 view/（对应 DS 的 View/），归入 YiCadUi 分区而不是 kernel/actions/：
-/// 依赖方向是 Ui → Interaction → Render，kernel 不得包含 UI* 头文件
-/// （tools/check_layering.py），命令与工具因此只能经 IDocumentView/
-/// GuiDocumentView 认识视图，不会反过来依赖本类。
-/// 这一点与 DS 不同：DS 的 EditTool、ExclusiveCommandBus 以 UIView* 构造。
+/// 放在 kernel/interaction/（YiCadInteraction 分区），不和画布同在
+/// kernel/view/（YiCadRender 分区）：一个目录归一个分区，渲染层不能依赖交互层。
+/// DS 把 HQWidget 与 UIView 同放 View/，是因为它不按目录分库。
+///
+/// 命令与工具只能经 IDocumentView/GuiDocumentView 认识视图，不能反过来依赖
+/// 本类：内核禁止包含 UI* 头文件（tools/check_layering.py），白名单只放行
+/// UIView.cpp 包含自身头文件。这一点与 DS 不同：DS 的 EditTool、
+/// ExclusiveCommandBus 以 UIView* 构造。
 ///
 /// 旧版 Action 栈 GuiEventHandler 仍由基类持有：IDocumentView 的
 /// getEventHandler()/setCurrentAction()/getCurrentAction() 要求画布实现它们，
