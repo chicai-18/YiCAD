@@ -87,6 +87,9 @@ public:
 
 	// 请求类型处理
 	void requestOptions(ActionInterface* action,bool on, bool update = false) override;
+	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
+	QString requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames) override;
+	void requestBlockEditOptions(IBlockEditSession* session, bool on) override;
 	void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) override;
 
 protected:
@@ -111,7 +114,6 @@ protected:
 	void requestTextOptions(ActionInterface* action, bool on, bool update);
 
 	void requestInsertOptions(ActionInterface* action, bool on, bool update);
-	void requestBlockEditOptions(ActionInterface* action, bool on);
 	void requestImageOptions(ActionInterface* action, bool on, bool update);
 
 	void requestBevelOptions(ActionInterface* action, bool on, bool update);

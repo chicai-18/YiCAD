@@ -29,8 +29,8 @@
 ///      导航层之前把事件处理掉，导致平移中断；
 ///   3. 栈顶 Action 的 ActionInterface::passesToSelection() 对该事件返回
 ///      true：照常转发给它，然后返回 NotHandled，事件继续落到选择层。
-///      这是第一步的临时钩子，取代块编辑、多行文字属性编辑对默认 Action
-///      的直调，第四步随 ActionInterface 删除。
+///      这是第一步的临时钩子，取代多行文字属性编辑（原先还有块编辑，第二步
+///      改为编辑模式）对默认 Action 的直调，第四步随 ActionInterface 删除。
 ///
 /// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 5.7 节。
 

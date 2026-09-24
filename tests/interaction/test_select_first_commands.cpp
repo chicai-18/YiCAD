@@ -18,6 +18,7 @@
 #include <QMouseEvent>
 
 #include "ActionInterface.h"
+#include "BlockEditTool.h"
 #include "CircleData.h"
 #include "CommandRegistry.h"
 #include "DmCircle.h"
@@ -54,10 +55,19 @@ public:
     std::vector<std::pair<QString, QString>> hints;
     std::vector<QString> messages;
     int selectionUpdates = 0;
+    DialogAnswer answer = DialogAnswer::Cancel; ///< 是/否/取消对话框的回答
+    int questions = 0;                          ///< 是/否/取消对话框弹出的次数
+    std::vector<bool> blockEditOptions;         ///< 块编辑选项条的打开/关闭记录
 
     void updateMouseWidget(const QString& left, const QString& right) override { hints.emplace_back(left, right); }
     void commandMessage(const QString& message) override { messages.push_back(message); }
     void updateSelectionWidget(int) override { ++selectionUpdates; }
+    DialogAnswer requestYesNoCancelDialog(const QString&, const QString&) override
+    {
+        ++questions;
+        return answer;
+    }
+    void requestBlockEditOptions(IBlockEditSession*, bool on) override { blockEditOptions.push_back(on); }
 };
 
 /// @brief 与 UIView 相同：旧 Action 栈之下是命令与选择层
@@ -83,11 +93,11 @@ struct LegacyStackBase : ILegacyStackBase
     void resetAfterKill() override { selectTool.init(); }
 };
 
-/// @brief 先选后建的 13 个命令（编辑块见第二步的提交③）
+/// @brief 先选后建的 14 个命令
 const char* const kSelectFirstCommands[] = {
     "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
     "modify.explode", "modify.reverse", "modify.delete", "edit.copy",    "edit.cut",
-    "modify.copy_to_layer", "blocks.create", "info.total_length"};
+    "modify.copy_to_layer", "blocks.create", "blocks.edit", "info.total_length"};
 
 /// @brief 有放置工具、提示写在按键提示栏的命令，及其第一步提示的开头
 struct FirstStep
@@ -132,8 +142,12 @@ struct SelectFirstFixture : ::testing::Test
                                        {
                                            return SelectTool::Overlay::LegacyAction;
                                        }
-                                       return bus.hasActiveCommand() ? SelectTool::Overlay::Command
-                                                                     : SelectTool::Overlay::None;
+                                       if (bus.hasActiveCommand())
+                                       {
+                                           return SelectTool::Overlay::Command;
+                                       }
+                                       return bus.editMode() ? SelectTool::Overlay::EditMode
+                                                             : SelectTool::Overlay::None;
                                    });
     }
     ~SelectFirstFixture() override { GuiDialogFactory::instance()->setFactoryObject(nullptr); }
@@ -193,6 +207,15 @@ struct SelectFirstFixture : ::testing::Test
         QMouseEvent release = makeMouse(QEvent::MouseButtonRelease, x, y, button);
         dispatch([&] { return control.mousePressEvent(&press); });
         dispatch([&] { return control.mouseReleaseEvent(&release); });
+    }
+
+    /// @brief 进入块编辑模式（文档本身不进入块编辑：不跑事务，退出时也不改动文档）
+    BlockEditTool* enterBlockEdit()
+    {
+        auto mode = std::make_unique<BlockEditTool>(bus);
+        BlockEditTool* raw = mode.get();
+        bus.enterEditMode(std::move(mode));
+        return raw;
     }
 
     /// @brief 结束活动命令（与"结束全部命令"相同的路径）
@@ -424,7 +447,7 @@ TEST_F(SelectFirstFixture, 旧Action叠在命令之上时命令被挂起结束�
     EXPECT_EQ(pressKey(Qt::Key_Enter), ViewToolResult::Handled);
 }
 
-TEST_F(SelectFirstFixture, P1先选后建的13个命令没有选择集时都进入选择阶段)
+TEST_F(SelectFirstFixture, P1先选后建的14个命令没有选择集时都进入选择阶段)
 {
     for (const char* id : kSelectFirstCommands)
     {
@@ -669,4 +692,129 @@ TEST_F(SelectFirstFixture, 旧Action叠在放置工具之上时停用工具结�
     EXPECT_FALSE(bus.isSuspended());
     EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
     EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::Handled);
+}
+
+TEST_F(SelectFirstFixture, 编辑块时选择集里没有块参照则启动失败)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    ASSERT_TRUE(start("blocks.edit"));
+    ASSERT_TRUE(selectTool.inSelectionPhase());
+
+    line->setSelected(true);
+    pressKey(Qt::Key_Enter);
+    ASSERT_FALSE(ui.messages.empty());
+    EXPECT_EQ(ui.messages.back(), QStringLiteral("No block reference selected. Command cancelled."));
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_EQ(bus.editMode(), nullptr);
+}
+
+TEST_F(SelectFirstFixture, B1块编辑模式显示提示与选项条且选择层不改提示)
+{
+    enterBlockEdit();
+    ASSERT_FALSE(ui.hints.empty());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Edit block entities"));
+    EXPECT_EQ(ui.hints.back().second, QStringLiteral("Finish / Cancel"));
+    ASSERT_FALSE(ui.blockEditOptions.empty());
+    EXPECT_TRUE(ui.blockEditOptions.back());
+
+    // B2、B3：块内点选、框选照常由选择层完成，提示保持块编辑的
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    const size_t hintsBefore = ui.hints.size();
+    boxSelect(0, 0, 100, 100);
+    EXPECT_TRUE(line->isSelected());
+    EXPECT_EQ(ui.hints.size(), hintsBefore);
+    // 选择层照常给出光标
+    ASSERT_TRUE(selectTool.getCursor().has_value());
+    EXPECT_EQ(*selectTool.getCursor(), DM::ArrowCursor);
+}
+
+TEST_F(SelectFirstFixture, B4块编辑中Esc清空选择仍在块编辑)
+{
+    enterBlockEdit();
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+
+    QKeyEvent* esc = nullptr;
+    EXPECT_EQ(pressKey(Qt::Key_Escape, &esc), ViewToolResult::Handled);
+    EXPECT_TRUE(esc->isAccepted());
+    EXPECT_FALSE(line->isSelected());
+    EXPECT_NE(bus.editMode(), nullptr);
+}
+
+TEST_F(SelectFirstFixture, B5块编辑中双击无反应)
+{
+    enterBlockEdit();
+    QMouseEvent dbl = makeMouse(QEvent::MouseButtonDblClick, 30, 10, Qt::LeftButton);
+    EXPECT_EQ(dispatch([&] { return control.mouseDoubleClickEvent(&dbl); }), ViewToolResult::Handled);
+    EXPECT_EQ(view.selectedChangedCount, 0);
+}
+
+TEST_F(SelectFirstFixture, B6块编辑中启动的命令结束后回到块编辑)
+{
+    enterBlockEdit();
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+
+    ASSERT_TRUE(start("modify.move"));
+    // 命令叠在模式之上：选项条收起，提示归命令
+    EXPECT_FALSE(ui.blockEditOptions.back());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
+
+    click(0, 0, Qt::RightButton);
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_NE(bus.editMode(), nullptr);
+    EXPECT_TRUE(ui.blockEditOptions.back());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Edit block entities"));
+}
+
+TEST_F(SelectFirstFixture, B7块编辑中右键询问是否保存取消则继续编辑)
+{
+    enterBlockEdit();
+    ui.answer = DialogAnswer::Cancel;
+    click(0, 0, Qt::RightButton);
+    EXPECT_EQ(ui.questions, 1);
+    EXPECT_NE(bus.editMode(), nullptr);
+
+    ui.answer = DialogAnswer::Yes;
+    click(0, 0, Qt::RightButton);
+    EXPECT_EQ(ui.questions, 2);
+    EXPECT_EQ(bus.editMode(), nullptr);
+    EXPECT_FALSE(ui.blockEditOptions.back());
+}
+
+TEST_F(SelectFirstFixture, 结束全部命令时块编辑弹出同样的对话框取消即否决)
+{
+    enterBlockEdit();
+    ui.answer = DialogAnswer::Cancel;
+    EXPECT_FALSE(bus.approveEndAll(CommandEndReason::Cancelled));
+    EXPECT_EQ(ui.questions, 1);
+    EXPECT_NE(bus.editMode(), nullptr);
+
+    ui.answer = DialogAnswer::No;
+    ASSERT_TRUE(bus.approveEndAll(CommandEndReason::Cancelled));
+    bus.endAll();
+    EXPECT_EQ(ui.questions, 2);
+    EXPECT_EQ(bus.editMode(), nullptr);
+}
+
+TEST_F(SelectFirstFixture, 视图关闭时块编辑不提问)
+{
+    enterBlockEdit();
+    EXPECT_TRUE(bus.approveEndAll(CommandEndReason::ViewClosing));
+    bus.endAll();
+    EXPECT_EQ(ui.questions, 0);
+    EXPECT_EQ(bus.editMode(), nullptr);
+}
+
+TEST_F(SelectFirstFixture, 块编辑的选项条完成按钮经事件循环退出)
+{
+    BlockEditTool* blockEdit = enterBlockEdit();
+    // 选项条按钮在分发范围之外：模式要等事件循环再退出，按钮的槽函数返回前不能销毁它
+    blockEdit->completeEditing(true);
+    EXPECT_EQ(bus.editMode(), blockEdit);
+    for (int i = 0; i < 5 && bus.editMode(); ++i)
+    {
+        QCoreApplication::processEvents();
+    }
+    EXPECT_EQ(bus.editMode(), nullptr);
 }

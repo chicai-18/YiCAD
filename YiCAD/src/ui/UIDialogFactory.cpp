@@ -47,6 +47,7 @@
 #include "UIBevelOptions.h"
 #include "UIBlockDialog.h"
 #include "UIBlockEditOptions.h"
+#include "UINestedBlockSelectDialog.h"
 #include "UIDlgEditAttributes.h"
 #include "UICircleTan2Options.h"
 #include "UICloudLineOptions.h"
@@ -146,6 +147,30 @@ void UIDialogFactory::requestWarningDialog(const QString& warning)
 bool UIDialogFactory::requestConfirmDialog(const QString& title, const QString& message)
 {
 	return QMessageBox::critical(parent, title, message, QMessageBox::Ok, QMessageBox::Cancel) == QMessageBox::Ok;
+}
+
+DialogAnswer UIDialogFactory::requestYesNoCancelDialog(const QString& title, const QString& message)
+{
+	// 父窗口为空，与原块编辑 Action 里的 QMessageBox::question 一致
+	switch (QMessageBox::question(nullptr, title, message, QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel))
+	{
+	case QMessageBox::Yes:
+		return DialogAnswer::Yes;
+	case QMessageBox::No:
+		return DialogAnswer::No;
+	default:
+		return DialogAnswer::Cancel;
+	}
+}
+
+QString UIDialogFactory::requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames)
+{
+	UINestedBlockSelectDialog dlg(document, blockNames, nullptr);
+	if (dlg.exec() != QDialog::Accepted)
+	{
+		return {};
+	}
+	return dlg.selectedBlockName();
 }
 
 DmDocument* UIDialogFactory::requestActiveDocument()
@@ -441,11 +466,6 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 
 	case DM::ActionBlocksInsert:
 		requestInsertOptions(action, on, update);
-		break;
-
-	case DM::ActionBlocksEdit:
-	case DM::ActionBlocksEditNoSelect:
-		requestBlockEditOptions(action, on);
 		break;
 
 	case DM::ActionDrawImage:
@@ -766,7 +786,7 @@ void UIDialogFactory::requestInsertOptions(ActionInterface* action, bool on, boo
 }
 
 // Shows a widget for block edit options.
-void UIDialogFactory::requestBlockEditOptions(ActionInterface* action, bool on)
+void UIDialogFactory::requestBlockEditOptions(IBlockEditSession* session, bool on)
 {
 	if (optionWidget)
 	{
@@ -780,7 +800,7 @@ void UIDialogFactory::requestBlockEditOptions(ActionInterface* action, bool on)
 		if (on)
 		{
 			toolWidget = new UIBlockEditOptions(optionWidget);
-			toolWidget->setAction(action);
+			toolWidget->setSession(session);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();

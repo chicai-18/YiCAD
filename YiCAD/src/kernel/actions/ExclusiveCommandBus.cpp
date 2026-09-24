@@ -22,8 +22,10 @@
 
 #include <QTimer>
 
+#include "IEditMode.h"
 #include "ISnapService.h"
 #include "SelectTool.h"
+#include "ViewToolControl.h"
 
 ExclusiveCommandBus::DispatchScope::DispatchScope(ExclusiveCommandBus* bus)
     : m_bus(bus)
@@ -55,7 +57,9 @@ ExclusiveCommandBus::~ExclusiveCommandBus()
 {
     m_inCallback = false;
     finishActive();
+    exitEditMode();
     m_retired.clear();
+    m_retiredModes.clear();
 }
 
 QString ExclusiveCommandBus::activeCommandId() const
@@ -86,6 +90,11 @@ bool ExclusiveCommandBus::start(std::unique_ptr<IExclusiveCommand> command)
     if (m_selectTool)
     {
         m_selectTool->suspend();
+    }
+    // 编辑模式里启动的命令叠在模式之上：收起模式的界面，命令结束后恢复
+    if (m_mode)
+    {
+        m_mode->suspendMode();
     }
 
     // 激活期间请求的结束（已有选择集时直接完成的命令）延迟到激活返回后
@@ -153,6 +162,94 @@ void ExclusiveCommandBus::end()
     finishActive();
 }
 
+bool ExclusiveCommandBus::approveEndAll(CommandEndReason reason)
+{
+    if (m_inCallback)
+    {
+        return false;
+    }
+    if (!approveEnd(reason))
+    {
+        return false;
+    }
+    if (!m_mode)
+    {
+        return true;
+    }
+
+    bool approved = false;
+    {
+        DispatchScope scope(this);
+        m_inCallback = true;
+        approved = m_mode->onEndRequested(reason);
+        m_inCallback = false;
+    }
+    return approved || reason == CommandEndReason::ViewClosing;
+}
+
+void ExclusiveCommandBus::endAll()
+{
+    if (m_inCallback)
+    {
+        return;
+    }
+    finishActive();
+    exitEditMode();
+}
+
+void ExclusiveCommandBus::enterEditMode(std::unique_ptr<IEditMode> mode)
+{
+    if (!mode)
+    {
+        return;
+    }
+    exitEditMode();
+    m_mode = std::move(mode);
+    m_exitModePending = false;
+    m_tools->activateAtBottom(m_mode.get());
+    if (!m_active)
+    {
+        m_mode->resumeMode();
+    }
+}
+
+void ExclusiveCommandBus::requestExitEditMode(IEditMode* mode)
+{
+    if (!mode || mode != m_mode.get())
+    {
+        return;
+    }
+    m_exitModePending = true;
+    if (m_scopeDepth > 0)
+    {
+        return;
+    }
+    // 分发范围之外（如选项条按钮）：调用方就是模式自己，不能当场销毁它
+    QTimer::singleShot(0, this, [this]()
+    {
+        if (m_exitModePending && m_scopeDepth == 0)
+        {
+            exitEditMode();
+        }
+    });
+}
+
+void ExclusiveCommandBus::exitEditMode()
+{
+    m_exitModePending = false;
+    if (!m_mode)
+    {
+        return;
+    }
+    std::unique_ptr<IEditMode> mode = std::move(m_mode);
+    m_tools->deactivate(mode.get());
+    mode->onExit();
+    if (m_scopeDepth > 0)
+    {
+        m_retiredModes.push_back(std::move(mode));
+    }
+}
+
 void ExclusiveCommandBus::suspend()
 {
     if (!m_active || m_suspended)
@@ -212,6 +309,11 @@ void ExclusiveCommandBus::finishActive()
         // 与旧 Action 栈清空时一致：恢复选择层（刷新提示，重绘预览与捕捉标记）
         m_selectTool->resume();
     }
+    // 回到编辑模式
+    if (m_mode)
+    {
+        m_mode->resumeMode();
+    }
 
     if (m_scopeDepth > 0)
     {
@@ -235,5 +337,10 @@ void ExclusiveCommandBus::leaveScope()
     {
         finishActive();
     }
+    if (m_exitModePending)
+    {
+        exitEditMode();
+    }
     m_retired.clear();
+    m_retiredModes.clear();
 }

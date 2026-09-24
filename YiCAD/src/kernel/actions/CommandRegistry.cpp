@@ -22,9 +22,7 @@
 #include <iterator>
 #include <utility>
 
-#include "ActionSelect.h"
-#include "DmDocument.h"
-#include "EntityTable.h"
+#include "ActionInterface.h"
 #include "IExclusiveCommand.h"
 
 // 注册冲突（重复 ID / 重复 legacy 类型）用返回值报告，不用 assert() 硬中断——
@@ -297,16 +295,4 @@ bool CommandRegistry::runInstant(const QString& id, const CommandContext& ctx) c
     }
     it->second.instant(ctx);
     return true;
-}
-
-CommandFactory makeSelectFirstFactory(DM::ActionType noSelectLegacyType, CommandFactory buildReal)
-{
-    return [noSelectLegacyType, buildReal](const CommandContext& ctx) -> ActionInterface*
-    {
-        if (!ctx.document->getEntityTable()->hasSelect())
-        {
-            return new ActionSelect(ctx.handler, ctx.document, ctx.view, noSelectLegacyType);
-        }
-        return buildReal(ctx);
-    };
 }

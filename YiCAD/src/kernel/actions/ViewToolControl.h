@@ -58,6 +58,10 @@ public:
     /// @brief 激活一个业务工具：追加到栈顶，享有最高优先级
     /// 若已在栈中，不重复添加
     void activate(IViewTool* tool);
+    /// @brief 在业务栈底部常驻一个工具：优先级低于栈里已有的全部业务工具
+    /// @details 用于编辑模式（块编辑）：模式里启动的命令与旧版 Action 叠在它上面。
+    ///          若已在栈中，不重复添加。
+    void activateAtBottom(IViewTool* tool);
     /// @brief 停用一个业务工具：从栈中移除（无论位置）
     void deactivate(IViewTool* tool);
     /// @brief 停用所有业务工具（不影响选择/导航工具）

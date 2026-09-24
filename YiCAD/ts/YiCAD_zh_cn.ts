@@ -2,46 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>ActionBlocksEdit</name>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="78"/>
-        <source>No block reference selected. Command cancelled.</source>
-        <translation>未选择块参照，命令已取消。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="329"/>
-        <source>Block Edit</source>
-        <translation>块编辑</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="330"/>
-        <source>Finish editing and save changes?</source>
-        <translation>完成编辑并保存更改？</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="410"/>
-        <source>Edit block entities</source>
-        <translation>编辑块实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="410"/>
-        <source>Finish / Cancel</source>
-        <translation>完成 / 取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="128"/>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="164"/>
-        <source>Block definition not found: %1</source>
-        <translation>未找到块定义：%1</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="103"/>
-        <location filename="../src/actions/ActionBlocksEdit.cpp" line="194"/>
-        <source>Editing block: %1</source>
-        <translation>正在编辑块：%1</translation>
-    </message>
-</context>
-<context>
     <name>ActionBlocksImport</name>
     <message>
         <location filename="../src/actions/ActionBlocksImport.cpp" line="92"/>
@@ -1945,106 +1905,46 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionSelect</name>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="81"/>
-        <source>No entity selected!</source>
-        <translation>没有实体被选</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="93"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="97"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="101"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="105"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="109"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="113"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="117"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="121"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="125"/>
-        <location filename="../src/actions/ActionSelect.cpp" line="129"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="93"/>
-        <source>Select to delete</source>
-        <translation>选择删除</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="97"/>
-        <source>Select to move</source>
-        <translation>选择移动</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="101"/>
-        <source>Select to copy</source>
-        <translation>选择复制</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="105"/>
-        <source>Select to cut</source>
-        <translation>选择剪切</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="121"/>
-        <source>Select to explode</source>
-        <translation>选择要分解的对象</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="109"/>
-        <source>Select to rotate</source>
-        <translation>选择旋转</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="113"/>
-        <source>Select to scale</source>
-        <translation>选择缩放</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="117"/>
-        <source>Select to mirror</source>
-        <translation>选择镜像</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="125"/>
-        <source>Select to create block</source>
-        <translation>选择创建块</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelect.cpp" line="129"/>
-        <source>Select objects to copy</source>
-        <translation>选择要复制的对象</translation>
-    </message>
-</context>
-<context>
-    <name>ActionSelectMultiple</name>
-    <message>
-        <location filename="../src/actions/ActionSelectMultiple.cpp" line="219"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelectMultiple.cpp" line="218"/>
-        <source>Click and drag for the selection window</source>
-        <translation>单击并拖动选择窗口</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelectMultiple.cpp" line="224"/>
-        <source>Choose second edge</source>
-        <translation>选择第二个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionSelectMultiple.cpp" line="224"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
     <name>ApplicationWindow</name>
     <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="1283"/>
         <source>2 Points</source>
         <translation>两点</translation>
+    </message>
+</context>
+<context>
+    <name>BlockEditTool</name>
+    <message>
+        <location filename="../src/actions/BlockEditTool.cpp" line="64"/>
+        <location filename="../src/actions/BlockEditTool.cpp" line="86"/>
+        <source>Block definition not found: %1</source>
+        <translation>未找到块定义：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlockEditTool.cpp" line="110"/>
+        <location filename="../src/actions/BlockEditTool.cpp" line="117"/>
+        <source>Editing block: %1</source>
+        <translation>正在编辑块：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlockEditTool.cpp" line="133"/>
+        <source>Block Edit</source>
+        <translation>块编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlockEditTool.cpp" line="133"/>
+        <source>Finish editing and save changes?</source>
+        <translation>完成编辑并保存更改？</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlockEditTool.cpp" line="246"/>
+        <source>Edit block entities</source>
+        <translation>编辑块实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlockEditTool.cpp" line="246"/>
+        <source>Finish / Cancel</source>
+        <translation>完成 / 取消</translation>
     </message>
 </context>
 <context>
@@ -2058,6 +1958,24 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/BlocksCreateCommand.cpp" line="65"/>
         <source>Cancel</source>
         <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>BlocksEditCommand</name>
+    <message>
+        <location filename="../src/actions/BlocksEditCommand.cpp" line="51"/>
+        <source>No block reference selected. Command cancelled.</source>
+        <translation>未选择块参照，命令已取消。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlocksEditCommand.cpp" line="77"/>
+        <source>Block Edit</source>
+        <translation>块编辑</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlocksEditCommand.cpp" line="78"/>
+        <source>Cannot edit block references while already editing a block.</source>
+        <translation>当前已在编辑块，不能再次编辑块参照。</translation>
     </message>
 </context>
 <context>

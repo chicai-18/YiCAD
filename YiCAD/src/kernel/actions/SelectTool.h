@@ -35,14 +35,15 @@
 ///   - `Neutral` 状态下的 Ctrl/Meta+左键：导航层的平移手势；
 ///   - 导航层平移中（`PanZoomTool::isPanning()`）的移动与释放。
 ///
-/// 有旧版业务 Action 活动时，本类只收到该 Action 经
-/// `ActionInterface::passesToSelection()` 交下来的事件（块编辑、多行文字
-/// 属性编辑时的双击）。此时 `getCursor()` 返回 `nullopt`、按键提示也不
-/// 更新：光标与提示归那个 Action 管（它仍通过 `updateMouseCursor()`/
-/// `updateMouseButtonHints()` 直接设置，见主计划 5.7 节）。`setStatus()`/
-/// `init()` 仍直接调用 `setMouseCursor()`，块编辑中拖动实体时的光标反馈
-/// 靠这条路径。命令（`IExclusiveCommand`）活动时同理，"之上有什么在活动"
-/// 由视图经 `setOverlayQuery()` 告知，见 `Overlay`。
+/// "之上有什么在活动"由视图经 `setOverlayQuery()` 告知，见 `Overlay`：
+///   - 旧版业务 Action：本类只收到该 Action 经 `ActionInterface::passesToSelection()`
+///     交下来的事件（多行文字属性编辑时的双击）。`getCursor()` 返回 `nullopt`、
+///     按键提示也不更新：光标与提示归那个 Action 管（它仍通过
+///     `updateMouseCursor()`/`updateMouseButtonHints()` 直接设置，见主计划 5.7 节）；
+///   - 命令（`IExclusiveCommand`）：同上，选择阶段除外（见下）；
+///   - 块编辑模式（`IEditMode`）：本类照常完成块内的选择并给出光标，只是不更新
+///     按键提示，提示归编辑模式。
+/// `setStatus()`/`init()` 始终直接调用 `setMouseCursor()`。
 ///
 /// 选择阶段（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 4 项）：先选后建
 /// 命令没有选择集时，由本类完成点选与框选，行为复刻原 `ActionSelectMultiple`：

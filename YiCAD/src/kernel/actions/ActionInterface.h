@@ -184,8 +184,8 @@ public:
 
     /// @brief 本 Action 处理完该事件后，是否继续交给选择层（SelectTool）
     /// @details LegacyActionTool 转发事件前询问；返回 true 时照常转发给本
-    ///          Action，然后返回 NotHandled，事件继续落到选择层。取代块编辑、
-    ///          多行文字属性编辑对原默认 Action 的直调，是
+    ///          Action，然后返回 NotHandled，事件继续落到选择层。取代多行文字属性
+    ///          编辑（原先还有块编辑，第二步改为编辑模式）对原默认 Action 的直调，是
     ///          doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步的临时钩子，第四步随本类删除。
     /// @param e 即将转发给本 Action 的事件
     /// @return 默认 false：事件到本 Action 为止

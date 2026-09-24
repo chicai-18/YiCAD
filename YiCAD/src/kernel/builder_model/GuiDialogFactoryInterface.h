@@ -22,10 +22,12 @@
 #define GUIDIALOGFACTORYINTERFACE_H
 
 #include <QString>
+#include <QStringList>
 
 #include "Datamodel.h"
 
 class ActionInterface;
+class IBlockEditSession;
 class IExclusiveCommand;
 class AttributesData;
 class BevelData;
@@ -67,6 +69,14 @@ class DmTableStyle;
 class DmTableStyleTable;
 class DmTable;
 
+/// @brief 是/否/取消对话框的回答
+enum class DialogAnswer
+{
+    Yes,    ///< 是
+    No,     ///< 否
+    Cancel  ///< 取消
+};
+
 /// @brief 对话框工厂接口
 /// @details 定义了创建和显示各类 CAD 对话框的纯虚接口
 class GuiDialogFactoryInterface
@@ -83,6 +93,23 @@ public:
     /// @param message 提示文本
     /// @return 用户选择确定返回 true，取消返回 false
     virtual bool requestConfirmDialog(const QString& title, const QString& message) = 0;
+
+    /// @brief 显示是/否/取消的提问对话框
+    /// @param title 标题
+    /// @param message 提问文本
+    /// @return 用户的回答；关闭对话框视为取消
+    virtual DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) = 0;
+
+    /// @brief 块里嵌套了别的块时，让用户选择要编辑的块
+    /// @param document 文档
+    /// @param blockNames 候选块名（第一个是被选中的块参照对应的块）
+    /// @return 选中的块名；取消时返回空串
+    virtual QString requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames) = 0;
+
+    /// @brief 显示或关闭块编辑选项条（块名与"完成"按钮）
+    /// @param session 块编辑会话
+    /// @param on true 打开，false 关闭
+    virtual void requestBlockEditOptions(IBlockEditSession* session, bool on) = 0;
 
     /// @brief 获取当前活动文档
     /// @details Model 层部分实体（如标注）在缺少自身文档上下文时，需要落回

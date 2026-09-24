@@ -627,3 +627,68 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 
 提交②验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
 134 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。
+
+**提交③：块编辑模式，删除选择 Action**
+
+1. **编辑模式**：`IEditMode`（`kernel/actions/`），由命令总线持有：
+   - `ExclusiveCommandBus::enterEditMode()` 把模式的工具常驻在业务栈底部
+     （`ViewToolControl::activateAtBottom()`），模式里启动的命令与旧版 Action 叠在它
+     上面；命令启动时模式收起界面（`suspendMode()`），命令结束时恢复（`resumeMode()`），
+     旧版 Action 叠在模式上时由 `UIView` 同样处理；
+   - 启动命令不问模式；结束全部命令、排他的旧 Action 与视图关闭时先问命令、再问模式
+     （`approveEndAll()`/`endAll()`），模式可以否决（视图关闭除外）；
+   - 模式退出自己（右键、选项条"完成"）经 `requestExitEditMode()`，延迟规则同命令；
+     撤销/重做离开块编辑时 `exitEditMode()` 立即退出。
+2. **块编辑**：`BlockEditTool`（模式）取代 `ActionBlocksEdit`。右键弹出"Finish editing
+   and save changes?"（是/否/取消）；鼠标按下、移动、左键释放与按键让给选择层；双击
+   到此为止（清单 B5）；命令行坐标被接受但不起作用。进入与退出的文档操作
+   （`BlockEditEnterCmd`/`BlockEditExitCmd` 事务、嵌套块选择）原样移过来。
+   - 编辑块命令 `BlocksEditCommand`（先选后建）：已在块编辑中时不构造命令、给出警告；
+     选择集就绪后取第一个块参照，先确定要编辑的块、把模式交给总线，再跑进入的事务，
+     然后结束命令。顺序是为了事务触发的撤销栈变化通知能看到模式已经存在，
+     `UIActionHandler` 才不会把它当作撤销后的重新进入；
+   - `UIActionHandler::slotCmdStateChanged` 改为看总线上有没有编辑模式：文档进入了块
+     编辑而视图没有模式时新建模式并 `reenter()`，反之 `exitEditMode()`；
+   - 块编辑选项条改为接收 `IBlockEditSession`（模型层接口，`BlockEditTool` 实现），
+     选项条与对话框工厂因此不认识交互层的类型；对话框工厂增加
+     `requestYesNoCancelDialog()`、`requestNestedBlockSelectDialog()`、
+     `requestBlockEditOptions()`，块编辑不再直接包含 `ui/` 的头文件。
+3. **删除**：`ActionSelect`、`ActionSelectMultiple`、`ActionBlocksEdit`、
+   `makeSelectFirstFactory`、`blocks.edit_no_select` 与 `CommandContext::handler`（只有
+   `ActionSelect` 用它回调 `UIActionHandler`）。**至此选择 Action 全部消失**，先选后建的
+   14 个命令都是交互命令。
+4. **测试**：`test_exclusive_command_bus` 补 9 例（模式常驻栈底、命令叠在模式上与恢复、
+   结束全部先问命令再问模式、模式否决与视图关闭、退出的延迟与延迟销毁）；
+   `test_select_first_commands` 补 9 例（编辑块没有块参照、清单 B1–B7、结束全部与视图
+   关闭时的对话框、选项条"完成"），P1 覆盖 14 个命令；删除 `makeSelectFirstFactory`
+   的 2 例。
+
+**与方案的偏差与补充**
+
+1. **结束全部命令遇到块编辑时弹出保存对话框**（2026-09-24 确认）：Esc/空格未被接受、
+   Ribbon 的结束全部、排他的旧 Action（文件新建、打开、保存、另存、导出图片，块另存、
+   插入块）都弹出与右键相同的对话框，是保存后退出、否放弃后退出、取消即否决（"清空
+   选择"也不执行，排他的旧 Action 也不启动）。原先它们结束 `ActionBlocksEdit`，但文档
+   仍停在块编辑态，选项条与右键退出都没了——既有缺陷随之消失（清单 B10、B11）。
+   视图关闭时不提问、不改动文档，与原先一致。
+2. **创建块在块编辑中不再结束块编辑**：原 `ActionBlocksCreate` 是排他的，会连带结束
+   `ActionBlocksEdit`（文档仍在块编辑态，块在块内创建）；现在它与别的命令一样叠在编辑
+   模式上，结束后回到块编辑（清单 B12）。
+3. **块定义不存在时结束命令**：原先非嵌套路径上只给出提示就返回，`ActionBlocksEdit`
+   停在"编辑中"而文档并没有进入块编辑；现在提示后结束命令、不进入模式。
+4. **可见的细微变化**：
+   - 块编辑中没有命令时，命令行消息不再带"[说明]"前缀（原先当前 Action 是
+     `ActionBlocksEdit`）；
+   - 选项条"完成"后的退出经 0 毫秒定时器：原先在按钮自己的槽函数里就删除了选项条
+     控件；
+   - 撤销/重做后重新进入时不再查找块参照：原先查到了也没有用到。
+5. **翻译**："Cannot edit block references while already editing a block." 在阶段 4 从
+   `UIActionHandler` 搬走后一直没有译文，这次随 `BlocksEditCommand` 的上下文补回。
+
+提交③验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
+150 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。
+
+**第二步的结果**：命令框架、两类新注册、坐标解析与工具的命令行回调、选择阶段约束
+都已就位；先选后建的 14 个命令都迁成交互命令，块编辑成为编辑模式，`ActionSelect`、
+`ActionSelectMultiple` 与 `makeSelectFirstFactory` 删除。其余 Action 仍经
+`LegacyActionTool` 运行，按第三步分批迁移。

@@ -30,7 +30,10 @@
 ///   - 总线就是命令的宿主：命令经它拿到文档、视图、工具控制器与选择层
 ///     （命令不能认识 UIView，见 IExclusiveCommand.h），并由它保证命令结束时
 ///     清除选择阶段的约束；
-///   - 过渡期旧 Action 叠在命令之上时，经 suspend()/resume() 挂起、恢复命令。
+///   - 过渡期旧 Action 叠在命令之上时，经 suspend()/resume() 挂起、恢复命令；
+///   - 持有编辑模式（块编辑，见 IEditMode.h）：模式的工具常驻在业务栈底部，
+///     命令叠在它上面；启动命令不影响模式，结束全部命令与视图关闭时先问命令、
+///     再问模式（approveEndAll()）。
 ///
 /// 视图工具（平移、缩放）不占总线，直接叠在业务栈顶。
 
@@ -48,6 +51,7 @@
 
 class DmDocument;
 class IDocumentView;
+class IEditMode;
 class SelectTool;
 class ViewToolControl;
 struct SnapMode;
@@ -126,6 +130,28 @@ public:
     /// @brief 是否正在回调 onEndRequested()；期间的启动与结束请求一律忽略
     bool isInCallback() const { return m_inCallback; }
 
+    /// @brief 结束全部前征求同意：先问活动命令，再问编辑模式（5.1 节），不改变任何状态
+    /// @param reason Cancelled（结束全部命令）、Replaced（排他的旧 Action）或 ViewClosing
+    /// @return 都同意时返回 true；ViewClosing 忽略否决；回调期间的重入请求返回 false
+    bool approveEndAll(CommandEndReason reason);
+    /// @brief 结束活动命令并退出编辑模式，不再征求同意（调用方已经 approveEndAll()）
+    void endAll();
+
+    // ---- 编辑模式（块编辑）----
+
+    /// @brief 进入编辑模式：模式的工具常驻在业务栈底部
+    /// @details 没有活动命令时立即恢复模式的界面；有活动命令时（如正在结束的编辑块
+    ///          命令）等它结束时恢复。已有编辑模式时先退出它。
+    /// @param mode 编辑模式，总线接管所有权
+    void enterEditMode(std::unique_ptr<IEditMode> mode);
+    /// @brief 当前编辑模式；没有时返回 nullptr
+    IEditMode* editMode() const { return m_mode.get(); }
+    /// @brief 模式请求退出自己（右键确认、选项条"完成"）；延迟规则同 requestFinish()
+    void requestExitEditMode(IEditMode* mode);
+    /// @brief 立即退出编辑模式，不征求同意（撤销/重做后文档已离开块编辑）
+    /// @note 不能在模式自己的调用栈里调用，模式请求退出自己用 requestExitEditMode()
+    void exitEditMode();
+
     // ---- 过渡期：旧 Action 叠在命令之上 ----
 
     /// @brief 挂起活动命令（旧 Action 从空栈启动）
@@ -154,10 +180,14 @@ private:
     SelectTool* m_selectTool = nullptr;
 
     std::unique_ptr<IExclusiveCommand> m_active;
+    std::unique_ptr<IEditMode> m_mode;
     /// @brief 分发范围内结束的命令，范围结束时销毁（它的工具可能还在调用栈上）
     std::vector<std::unique_ptr<IExclusiveCommand>> m_retired;
+    /// @brief 分发范围内退出的编辑模式，范围结束时销毁
+    std::vector<std::unique_ptr<IEditMode>> m_retiredModes;
     int m_scopeDepth = 0;
     bool m_finishPending = false;
+    bool m_exitModePending = false;
     bool m_inCallback = false;
     bool m_suspended = false;
     /// @brief 每启动一个命令加一，定时器据此确认结束的还是同一个命令

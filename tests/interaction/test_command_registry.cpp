@@ -2,9 +2,9 @@
 /// @brief CommandRegistry 的单测
 ///
 /// 覆盖阶段4第一部分（doc/ARCHITECTURE_EVOLUTION_PLAN.md 7.4节任务①）的核心
-/// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝、
-/// makeSelectFirstFactory 的两个分支；以及业务工具化第二步新增的交互命令、
-/// 即时命令两类注册（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 2 项）。
+/// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝；以及业务
+/// 工具化第二步新增的交互命令、即时命令两类注册（doc/COMMAND_TOOL_MIGRATION_PLAN.md
+/// 第二步第 2 项）。makeSelectFirstFactory 随先选后建命令的迁移删除。
 ///
 /// CommandRegistry 是进程范围的单例，同一个测试二进制内的所有用例共享同一份
 /// 注册表状态，且 gtest 不保证跨用例的严格声明顺序（如加 --gtest_shuffle）。
@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "ActionInterface.h"
-#include "ActionSelect.h"
 #include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "DmDocument.h"
@@ -64,7 +63,7 @@ TEST(CommandRegistryTest, 按字符串ID注册并创建)
         [](const CommandContext& ctx) -> ActionInterface*
         { return new TestAction(ctx.document, ctx.view); }));
 
-    CommandContext ctx{&doc, &view, nullptr, nullptr};
+    CommandContext ctx{&doc, &view, nullptr};
     ActionInterface* a = CommandRegistry::instance().create(QStringLiteral("test.cr.plain"), ctx);
     ASSERT_NE(a, nullptr);
     EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
@@ -86,7 +85,7 @@ TEST(CommandRegistryTest, legacy桥接按ActionType和字符串ID都能创建)
 
     EXPECT_TRUE(CommandRegistry::instance().hasLegacyMapping(DM::ActionScriptOpenIDE));
 
-    CommandContext ctx{&doc, &view, nullptr, nullptr};
+    CommandContext ctx{&doc, &view, nullptr};
     ActionInterface* a = CommandRegistry::instance().create(DM::ActionScriptOpenIDE, ctx);
     ASSERT_NE(a, nullptr);
     EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
@@ -120,7 +119,7 @@ TEST(CommandRegistryTest, 重复注册同一legacyActionType被拒绝且不留�
     // "test.cr.dup_legacy_2" 也注册进字符串表。
     DmDocument doc;
     FakeDocumentView view;
-    CommandContext ctx{&doc, &view, nullptr, nullptr};
+    CommandContext ctx{&doc, &view, nullptr};
     EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.dup_legacy_2"), ctx), nullptr);
 }
 
@@ -133,7 +132,7 @@ TEST(CommandRegistryTest, 按字符串ID创建的Action记录命令ID)
         [](const CommandContext& ctx) -> ActionInterface*
         { return new TestAction(ctx.document, ctx.view); }));
 
-    CommandContext ctx{&doc, &view, nullptr, nullptr};
+    CommandContext ctx{&doc, &view, nullptr};
     ActionInterface* a = CommandRegistry::instance().create(QStringLiteral("test.cr.command_id"), ctx);
     ASSERT_NE(a, nullptr);
     EXPECT_EQ(a->getCommandId(), QStringLiteral("test.cr.command_id"));
@@ -195,50 +194,6 @@ TEST(CommandRegistryTest, 注销清除命令别名与legacy桥接)
         {.aliases = {"crgone"}}));
     EXPECT_TRUE(CommandRegistry::instance().unregisterCommand("test.cr.unregister_alias"));
     EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crgone").isEmpty());
-}
-
-TEST(CommandRegistryTest, makeSelectFirstFactory_未选中时建ActionSelect)
-{
-    DmDocument doc;  // 空文档，必然没有选中实体
-    FakeDocumentView view;
-    UIActionHandler handler(nullptr);
-
-    CommandFactory factory = makeSelectFirstFactory(
-        DM::ActionViewDraft,  // 占位的"选择完成后"动作类型，本用例不关心具体值
-        [](const CommandContext& ctx) -> ActionInterface*
-        { return new TestAction(ctx.document, ctx.view); });
-
-    CommandContext ctx{&doc, &view, &handler, nullptr};
-    ActionInterface* a = factory(ctx);
-    ASSERT_NE(a, nullptr);
-    EXPECT_NE(dynamic_cast<ActionSelect*>(a), nullptr);
-    EXPECT_EQ(a->getEntityType(), DM::ActionSelect);
-    delete a;
-}
-
-TEST(CommandRegistryTest, makeSelectFirstFactory_已选中时建真正Action)
-{
-    DmDocument doc;
-    FakeDocumentView view;
-    UIActionHandler handler(nullptr);
-
-    // add_direct 绕开撤销/重做的 Cmd 机制，直接把实体放进表——一个裸的默认
-    // 构造 DmDocument 没有完整的应用上下文，走 add() 的 Cmd 路径会崩溃。
-    DmPoint* p = new DmPoint(nullptr, PointData(DmVector(0.0, 0.0)));
-    ASSERT_TRUE(doc.getEntityTable()->add_direct(p));
-    p->setSelected(true);
-    ASSERT_TRUE(doc.getEntityTable()->hasSelect());
-
-    CommandFactory factory = makeSelectFirstFactory(
-        DM::ActionViewDraft,
-        [](const CommandContext& ctx) -> ActionInterface*
-        { return new TestAction(ctx.document, ctx.view); });
-
-    CommandContext ctx{&doc, &view, &handler, nullptr};
-    ActionInterface* a = factory(ctx);
-    ASSERT_NE(a, nullptr);
-    EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
-    delete a;
 }
 
 TEST(CommandRegistryTest, 交互命令按ID创建并记录命令ID)
@@ -320,6 +275,7 @@ TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
         {DM::ActionModifyReverse, "modify.reverse"}, {DM::ActionModifyDelete, "modify.delete"},
         {DM::ActionEditCopy, "edit.copy"},           {DM::ActionEditCut, "edit.cut"},
         {DM::ActionCopyToLayer, "modify.copy_to_layer"}, {DM::ActionBlocksCreate, "blocks.create"},
+        {DM::ActionBlocksEdit, "blocks.edit"},
         {DM::ActionInfoTotalLength, "info.total_length"},
     };
     for (const auto& [type, id] : migrated)

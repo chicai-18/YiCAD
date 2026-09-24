@@ -26,8 +26,7 @@
 
 class QLabel;
 class QPushButton;
-class ActionInterface;
-class ActionBlocksEdit;
+class IBlockEditSession;
 
 /// @class UIBlockEditOptions
 /// @brief 块在位编辑选项栏
@@ -46,16 +45,16 @@ public:
     ~UIBlockEditOptions() override;
 
 public slots:
-    /// @brief 设置当前 Action
-    /// @param [in] a Action 接口指针
-    void setAction(ActionInterface* a);
+    /// @brief 设置块编辑会话（块编辑模式）
+    /// @param [in] session 块编辑会话，可为空
+    void setSession(IBlockEditSession* session);
 
 private slots:
     /// @brief 完成按钮点击槽
     void onCompleteClicked();
 
 private:
-    ActionBlocksEdit* m_action;          ///< 块编辑 Action 指针
+    IBlockEditSession* m_session;        ///< 块编辑会话
     QLabel* m_label;                     ///< 当前编辑块名称标签
     QPushButton* m_completeButton;       ///< 完成按钮
 };

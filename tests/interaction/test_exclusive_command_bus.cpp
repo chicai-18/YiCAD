@@ -5,7 +5,8 @@
 ///   - 生命周期：启动、替换、结束、激活失败、激活期间就完成、延迟销毁；
 ///   - 结束前回调（5.1 节）：三种原因、否决与不否决、ViewClosing 忽略否决、
 ///     回调期间的重入请求被忽略；
-/// 以及过渡期的挂起/恢复、选择阶段约束由总线清除、捕捉设置同步。
+/// 以及过渡期的挂起/恢复、选择阶段约束由总线清除、捕捉设置同步，
+/// 编辑模式（IEditMode）的进入、退出与结束全部时的征求同意。
 
 #include <gtest/gtest.h>
 
@@ -20,6 +21,7 @@
 #include "BaseExclusiveCommand.h"
 #include "DmDocument.h"
 #include "ExclusiveCommandBus.h"
+#include "IEditMode.h"
 #include "IViewTool.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
@@ -91,12 +93,66 @@ private:
     CommandLog& m_log;
 };
 
+/// @brief 编辑模式探针的记录
+struct ModeLog
+{
+    int suspended = 0;
+    int resumed = 0;
+    int exited = 0;
+    int destroyed = 0;
+    int doubleClicks = 0;
+    std::vector<CommandEndReason> endRequests;
+};
+
+/// @brief 记录回调的编辑模式探针；双击到此为止，其余事件让给下层
+class ProbeMode : public IEditMode
+{
+public:
+    explicit ProbeMode(ModeLog& log)
+        : m_log(log)
+    {
+    }
+    ~ProbeMode() override { ++m_log.destroyed; }
+
+    bool veto = false;
+
+    bool onEndRequested(CommandEndReason reason) override
+    {
+        m_log.endRequests.push_back(reason);
+        return !veto;
+    }
+    void onExit() override { ++m_log.exited; }
+    void suspendMode() override { ++m_log.suspended; }
+    void resumeMode() override { ++m_log.resumed; }
+    ViewToolResult mouseDoubleClickEvent(QMouseEvent*) override
+    {
+        ++m_log.doubleClicks;
+        return ViewToolResult::Handled;
+    }
+
+private:
+    ModeLog& m_log;
+};
+
+/// @brief 双击到此为止的业务工具，用来验证它叠在编辑模式之上
+class SwallowDoubleClickTool : public IViewTool
+{
+public:
+    int doubleClicks = 0;
+    ViewToolResult mouseDoubleClickEvent(QMouseEvent*) override
+    {
+        ++doubleClicks;
+        return ViewToolResult::Handled;
+    }
+};
+
 /// @brief 与 UIView 相同的装配：导航层、选择层、工具控制器与总线
 struct BusFixture : ::testing::Test
 {
     /// @brief 探针命令的记录。放在夹具里、声明在总线之前：用例结束时仍活动的命令
     ///        由夹具析构总线时销毁，那时用例体里的局部变量已经不在了
     std::deque<CommandLog> logs;
+    std::deque<ModeLog> modeLogs;
     DmDocument doc;
     FakeDocumentView view;
     Preview preview{&doc, &view};
@@ -114,6 +170,8 @@ struct BusFixture : ::testing::Test
 
     /// @brief 新建一份探针命令的记录
     CommandLog& newLog() { return logs.emplace_back(); }
+    /// @brief 新建一份编辑模式探针的记录
+    ModeLog& newModeLog() { return modeLogs.emplace_back(); }
 
     /// @brief 构造一个探针命令
     std::unique_ptr<ProbeCommand> makeCommand(CommandLog& log, const char* id = "test.bus.probe")
@@ -383,4 +441,169 @@ TEST_F(BusFixture, 捕捉设置同步给活动命令的捕捉器)
     bus.setSnapMode(mode);
     EXPECT_TRUE(commandSnapper->getSnapMode()->snapEndpoint);
     EXPECT_EQ(commandSnapper->getSnapMode()->restriction, DM::RestrictOrthogonal);
+}
+
+TEST_F(BusFixture, 编辑模式常驻业务栈底部且没有命令时立即恢复)
+{
+    ModeLog& log = newModeLog();
+    auto mode = std::make_unique<ProbeMode>(log);
+    ProbeMode* raw = mode.get();
+    SwallowDoubleClickTool above;
+    control.activate(&above);
+
+    bus.enterEditMode(std::move(mode));
+    EXPECT_EQ(bus.editMode(), raw);
+    EXPECT_TRUE(control.isActive(raw));
+    EXPECT_EQ(log.resumed, 1);
+
+    // 先进入的业务工具仍在模式之上
+    QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    control.mouseDoubleClickEvent(&dbl);
+    EXPECT_EQ(above.doubleClicks, 1);
+    EXPECT_EQ(log.doubleClicks, 0);
+
+    control.deactivate(&above);
+    control.mouseDoubleClickEvent(&dbl);
+    EXPECT_EQ(log.doubleClicks, 1);
+}
+
+TEST_F(BusFixture, 编辑模式里启动的命令叠在模式之上结束后回到模式)
+{
+    ModeLog& modeLog = newModeLog();
+    bus.enterEditMode(std::make_unique<ProbeMode>(modeLog));
+    ASSERT_EQ(modeLog.resumed, 1);
+
+    CommandLog& first = newLog();
+    CommandLog& second = newLog();
+    ASSERT_TRUE(bus.start(makeCommand(first)));
+    EXPECT_EQ(modeLog.suspended, 1);
+
+    // 启动新命令只问当前命令，不问编辑模式
+    ASSERT_TRUE(bus.start(makeCommand(second, "test.bus.next")));
+    EXPECT_TRUE(modeLog.endRequests.empty());
+    EXPECT_NE(bus.editMode(), nullptr);
+
+    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
+    bus.end();
+    EXPECT_NE(bus.editMode(), nullptr);
+    EXPECT_EQ(modeLog.resumed, 3);  // 进入、第一个命令被替换、第二个命令结束
+    EXPECT_EQ(modeLog.exited, 0);
+}
+
+TEST_F(BusFixture, 结束全部先问命令再问编辑模式模式可以否决)
+{
+    ModeLog& modeLog = newModeLog();
+    auto mode = std::make_unique<ProbeMode>(modeLog);
+    mode->veto = true;
+    ProbeMode* rawMode = mode.get();
+    bus.enterEditMode(std::move(mode));
+    CommandLog& log = newLog();
+    ASSERT_TRUE(bus.start(makeCommand(log)));
+
+    EXPECT_FALSE(bus.approveEndAll(CommandEndReason::Cancelled));
+    ASSERT_EQ(log.endRequests.size(), 1u);
+    ASSERT_EQ(modeLog.endRequests.size(), 1u);
+    EXPECT_EQ(modeLog.endRequests[0], CommandEndReason::Cancelled);
+    // 只问不改
+    EXPECT_TRUE(bus.hasActiveCommand());
+    EXPECT_EQ(bus.editMode(), rawMode);
+
+    rawMode->veto = false;
+    ASSERT_TRUE(bus.approveEndAll(CommandEndReason::Cancelled));
+    bus.endAll();
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_EQ(bus.editMode(), nullptr);
+    EXPECT_EQ(modeLog.exited, 1);
+    EXPECT_EQ(modeLog.destroyed, 1);
+    EXPECT_FALSE(control.isActive(rawMode));
+}
+
+TEST_F(BusFixture, 命令否决时不再问编辑模式)
+{
+    ModeLog& modeLog = newModeLog();
+    bus.enterEditMode(std::make_unique<ProbeMode>(modeLog));
+    CommandLog& log = newLog();
+    auto command = makeCommand(log);
+    command->veto = true;
+    ASSERT_TRUE(bus.start(std::move(command)));
+
+    EXPECT_FALSE(bus.approveEndAll(CommandEndReason::Cancelled));
+    EXPECT_TRUE(modeLog.endRequests.empty());
+}
+
+TEST_F(BusFixture, 视图关闭忽略编辑模式的否决)
+{
+    ModeLog& modeLog = newModeLog();
+    auto mode = std::make_unique<ProbeMode>(modeLog);
+    mode->veto = true;
+    bus.enterEditMode(std::move(mode));
+
+    EXPECT_TRUE(bus.approveEndAll(CommandEndReason::ViewClosing));
+    ASSERT_EQ(modeLog.endRequests.size(), 1u);
+    EXPECT_EQ(modeLog.endRequests[0], CommandEndReason::ViewClosing);
+}
+
+TEST_F(BusFixture, 编辑模式请求退出自己时延迟到分发结束)
+{
+    ModeLog& modeLog = newModeLog();
+    auto mode = std::make_unique<ProbeMode>(modeLog);
+    ProbeMode* raw = mode.get();
+    bus.enterEditMode(std::move(mode));
+
+    {
+        ExclusiveCommandBus::DispatchScope scope(&bus);
+        bus.requestExitEditMode(raw);
+        EXPECT_EQ(bus.editMode(), raw);
+        EXPECT_EQ(modeLog.exited, 0);
+    }
+    EXPECT_EQ(bus.editMode(), nullptr);
+    EXPECT_EQ(modeLog.exited, 1);
+    EXPECT_EQ(modeLog.destroyed, 1);
+}
+
+TEST_F(BusFixture, 编辑模式在分发范围外请求退出经事件循环)
+{
+    ModeLog& modeLog = newModeLog();
+    auto mode = std::make_unique<ProbeMode>(modeLog);
+    ProbeMode* raw = mode.get();
+    bus.enterEditMode(std::move(mode));
+
+    bus.requestExitEditMode(raw);
+    EXPECT_EQ(bus.editMode(), raw);
+    for (int i = 0; i < 5 && bus.editMode(); ++i)
+    {
+        QCoreApplication::processEvents();
+    }
+    EXPECT_EQ(bus.editMode(), nullptr);
+    EXPECT_EQ(modeLog.exited, 1);
+}
+
+TEST_F(BusFixture, 分发范围内被外部退出的编辑模式在范围结束时才销毁)
+{
+    ModeLog& modeLog = newModeLog();
+    bus.enterEditMode(std::make_unique<ProbeMode>(modeLog));
+
+    {
+        ExclusiveCommandBus::DispatchScope scope(&bus);
+        bus.exitEditMode();
+        EXPECT_EQ(bus.editMode(), nullptr);
+        EXPECT_EQ(modeLog.exited, 1);
+        EXPECT_EQ(modeLog.destroyed, 0);
+    }
+    EXPECT_EQ(modeLog.destroyed, 1);
+}
+
+TEST_F(BusFixture, 命令活动时进入编辑模式等命令结束才恢复模式)
+{
+    // 编辑块命令进入模式后立即结束：模式的界面等命令结束后再恢复
+    ModeLog& modeLog = newModeLog();
+    ASSERT_TRUE(bus.start(makeCommand(newLog())));
+    {
+        ExclusiveCommandBus::DispatchScope scope(&bus);
+        bus.enterEditMode(std::make_unique<ProbeMode>(modeLog));
+        EXPECT_EQ(modeLog.resumed, 0);
+        static_cast<BaseExclusiveCommand*>(bus.activeCommand())->finish();
+    }
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_EQ(modeLog.resumed, 1);
 }

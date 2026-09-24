@@ -36,6 +36,7 @@
 #include "GuiCoordinateInput.h"
 #include "GuiDialogFactory.h"
 #include "GuiEventHandler.h"
+#include "IEditMode.h"
 #include "LegacyActionTool.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
@@ -76,6 +77,10 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
             {
                 return SelectTool::Overlay::Command;
             }
+            if (m_pCommandBus && m_pCommandBus->editMode())
+            {
+                return SelectTool::Overlay::EditMode;
+            }
             return SelectTool::Overlay::None;
         });
         getEventHandler()->setStackBase(this);
@@ -96,7 +101,8 @@ bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
     {
         return false;
     }
-    // 5.1 节：先请当前命令让位，被否决时新命令直接销毁、不激活
+    // 5.1 节：先请当前命令让位，被否决时新命令直接销毁、不激活。
+    // 编辑模式不受影响，新命令叠在它上面。
     if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
     {
         return false;
@@ -141,9 +147,9 @@ void UIView::routeBack(QMouseEvent* e)
     {
         GuiDocumentView::back();
     }
-    else if (m_pCommandBus && m_pCommandBus->hasActiveCommand())
+    else if (hasBusinessOnBus())
     {
-        // 右键释放不走 ViewToolControl（主计划 5.7 节）；命令的工具在这里收到它
+        // 右键释放不走 ViewToolControl（主计划 5.7 节）；命令的工具、编辑模式在这里收到它
         DispatchScope scope(m_pCommandBus.get());
         m_pViewToolControl->mouseReleaseEvent(e);
     }
@@ -151,7 +157,7 @@ void UIView::routeBack(QMouseEvent* e)
 
 void UIView::commandEvent(GuiCommandEvent* e)
 {
-    if (getEventHandler()->hasAction() || !m_pCommandBus || !m_pCommandBus->hasActiveCommand())
+    if (getEventHandler()->hasAction() || !hasBusinessOnBus())
     {
         GuiDocumentView::commandEvent(e);
         return;
@@ -185,12 +191,12 @@ bool UIView::killAllActions()
 {
     if (m_pCommandBus)
     {
-        // 5.1 节：先征求命令同意，被否决时什么也不做（调用方也不清空选择）
-        if (!m_pCommandBus->approveEnd(CommandEndReason::Cancelled))
+        // 5.1 节：先征求命令、再征求编辑模式同意，被否决时什么也不做（调用方也不清空选择）
+        if (!m_pCommandBus->approveEndAll(CommandEndReason::Cancelled))
         {
             return false;
         }
-        m_pCommandBus->end();
+        m_pCommandBus->endAll();
     }
     return GuiDocumentView::killAllActions();
 }
@@ -199,16 +205,21 @@ void UIView::killAllActionsOnClose()
 {
     if (m_pCommandBus)
     {
-        // 不能否决：命令只在回调里保存或放弃
-        m_pCommandBus->approveEnd(CommandEndReason::ViewClosing);
-        m_pCommandBus->end();
+        // 不能否决：命令与编辑模式只在回调里保存或放弃
+        m_pCommandBus->approveEndAll(CommandEndReason::ViewClosing);
+        m_pCommandBus->endAll();
     }
     GuiDocumentView::killAllActionsOnClose();
 }
 
 bool UIView::hasActiveCommand()
 {
-    return GuiDocumentView::hasActiveCommand() || (m_pCommandBus && m_pCommandBus->hasActiveCommand());
+    return GuiDocumentView::hasActiveCommand() || hasBusinessOnBus();
+}
+
+bool UIView::hasBusinessOnBus() const
+{
+    return m_pCommandBus && (m_pCommandBus->hasActiveCommand() || m_pCommandBus->editMode());
 }
 
 void UIView::setCurrentAction(ActionInterface* action)
@@ -227,13 +238,13 @@ void UIView::setCurrentAction(ActionInterface* action)
         }
         if (action->isExclusive())
         {
-            // 排他的旧 Action 要结束全部，先请命令让位；被否决时不启动它
-            if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
+            // 排他的旧 Action 要结束全部，先请命令与编辑模式让位；被否决时不启动它
+            if (!m_pCommandBus->approveEndAll(CommandEndReason::Replaced))
             {
                 delete action;
                 return;
             }
-            m_pCommandBus->end();
+            m_pCommandBus->endAll();
         }
     }
     // 其余旧 Action 叠在命令之上：GuiEventHandler 从空栈启动它时经
@@ -271,7 +282,15 @@ void UIView::suspendForLegacy()
 {
     if (m_pCommandBus)
     {
-        m_pCommandBus->suspend();
+        if (m_pCommandBus->hasActiveCommand())
+        {
+            m_pCommandBus->suspend();
+        }
+        else if (IEditMode* mode = m_pCommandBus->editMode())
+        {
+            // 命令活动时模式已被它挂起
+            mode->suspendMode();
+        }
     }
     if (m_pSelectTool)
     {
@@ -287,7 +306,14 @@ void UIView::resumeAfterLegacy()
     }
     if (m_pCommandBus)
     {
-        m_pCommandBus->resume();
+        if (m_pCommandBus->hasActiveCommand())
+        {
+            m_pCommandBus->resume();
+        }
+        else if (IEditMode* mode = m_pCommandBus->editMode())
+        {
+            mode->resumeMode();
+        }
     }
 }
 

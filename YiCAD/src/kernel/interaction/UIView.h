@@ -43,6 +43,9 @@
 ///     旧 Action 栈之下的一层，实现 ILegacyStackBase）；排他的旧 Action（文件
 ///     新建、打开等）先按 5.1 节请命令让位；
 ///   - 即时命令：不碰命令总线，只结束不可打断的旧 Action。
+///
+/// 编辑模式（块编辑，IEditMode）也由命令总线持有：启动命令不影响它；结束全部命令、
+/// 排他的旧 Action 与视图关闭时先问命令、再问模式（ExclusiveCommandBus::approveEndAll）。
 
 #ifndef UIVIEW_H
 #define UIVIEW_H
@@ -99,11 +102,11 @@ public:
     /// @brief 命令行输入：有旧 Action 时交给它；只有命令时解析坐标，经 ViewToolControl
     ///        交给命令的工具
     void commandEvent(GuiCommandEvent* e) override;
-    /// @brief 按 5.1 节先征求命令同意（Cancelled），被否决时什么也不做
+    /// @brief 按 5.1 节先征求命令、再征求编辑模式同意（Cancelled），被否决时什么也不做
     bool killAllActions() override;
-    /// @brief 视图关闭：回调命令（ViewClosing，不能否决）后结束全部
+    /// @brief 视图关闭：回调命令与编辑模式（ViewClosing，不能否决）后结束全部
     void killAllActionsOnClose() override;
-    /// @brief 旧 Action 栈非空或有活动命令
+    /// @brief 旧 Action 栈非空、有活动命令或处于编辑模式
     bool hasActiveCommand() override;
 
     /// @brief 启动旧版 Action：排他的先请命令让位；回调期间的启动请求被忽略
@@ -141,8 +144,12 @@ private:
     /// @brief 活动命令的捕捉器：命令未挂起、不在选择阶段且有捕捉器时返回它
     ISnapService* commandSnapService() const;
 
-    /// @brief 右键释放（含 back() 合成的）：有旧 Action 交给它，否则经 ViewToolControl 交给命令
+    /// @brief 右键释放（含 back() 合成的）：有旧 Action 交给它，否则经 ViewToolControl
+    ///        交给命令的工具或编辑模式
     void routeBack(QMouseEvent* e);
+
+    /// @brief 命令总线上有活动命令或编辑模式
+    bool hasBusinessOnBus() const;
 
     // 注意声明顺序：成员按声明的逆序析构。m_pCommandBus 最后声明、最先析构
     // （析构函数里还会提前显式释放），结束活动命令时它的工具、选择层与

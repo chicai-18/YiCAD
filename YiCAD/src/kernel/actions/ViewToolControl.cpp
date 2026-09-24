@@ -77,6 +77,18 @@ void ViewToolControl::activate(IViewTool* tool)
     refreshCursor();
 }
 
+void ViewToolControl::activateAtBottom(IViewTool* tool)
+{
+    if (!tool || isActive(tool))
+    {
+        return;
+    }
+    m_businessTools.insert(m_businessTools.begin(), tool);
+    tool->onActivate();
+    m_lastAppliedCursor.reset();
+    refreshCursor();
+}
+
 void ViewToolControl::deactivate(IViewTool* tool)
 {
     if (!tool)

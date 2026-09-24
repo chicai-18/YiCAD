@@ -59,20 +59,17 @@ class IDocumentView;
 class IExclusiveCommand;
 class QObject;
 class QWidget;
-class UIActionHandler;
 
 /// @brief 构造命令所需的运行时环境。
 ///
-/// 绝大多数命令只用 document/view；handler 仅供"先选后建"类命令使用
-/// （ActionSelect 的构造函数需要一个 UIActionHandler*，用于选择完成后
-/// 回调 setCurrentAction 触发后续动作）；sender 供 Layers* 系列命令透传
-/// Ribbon 触发源（原 switch 里直接用 UIActionHandler::sender()）。
-/// 即时命令在没有打开图纸时 document/view 为空。
+/// 绝大多数命令只用 document/view；sender 供 Layers* 系列命令透传 Ribbon
+/// 触发源（原 switch 里直接用 UIActionHandler::sender()）。即时命令在没有
+/// 打开图纸时 document/view 为空。原先供 ActionSelect 回调的 handler 字段
+/// 随先选后建命令的迁移删除（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步）。
 struct CommandContext
 {
     DmDocument* document = nullptr;
     IDocumentView* view = nullptr;
-    UIActionHandler* handler = nullptr;
     QObject* sender = nullptr;
 };
 
@@ -238,12 +235,5 @@ private:
     /// @brief 小写别名 -> 命令 ID
     std::map<QString, QString> m_aliases;
 };
-
-/// @brief 复刻原 switch 里"未选中先建 ActionSelect 收集选择，选中后建真正
-/// Action"这一同形态 case 的共享工厂。
-/// @param noSelectLegacyType 未选中时，交给 ActionSelect 的"选择完成后"动作类型。
-/// @param buildReal 已有选中集时，构造真正 Action 的工厂。
-CommandFactory makeSelectFirstFactory(DM::ActionType noSelectLegacyType,
-                                       CommandFactory buildReal);
 
 #endif  // COMMANDREGISTRY_H

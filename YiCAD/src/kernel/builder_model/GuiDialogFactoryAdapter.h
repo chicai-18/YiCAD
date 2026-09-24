@@ -43,6 +43,25 @@ public:
         return false;
     }
 
+    /// @brief 是/否/取消对话框
+    /// @return 始终返回取消（不做任何改变）
+    DialogAnswer requestYesNoCancelDialog(const QString&, const QString&) override
+    {
+        return DialogAnswer::Cancel;
+    }
+
+    /// @brief 嵌套块选择对话框
+    /// @return 始终返回空串（视为取消）
+    QString requestNestedBlockSelectDialog(DmDocument*, const QStringList&) override
+    {
+        return {};
+    }
+
+    /// @brief 块编辑选项条（空操作）
+    void requestBlockEditOptions(IBlockEditSession*, bool) override
+    {
+    }
+
     /// @brief 获取当前活动文档
     /// @return 始终返回 nullptr
     DmDocument* requestActiveDocument() override

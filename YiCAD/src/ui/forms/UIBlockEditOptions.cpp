@@ -25,12 +25,11 @@
 #include <QHBoxLayout>
 #include <QMessageBox>
 
-#include "ActionBlocksEdit.h"
-#include "ActionInterface.h"
+#include "IBlockEditSession.h"
 
 UIBlockEditOptions::UIBlockEditOptions(QWidget* parent, Qt::WindowFlags fl)
     : QWidget(parent, fl)
-    , m_action(nullptr)
+    , m_session(nullptr)
 {
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(4, 2, 4, 2);
@@ -52,26 +51,22 @@ UIBlockEditOptions::UIBlockEditOptions(QWidget* parent, Qt::WindowFlags fl)
 
 UIBlockEditOptions::~UIBlockEditOptions() = default;
 
-void UIBlockEditOptions::setAction(ActionInterface* a)
+void UIBlockEditOptions::setSession(IBlockEditSession* session)
 {
-    if (a && a->getEntityType() == DM::ActionBlocksEdit)
+    m_session = session;
+    if (m_session)
     {
-        m_action = static_cast<ActionBlocksEdit*>(a);
-        m_label->setText(tr("Editing Block: \"%1\"").arg(m_action->getBlockName()));
-    }
-    else
-    {
-        m_action = nullptr;
+        m_label->setText(tr("Editing Block: \"%1\"").arg(m_session->blockName()));
     }
 }
 
 void UIBlockEditOptions::onCompleteClicked()
 {
-    if (!m_action)
+    if (!m_session)
         return;
 
     // 如果存在修改，则弹出保存确认提示
-    if (m_action->hasModifications())
+    if (m_session->hasModifications())
     {
         int ret = QMessageBox::question(nullptr,
             tr("Block Edit"),
@@ -80,16 +75,16 @@ void UIBlockEditOptions::onCompleteClicked()
 
         if (ret == QMessageBox::Yes)
         {
-            m_action->completeEditing(true);
+            m_session->completeEditing(true);
         }
         else if (ret == QMessageBox::No)
         {
-            m_action->completeEditing(false);
+            m_session->completeEditing(false);
         }
         // 取消：继续编辑
     }
     else
     {
-        m_action->completeEditing(false);
+        m_session->completeEditing(false);
     }
 }

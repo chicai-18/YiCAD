@@ -28,7 +28,8 @@
 
 #include <utility>
 
-#include "ActionBlocksEdit.h"
+#include "BlockEditTool.h"
+#include "ExclusiveCommandBus.h"
 
 #include "Selection.h"
 
@@ -121,7 +122,7 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObject* source)
 {
 	CommandRegistry& registry = CommandRegistry::instance();
-	const CommandContext ctx{m_pDocument, m_pView, this, source ? source : sender()};
+	const CommandContext ctx{m_pDocument, m_pView, source ? source : sender()};
 
 	switch (registry.kind(commandId))
 	{
@@ -634,50 +635,26 @@ void UIActionHandler::slotCmdStateChanged()
 	if (!m_pDocument || !m_pView)
 		return;
 
+	UIView* view = qobject_cast<UIView*>(m_pView);
+	ExclusiveCommandBus* bus = view ? view->commandBus() : nullptr;
+	if (!bus)
+		return;
+
 	DmBlock* editingBlock = m_pDocument->getEditingBlock();
-	// 扫描完整动作栈，而不是只看 getCurrentAction()。
-	// 当命令动作（如 ActionEditUndo、ActionDrawLine）压在
-	// ActionBlocksEdit 之上时，getCurrentAction() 返回的是栈顶动作，
-	// 会把块编辑动作隐藏掉。
-	ActionInterface* blockEditAction = nullptr;
-	for (auto* a : m_pView->getEventHandler()->getCurrentActionsRef())
-	{
-		if (!a->isFinished()
-			&& a->getEntityType() == DM::ActionBlocksEdit)
-		{
-			blockEditAction = a;
-			break;
-		}
-	}
-	bool inBlockEdit = (blockEditAction != nullptr);
+	const bool inBlockEdit = bus->editMode() != nullptr;
 
 	if (editingBlock && !inBlockEdit)
 	{
-		// 撤销/重做后重新进入块编辑：找到匹配的块参照，
-		// 重新创建一个 ActionBlocksEdit
-		// 这里使用 getDocumentEntityTable()，因为 editingBlock 已设置时，
-		// getEntityTable() 会路由到块自己的实体表
-		DmBlockReference* ref = nullptr;
-		for (auto e : *m_pDocument->getDocumentEntityTable())
-		{
-			if (e && !e->isErased()
-				&& e->getEntityType() == DM::EntityBlockReference)
-			{
-				DmBlockReference* br = static_cast<DmBlockReference*>(e);
-				if (br->getName() == editingBlock->getName())
-				{
-					ref = br;
-					break;
-				}
-			}
-		}
-		auto* action = new ActionBlocksEdit(m_pDocument, m_pView, ref);
-		m_pView->setCurrentAction(action);
+		// 撤销/重做后重新进入块编辑：文档已处于块编辑，只恢复编辑模式
+		auto mode = std::make_unique<BlockEditTool>(*bus);
+		BlockEditTool* blockEdit = mode.get();
+		bus->enterEditMode(std::move(mode));
+		blockEdit->reenter(editingBlock);
 	}
 	else if (!editingBlock && inBlockEdit)
 	{
-		// 撤销/重做后退出了块编辑：结束 ActionBlocksEdit
-		blockEditAction->finish();
+		// 撤销/重做后退出了块编辑：只收起编辑模式，不再改动文档
+		bus->exitEditMode();
 	}
 }
 
