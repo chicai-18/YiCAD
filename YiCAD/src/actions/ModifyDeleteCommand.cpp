@@ -55,12 +55,8 @@ bool ModifyDeleteCommand::onSelectionReady()
 
 namespace
 {
-const bool g_registeredDelete =
-    CommandRegistry::instance().registerExclusiveCommand(
-        QStringLiteral("modify.delete"),
-        [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand>
-        { return std::make_unique<ModifyDeleteCommand>(); })
-    && CommandRegistry::instance().bindLegacyType(DM::ActionModifyDelete, QStringLiteral("modify.delete"));
+const bool g_registeredDelete = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionModifyDelete, QStringLiteral("modify.delete"), exclusiveCommandFactory<ModifyDeleteCommand>());
 
 const bool g_registeredDeleteNoSelect =
     CommandRegistry::instance().registerInstantCommand(

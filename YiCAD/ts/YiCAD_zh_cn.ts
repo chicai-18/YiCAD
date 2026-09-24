@@ -2,19 +2,6 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
-    <name>ActionBlocksCreate</name>
-    <message>
-        <location filename="../src/actions/ActionBlocksCreate.cpp" line="209"/>
-        <source>Specify reference point</source>
-        <translation>指定参考点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionBlocksCreate.cpp" line="209"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
     <name>ActionBlocksEdit</name>
     <message>
         <location filename="../src/actions/ActionBlocksEdit.cpp" line="78"/>
@@ -144,34 +131,6 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/ActionBlocksSave.cpp" line="141"/>
         <source>No block activated to save</source>
         <translation>没有激活块去保存</translation>
-    </message>
-</context>
-<context>
-    <name>ActionCopyToLayer</name>
-    <message>
-        <location filename="../src/actions/ActionCopyToLayer.cpp" line="86"/>
-        <source>Copy Entities To Layer</source>
-        <translation>将实体复制到图层</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionCopyToLayer.cpp" line="184"/>
-        <source>Select the object on the target layer</source>
-        <translation>选择目标图层上的对象</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionCopyToLayer.cpp" line="188"/>
-        <source>Set base point</source>
-        <translation>指定基点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionCopyToLayer.cpp" line="192"/>
-        <source>Set end point</source>
-        <translation>指定终点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionCopyToLayer.cpp" line="221"/>
-        <source>Finish</source>
-        <translation>结束</translation>
     </message>
 </context>
 <context>
@@ -1352,19 +1311,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionEditCopy</name>
-    <message>
-        <location filename="../src/actions/ActionEditCopy.cpp" line="110"/>
-        <source>Specify reference point</source>
-        <translation>指定参考点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionEditCopy.cpp" line="110"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
     <name>ActionEditPaste</name>
     <message>
         <location filename="../src/actions/ActionEditPaste.cpp" line="64"/>
@@ -1665,40 +1611,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionModifyCopy</name>
-    <message>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="82"/>
-        <source>Copy</source>
-        <translation>复制</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="207"/>
-        <source>Input invalid</source>
-        <translation>输入无效</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="207"/>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="221"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="218"/>
-        <source>Specify reference point or input copy number, default copy number is %1</source>
-        <translation>指定基点或输入复制数量，默认复制数量为%1</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="218"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCopy.cpp" line="221"/>
-        <source>Specify target point or input copy number, default copy number is %1</source>
-        <translation>指定目标点或输入复制数量，默认复制数量为%1</translation>
-    </message>
-</context>
-<context>
     <name>ActionModifyCut</name>
     <message>
         <location filename="../src/actions/ActionModifyCut.cpp" line="128"/>
@@ -1780,32 +1692,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionModifyExplode</name>
-    <message>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="93"/>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="179"/>
-        <source>No entity explode.</source>
-        <translation>没有可分解的实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="93"/>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="179"/>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="198"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="97"/>
-        <source>Explode</source>
-        <translation>分解</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExplode.cpp" line="198"/>
-        <source>Explode success, %1 entities exploded.</source>
-        <translation>分解成功，已分解 %1 个实体。</translation>
-    </message>
-</context>
-<context>
     <name>ActionModifyExtend</name>
     <message>
         <location filename="../src/actions/ActionModifyExtend.cpp" line="98"/>
@@ -1846,121 +1732,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionModifyMirror</name>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="79"/>
-        <source>mirror</source>
-        <translation>镜像</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="204"/>
-        <source>Input invalid</source>
-        <translation>输入无效</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="240"/>
-        <source>copy</source>
-        <translation>复制</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="240"/>
-        <source>delete origin</source>
-        <translation>删除源对象</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="244"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="244"/>
-        <source>Specify first point of mirror line, or type Y to copy, type N to delete origin, the default is [%1]</source>
-        <translation>指定镜像线的第一个点，或者输入Y来复制，输入N来删除原始对象，默认是[%1]</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="247"/>
-        <source>Specify second point of mirror line, or type Y to copy, type N to delete origin, the default is [%1]</source>
-        <translation>指定镜像线的第二个点，或者输入Y来复制，输入N来删除原始对象，默认是[%1]</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="204"/>
-        <location filename="../src/actions/ActionModifyMirror.cpp" line="247"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyMove</name>
-    <message>
-        <location filename="../src/actions/ActionModifyMove.cpp" line="166"/>
-        <source>Specify reference point</source>
-        <translation>指定参考点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMove.cpp" line="166"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMove.cpp" line="169"/>
-        <source>Specify target point</source>
-        <translation>指定目标点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyMove.cpp" line="169"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyReverse</name>
-    <message>
-        <location filename="../src/actions/ActionModifyReverse.cpp" line="47"/>
-        <source>Reverse</source>
-        <translation>反向</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyReverse.cpp" line="107"/>
-        <source>%1 entities reversed. Only line, arc, ellipse, spline are supported.</source>
-        <translation>%1 实体已反向。仅支持直线、圆弧、椭圆弧、样条线。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyReverse.cpp" line="111"/>
-        <source>%1 entities reversed.</source>
-        <translation>%1 实体已反向。</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyRotate</name>
-    <message>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="57"/>
-        <source>Rotate</source>
-        <translation>旋转</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="177"/>
-        <source>Input invalid</source>
-        <translation>输入无效</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="189"/>
-        <source>Specify rotation center</source>
-        <translation>指定旋转中心</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="193"/>
-        <source>Input angle</source>
-        <translation>输入旋转角度</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="177"/>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="189"/>
-        <location filename="../src/actions/ActionModifyRotate.cpp" line="193"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
     <name>ActionModifyRound</name>
     <message>
         <location filename="../src/actions/ActionModifyRound.cpp" line="161"/>
@@ -1997,40 +1768,6 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/ActionModifyRound.cpp" line="514"/>
         <source>Cancel</source>
         <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyScale</name>
-    <message>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="79"/>
-        <source>Scale</source>
-        <translation>缩放</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="188"/>
-        <source>Input invalid</source>
-        <translation>输入无效</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="188"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="208"/>
-        <source>Specify reference point</source>
-        <translation>指定参考点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="208"/>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="212"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyScale.cpp" line="212"/>
-        <source>Input scale</source>
-        <translation>输入缩放比例</translation>
     </message>
 </context>
 <context>
@@ -2311,6 +2048,60 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>BlocksCreateCommand</name>
+    <message>
+        <location filename="../src/actions/BlocksCreateCommand.cpp" line="64"/>
+        <source>Specify reference point</source>
+        <translation>指定参考点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/BlocksCreateCommand.cpp" line="65"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>CopyToLayerCommand</name>
+    <message>
+        <location filename="../src/actions/CopyToLayerCommand.cpp" line="72"/>
+        <source>Select the object on the target layer</source>
+        <translation>选择目标图层上的对象</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/CopyToLayerCommand.cpp" line="75"/>
+        <source>Set base point</source>
+        <translation>指定基点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/CopyToLayerCommand.cpp" line="78"/>
+        <source>Set end point</source>
+        <translation>指定终点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/CopyToLayerCommand.cpp" line="142"/>
+        <source>Finish</source>
+        <translation>结束</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/CopyToLayerCommand.cpp" line="227"/>
+        <source>Copy Entities To Layer</source>
+        <translation>将实体复制到图层</translation>
+    </message>
+</context>
+<context>
+    <name>EditCopyCommand</name>
+    <message>
+        <location filename="../src/actions/EditCopyCommand.cpp" line="63"/>
+        <source>Specify reference point</source>
+        <translation>指定参考点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/EditCopyCommand.cpp" line="64"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>GuiDocumentView</name>
     <message>
         <location filename="../src/kernel/gui/GuiDocumentView.cpp" line="1429"/>
@@ -2372,6 +2163,215 @@ This block cannot be inserted.</source>
         <location filename="../src/ui/MTextEditWidget.cpp" line="1466"/>
         <source>Save the changes?</source>
         <translation>是否保存改变？</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyCopyCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="76"/>
+        <source>Specify reference point or input copy number, default copy number is %1</source>
+        <translation>指定基点或输入复制数量，默认复制数量为%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="78"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="82"/>
+        <source>Specify target point or input copy number, default copy number is %1</source>
+        <translation>指定目标点或输入复制数量，默认复制数量为%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="84"/>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="163"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="163"/>
+        <source>Input invalid</source>
+        <translation>输入无效</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCopyCommand.cpp" line="259"/>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyExplodeCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="80"/>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="166"/>
+        <source>No entity explode.</source>
+        <translation>没有可分解的实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="80"/>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="166"/>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="185"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="84"/>
+        <source>Explode</source>
+        <translation>分解</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExplodeCommand.cpp" line="185"/>
+        <source>Explode success, %1 entities exploded.</source>
+        <translation>分解成功，已分解 %1 个实体。</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyMirrorCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="67"/>
+        <source>copy</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="68"/>
+        <source>delete origin</source>
+        <translation>删除源对象</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="73"/>
+        <source>Specify first point of mirror line, or type Y to copy, type N to delete origin, the default is [%1]</source>
+        <translation>指定镜像线的第一个点，或者输入Y来复制，输入N来删除原始对象，默认是[%1]</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="75"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="79"/>
+        <source>Specify second point of mirror line, or type Y to copy, type N to delete origin, the default is [%1]</source>
+        <translation>指定镜像线的第二个点，或者输入Y来复制，输入N来删除原始对象，默认是[%1]</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="81"/>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="160"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="159"/>
+        <source>Input invalid</source>
+        <translation>输入无效</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMirrorCommand.cpp" line="227"/>
+        <source>mirror</source>
+        <translation>镜像</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyMoveCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyMoveCommand.cpp" line="67"/>
+        <source>Specify reference point</source>
+        <translation>指定参考点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMoveCommand.cpp" line="68"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMoveCommand.cpp" line="71"/>
+        <source>Specify target point</source>
+        <translation>指定目标点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyMoveCommand.cpp" line="72"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyReverseCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyReverseCommand.cpp" line="38"/>
+        <source>Reverse</source>
+        <translation>反向</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyReverseCommand.cpp" line="98"/>
+        <source>%1 entities reversed. Only line, arc, ellipse, spline are supported.</source>
+        <translation>%1 实体已反向。仅支持直线、圆弧、椭圆弧、样条线。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyReverseCommand.cpp" line="102"/>
+        <source>%1 entities reversed.</source>
+        <translation>%1 实体已反向。</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyRotateCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="70"/>
+        <source>Specify rotation center</source>
+        <translation>指定旋转中心</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="71"/>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="74"/>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="149"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="74"/>
+        <source>Input angle</source>
+        <translation>输入旋转角度</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="148"/>
+        <source>Input invalid</source>
+        <translation>输入无效</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRotateCommand.cpp" line="188"/>
+        <source>Rotate</source>
+        <translation>旋转</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyScaleCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="69"/>
+        <source>Specify reference point</source>
+        <translation>指定参考点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="70"/>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="73"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="73"/>
+        <source>Input scale</source>
+        <translation>输入缩放比例</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="149"/>
+        <source>Input invalid</source>
+        <translation>输入无效</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="150"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyScaleCommand.cpp" line="209"/>
+        <source>Scale</source>
+        <translation>缩放</translation>
     </message>
 </context>
 <context>

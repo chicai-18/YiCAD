@@ -55,10 +55,6 @@ bool InfoTotalLengthCommand::onSelectionReady()
 
 namespace
 {
-const bool g_registered =
-    CommandRegistry::instance().registerExclusiveCommand(
-        QStringLiteral("info.total_length"),
-        [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand>
-        { return std::make_unique<InfoTotalLengthCommand>(); })
-    && CommandRegistry::instance().bindLegacyType(DM::ActionInfoTotalLength, QStringLiteral("info.total_length"));
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionInfoTotalLength, QStringLiteral("info.total_length"), exclusiveCommandFactory<InfoTotalLengthCommand>());
 }  // namespace

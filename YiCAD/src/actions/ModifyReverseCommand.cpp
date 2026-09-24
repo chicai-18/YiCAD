@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,41 +18,26 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file ModifyReverseCommand.cpp
+/// @brief 反向命令的实现
 
-/// @file ActionModifyReverse.cpp
-/// @brief 反向修改操作——将选中实体的方向反转
+#include "ModifyReverseCommand.h"
 
-#include "ActionModifyReverse.h"
 #include "CommandRegistry.h"
-#include "GuiDialogFactory.h"
-#include "IDocumentView.h"
-#include "DmLine.h"
 #include "DmArc.h"
-#include "DmSpline.h"
+#include "DmDocument.h"
 #include "DmEllipse.h"
+#include "DmLine.h"
+#include "DmSpline.h"
+#include "EntityTable.h"
+#include "GuiDialogFactory.h"
 #include "Transaction.h"
 
-ActionModifyReverse::ActionModifyReverse(DmDocument* doc, IDocumentView* docView)
-    : ActionInterface("Reverse Entities", doc, docView)
+bool ModifyReverseCommand::onSelectionReady()
 {
-    actionType = DM::ActionModifyReverse;
-}
-
-/// @brief 初始化并直接执行反向操作
-/// @param [in] status 初始状态值
-void ActionModifyReverse::init(int status)
-{
-    ActionInterface::init(status);
-
-    trigger();
-}
-
-/// @brief 执行反向操作，反转所有选中实体的方向
-void ActionModifyReverse::trigger()
-{
-    Transaction t(tr("Reverse").toStdString(), pDocument);
+    Transaction t(tr("Reverse").toStdString(), document());
     t.start();
-    auto table = pDocument->getEntityTable();
+    auto table = document()->getEntityTable();
     int count = 0;
     for (auto ent : *table)
     {
@@ -107,7 +92,7 @@ void ActionModifyReverse::trigger()
     }
     t.commit();
 
-    finish(false);
+    finish();
     if (count == 0)
     {
         GUIDIALOGFACTORY->commandMessage(tr("%1 entities reversed. Only line, arc, ellipse, spline are supported.").arg(count));
@@ -116,25 +101,11 @@ void ActionModifyReverse::trigger()
     {
         GUIDIALOGFACTORY->commandMessage(tr("%1 entities reversed.").arg(count));
     }
-}
-
-/// @brief 更新鼠标按钮提示信息
-void ActionModifyReverse::updateMouseButtonHints()
-{
-    GUIDIALOGFACTORY->updateMouseWidget();
+    return true;
 }
 
 namespace
 {
-ActionInterface* createActionModifyReverse(const CommandContext& ctx)
-{
-    return new ActionModifyReverse(ctx.document, ctx.view);
-}
-
-const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionModifyReverse, QStringLiteral("modify.reverse"),
-    makeSelectFirstFactory(DM::ActionModifyReverseNoSelect, createActionModifyReverse));
-
-const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionModifyReverseNoSelect, QStringLiteral("modify.reverse_no_select"), createActionModifyReverse);
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionModifyReverse, QStringLiteral("modify.reverse"), exclusiveCommandFactory<ModifyReverseCommand>());
 }  // namespace

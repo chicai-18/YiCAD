@@ -108,6 +108,21 @@ bool CommandRegistry::registerExclusiveCommand(const QString& id, ExclusiveComma
     return addEntry(id, std::move(entry));
 }
 
+bool CommandRegistry::registerExclusiveCommand(DM::ActionType legacyType, const QString& id,
+                                               ExclusiveCommandFactory factory)
+{
+    if (m_legacyBridge.find(legacyType) != m_legacyBridge.end())
+    {
+        return false;
+    }
+    if (!registerExclusiveCommand(id, std::move(factory)))
+    {
+        return false;
+    }
+    m_legacyBridge.emplace(legacyType, id);
+    return true;
+}
+
 bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info)
 {
     if (!command)

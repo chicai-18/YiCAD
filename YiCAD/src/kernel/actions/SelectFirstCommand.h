@@ -35,6 +35,7 @@
 
 #include "BaseExclusiveCommand.h"
 
+class BasePlaceTool;
 class SelectionPhaseTool;
 
 /// @brief 先选后建命令的基类
@@ -59,6 +60,9 @@ public:
     /// @brief 叠在上面的旧 Action 全部结束后恢复
     void resume() final;
 
+    /// @brief 真正的命令的放置工具的捕捉器；选择阶段与没有工具时返回空
+    ISnapService* snapService() const override;
+
 protected:
     explicit SelectFirstCommand(SelectionEntry entry = SelectionEntry::WhenEmpty);
 
@@ -79,12 +83,18 @@ protected:
     /// @brief 真正的命令恢复
     virtual void onResume() {}
 
+    /// @brief 激活真正的命令的放置工具（在 onSelectionReady() 里调用）
+    /// @details 之后由本类管理：命令结束时停用它并结束它的捕捉会话，旧 Action
+    ///          叠上来时停用、结束后重新激活。
+    void activateTool(std::unique_ptr<BasePlaceTool> tool);
+
 private:
     /// @brief 调用 onSelectionReady() 并记下结果
     bool startWork();
 
     SelectionEntry m_entry;
     std::unique_ptr<SelectionPhaseTool> m_selectionTool; ///< 选择阶段工具，命令销毁时才释放
+    std::unique_ptr<BasePlaceTool> m_tool;               ///< 真正的命令的放置工具，命令销毁时才释放
     bool m_selecting = false;                            ///< 是否处于选择阶段
     bool m_working = false;                              ///< 真正的命令是否已开始
 };

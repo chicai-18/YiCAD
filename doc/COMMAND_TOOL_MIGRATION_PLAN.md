@@ -577,3 +577,53 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 
 提交①验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
 122 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。
+
+**提交②：其余 11 个先选后建命令**
+
+1. **放置工具与命令的预览**：原 `PreviewActionInterface` 拆成两半，放在 `kernel/actions/`：
+   - `BasePlaceTool`（事件那一半）：交互状态（`setStatus()` 只在变化时刷新提示，
+     `restart()`/`stepBack()` 对应原 `init(status)`/`init(getStatus() - 1)`）、捕捉会话
+     （离开画布或被停用时挂起并清除预览，回到画布或被激活时刷新提示、恢复并重绘预览，
+     结束时清除捕捉标记并复位正交零点）、光标经 `getCursor()` 仲裁；事件归属与原先经
+     `LegacyActionTool` 转发时一致（中键与按着中键的移动让给导航层，按键不接受也不
+     下传）；
+   - `CommandPreview`（预览那一半），由命令持有；
+   - `SelectFirstCommand::activateTool()` 接管放置工具：命令结束时停用并结束捕捉会话，
+     旧 Action 叠上来时停用、结束后重新激活。
+2. **迁移**：移动 `ModifyMoveCommand`、复制 `ModifyCopyCommand`、旋转
+   `ModifyRotateCommand`、缩放 `ModifyScaleCommand`、镜像 `ModifyMirrorCommand`、分解
+   `ModifyExplodeCommand`、反向 `ModifyReverseCommand`、复制到剪贴板与剪切
+   `EditCopyCommand`、复制到图层 `CopyToLayerCommand`、创建块 `BlocksCreateCommand`；
+   有画布交互的各带一个放置工具（`XxxTool`，定义在命令的 .cpp 里），分解、反向在选择集
+   就绪后直接完成。删除对应的 10 个 Action 类与它们的 `_no_select` 注册。
+   `CommandRegistry` 增加 `exclusiveCommandFactory<>()` 与带枚举桥接的
+   `registerExclusiveCommand()` 重载。
+3. **测试**：`test_select_first_commands` 补 12 例（13 个命令都进入选择阶段、回车后与
+   已有选择集时进入第一步、右键退步、命令行坐标与文本、Esc 与中键平移、旋转/缩放/
+   复制/镜像的命令行输入、复制到图层、旧 Action 叠在放置工具之上）；
+   `test_command_registry` 的迁移用例覆盖全部 13 个命令的注册类型与枚举桥接。
+   不执行提交：默认构造的 `DmDocument` 走事务会崩溃（`test_geometry_spatial_query`
+   的说明）。
+
+**与方案的偏差与补充**
+
+1. **原样保留的既有行为**（迁移不顺手修）：
+   - 缩放：设置基点时命令行文本被接受但不起作用；设置比例时输入无效仍按上一次鼠标
+     位置的比例缩放，还没移动鼠标就输入无效文本时按 0 缩放（原 `ScaleData` 值初始化
+     为 0）；
+   - 旋转：设置中心时不接受命令行文本（文本被当作新命令），设置角度时接受；
+   - 复制、镜像：输入复制数量或 Y/N 后，提示里的数值到状态变化时才刷新；
+   - 复制到图层：提示写在命令行；右键退步不清除预览、不重新初始化捕捉器；
+   - 复制到剪贴板、剪切：结束时不复位正交零点（原 `ActionEditCopy` 没有设置类型）；
+   - 创建块：文档没有块表时停在原地，不结束。
+2. **创建块不再是"排他"的**：原 `ActionBlocksCreate::isExclusive()` 让它启动时结束全部
+   命令。命令模型里启动任何命令都结束当前命令，过渡期也结束全部旧 Action，效果相同。
+3. **可见的细微变化**：
+   - 复制到图层没有自己的光标（原先也没有）：从选择阶段进入时沿用选择层复位后的箭头，
+     原先是 `ActionSelectMultiple` 留下的选择光标；
+   - 命令在自己的事件里结束后，同一次事件里发出的命令行消息仍带"[说明]"前缀（反向的
+     结果、复制到图层的"Finish"）：结束延迟到分发结束，这时命令仍是活动命令；原先
+     Action 先结束再发消息，前缀取决于栈里是否还有别的 Action。
+
+提交②验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
+134 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。

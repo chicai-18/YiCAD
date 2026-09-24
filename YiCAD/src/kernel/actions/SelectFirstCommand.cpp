@@ -23,6 +23,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 
+#include "BasePlaceTool.h"
 #include "DmDocument.h"
 #include "EntityTable.h"
 #include "IViewTool.h"
@@ -116,6 +117,12 @@ void SelectFirstCommand::onDeactivate()
     if (m_working)
     {
         m_working = false;
+        if (m_tool)
+        {
+            // 与原 Action 结束时一样：清除预览、挂起并结束捕捉会话
+            viewToolControl()->deactivate(m_tool.get());
+            m_tool->finishSession();
+        }
         onStop();
     }
     if (m_selecting)
@@ -151,6 +158,10 @@ void SelectFirstCommand::suspend()
     }
     else if (m_working)
     {
+        if (m_tool)
+        {
+            viewToolControl()->deactivate(m_tool.get());
+        }
         onSuspend();
     }
 }
@@ -163,12 +174,33 @@ void SelectFirstCommand::resume()
     }
     else if (m_working)
     {
+        if (m_tool)
+        {
+            viewToolControl()->activate(m_tool.get());
+        }
         onResume();
     }
+}
+
+ISnapService* SelectFirstCommand::snapService() const
+{
+    return m_working && m_tool ? m_tool->snapper() : nullptr;
+}
+
+void SelectFirstCommand::activateTool(std::unique_ptr<BasePlaceTool> tool)
+{
+    m_tool = std::move(tool);
+    viewToolControl()->activate(m_tool.get());
 }
 
 bool SelectFirstCommand::startWork()
 {
     m_working = onSelectionReady();
+    if (!m_working && m_tool)
+    {
+        // 启动失败的命令不会再经 onDeactivate() 结束工具
+        viewToolControl()->deactivate(m_tool.get());
+        m_tool->finishSession();
+    }
     return m_working;
 }

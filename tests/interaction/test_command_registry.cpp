@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <utility>
 
 #include "ActionInterface.h"
 #include "ActionSelect.h"
@@ -309,14 +310,29 @@ TEST(CommandRegistryTest, 为交互命令建立legacy桥接并可反查)
     EXPECT_EQ(CommandRegistry::instance().create(DM::ActionViewLibrary, ctx), nullptr);
 }
 
-TEST(CommandRegistryTest, 迁移后的删除与总长度注册为新类型)
+TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
 {
-    EXPECT_EQ(CommandRegistry::instance().kind("modify.delete"), CommandKind::Exclusive);
-    EXPECT_EQ(CommandRegistry::instance().kind("modify.delete_no_select"), CommandKind::Instant);
-    EXPECT_EQ(CommandRegistry::instance().kind("info.total_length"), CommandKind::Exclusive);
     // keyconfig.xml 仍以枚举为键，桥接保留到第四步
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionModifyDelete), QStringLiteral("modify.delete"));
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionInfoTotalLength), QStringLiteral("info.total_length"));
-    // 原先只供 ActionSelect 选择完成后使用的 _no_select 入口随之删除
-    EXPECT_FALSE(CommandRegistry::instance().hasCommand("info.total_length_no_select"));
+    const std::pair<DM::ActionType, const char*> migrated[] = {
+        {DM::ActionModifyMove, "modify.move"},       {DM::ActionModifyCopy, "modify.copy"},
+        {DM::ActionModifyRotate, "modify.rotate"},   {DM::ActionModifyScale, "modify.scale"},
+        {DM::ActionModifyMirror, "modify.mirror"},   {DM::ActionModifyExplode, "modify.explode"},
+        {DM::ActionModifyReverse, "modify.reverse"}, {DM::ActionModifyDelete, "modify.delete"},
+        {DM::ActionEditCopy, "edit.copy"},           {DM::ActionEditCut, "edit.cut"},
+        {DM::ActionCopyToLayer, "modify.copy_to_layer"}, {DM::ActionBlocksCreate, "blocks.create"},
+        {DM::ActionInfoTotalLength, "info.total_length"},
+    };
+    for (const auto& [type, id] : migrated)
+    {
+        SCOPED_TRACE(id);
+        EXPECT_EQ(CommandRegistry::instance().kind(id), CommandKind::Exclusive);
+        EXPECT_EQ(CommandRegistry::instance().commandId(type), QString::fromLatin1(id));
+        // 原先只供 ActionSelect 选择完成后使用的 _no_select 入口随之删除（删除的除外，见下）
+        if (type != DM::ActionModifyDelete)
+        {
+            EXPECT_FALSE(CommandRegistry::instance().hasCommand(QString::fromLatin1(id) + "_no_select"));
+        }
+    }
+    // Delete 键与手写板橡皮擦用的直接删除保留为即时命令
+    EXPECT_EQ(CommandRegistry::instance().kind("modify.delete_no_select"), CommandKind::Instant);
 }

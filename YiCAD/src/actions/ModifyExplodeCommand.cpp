@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,19 +18,18 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file ModifyExplodeCommand.cpp
+/// @brief 分解命令的实现；分解逻辑原样来自 ActionModifyExplode
 
-/// @file ActionModifyExplode.cpp
-/// @brief 分解实体（块、多段线、多行文字等）的交互动作类实现
+#include "ModifyExplodeCommand.h"
 
-#include "ActionModifyExplode.h"
 #include "CommandRegistry.h"
-
-#include <QAction>
 
 #include "DmArc.h"
 #include "DmBlockReference.h"
 #include "DmChar.h"
 #include "DmCharTemplate.h"
+#include "DmDocument.h"
 #include "DmEntityContainer.h"
 #include "DmFont.h"
 #include "DmFontList.h"
@@ -54,37 +53,19 @@ namespace
     constexpr int MTEXT_EXPLODE_STYLE_START_NUM = 2;
 }
 
-/// @brief 构造函数
-/// @param [in] doc 文档指针
-/// @param [in] docView 文档视图指针
-ActionModifyExplode::ActionModifyExplode(DmDocument* doc, IDocumentView* docView) :
-    PreviewActionInterface("Entity Explode", doc, docView)
-{
-    actionType = DM::ActionModifyExplode;
-}
-
-/// @brief 初始化动作
-/// @param [in] status 初始状态
-void ActionModifyExplode::init(int status)
-{
-    PreviewActionInterface::init(status);
-
-    trigger();
-    finish(false);
-}
-
-/// @brief 触发分解操作
-void ActionModifyExplode::trigger()
+bool ModifyExplodeCommand::onSelectionReady()
 {
     explode(true);
+    finish();
+    return true;
 }
 
 /// @brief 执行分解操作
 /// @param [in] remove 是否在分解后删除原实体
 /// @return 分解成功返回true，否则返回false
-bool ActionModifyExplode::explode(const bool remove)
+bool ModifyExplodeCommand::explode(const bool remove)
 {
-    auto entTable = pDocument->getEntityTable();
+    auto entTable = document()->getEntityTable();
 
     std::vector<DmEntity*> toExplode;
     for (auto e : *entTable)
@@ -100,7 +81,7 @@ bool ActionModifyExplode::explode(const bool remove)
         return false;
     }
 
-    Transaction t(tr("Explode").toStdString(), pDocument);
+    Transaction t(tr("Explode").toStdString(), document());
     t.start();
 
     std::vector<DmEntity*> entsToRemove;
@@ -209,7 +190,7 @@ bool ActionModifyExplode::explode(const bool remove)
 /// @param [in] text 多行文字实体指针
 /// @param [out] addList 分解后产生的单行文字实体列表
 /// @return 分解成功返回true，否则返回false
-bool ActionModifyExplode::explodeMTextIntoLetters(DmMText* text, std::vector<DmEntity*>& addList)
+bool ModifyExplodeCommand::explodeMTextIntoLetters(DmMText* text, std::vector<DmEntity*>& addList)
 {
     if (!text)
     {
@@ -254,7 +235,7 @@ bool ActionModifyExplode::explodeMTextIntoLetters(DmMText* text, std::vector<DmE
             asciiFonts.emplace_back(font);
         }
     }
-    DmTextStyleTable* textStyleTable = pDocument->getTextStyleTable();
+    DmTextStyleTable* textStyleTable = document()->getTextStyleTable();
     for (DmChar* c : chs)
     {
         // 查找已有文字样式是否包含字体
@@ -341,15 +322,6 @@ bool ActionModifyExplode::explodeMTextIntoLetters(DmMText* text, std::vector<DmE
 
 namespace
 {
-ActionInterface* createActionModifyExplode(const CommandContext& ctx)
-{
-    return new ActionModifyExplode(ctx.document, ctx.view);
-}
-
-const bool g_registeredBase = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionModifyExplode, QStringLiteral("modify.explode"),
-    makeSelectFirstFactory(DM::ActionModifyExplodeNoSelect, createActionModifyExplode));
-
-const bool g_registeredNoSelect = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionModifyExplodeNoSelect, QStringLiteral("modify.explode_no_select"), createActionModifyExplode);
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionModifyExplode, QStringLiteral("modify.explode"), exclusiveCommandFactory<ModifyExplodeCommand>());
 }  // namespace

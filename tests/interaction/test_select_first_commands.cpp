@@ -28,7 +28,10 @@
 #include "GuiDialogFactory.h"
 #include "GuiDialogFactoryAdapter.h"
 #include "GuiEventHandler.h"
+#include "GuiCommandEvent.h"
 #include "IExclusiveCommand.h"
+#include "ModifyCopyCommand.h"
+#include "ModifyMirrorCommand.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
@@ -55,6 +58,52 @@ public:
     void updateMouseWidget(const QString& left, const QString& right) override { hints.emplace_back(left, right); }
     void commandMessage(const QString& message) override { messages.push_back(message); }
     void updateSelectionWidget(int) override { ++selectionUpdates; }
+};
+
+/// @brief 与 UIView 相同：旧 Action 栈之下是命令与选择层
+struct LegacyStackBase : ILegacyStackBase
+{
+    ExclusiveCommandBus& bus;
+    SelectTool& selectTool;
+    LegacyStackBase(ExclusiveCommandBus& b, SelectTool& s)
+        : bus(b)
+        , selectTool(s)
+    {
+    }
+    void suspendForLegacy() override
+    {
+        bus.suspend();
+        selectTool.suspend();
+    }
+    void resumeAfterLegacy() override
+    {
+        selectTool.resume();
+        bus.resume();
+    }
+    void resetAfterKill() override { selectTool.init(); }
+};
+
+/// @brief 先选后建的 13 个命令（编辑块见第二步的提交③）
+const char* const kSelectFirstCommands[] = {
+    "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
+    "modify.explode", "modify.reverse", "modify.delete", "edit.copy",    "edit.cut",
+    "modify.copy_to_layer", "blocks.create", "info.total_length"};
+
+/// @brief 有放置工具、提示写在按键提示栏的命令，及其第一步提示的开头
+struct FirstStep
+{
+    const char* id;
+    const char* hint;
+};
+const FirstStep kPlaceToolCommands[] = {
+    {"modify.move", "Specify reference point"},
+    {"modify.copy", "Specify reference point or input copy number"},
+    {"modify.rotate", "Specify rotation center"},
+    {"modify.scale", "Specify reference point"},
+    {"modify.mirror", "Specify first point of mirror line"},
+    {"edit.copy", "Specify reference point"},
+    {"edit.cut", "Specify reference point"},
+    {"blocks.create", "Specify reference point"},
 };
 
 /// @brief 与 UIView 相同的装配；UiRecorder 在用例期间装进 GUIDIALOGFACTORY
@@ -135,6 +184,28 @@ struct SelectFirstFixture : ::testing::Test
         dispatch([&] { return control.mouseMoveEvent(&move); });
         dispatch([&] { return control.mousePressEvent(&press2); });
         dispatch([&] { return control.mouseReleaseEvent(&release2); });
+    }
+
+    /// @brief 在 (x,y) 单击（按下并释放）
+    void click(int x, int y, Qt::MouseButton button = Qt::LeftButton)
+    {
+        QMouseEvent press = makeMouse(QEvent::MouseButtonPress, x, y, button);
+        QMouseEvent release = makeMouse(QEvent::MouseButtonRelease, x, y, button);
+        dispatch([&] { return control.mousePressEvent(&press); });
+        dispatch([&] { return control.mouseReleaseEvent(&release); });
+    }
+
+    /// @brief 结束活动命令（与"结束全部命令"相同的路径）
+    void endCommand()
+    {
+        ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
+        bus.end();
+    }
+
+    /// @brief 命令行文本，与 UIView 一样只沿业务栈分发
+    ViewToolResult typeText(GuiCommandEvent& e)
+    {
+        return dispatch([&] { return control.commandEvent(&e); });
     }
 
     ViewToolResult pressKey(int key, QKeyEvent** out = nullptr)
@@ -319,28 +390,7 @@ TEST_F(SelectFirstFixture, 选择阶段按实体类型过滤)
 
 TEST_F(SelectFirstFixture, 旧Action叠在命令之上时命令被挂起结束后恢复)
 {
-    // 与 UIView 相同：旧 Action 栈之下是命令与选择层
-    struct StackBase : ILegacyStackBase
-    {
-        ExclusiveCommandBus& bus;
-        SelectTool& selectTool;
-        StackBase(ExclusiveCommandBus& b, SelectTool& s)
-            : bus(b)
-            , selectTool(s)
-        {
-        }
-        void suspendForLegacy() override
-        {
-            bus.suspend();
-            selectTool.suspend();
-        }
-        void resumeAfterLegacy() override
-        {
-            selectTool.resume();
-            bus.resume();
-        }
-        void resetAfterKill() override { selectTool.init(); }
-    } stackBase{bus, selectTool};
+    LegacyStackBase stackBase{bus, selectTool};
 
     GuiEventHandler handler(nullptr);
     handler.setStackBase(&stackBase);
@@ -372,4 +422,251 @@ TEST_F(SelectFirstFixture, 旧Action叠在命令之上时命令被挂起结束�
     ASSERT_TRUE(selectTool.getCursor().has_value());
     EXPECT_EQ(*selectTool.getCursor(), DM::SelectCursor);
     EXPECT_EQ(pressKey(Qt::Key_Enter), ViewToolResult::Handled);
+}
+
+TEST_F(SelectFirstFixture, P1先选后建的13个命令没有选择集时都进入选择阶段)
+{
+    for (const char* id : kSelectFirstCommands)
+    {
+        SCOPED_TRACE(id);
+        ui.hints.clear();
+        ASSERT_TRUE(start(id));
+        EXPECT_TRUE(selectTool.inSelectionPhase());
+        ASSERT_FALSE(ui.hints.empty());
+        EXPECT_EQ(ui.hints.back().first, QStringLiteral("Click and drag for the selection window"));
+        endCommand();
+        EXPECT_FALSE(selectTool.inSelectionPhase());
+    }
+}
+
+TEST_F(SelectFirstFixture, P3回车确认后进入命令的第一步)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    for (const FirstStep& step : kPlaceToolCommands)
+    {
+        SCOPED_TRACE(step.id);
+        line->setSelected(false);
+        ASSERT_TRUE(start(step.id));
+        ASSERT_TRUE(selectTool.inSelectionPhase());
+
+        line->setSelected(true);
+        ui.hints.clear();
+        EXPECT_EQ(pressKey(Qt::Key_Enter), ViewToolResult::Handled);
+        EXPECT_TRUE(bus.hasActiveCommand());
+        EXPECT_FALSE(selectTool.inSelectionPhase());
+        ASSERT_FALSE(ui.hints.empty());
+        EXPECT_TRUE(ui.hints.back().first.startsWith(QString::fromLatin1(step.hint)))
+            << ui.hints.back().first.toStdString();
+        // 放置工具经 getCursor() 给出十字光标，捕捉器随工具活动
+        ASSERT_TRUE(view.lastCursor().has_value());
+        EXPECT_EQ(*view.lastCursor(), DM::CadCursor);
+        EXPECT_NE(bus.activeCommand()->snapService(), nullptr);
+        endCommand();
+    }
+}
+
+TEST_F(SelectFirstFixture, P7已有选择集时直接进入命令的第一步)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    for (const FirstStep& step : kPlaceToolCommands)
+    {
+        SCOPED_TRACE(step.id);
+        line->setSelected(true);
+        ui.hints.clear();
+        ASSERT_TRUE(start(step.id));
+        EXPECT_TRUE(bus.hasActiveCommand());
+        EXPECT_FALSE(selectTool.inSelectionPhase());
+        ASSERT_FALSE(ui.hints.empty());
+        EXPECT_TRUE(ui.hints.back().first.startsWith(QString::fromLatin1(step.hint)))
+            << ui.hints.back().first.toStdString();
+        endCommand();
+    }
+}
+
+TEST_F(SelectFirstFixture, 复制到图层的提示写在命令行且右键在第一步结束命令)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.copy_to_layer"));
+    ASSERT_FALSE(ui.messages.empty());
+    EXPECT_EQ(ui.messages.back(), QStringLiteral("Select the object on the target layer"));
+
+    // 空白处单击拾取不到实体，仍在第一步
+    click(200, 200);
+    EXPECT_TRUE(bus.hasActiveCommand());
+
+    click(200, 200, Qt::RightButton);
+    EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(SelectFirstFixture, 移动工具右键退回上一步第一步时结束命令)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.move"));
+
+    click(0, 0);
+    ASSERT_FALSE(ui.hints.empty());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify target point"));
+
+    // 第二步移动鼠标：预览跟随
+    QMouseEvent move = makeMouse(QEvent::MouseMove, 20, 20, Qt::NoButton);
+    dispatch([&] { return control.mouseMoveEvent(&move); });
+    EXPECT_FALSE(view.getPreviewContainer()->isEmpty());
+
+    click(20, 20, Qt::RightButton);
+    EXPECT_TRUE(bus.hasActiveCommand());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
+    EXPECT_TRUE(view.getPreviewContainer()->isEmpty());
+
+    click(20, 20, Qt::RightButton);
+    EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(SelectFirstFixture, 放置工具接收命令行坐标但不接受文本)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.move"));
+
+    EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(5.0, 6.0)); }), ViewToolResult::Handled);
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify target point"));
+    EXPECT_DOUBLE_EQ(view.getRelativeZero().x, 5.0);
+    EXPECT_DOUBLE_EQ(view.getRelativeZero().y, 6.0);
+
+    // 移动没有命令行选项：文本不被接受，随后会被当作新命令解析
+    GuiCommandEvent text("line");
+    EXPECT_EQ(typeText(text), ViewToolResult::NotHandled);
+    EXPECT_FALSE(text.isAccepted());
+}
+
+TEST_F(SelectFirstFixture, 放置工具不接受Esc且把中键平移让给导航层)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.move"));
+
+    QKeyEvent* esc = nullptr;
+    EXPECT_EQ(pressKey(Qt::Key_Escape, &esc), ViewToolResult::Handled);
+    EXPECT_FALSE(esc->isAccepted());
+
+    QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::MiddleButton);
+    QMouseEvent drag(QEvent::MouseMove, QPointF(40, 30), Qt::NoButton, Qt::MiddleButton, Qt::NoModifier);
+    QMouseEvent release = makeMouse(QEvent::MouseButtonRelease, 40, 30, Qt::MiddleButton);
+    dispatch([&] { return control.mousePressEvent(&press); });
+    EXPECT_TRUE(panTool.isPanning());
+    dispatch([&] { return control.mouseMoveEvent(&drag); });
+    EXPECT_GT(view.zoomPanCount, 0);
+    dispatch([&] { return control.mouseReleaseEvent(&release); });
+    EXPECT_FALSE(panTool.isPanning());
+    EXPECT_TRUE(bus.hasActiveCommand());
+}
+
+TEST_F(SelectFirstFixture, 旋转工具设置中心时不接受文本设置角度时接受)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.rotate"));
+
+    GuiCommandEvent early("30");
+    EXPECT_EQ(typeText(early), ViewToolResult::NotHandled);
+    EXPECT_FALSE(early.isAccepted());
+
+    dispatch([&] { return control.coordinateEvent(DmVector(0.0, 0.0)); });
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Input angle"));
+
+    GuiCommandEvent invalid("abc");
+    EXPECT_EQ(typeText(invalid), ViewToolResult::Handled);
+    EXPECT_TRUE(invalid.isAccepted());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Input invalid"));
+    EXPECT_TRUE(bus.hasActiveCommand());
+}
+
+TEST_F(SelectFirstFixture, 缩放工具设置基点时文本被接受但不起作用)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.scale"));
+
+    GuiCommandEvent text("2");
+    EXPECT_EQ(typeText(text), ViewToolResult::Handled);
+    EXPECT_TRUE(text.isAccepted());
+    EXPECT_TRUE(bus.hasActiveCommand());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
+}
+
+TEST_F(SelectFirstFixture, 复制工具随时可输入复制数量)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.copy"));
+    auto* command = dynamic_cast<ModifyCopyCommand*>(bus.activeCommand());
+    ASSERT_NE(command, nullptr);
+
+    GuiCommandEvent count("3");
+    EXPECT_EQ(typeText(count), ViewToolResult::Handled);
+    EXPECT_EQ(command->copyCount(), 3);
+
+    GuiCommandEvent invalid("0");
+    EXPECT_EQ(typeText(invalid), ViewToolResult::Handled);
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Input invalid"));
+    EXPECT_EQ(command->copyCount(), 3);
+
+    // 提示里的数量在状态变化时才刷新（原有行为）
+    click(0, 0);
+    EXPECT_TRUE(ui.hints.back().first.endsWith(QStringLiteral("is 3"))) << ui.hints.back().first.toStdString();
+}
+
+TEST_F(SelectFirstFixture, 镜像工具输入YN切换复制方式)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.mirror"));
+    auto* command = dynamic_cast<ModifyMirrorCommand*>(bus.activeCommand());
+    ASSERT_NE(command, nullptr);
+
+    GuiCommandEvent no("N");
+    EXPECT_EQ(typeText(no), ViewToolResult::Handled);
+    EXPECT_FALSE(command->copies());
+
+    GuiCommandEvent other("x");
+    EXPECT_EQ(typeText(other), ViewToolResult::Handled);
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Input invalid"));
+
+    click(0, 0);
+    EXPECT_TRUE(ui.hints.back().first.endsWith(QStringLiteral("[delete origin]")))
+        << ui.hints.back().first.toStdString();
+
+    GuiCommandEvent yes("y");
+    typeText(yes);
+    EXPECT_TRUE(command->copies());
+}
+
+TEST_F(SelectFirstFixture, 旧Action叠在放置工具之上时停用工具结束后恢复)
+{
+    LegacyStackBase stackBase{bus, selectTool};
+    GuiEventHandler handler(nullptr);
+    handler.setStackBase(&stackBase);
+    legacyHandler = &handler;
+    struct Detach
+    {
+        GuiEventHandler*& ref;
+        ~Detach() { ref = nullptr; }
+    } detach{legacyHandler};
+
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    line->setSelected(true);
+    ASSERT_TRUE(start("modify.move"));
+
+    auto* legacy = new ActionInterface("test-legacy-action", &doc, &view);
+    handler.setCurrentAction(legacy);
+    EXPECT_TRUE(bus.isSuspended());
+    // 工具被停用：命令行坐标没有业务工具接收
+    EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::NotHandled);
+
+    legacy->finish();
+    handler.cleanUp();
+    EXPECT_FALSE(bus.isSuspended());
+    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
+    EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::Handled);
 }

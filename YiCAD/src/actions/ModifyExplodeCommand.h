@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,41 +18,38 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file ModifyExplodeCommand.h
+/// @brief 分解命令，取代原 ActionModifyExplode
+///
+/// 把块参照、通用容器、多段线、多行文字分解为独立实体；选择集就绪后立即执行并结束，
+/// 没有画布交互。
 
-/// @file ActionModifyExplode.h
-/// @brief 分解实体（块、多段线、多行文字等）的交互动作类声明
+#ifndef MODIFYEXPLODECOMMAND_H
+#define MODIFYEXPLODECOMMAND_H
 
-#ifndef ACTIONMODIFYEXPLODE_H
-#define ACTIONMODIFYEXPLODE_H
+#include <vector>
 
-#include "PreviewActionInterface.h"
+#include <QCoreApplication>
 
+#include "SelectFirstCommand.h"
+
+class DmEntity;
 class DmMText;
 
-/// @brief 分解实体的交互动作
-///
-/// 处理用户分解块(Block)、多段线(Polyline)、多行文字(MText)等复合实体为
-/// 单个独立实体的操作。
-class ActionModifyExplode : public PreviewActionInterface
+/// @brief 分解命令
+class ModifyExplodeCommand : public SelectFirstCommand
 {
-    Q_OBJECT
-public:
-    /// @brief 构造函数
-    /// @param [in] doc 文档指针
-    /// @param [in] docView 文档视图指针
-    ActionModifyExplode(DmDocument* doc, IDocumentView* docView);
+    Q_DECLARE_TR_FUNCTIONS(ModifyExplodeCommand)
 
-    /// @brief 初始化动作
-    /// @param [in] status 初始状态，默认为0
-    void init(int status = 0) override;
+protected:
+    /// @brief 分解选择集后结束
+    bool onSelectionReady() override;
 
-    /// @brief 触发分解操作
-    void trigger() override;
-
+private:
     /// @brief 执行分解操作
-    /// @param [in] remove 是否在分解后删除原实体，默认为true
+    /// @param [in] remove 是否在分解后删除原实体
     /// @return 分解成功返回true，否则返回false
-    bool explode(const bool remove = true);
+    bool explode(const bool remove);
 
     /// @brief 将多行文字分解为单行文字
     /// @param [in] text 多行文字实体指针
@@ -61,4 +58,4 @@ public:
     bool explodeMTextIntoLetters(DmMText* text, std::vector<DmEntity*>& addList);
 };
 
-#endif // ACTIONMODIFYEXPLODE_H
+#endif // MODIFYEXPLODECOMMAND_H

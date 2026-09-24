@@ -85,6 +85,13 @@ using CommandFactory = std::function<ActionInterface*(const CommandContext&)>;
 /// （如块编辑中再次编辑块时给出警告）。
 using ExclusiveCommandFactory = std::function<std::unique_ptr<IExclusiveCommand>(const CommandContext&)>;
 
+/// @brief 无参构造的交互命令的工厂
+template <typename Command>
+ExclusiveCommandFactory exclusiveCommandFactory()
+{
+    return [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return std::make_unique<Command>(); };
+}
+
 /// @brief 即时命令：执行即完成，不建命令对象、不占命令总线。
 using InstantCommand = std::function<void(const CommandContext&)>;
 
@@ -144,6 +151,10 @@ public:
 
     /// @brief 注册一个交互命令，其余同 registerCommand()。
     bool registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info = {});
+
+    /// @brief 注册一个内置交互命令，同时建立 legacy ActionType 桥接（对应 registerLegacyCommand）。
+    /// @return 成功返回 true；id 或 legacyType 已存在时返回 false，不留下部分注册的状态。
+    bool registerExclusiveCommand(DM::ActionType legacyType, const QString& id, ExclusiveCommandFactory factory);
 
     /// @brief 注册一个即时命令，其余同 registerCommand()。
     bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info = {});
