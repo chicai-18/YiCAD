@@ -76,6 +76,12 @@ public:
     /// @return id 不在本扩展命名空间内，或 CommandRegistry 拒绝时返回 false。
     virtual bool registerCommand(const QString& id, CommandFactory factory, CommandInfo info) = 0;
 
+    /// @brief 注册一条交互命令（见 CommandRegistry::registerExclusiveCommand），命名空间规则同上。
+    virtual bool registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info) = 0;
+
+    /// @brief 注册一条即时命令（见 CommandRegistry::registerInstantCommand），命名空间规则同上。
+    virtual bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info) = 0;
+
     /// @brief 按命令 ID 启动命令（任意已注册命令，不限本扩展）。
     /// @return 命令未注册时返回 false。
     virtual bool activateCommand(const QString& commandId) = 0;

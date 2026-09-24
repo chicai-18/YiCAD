@@ -61,18 +61,26 @@ public:
 
     bool registerCommand(const QString& id, CommandFactory factory, CommandInfo info) override
     {
-        if (!owns("command", id))
-        {
-            return false;
-        }
-        if (!CommandRegistry::instance().registerCommand(id, std::move(factory), std::move(info)))
-        {
-            qWarning("ExtensionManager: %s: command '%s' rejected by CommandRegistry (duplicate id or alias)",
-                     m_extensionId.c_str(), qUtf8Printable(id));
-            return false;
-        }
-        m_commands.push_back(id);
-        return true;
+        return registerChecked(id, [&]()
+                               { return CommandRegistry::instance().registerCommand(id, std::move(factory), std::move(info)); });
+    }
+
+    bool registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info) override
+    {
+        return registerChecked(id, [&]()
+                               {
+                                   return CommandRegistry::instance().registerExclusiveCommand(id, std::move(factory),
+                                                                                               std::move(info));
+                               });
+    }
+
+    bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info) override
+    {
+        return registerChecked(id, [&]()
+                               {
+                                   return CommandRegistry::instance().registerInstantCommand(id, std::move(command),
+                                                                                             std::move(info));
+                               });
     }
 
     bool activateCommand(const QString& commandId) override { return m_host.activateCommand(commandId); }
@@ -88,6 +96,24 @@ public:
     }
 
 private:
+    /// @brief 三种命令注册共用：先查命名空间，再交给注册表，成功后记下以便注销
+    template <typename Register>
+    bool registerChecked(const QString& id, Register&& doRegister)
+    {
+        if (!owns("command", id))
+        {
+            return false;
+        }
+        if (!doRegister())
+        {
+            qWarning("ExtensionManager: %s: command '%s' rejected by CommandRegistry (duplicate id or alias)",
+                     m_extensionId.c_str(), qUtf8Printable(id));
+            return false;
+        }
+        m_commands.push_back(id);
+        return true;
+    }
+
     bool owns(const char* kind, const QString& id) const
     {
         if (isInExtensionNamespace(m_extensionId, id))

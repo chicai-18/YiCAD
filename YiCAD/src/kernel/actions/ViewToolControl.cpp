@@ -22,6 +22,7 @@
 
 #include <algorithm>
 
+#include "GuiCommandEvent.h"
 #include "IDocumentView.h"
 
 namespace
@@ -70,6 +71,9 @@ void ViewToolControl::activate(IViewTool* tool)
     }
     m_businessTools.push_back(tool);
     tool->onActivate();
+    // 业务栈变化后重新应用一次栈顶的光标：旧版 Action 绕过仲裁直接设置的
+    // 光标会让 m_lastAppliedCursor 过期，按它去重会漏掉这次切换。
+    m_lastAppliedCursor.reset();
     refreshCursor();
 }
 
@@ -86,6 +90,7 @@ void ViewToolControl::deactivate(IViewTool* tool)
     }
     tool->onDeactivate();
     m_businessTools.erase(it);
+    m_lastAppliedCursor.reset();
     refreshCursor();
 }
 
@@ -142,6 +147,21 @@ ViewToolResult ViewToolControl::dispatch(EventFunc&& func)
         }
     }
 
+    return ViewToolResult::NotHandled;
+}
+
+template <typename EventFunc>
+ViewToolResult ViewToolControl::dispatchBusiness(EventFunc&& func)
+{
+    auto snapshot = m_businessTools;
+    for (auto it = snapshot.rbegin(); it != snapshot.rend(); ++it)
+    {
+        ViewToolResult result = func(*it);
+        if (result != ViewToolResult::NotHandled)
+        {
+            return result;
+        }
+    }
     return ViewToolResult::NotHandled;
 }
 
@@ -238,6 +258,20 @@ ViewToolResult ViewToolControl::keyReleaseEvent(QKeyEvent* e)
 ViewToolResult ViewToolControl::wheelEvent(QWheelEvent* e)
 {
     ViewToolResult result = dispatch([&](IViewTool* t) { return t->wheelEvent(e); });
+    refreshCursor();
+    return result;
+}
+
+ViewToolResult ViewToolControl::coordinateEvent(const DmVector& pos)
+{
+    ViewToolResult result = dispatchBusiness([&](IViewTool* t) { return t->coordinateEvent(pos); });
+    refreshCursor();
+    return result;
+}
+
+ViewToolResult ViewToolControl::commandEvent(GuiCommandEvent* e)
+{
+    ViewToolResult result = dispatchBusiness([&](IViewTool* t) { return t->commandEvent(e); });
     refreshCursor();
     return result;
 }

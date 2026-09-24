@@ -26,17 +26,23 @@
 #include <QWheelEvent>
 
 #include "ActionInterface.h"
-#include "ActionModifyDelete.h"
 #include "ActionZoomIn.h"
+#include "CommandRegistry.h"
 #include "DmDocument.h"
 #include "DmSettings.h"
 #include "EntityTable.h"
+#include "ExclusiveCommandBus.h"
+#include "GuiCommandEvent.h"
+#include "GuiCoordinateInput.h"
+#include "GuiDialogFactory.h"
 #include "GuiEventHandler.h"
 #include "LegacyActionTool.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
 #include "ViewToolControl.h"
+
+using DispatchScope = ExclusiveCommandBus::DispatchScope;
 
 UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
     : GuiDocumentView(parent, fl, doc)
@@ -54,20 +60,185 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
         m_pSelectPreview = std::make_unique<Preview>(doc);
         m_pSelectTool = std::make_unique<SelectTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
                                                      m_pPanZoomTool.get());
-        getEventHandler()->setSelectTool(m_pSelectTool.get());
         m_pViewToolControl->setSelectionTool(m_pSelectTool.get());
+
+        m_pCommandBus = std::make_unique<ExclusiveCommandBus>(doc, this, m_pViewToolControl.get(),
+                                                              m_pSelectTool.get());
+        // 选择层之上有旧 Action 或命令时，提示与光标归它们（命令的选择阶段除外）
+        m_pSelectTool->setOverlayQuery([this]()
+        {
+            if (getEventHandler()->hasAction())
+            {
+                return SelectTool::Overlay::LegacyAction;
+            }
+            // 析构时总线先于选择层释放，释放过程中也会查询
+            if (m_pCommandBus && m_pCommandBus->hasActiveCommand())
+            {
+                return SelectTool::Overlay::Command;
+            }
+            return SelectTool::Overlay::None;
+        });
+        getEventHandler()->setStackBase(this);
     }
 }
 
 UIView::~UIView()
 {
-    // GuiEventHandler 归基类，比本类的成员活得久，先解除它对选择层的引用。
-    getEventHandler()->setSelectTool(nullptr);
+    // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
+    m_pCommandBus.reset();
+    // GuiEventHandler 归基类，比本类的成员活得久，先解除它对本类的引用。
+    getEventHandler()->setStackBase(nullptr);
+}
+
+bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
+{
+    if (!m_pCommandBus || !command || m_pCommandBus->isInCallback())
+    {
+        return false;
+    }
+    // 5.1 节：先请当前命令让位，被否决时新命令直接销毁、不激活
+    if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
+    {
+        return false;
+    }
+    m_pCommandBus->end();
+
+    // 过渡期：启动命令时结束全部旧 Action，不再恢复（迁移计划 9.2 节）
+    GuiEventHandler* handler = getEventHandler();
+    if (handler->getCurrentActionNum() > 0)
+    {
+        handler->killAllActions();
+        handler->cleanUp();
+    }
+    return m_pCommandBus->start(std::move(command));
+}
+
+void UIView::prepareInstantCommand()
+{
+    getEventHandler()->interruptForInstantCommand();
+}
+
+QString UIView::activeCommandId() const
+{
+    return m_pCommandBus ? m_pCommandBus->activeCommandId() : QString();
 }
 
 bool UIView::processKeyEvent(QKeyEvent* e)
 {
+    DispatchScope scope(m_pCommandBus.get());
     return m_pViewToolControl->keyPressEvent(e) != ViewToolResult::NotHandled;
+}
+
+void UIView::back()
+{
+    QMouseEvent e(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    routeBack(&e);
+}
+
+void UIView::routeBack(QMouseEvent* e)
+{
+    if (getEventHandler()->hasAction())
+    {
+        GuiDocumentView::back();
+    }
+    else if (m_pCommandBus && m_pCommandBus->hasActiveCommand())
+    {
+        // 右键释放不走 ViewToolControl（主计划 5.7 节）；命令的工具在这里收到它
+        DispatchScope scope(m_pCommandBus.get());
+        m_pViewToolControl->mouseReleaseEvent(e);
+    }
+}
+
+void UIView::commandEvent(GuiCommandEvent* e)
+{
+    if (getEventHandler()->hasAction() || !m_pCommandBus || !m_pCommandBus->hasActiveCommand())
+    {
+        GuiDocumentView::commandEvent(e);
+        return;
+    }
+    if (!getEventHandler()->isCoordinateInputEnabled() || e->isAccepted())
+    {
+        return;
+    }
+
+    // 与旧 Action 同一套解析：坐标一律接受（工具用不用都算已处理），其余文本
+    // 交给工具，没有工具接受时由 UIActionHandler 当作新命令解析。
+    DispatchScope scope(m_pCommandBus.get());
+    const GuiCoordinateInput input = GuiCoordinateInput::parse(e->getCommand(), getRelativeZero());
+    switch (input.status)
+    {
+    case GuiCoordinateInput::Status::Ok:
+        m_pViewToolControl->coordinateEvent(input.position);
+        e->accept();
+        break;
+    case GuiCoordinateInput::Status::SyntaxError:
+        GUIDIALOGFACTORY->commandMessage("Expression Syntax Error");
+        e->accept();
+        break;
+    case GuiCoordinateInput::Status::NotCoordinate:
+        m_pViewToolControl->commandEvent(e);
+        break;
+    }
+}
+
+bool UIView::killAllActions()
+{
+    if (m_pCommandBus)
+    {
+        // 5.1 节：先征求命令同意，被否决时什么也不做（调用方也不清空选择）
+        if (!m_pCommandBus->approveEnd(CommandEndReason::Cancelled))
+        {
+            return false;
+        }
+        m_pCommandBus->end();
+    }
+    return GuiDocumentView::killAllActions();
+}
+
+void UIView::killAllActionsOnClose()
+{
+    if (m_pCommandBus)
+    {
+        // 不能否决：命令只在回调里保存或放弃
+        m_pCommandBus->approveEnd(CommandEndReason::ViewClosing);
+        m_pCommandBus->end();
+    }
+    GuiDocumentView::killAllActionsOnClose();
+}
+
+bool UIView::hasActiveCommand()
+{
+    return GuiDocumentView::hasActiveCommand() || (m_pCommandBus && m_pCommandBus->hasActiveCommand());
+}
+
+void UIView::setCurrentAction(ActionInterface* action)
+{
+    if (!action)
+    {
+        return;
+    }
+    if (m_pCommandBus)
+    {
+        if (m_pCommandBus->isInCallback())
+        {
+            // 5.1 节：回调期间的启动请求一律忽略
+            delete action;
+            return;
+        }
+        if (action->isExclusive())
+        {
+            // 排他的旧 Action 要结束全部，先请命令让位；被否决时不启动它
+            if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
+            {
+                delete action;
+                return;
+            }
+            m_pCommandBus->end();
+        }
+    }
+    // 其余旧 Action 叠在命令之上：GuiEventHandler 从空栈启动它时经
+    // suspendForLegacy() 挂起命令，栈清空时经 resumeAfterLegacy() 恢复
+    GuiDocumentView::setCurrentAction(action);
 }
 
 void UIView::setDefaultSnapMode(SnapMode sm)
@@ -76,6 +247,10 @@ void UIView::setDefaultSnapMode(SnapMode sm)
     if (m_pSelectSnapper)
     {
         m_pSelectSnapper->setSnapMode(sm);
+    }
+    if (m_pCommandBus)
+    {
+        m_pCommandBus->setSnapMode(sm);
     }
 }
 
@@ -86,6 +261,55 @@ void UIView::setSnapRestriction(DM::SnapRestriction sr)
     {
         m_pSelectSnapper->setSnapRestriction(sr);
     }
+    if (m_pCommandBus)
+    {
+        m_pCommandBus->setSnapRestriction(sr);
+    }
+}
+
+void UIView::suspendForLegacy()
+{
+    if (m_pCommandBus)
+    {
+        m_pCommandBus->suspend();
+    }
+    if (m_pSelectTool)
+    {
+        m_pSelectTool->suspend();
+    }
+}
+
+void UIView::resumeAfterLegacy()
+{
+    if (m_pSelectTool)
+    {
+        m_pSelectTool->resume();
+    }
+    if (m_pCommandBus)
+    {
+        m_pCommandBus->resume();
+    }
+}
+
+void UIView::resetAfterKill()
+{
+    if (m_pSelectTool)
+    {
+        m_pSelectTool->init();
+    }
+}
+
+ISnapService* UIView::commandSnapService() const
+{
+    if (!m_pCommandBus || !m_pCommandBus->hasActiveCommand() || m_pCommandBus->isSuspended())
+    {
+        return nullptr;
+    }
+    if (m_pSelectTool && m_pSelectTool->inSelectionPhase())
+    {
+        return nullptr;
+    }
+    return m_pCommandBus->activeCommand()->snapService();
 }
 
 SnapResultType UIView::currentSnapResult()
@@ -93,6 +317,10 @@ SnapResultType UIView::currentSnapResult()
     if (ActionInterface* action = getCurrentAction())
     {
         return action->getSnapResult();
+    }
+    if (ISnapService* snapper = commandSnapService())
+    {
+        return snapper->getSnapResult();
     }
     return m_pSelectSnapper ? m_pSelectSnapper->getSnapResult() : SnapResultType::SnapNone;
 }
@@ -103,6 +331,10 @@ DmVector UIView::currentSnapSpot()
     {
         return action->getSnapSpot();
     }
+    if (ISnapService* snapper = commandSnapService())
+    {
+        return snapper->getSnapSpot();
+    }
     return m_pSelectSnapper ? m_pSelectSnapper->getSnapSpot() : DmVector(false);
 }
 
@@ -112,11 +344,13 @@ void UIView::mousePressEvent(QMouseEvent* e)
     // Action 时优先，空闲态整体让路给选择层（SelectTool）；中键与 Neutral
     // 状态下的 Ctrl/Meta+左键再由选择层让给导航层（PanZoomTool）。
     e->accept();
+    DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->mousePressEvent(e);
 }
 
 void UIView::mouseDoubleClickEvent(QMouseEvent* e)
 {
+    DispatchScope scope(m_pCommandBus.get());
     switch (e->button())
     {
     case Qt::MiddleButton:
@@ -134,15 +368,12 @@ void UIView::mouseDoubleClickEvent(QMouseEvent* e)
 void UIView::mouseReleaseEvent(QMouseEvent* e)
 {
     e->accept();
+    DispatchScope scope(m_pCommandBus.get());
 
     switch (e->button())
     {
     case Qt::RightButton:
-
-        if (getEventHandler()->hasAction())
-        {
-            back();
-        }
+        routeBack(e);
         break;
 
     case Qt::XButton1:
@@ -174,6 +405,7 @@ void UIView::mouseReleaseEvent(QMouseEvent* e)
 void UIView::mouseMoveEvent(QMouseEvent* e)
 {
     GuiDocumentView::mouseMoveEvent(e);
+    DispatchScope scope(m_pCommandBus.get());
 
     // ViewToolControl 统一分发：不在平移中时，有业务 Action 则由业务层
     // （LegacyActionTool）转给它，空闲态落到选择层；平移中两层都主动让路，
@@ -200,11 +432,14 @@ void UIView::tabletEvent(QTabletEvent* e)
                 if (pDocument && m_pSelectTool)
                 {
                     // 橡皮擦：单点拾取后删除选择集。未命中时照旧删除已有的选择集。
+                    // 删除是即时命令，不打断当前命令（清单 E6）。
                     m_pSelectTool->pickAt(e->pos().x(), e->pos().y());
 
                     if (pDocument->getEntityTable()->hasSelect())
                     {
-                        setCurrentAction(new ActionModifyDelete(pDocument, this));
+                        prepareInstantCommand();
+                        CommandRegistry::instance().runInstant(QStringLiteral("modify.delete_no_select"),
+                                                               CommandContext{pDocument, this});
                     }
                 }
             }
@@ -237,18 +472,21 @@ void UIView::tabletEvent(QTabletEvent* e)
 
 void UIView::leaveEvent(QEvent* e)
 {
+    DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->leaveEvent();
     GuiDocumentView::leaveEvent(e);
 }
 
 void UIView::enterEvent(QEvent* e)
 {
+    DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->enterEvent();
     GuiDocumentView::enterEvent(e);
 }
 
 void UIView::focusInEvent(QFocusEvent* e)
 {
+    DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->enterEvent();
     GuiDocumentView::focusInEvent(e);
 }
@@ -260,6 +498,7 @@ void UIView::wheelEvent(QWheelEvent* e)
     const int TRACKPAD_ANGLE_DIVISOR = 4;        // 触控板角度增量除数
 
     DmVector mouse = toGraph(e->x(), e->y());
+    DispatchScope scope(m_pCommandBus.get());
 
     if (getStrDevice() == "Trackpad")
     {
@@ -352,10 +591,12 @@ void UIView::keyPressEvent(QKeyEvent* e)
         return;
     }
 
+    DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->keyPressEvent(e);
 }
 
 void UIView::keyReleaseEvent(QKeyEvent* e)
 {
+    DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->keyReleaseEvent(e);
 }

@@ -34,11 +34,13 @@
 
 #include "Debug.h"
 #include "DmSettings.h"
+#include "IExclusiveCommand.h"
 #include "MDIWindow.h"
 #include "QMdiArea"
 #include "GuiDocumentView.h"
 #include "GuiEventHandler.h"
 #include "UICurrentActivePen.h"
+#include "UIView.h"
 
 UIActionHandler::UIActionHandler(QObject* parent)
 	:QObject(parent)
@@ -82,8 +84,11 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 	{
 		if (m_pView)
 		{
-			// DO we need to call some form of a 'clean' function?
-			m_pView->killAllActions();
+			// 被命令否决时（迁移计划 5.1 节）命令继续，选择集也不清空
+			if (!m_pView->killAllActions())
+			{
+				return nullptr;
+			}
 
 			Selection s(m_pDocument, m_pView);
 			s.selectAll(false);
@@ -115,8 +120,39 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 
 ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObject* source)
 {
-	ActionInterface* a = CommandRegistry::instance().create(
-		commandId, CommandContext{m_pDocument, m_pView, this, source ? source : sender()});
+	CommandRegistry& registry = CommandRegistry::instance();
+	const CommandContext ctx{m_pDocument, m_pView, this, source ? source : sender()};
+
+	switch (registry.kind(commandId))
+	{
+	case CommandKind::Exclusive:
+		// 交互命令由视图的命令总线运行，没有打开图纸时不启动
+		if (UIView* view = qobject_cast<UIView*>(m_pView))
+		{
+			if (std::unique_ptr<IExclusiveCommand> command = registry.createCommand(commandId, ctx))
+			{
+				view->startCommand(std::move(command));
+			}
+		}
+		return nullptr;
+
+	case CommandKind::Instant:
+		// 即时命令不占命令总线，没有打开图纸时也执行（document/view 为空）
+		if (UIView* view = qobject_cast<UIView*>(m_pView))
+		{
+			view->prepareInstantCommand();
+		}
+		registry.runInstant(commandId, ctx);
+		return nullptr;
+
+	case CommandKind::Legacy:
+		break;
+
+	case CommandKind::None:
+		return nullptr;
+	}
+
+	ActionInterface* a = registry.create(commandId, ctx);
 
 	if (a)
 	{

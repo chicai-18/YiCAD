@@ -33,6 +33,7 @@
 #include <QPushButton>
 #include "GuiDocumentView.h"
 #include "GuiEventHandler.h"
+#include "UIView.h"
 
 
 UICommandWidget::UICommandWidget(QWidget* parent, UITabDrawWidget* tabDrawWidget)
@@ -143,13 +144,25 @@ void UICommandWidget::appCmdTempText(const QString text)
 		MDIWindow* mdiWindow = m_pTabDrawWidget->getCurrentMdiWindow();
 		GuiDocumentView* gv = mdiWindow->getDocumentView();
 		GuiEventHandler* handle = gv->getEventHandler();
-		int actionNum = handle->getCurrentActionNum();
+		const bool hasCommand = gv->hasActiveCommand();
+
+		// 当前命令：旧版 Action 优先（它叠在命令之上时命令被挂起），其次是交互命令
+		DM::ActionType actionType = DM::ActionNone;
+		QString commandId;
+		if (ActionInterface* action = handle->getCurrentAction())
+		{
+			actionType = action->getEntityType();
+			commandId = action->getCommandId();
+		}
+		else if (UIView* view = qobject_cast<UIView*>(gv))
+		{
+			commandId = view->activeCommandId();
+			actionType = CommandRegistry::instance().legacyType(commandId);
+		}
 
 		QString displayText = text;
-		ActionInterface* action = handle->getCurrentAction();
-		if (action)
+		if (actionType != DM::ActionNone || !commandId.isEmpty())
 		{
-			DM::ActionType actionType = action->getEntityType();
 			QString desc;
 			if (actionType != DM::ActionNone)
 			{
@@ -158,7 +171,7 @@ void UICommandWidget::appCmdTempText(const QString text)
 			// 扩展命令不在 keyconfig.xml 里，说明随命令注册在 CommandRegistry。
 			if (desc.isEmpty())
 			{
-				desc = CommandRegistry::instance().description(action->getCommandId());
+				desc = CommandRegistry::instance().description(commandId);
 			}
 			if (!desc.isEmpty())
 			{
@@ -171,7 +184,7 @@ void UICommandWidget::appCmdTempText(const QString text)
 			return;
 		}
 
-		if (actionNum == 0)
+		if (!hasCommand)
 		{
 			editWidget->show();
 			editWidget->raise();

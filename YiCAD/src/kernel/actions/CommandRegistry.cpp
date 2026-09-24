@@ -25,6 +25,7 @@
 #include "ActionSelect.h"
 #include "DmDocument.h"
 #include "EntityTable.h"
+#include "IExclusiveCommand.h"
 
 // 注册冲突（重复 ID / 重复 legacy 类型）用返回值报告，不用 assert() 硬中断——
 // 这条路径本身就是可测试、可恢复的正常分支（见
@@ -55,9 +56,9 @@ CommandRegistry& CommandRegistry::instance()
     return registry;
 }
 
-bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory, CommandInfo info)
+bool CommandRegistry::addEntry(const QString& id, Entry entry)
 {
-    if (id.isEmpty() || !factory)
+    if (id.isEmpty())
     {
         return false;
     }
@@ -65,19 +66,68 @@ bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory,
     {
         return false;
     }
-    info.aliases = normalizeAliases(info.aliases);
-    for (const QString& alias : info.aliases)
+    entry.info.aliases = normalizeAliases(entry.info.aliases);
+    for (const QString& alias : entry.info.aliases)
     {
         if (m_aliases.find(alias) != m_aliases.end())
         {
             return false;
         }
     }
-    for (const QString& alias : info.aliases)
+    for (const QString& alias : entry.info.aliases)
     {
         m_aliases.emplace(alias, id);
     }
-    m_commands.emplace(id, Entry{std::move(factory), std::move(info)});
+    m_commands.emplace(id, std::move(entry));
+    return true;
+}
+
+bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory, CommandInfo info)
+{
+    if (!factory)
+    {
+        return false;
+    }
+    Entry entry;
+    entry.kind = CommandKind::Legacy;
+    entry.factory = std::move(factory);
+    entry.info = std::move(info);
+    return addEntry(id, std::move(entry));
+}
+
+bool CommandRegistry::registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info)
+{
+    if (!factory)
+    {
+        return false;
+    }
+    Entry entry;
+    entry.kind = CommandKind::Exclusive;
+    entry.commandFactory = std::move(factory);
+    entry.info = std::move(info);
+    return addEntry(id, std::move(entry));
+}
+
+bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info)
+{
+    if (!command)
+    {
+        return false;
+    }
+    Entry entry;
+    entry.kind = CommandKind::Instant;
+    entry.instant = std::move(command);
+    entry.info = std::move(info);
+    return addEntry(id, std::move(entry));
+}
+
+bool CommandRegistry::bindLegacyType(DM::ActionType legacyType, const QString& id)
+{
+    if (m_legacyBridge.find(legacyType) != m_legacyBridge.end() || !hasCommand(id))
+    {
+        return false;
+    }
+    m_legacyBridge.emplace(legacyType, id);
     return true;
 }
 
@@ -120,6 +170,12 @@ bool CommandRegistry::hasCommand(const QString& id) const
     return m_commands.find(id) != m_commands.end();
 }
 
+CommandKind CommandRegistry::kind(const QString& id) const
+{
+    auto it = m_commands.find(id);
+    return it == m_commands.end() ? CommandKind::None : it->second.kind;
+}
+
 bool CommandRegistry::hasLegacyMapping(DM::ActionType legacyType) const
 {
     return m_legacyBridge.find(legacyType) != m_legacyBridge.end();
@@ -129,6 +185,18 @@ QString CommandRegistry::commandId(DM::ActionType legacyType) const
 {
     auto it = m_legacyBridge.find(legacyType);
     return it == m_legacyBridge.end() ? QString() : it->second;
+}
+
+DM::ActionType CommandRegistry::legacyType(const QString& id) const
+{
+    for (const auto& [type, bridgedId] : m_legacyBridge)
+    {
+        if (bridgedId == id)
+        {
+            return type;
+        }
+    }
+    return DM::ActionNone;
 }
 
 QString CommandRegistry::commandForAlias(const QString& alias) const
@@ -159,6 +227,12 @@ CommandOptionsFactory CommandRegistry::optionsFactory(const QString& id) const
     return it == m_commands.end() ? CommandOptionsFactory() : it->second.info.optionsFactory;
 }
 
+ExclusiveCommandOptionsFactory CommandRegistry::commandOptionsFactory(const QString& id) const
+{
+    auto it = m_commands.find(id);
+    return it == m_commands.end() ? ExclusiveCommandOptionsFactory() : it->second.info.commandOptionsFactory;
+}
+
 ActionInterface* CommandRegistry::create(DM::ActionType legacyType, const CommandContext& ctx) const
 {
     auto it = m_legacyBridge.find(legacyType);
@@ -172,7 +246,7 @@ ActionInterface* CommandRegistry::create(DM::ActionType legacyType, const Comman
 ActionInterface* CommandRegistry::create(const QString& id, const CommandContext& ctx) const
 {
     auto it = m_commands.find(id);
-    if (it == m_commands.end())
+    if (it == m_commands.end() || it->second.kind != CommandKind::Legacy)
     {
         return nullptr;
     }
@@ -182,6 +256,32 @@ ActionInterface* CommandRegistry::create(const QString& id, const CommandContext
         action->setCommandId(id);
     }
     return action;
+}
+
+std::unique_ptr<IExclusiveCommand> CommandRegistry::createCommand(const QString& id, const CommandContext& ctx) const
+{
+    auto it = m_commands.find(id);
+    if (it == m_commands.end() || it->second.kind != CommandKind::Exclusive)
+    {
+        return nullptr;
+    }
+    std::unique_ptr<IExclusiveCommand> command = it->second.commandFactory(ctx);
+    if (command)
+    {
+        command->setCommandId(id);
+    }
+    return command;
+}
+
+bool CommandRegistry::runInstant(const QString& id, const CommandContext& ctx) const
+{
+    auto it = m_commands.find(id);
+    if (it == m_commands.end() || it->second.kind != CommandKind::Instant)
+    {
+        return false;
+    }
+    it->second.instant(ctx);
+    return true;
 }
 
 CommandFactory makeSelectFirstFactory(DM::ActionType noSelectLegacyType, CommandFactory buildReal)

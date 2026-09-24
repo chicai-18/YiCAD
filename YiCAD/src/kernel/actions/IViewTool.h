@@ -34,6 +34,8 @@
 
 #include "Datamodel.h"
 
+class DmVector;
+class GuiCommandEvent;
 class QMouseEvent;
 class QKeyEvent;
 class QWheelEvent;
@@ -66,6 +68,14 @@ public:
     virtual ViewToolResult keyReleaseEvent(QKeyEvent*) { return ViewToolResult::NotHandled; }
 
     virtual ViewToolResult wheelEvent(QWheelEvent*) { return ViewToolResult::NotHandled; }
+
+    /// @brief 命令行输入的坐标（已按绝对/相对、直角/极坐标换算成世界坐标）
+    /// @note 只沿业务工具栈分发，选择层与导航层收不到
+    ///       （doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 3 项）
+    virtual ViewToolResult coordinateEvent(const DmVector&) { return ViewToolResult::NotHandled; }
+    /// @brief 命令行输入的、不是坐标的文本；工具使用后应 accept() 该事件
+    /// @note 只沿业务工具栈分发；没有工具接受时，文本被当作新命令解析
+    virtual ViewToolResult commandEvent(GuiCommandEvent*) { return ViewToolResult::NotHandled; }
 
     /// @brief 鼠标进入/离开画布。不参与 Handled/NotHandled 仲裁，
     /// 纯粹是生命周期通知（对应 GuiDocumentView::enterEvent/leaveEvent）。

@@ -121,6 +121,10 @@ public:
     }
 
     /// @brief 请求操作选项（空操作）
+    void requestCommandOptions(IExclusiveCommand*, bool, bool) override
+    {
+    }
+
     void requestOptions(ActionInterface*, bool, bool) override
     {
     }

@@ -289,6 +289,20 @@ public:
     void onDeactivate() override {}
 };
 
+/// @brief 与 UIView 相同：旧 Action 栈之下是选择层（没有命令时）
+struct SelectToolStackBase : ILegacyStackBase
+{
+    explicit SelectToolStackBase(SelectTool& tool)
+        : tool(tool)
+    {
+    }
+    void suspendForLegacy() override { tool.suspend(); }
+    void resumeAfterLegacy() override { tool.resume(); }
+    void resetAfterKill() override { tool.init(); }
+
+    SelectTool& tool;
+};
+
 /// @brief 与 UIView 相同的三层装配
 struct IdleDispatchFixture : ::testing::Test
 {
@@ -298,6 +312,7 @@ struct IdleDispatchFixture : ::testing::Test
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     DispatchSelectTool tool{&doc, &view, &snapper, &preview, &panTool};
+    SelectToolStackBase stackBase{tool};
     GuiEventHandler handler{nullptr};
     LegacyActionTool legacyTool{&handler, &panTool};
     ViewToolControl control{&view};
@@ -305,7 +320,7 @@ struct IdleDispatchFixture : ::testing::Test
     IdleDispatchFixture()
     {
         view.eventHandler = &handler;
-        handler.setSelectTool(&tool);
+        handler.setStackBase(&stackBase);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&tool);
         control.activate(&legacyTool);

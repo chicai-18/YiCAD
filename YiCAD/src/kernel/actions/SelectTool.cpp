@@ -129,7 +129,8 @@ void SelectTool::resume()
 
 void SelectTool::enterEvent()
 {
-    if (!hasBusinessAction())
+    const Overlay above = overlay();
+    if (inSelectionPhase() ? above != Overlay::LegacyAction : above == Overlay::None || above == Overlay::EditMode)
     {
         resume();
     }
@@ -137,10 +138,32 @@ void SelectTool::enterEvent()
 
 void SelectTool::leaveEvent()
 {
-    if (!hasBusinessAction())
+    const Overlay above = overlay();
+    if (inSelectionPhase() ? above != Overlay::LegacyAction : above == Overlay::None || above == Overlay::EditMode)
     {
         suspend();
     }
+}
+
+void SelectTool::setOverlayQuery(OverlayQuery query)
+{
+    m_overlayQuery = std::move(query);
+}
+
+void SelectTool::beginSelectionPhase(const SelectionPhase& phase)
+{
+    m_phase = phase;
+    init();
+}
+
+void SelectTool::endSelectionPhase()
+{
+    if (!m_phase)
+    {
+        return;
+    }
+    m_phase.reset();
+    init();
 }
 
 DmEntity* SelectTool::pickAt(int guiX, int guiY)
@@ -155,19 +178,64 @@ DmEntity* SelectTool::pickAt(int guiX, int guiY)
     return en;
 }
 
-bool SelectTool::hasBusinessAction() const
+SelectTool::Overlay SelectTool::overlay() const
 {
+    if (m_overlayQuery)
+    {
+        return m_overlayQuery();
+    }
     if (!m_docView)
     {
-        return false;
+        return Overlay::None;
     }
     GuiEventHandler* handler = m_docView->getEventHandler();
-    return handler && handler->hasAction();
+    return handler && handler->hasAction() ? Overlay::LegacyAction : Overlay::None;
+}
+
+bool SelectTool::phaseOwnsInput() const
+{
+    return inSelectionPhase() && overlay() != Overlay::LegacyAction;
+}
+
+void SelectTool::notifySelectionChanged()
+{
+    if (inSelectionPhase())
+    {
+        GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+    }
+    else
+    {
+        m_docView->emitSelectedChanged();
+    }
+    m_docView->redraw();
 }
 
 void SelectTool::updateButtonHints() const
 {
-    if (hasBusinessAction())
+    if (inSelectionPhase())
+    {
+        if (!phaseOwnsInput())
+        {
+            // 旧版 Action 叠在命令之上：提示归它
+            return;
+        }
+        // 选择阶段的提示取原 ActionSelectMultiple 的（原 ActionSelect 那套
+        // "Select to …"提示被它覆盖，从未显示过，见迁移计划 9.2 节）
+        switch (m_status)
+        {
+        case Neutral:
+            GUIDIALOGFACTORY->updateMouseWidget(tr("Click and drag for the selection window"), tr("Cancel"));
+            break;
+        case SetCorner2:
+            GUIDIALOGFACTORY->updateMouseWidget(tr("Choose second edge"), tr("Back"));
+            break;
+        default:
+            GUIDIALOGFACTORY->updateMouseWidget();
+            break;
+        }
+        return;
+    }
+    if (overlay() != Overlay::None)
     {
         return;
     }
@@ -187,6 +255,11 @@ void SelectTool::updateButtonHints() const
 
 std::optional<DM::CursorType> SelectTool::cursorForStatus() const
 {
+    if (inSelectionPhase())
+    {
+        // 原 ActionSelectMultiple 在各状态下都用选择光标
+        return DM::SelectCursor;
+    }
     switch (m_status)
     {
     case Neutral:
@@ -205,7 +278,13 @@ std::optional<DM::CursorType> SelectTool::getCursor() const
     // 决定（105 个 Action 尚未改造，见阶段2 5.7 节），选择层在仲裁通道里
     // 保持沉默，不能用自己的偏好覆盖它们。这次查询不影响 setStatus()/
     // init() 的直接调用——那两处用的是不受这条限制约束的 cursorForStatus()。
-    if (hasBusinessAction())
+    // 选择阶段由本类负责选择，光标也由本类给出，除非旧版 Action 叠在命令之上。
+    if (inSelectionPhase())
+    {
+        return phaseOwnsInput() ? cursorForStatus() : std::nullopt;
+    }
+    const Overlay above = overlay();
+    if (above == Overlay::Command || above == Overlay::LegacyAction)
     {
         return std::nullopt;
     }
@@ -275,6 +354,12 @@ ViewToolResult SelectTool::mouseMoveEvent(QMouseEvent* e)
 
         if (m_docView->toGuiDX(m_points.v1.distanceTo(m_points.v2)) > kDragThresholdGui)
         {
+            if (inSelectionPhase())
+            {
+                // 选择阶段不拖夹点、不拖实体，超过阈值即开始框选
+                setStatus(SetCorner2);
+                break;
+            }
             // look for reference points to drag:
             double dist;
             DmVector ref = m_pDocument->getEntityTable()->getNearestSelectedRef(m_points.v1, &dist);
@@ -380,10 +465,11 @@ ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
         switch (m_status)
         {
         case Neutral:
-            if (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier))
+            if ((e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)) && !inSelectionPhase())
             {
                 // Ctrl/Meta+左键从 Neutral 状态发起是导航层的平移手势
-                // （见 PanZoomTool），选择层让路。
+                // （见 PanZoomTool），选择层让路。选择阶段不让：原
+                // ActionSelectMultiple 把它当作普通的框选起点。
                 return ViewToolResult::NotHandled;
             }
             m_points.v1 = m_docView->toGraph(e->x(), e->y());
@@ -454,7 +540,9 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
         case Dragging:
         {
             // select single entity:
-            DmEntity* en = m_snapService->catchEntity(e);
+            DmEntity* en = (m_phase && !m_phase->entityTypes.empty())
+                               ? m_snapService->catchEntity(e, m_phase->entityTypes)
+                               : m_snapService->catchEntity(e);
 
             if (en)
             {
@@ -462,8 +550,7 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
 
                 Selection s(m_pDocument, m_docView);
                 s.selectSingle(en);
-                m_docView->emitSelectedChanged();
-                m_docView->redraw();
+                notifySelectionChanged();
                 e->accept();
                 setStatus(Neutral);
             }
@@ -483,9 +570,9 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
             bool cross = (m_points.v1.x > m_points.v2.x);
             Selection s(m_pDocument, m_docView);
             bool select = (e->modifiers() & Qt::ShiftModifier) ? false : true;
-            s.selectWindow(m_points.v1, m_points.v2, select, cross);
-            m_docView->emitSelectedChanged();
-            m_docView->redraw();
+            s.selectWindow(m_points.v1, m_points.v2, select, cross,
+                           m_phase ? m_phase->entityTypes : EntityTypeList{});
+            notifySelectionChanged();
             setStatus(Neutral);
             e->accept();
         }

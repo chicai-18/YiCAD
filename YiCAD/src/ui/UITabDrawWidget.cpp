@@ -1135,7 +1135,7 @@ bool UITabDrawWidget::doSave(MDIWindow* w, bool forceSaveAs)
 
 void UITabDrawWidget::doClose(MDIWindow* w, bool activateNext)
 {
-	w->getDocumentView()->killAllActions();
+	w->getDocumentView()->killAllActionsOnClose();
 	MDIWindow* parentWindow = w->getParentWindow();
 	if (parentWindow)
 	{

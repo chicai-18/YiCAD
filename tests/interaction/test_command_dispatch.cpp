@@ -14,6 +14,9 @@
 #include <QObject>
 
 #include "ActionInterface.h"
+#include <memory>
+
+#include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "UIActionHandler.h"
 
@@ -91,4 +94,38 @@ TEST(CommandDispatchTest, setCurrentAction经legacy桥接走同一条路径)
     UIActionHandler handler(nullptr);
     EXPECT_EQ(handler.setCurrentAction(DM::ActionViewLayerTable), nullptr);
     EXPECT_EQ(triggered, QStringLiteral("test.dispatch.legacy"));
+}
+
+TEST(CommandDispatchTest, 没有视图时即时命令照常执行交互命令不启动)
+{
+    static int instantRuns = 0;
+    static int factoryCalls = 0;
+    static QObject* receivedSender = nullptr;
+    instantRuns = 0;
+    factoryCalls = 0;
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.dispatch.instant",
+        [](const CommandContext& ctx)
+        {
+            ++instantRuns;
+            receivedSender = ctx.sender;
+            EXPECT_EQ(ctx.view, nullptr);
+        }));
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(
+        "test.dispatch.exclusive",
+        [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand>
+        {
+            ++factoryCalls;
+            return nullptr;
+        }));
+
+    UIActionHandler handler(nullptr);
+    QObject source;
+    EXPECT_EQ(handler.activateCommand("test.dispatch.instant", &source), nullptr);
+    EXPECT_EQ(instantRuns, 1);
+    EXPECT_EQ(receivedSender, &source);
+
+    // 交互命令由视图的命令总线运行：没有视图时连命令对象都不构造
+    EXPECT_EQ(handler.activateCommand("test.dispatch.exclusive"), nullptr);
+    EXPECT_EQ(factoryCalls, 0);
 }

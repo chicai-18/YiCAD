@@ -3,7 +3,8 @@
 ///
 /// 覆盖阶段4第一部分（doc/ARCHITECTURE_EVOLUTION_PLAN.md 7.4节任务①）的核心
 /// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝、
-/// makeSelectFirstFactory 的两个分支。
+/// makeSelectFirstFactory 的两个分支；以及业务工具化第二步新增的交互命令、
+/// 即时命令两类注册（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 2 项）。
 ///
 /// CommandRegistry 是进程范围的单例，同一个测试二进制内的所有用例共享同一份
 /// 注册表状态，且 gtest 不保证跨用例的严格声明顺序（如加 --gtest_shuffle）。
@@ -15,8 +16,11 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "ActionInterface.h"
 #include "ActionSelect.h"
+#include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "DmDocument.h"
 #include "DmPoint.h"
@@ -35,6 +39,19 @@ public:
     {
     }
 };
+
+/// @brief 最小的交互命令测试替身
+class TestCommand : public BaseExclusiveCommand
+{
+protected:
+    bool onActivate() override { return true; }
+    void onDeactivate() override {}
+};
+
+ExclusiveCommandFactory testCommandFactory()
+{
+    return [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return std::make_unique<TestCommand>(); };
+}
 }  // namespace
 
 TEST(CommandRegistryTest, 按字符串ID注册并创建)
@@ -221,4 +238,85 @@ TEST(CommandRegistryTest, makeSelectFirstFactory_已选中时建真正Action)
     ASSERT_NE(a, nullptr);
     EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
     delete a;
+}
+
+TEST(CommandRegistryTest, 交互命令按ID创建并记录命令ID)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand("test.cr.exclusive", testCommandFactory()));
+    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.exclusive"), CommandKind::Exclusive);
+
+    CommandContext ctx{};
+    std::unique_ptr<IExclusiveCommand> command = CommandRegistry::instance().createCommand("test.cr.exclusive", ctx);
+    ASSERT_NE(command, nullptr);
+    EXPECT_EQ(command->commandId(), QStringLiteral("test.cr.exclusive"));
+
+    // 类型不对的入口都返回空：交互命令不能当旧版 Action 创建，也不能当即时命令执行
+    EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.exclusive"), ctx), nullptr);
+    EXPECT_FALSE(CommandRegistry::instance().runInstant("test.cr.exclusive", ctx));
+}
+
+TEST(CommandRegistryTest, 即时命令按ID执行)
+{
+    static int runs = 0;
+    runs = 0;
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.cr.instant", [](const CommandContext&) { ++runs; }));
+    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.instant"), CommandKind::Instant);
+
+    CommandContext ctx{};
+    EXPECT_TRUE(CommandRegistry::instance().runInstant("test.cr.instant", ctx));
+    EXPECT_EQ(runs, 1);
+    EXPECT_EQ(CommandRegistry::instance().createCommand("test.cr.instant", ctx), nullptr);
+    EXPECT_FALSE(CommandRegistry::instance().runInstant("test.cr.instant_missing", ctx));
+    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.instant_missing"), CommandKind::None);
+}
+
+TEST(CommandRegistryTest, 空工厂与空函数被拒绝)
+{
+    EXPECT_FALSE(CommandRegistry::instance().registerExclusiveCommand("test.cr.null_exclusive", nullptr));
+    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand("test.cr.null_instant", nullptr));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.null_exclusive"));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.null_instant"));
+}
+
+TEST(CommandRegistryTest, 三类命令共用ID与别名空间)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(
+        "test.cr.shared", testCommandFactory(), {.aliases = {"crshared"}}));
+    // 同一 ID 不能再以另一类注册
+    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand("test.cr.shared", [](const CommandContext&) {}));
+    // 别名冲突时整条拒绝
+    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand(
+        "test.cr.shared_alias", [](const CommandContext&) {}, {.aliases = {"CRSHARED"}}));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.shared_alias"));
+    EXPECT_EQ(CommandRegistry::instance().commandForAlias("crshared"), QStringLiteral("test.cr.shared"));
+}
+
+TEST(CommandRegistryTest, 为交互命令建立legacy桥接并可反查)
+{
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand("test.cr.bind", testCommandFactory()));
+    ASSERT_TRUE(CommandRegistry::instance().bindLegacyType(DM::ActionViewLibrary, "test.cr.bind"));
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionViewLibrary), QStringLiteral("test.cr.bind"));
+    EXPECT_EQ(CommandRegistry::instance().legacyType("test.cr.bind"), DM::ActionViewLibrary);
+
+    // 已桥接的枚举、未注册的 ID 都被拒绝
+    EXPECT_FALSE(CommandRegistry::instance().bindLegacyType(DM::ActionViewLibrary, "test.cr.bind"));
+    EXPECT_FALSE(CommandRegistry::instance().bindLegacyType(DM::ActionViewPenToolbar, "test.cr.bind_missing"));
+    EXPECT_EQ(CommandRegistry::instance().legacyType("test.cr.bind_missing"), DM::ActionNone);
+
+    // 旧版入口按枚举创建时不构造交互命令
+    CommandContext ctx{};
+    EXPECT_EQ(CommandRegistry::instance().create(DM::ActionViewLibrary, ctx), nullptr);
+}
+
+TEST(CommandRegistryTest, 迁移后的删除与总长度注册为新类型)
+{
+    EXPECT_EQ(CommandRegistry::instance().kind("modify.delete"), CommandKind::Exclusive);
+    EXPECT_EQ(CommandRegistry::instance().kind("modify.delete_no_select"), CommandKind::Instant);
+    EXPECT_EQ(CommandRegistry::instance().kind("info.total_length"), CommandKind::Exclusive);
+    // keyconfig.xml 仍以枚举为键，桥接保留到第四步
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionModifyDelete), QStringLiteral("modify.delete"));
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionInfoTotalLength), QStringLiteral("info.total_length"));
+    // 原先只供 ActionSelect 选择完成后使用的 _no_select 入口随之删除
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("info.total_length_no_select"));
 }

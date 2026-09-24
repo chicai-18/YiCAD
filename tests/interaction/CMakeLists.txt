@@ -10,6 +10,9 @@ yicad_add_test(interaction
         test_legacy_action_tool.cpp
         test_command_registry.cpp
         test_command_dispatch.cpp
+        test_coordinate_input.cpp
+        test_exclusive_command_bus.cpp
+        test_select_first_commands.cpp
         test_extension_manager.cpp
         test_ribbon_registry.cpp
     LABELS "interaction;unit")

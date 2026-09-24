@@ -38,6 +38,17 @@ Preview::Preview(DmDocument* pDocument)
     }
 }
 
+Preview::Preview(DmDocument* pDocument, IDocumentView* view)
+    : m_pDocument(pDocument)
+    , m_pView(view)
+    , m_pPreviewContainer(nullptr)
+{
+    if (m_pView)
+    {
+        m_pPreviewContainer = m_pView->getPreviewContainer();
+    }
+}
+
 DM::EntityType Preview::getEntityType() const
 {
     return DM::EntityPreview;
@@ -154,9 +165,10 @@ DmEntityContainer* Preview::getEntityContainer()
 /// @brief 通知文档视图预览内容已修改，触发重绘
 void Preview::specifyPreviewModified()
 {
-    if (m_pDocument)
+    // 只给了文档时，每次按文档当前关联的视图通知（原有行为）
+    IDocumentView* docView = m_pView ? m_pView : (m_pDocument ? m_pDocument->getDocumentView() : nullptr);
+    if (docView)
     {
-        auto docView = m_pDocument->getDocumentView();
         docView->specifyPreviewModified();
     }
 }

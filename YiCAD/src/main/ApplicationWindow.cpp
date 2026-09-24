@@ -696,7 +696,11 @@ void ApplicationWindow::slotKillAllActions()
 	GuiDocumentView* gv = m_pCurrentMdiWin->getDocumentView();
 	if (gv && m_pCurrentMdiWin && m_pCurrentMdiWin->getDocument())
 	{
-		gv->killAllActions();
+		// 被命令否决时（迁移计划 5.1 节）命令继续，选择集也不清空
+		if (!gv->killAllActions())
+		{
+			return;
+		}
 
 		Selection s(m_pCurrentMdiWin->getDocument(), gv);
 		s.selectAll(false);
@@ -1590,9 +1594,7 @@ bool ApplicationWindow::eventFilter(QObject* obj, QEvent* e)
 			{
 				GuiDocumentView* gv = m_pCurrentMdiWin->getDocumentView();
 				//gv->deleteRelativeZero();
-				GuiEventHandler* handle = gv->getEventHandler();
-				int actionNum = handle->getCurrentActionNum();
-				if (actionNum == 0)
+				if (!gv->hasActiveCommand())
 				{
 					m_editLine->hide();
 					m_editLine->lower();

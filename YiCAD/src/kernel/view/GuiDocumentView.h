@@ -102,13 +102,20 @@ public:
     /// @return 栈顶业务 Action；空闲态返回 nullptr
     ActionInterface* getCurrentAction() override;
 
-    /// @brief 终止所有操作，并复位选择层
-    void killAllActions();
+    /// @brief 结束全部命令（用户取消：Esc/空格未被接受、"结束全部命令"），并复位选择层
+    /// @return 被否决时返回 false，什么也不改变（交互视图 UIView 按迁移计划 5.1 节
+    ///         先征求命令同意）；本类只有旧版 Action，总是返回 true
+    virtual bool killAllActions();
+    /// @brief 视图或文档关闭前结束全部命令，不能否决
+    virtual void killAllActionsOnClose();
+    /// @brief 是否有命令（旧版 Action 或交互命令）在运行
+    /// @details 本类只数旧版 Action 栈，含已结束、尚未清理的
+    virtual bool hasActiveCommand();
     /// @brief 发出选择变更信号
     void emitSelectedChanged() override;
 
-    /// @brief 后退
-    void back();
+    /// @brief 后退：相当于在当前命令中右键
+    virtual void back();
     /// @brief 前进/确认：合成一次回车按下，交给 processKeyEvent()
     void enter();
 
@@ -117,8 +124,8 @@ public:
     /// @return 被交互层处理时返回 true；本类没有交互层，忽略事件并返回 false
     virtual bool processKeyEvent(QKeyEvent* e);
 
-    /// @brief 处理命令事件
-    void commandEvent(GuiCommandEvent* e);
+    /// @brief 处理命令行事件（坐标或文本）
+    virtual void commandEvent(GuiCommandEvent* e);
     /// @brief 启用坐标输入
     void enableCoordinateInput() override;
     /// @brief 禁用坐标输入

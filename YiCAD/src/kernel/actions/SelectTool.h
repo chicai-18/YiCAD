@@ -41,12 +41,25 @@
 /// 更新：光标与提示归那个 Action 管（它仍通过 `updateMouseCursor()`/
 /// `updateMouseButtonHints()` 直接设置，见主计划 5.7 节）。`setStatus()`/
 /// `init()` 仍直接调用 `setMouseCursor()`，块编辑中拖动实体时的光标反馈
-/// 靠这条路径。
+/// 靠这条路径。命令（`IExclusiveCommand`）活动时同理，"之上有什么在活动"
+/// 由视图经 `setOverlayQuery()` 告知，见 `Overlay`。
+///
+/// 选择阶段（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 4 项）：先选后建
+/// 命令没有选择集时，由本类完成点选与框选，行为复刻原 `ActionSelectMultiple`：
+/// 按实体类型过滤、不拖夹点也不拖实体、Ctrl+左键不让给平移、选中后只刷新
+/// 选择计数而不发 `selectedChanged`、提示与光标取原 `ActionSelectMultiple` 的。
+/// 约束由命令设置，命令结束时由命令总线保证清除。
 
 #ifndef SELECTTOOL_H
 #define SELECTTOOL_H
 
+#include <functional>
+#include <optional>
+
+#include <QCoreApplication>
+
 #include "DmVector.h"
+#include "ISnapService.h"
 #include "IViewTool.h"
 
 class DmDocument;
@@ -60,6 +73,8 @@ class QMouseEvent;
 
 class SelectTool : public IViewTool
 {
+    Q_DECLARE_TR_FUNCTIONS(SelectTool)
+
 public:
     /// @brief 内部状态，语义与原 `ActionDefault::Status` 完全一致
     enum Status
@@ -69,6 +84,24 @@ public:
         SetCorner2, ///< 设置选择窗口的第二个角点
         Moving,     ///< 移动实体
         MovingRef   ///< 移动选中实体的参考点
+    };
+
+    /// @brief 选择层之上正在活动的业务，决定本类是否更新提示、是否给出光标
+    enum class Overlay
+    {
+        None,        ///< 空闲：提示与光标都由本类给出
+        EditMode,    ///< 编辑模式（块编辑）：提示归编辑模式，光标仍由本类给出
+        Command,     ///< 命令活动：提示与光标归命令；命令的选择阶段仍由本类给出
+        LegacyAction ///< 旧版业务 Action 活动（叠在命令之上时也是它）：提示与光标都归它
+    };
+
+    /// @brief 查询选择层之上正在活动的业务
+    using OverlayQuery = std::function<Overlay()>;
+
+    /// @brief 选择阶段的约束
+    struct SelectionPhase
+    {
+        EntityTypeList entityTypes; ///< 可选的实体类型；为空表示不限
     };
 
     /// @param doc 文档指针
@@ -98,6 +131,18 @@ public:
     /// @note 手写板橡皮擦用，取代原 `ActionSelectSingle`
     DmEntity* pickAt(int guiX, int guiY);
 
+    /// @brief 设置"选择层之上有什么在活动"的查询，由视图装配时设置
+    /// @param query 为空时退回默认：视图的旧版 Action 栈有 Action 即 LegacyAction
+    void setOverlayQuery(OverlayQuery query);
+
+    /// @brief 进入选择阶段：复位到 Neutral，按约束工作
+    /// @param phase 约束
+    void beginSelectionPhase(const SelectionPhase& phase);
+    /// @brief 退出选择阶段：清除约束，复位到 Neutral
+    void endSelectionPhase();
+    /// @brief 是否处于选择阶段
+    bool inSelectionPhase() const { return m_phase.has_value(); }
+
     ViewToolResult mousePressEvent(QMouseEvent* e) override;
     ViewToolResult mouseReleaseEvent(QMouseEvent* e) override;
     ViewToolResult mouseMoveEvent(QMouseEvent* e) override;
@@ -105,9 +150,9 @@ public:
     ViewToolResult keyPressEvent(QKeyEvent* e) override;
     ViewToolResult keyReleaseEvent(QKeyEvent* e) override;
 
-    /// @brief 空闲态下鼠标进入画布时恢复；有业务 Action 时由它自己恢复
+    /// @brief 鼠标进入画布时恢复；有业务 Action 或命令时由它们自己恢复
     void enterEvent() override;
-    /// @brief 空闲态下鼠标离开画布时挂起；有业务 Action 时由它自己挂起
+    /// @brief 鼠标离开画布时挂起；有业务 Action 或命令时由它们自己挂起
     void leaveEvent() override;
 
     std::optional<DM::CursorType> getCursor() const override;
@@ -128,11 +173,18 @@ private:
     void deletePreview();
     void drawPreview();
 
-    /// @brief 更新鼠标按钮提示；有业务 Action 活动时不更新，见头部说明
+    /// @brief 更新鼠标按钮提示；选择层之上有业务或编辑模式时不更新，见头部说明
     void updateButtonHints() const;
 
-    /// @brief 是否有旧版业务 Action 活动（视图的 `GuiEventHandler::hasAction()`）
-    bool hasBusinessAction() const;
+    /// @brief 选择层之上正在活动的业务，见 setOverlayQuery()
+    Overlay overlay() const;
+
+    /// @brief 处于选择阶段且没有旧版 Action 叠在命令之上：提示与光标由选择阶段给出
+    bool phaseOwnsInput() const;
+
+    /// @brief 选择完成后的通知：空闲态发 selectedChanged；选择阶段只刷新选择计数，
+    ///        与原 ActionSelectMultiple 一致（发信号会启动多行文字属性编辑，顶掉当前命令）
+    void notifySelectionChanged();
 
     /// @brief 状态到光标的原始映射，不考虑是否有业务 Action 活动。
     /// `setStatus()`/`init()` 的直接调用用这个；`getCursor()` 在此基础上
@@ -149,6 +201,9 @@ private:
     bool m_hasPreview = false;
     Points m_points;
     DM::SnapRestriction m_restrictionBak = DM::RestrictNothing;
+
+    OverlayQuery m_overlayQuery;                 ///< 为空时按旧版 Action 栈判断
+    std::optional<SelectionPhase> m_phase;       ///< 有值表示处于选择阶段
 };
 
 #endif // SELECTTOOL_H

@@ -27,6 +27,7 @@ public:
     int zoomPanCount = 0;
     int lastPanDx = 0;
     int lastPanDy = 0;
+    int selectedChangedCount = 0;
 
     std::optional<DM::CursorType> lastCursor() const
     {
@@ -98,7 +99,7 @@ public:
 
     void setCurrentAction(ActionInterface*) override {}
     ActionInterface* getCurrentAction() override { return nullptr; }
-    void emitSelectedChanged() override {}
+    void emitSelectedChanged() override { ++selectedChangedCount; }
 
     void enableCoordinateInput() override {}
     void disableCoordinateInput() override {}

@@ -198,12 +198,27 @@ void GuiDocumentView::setCurrentAction(ActionInterface* action)
 }
 
 /// @brief 终止所有操作
-void GuiDocumentView::killAllActions()
+bool GuiDocumentView::killAllActions()
 {
     if (eventHandler)
     {
         eventHandler->killAllActions();
     }
+    return true;
+}
+
+/// @brief 视图关闭前终止所有操作
+void GuiDocumentView::killAllActionsOnClose()
+{
+    if (eventHandler)
+    {
+        eventHandler->killAllActions();
+    }
+}
+
+bool GuiDocumentView::hasActiveCommand()
+{
+    return eventHandler && eventHandler->getCurrentActionNum() > 0;
 }
 
 /// @brief 发出选择变更信号

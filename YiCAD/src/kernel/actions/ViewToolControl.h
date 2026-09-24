@@ -36,6 +36,8 @@
 
 #include "IViewTool.h"
 
+class DmVector;
+class GuiCommandEvent;
 class IDocumentView;
 class QMouseEvent;
 class QKeyEvent;
@@ -73,12 +75,21 @@ public:
 
     ViewToolResult wheelEvent(QWheelEvent* e);
 
+    /// @brief 命令行坐标：只沿业务工具栈分发
+    ViewToolResult coordinateEvent(const DmVector& pos);
+    /// @brief 命令行文本：只沿业务工具栈分发
+    ViewToolResult commandEvent(GuiCommandEvent* e);
+
     void enterEvent();
     void leaveEvent();
 
 private:
     template <typename EventFunc>
     ViewToolResult dispatch(EventFunc&& func);
+
+    /// @brief 只沿业务工具栈（后进先出）分发，不经过选择层与导航层
+    template <typename EventFunc>
+    ViewToolResult dispatchBusiness(EventFunc&& func);
 
     /// @brief 按与 dispatch 相同的栈序拉取首个有偏好的光标并应用
     /// 全体无偏好时不触碰当前光标——见 IViewTool::getCursor 的说明，

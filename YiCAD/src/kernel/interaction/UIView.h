@@ -22,8 +22,9 @@
 /// 交互组装 UIView 拆成基类与派生类，本类沿用这一拆法：GuiDocumentView 是
 /// 渲染层（YiCadRender）的画布，不认识交互层的具体类型；本类持有
 /// ViewToolControl 与导航（PanZoomTool）、选择（SelectTool）、业务
-/// （LegacyActionTool）三层工具，接收画布的 Qt 输入事件交给 ViewToolControl
-/// 分发。第二步的命令总线也由本类持有（doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
+/// （LegacyActionTool 与命令的工具）三层工具，以及命令总线
+/// ExclusiveCommandBus，接收画布的 Qt 输入事件交给 ViewToolControl 分发
+/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步、第二步）。
 ///
 /// 放在 kernel/interaction/（YiCadInteraction 分区），不和画布同在
 /// kernel/view/（YiCadRender 分区）：一个目录归一个分区，渲染层不能依赖交互层。
@@ -32,11 +33,16 @@
 /// 命令与工具只能经 IDocumentView/GuiDocumentView 认识视图，不能反过来依赖
 /// 本类：内核禁止包含 UI* 头文件（tools/check_layering.py），白名单只放行
 /// UIView.cpp 包含自身头文件。这一点与 DS 不同：DS 的 EditTool、
-/// ExclusiveCommandBus 以 UIView* 构造。
+/// ExclusiveCommandBus 以 UIView* 构造；这里命令经总线拿到宿主能力。
 ///
 /// 旧版 Action 栈 GuiEventHandler 仍由基类持有：IDocumentView 的
 /// getEventHandler()/setCurrentAction()/getCurrentAction() 要求画布实现它们，
-/// 第四步随 GuiEventHandler 一起删除。
+/// 第四步随 GuiEventHandler 一起删除。过渡期新旧并存的规则（迁移计划 9.2 节）：
+///   - 启动命令：先按 5.1 节请当前命令让位，再结束全部旧 Action，不再恢复；
+///   - 命令运行中启动旧 Action：命令被挂起，旧 Action 全部结束后恢复（本类作为
+///     旧 Action 栈之下的一层，实现 ILegacyStackBase）；排他的旧 Action（文件
+///     新建、打开等）先按 5.1 节请命令让位；
+///   - 即时命令：不碰命令总线，只结束不可打断的旧 Action。
 
 #ifndef UIVIEW_H
 #define UIVIEW_H
@@ -44,32 +50,68 @@
 #include <memory>
 
 #include "GuiDocumentView.h"
+#include "GuiEventHandler.h"
 
+class ExclusiveCommandBus;
+class IExclusiveCommand;
+class ISnapService;
 class LegacyActionTool;
 class PanZoomTool;
 class Preview;
 class SelectTool;
 class ViewToolControl;
 
-/// @brief 交互视图：画布加交互层工具栈
-class UIView : public GuiDocumentView
+/// @brief 交互视图：画布加交互层工具栈与命令总线
+class UIView : public GuiDocumentView, private ILegacyStackBase
 {
     Q_OBJECT
 
 public:
     /// @param parent 父控件
     /// @param fl 窗口标志
-    /// @param doc 关联的文档；为空时不建选择层
+    /// @param doc 关联的文档；为空时不建选择层与命令总线
     UIView(QWidget* parent = nullptr, Qt::WindowFlags fl = Qt::WindowFlags(), DmDocument* doc = nullptr);
     ~UIView() override;
+
+    /// @brief 启动交互命令（UIActionHandler 按注册类型分派到这里）
+    /// @details 先按 5.1 节请当前命令让位（被否决时丢弃新命令），再结束全部
+    ///          旧 Action（不再恢复），最后交给命令总线激活。
+    /// @param command 新命令，视图接管所有权
+    /// @return 新命令已激活（包括激活期间就已完成的）时返回 true
+    bool startCommand(std::unique_ptr<IExclusiveCommand> command);
+
+    /// @brief 即时命令执行前调用：结束不可打断的旧 Action（见
+    ///        GuiEventHandler::interruptForInstantCommand）
+    void prepareInstantCommand();
+
+    /// @brief 命令总线；没有文档时为空
+    ExclusiveCommandBus* commandBus() const { return m_pCommandBus.get(); }
+
+    /// @brief 活动命令的 ID；没有时返回空串
+    QString activeCommandId() const;
 
     /// @brief 主窗口转交的按键，经 ViewToolControl 分发
     /// @return 某一层工具处理了该事件时返回 true
     bool processKeyEvent(QKeyEvent* e) override;
 
-    /// @brief 设置默认捕捉模式，并同步给选择层的捕捉器
+    /// @brief 旧 Action 与命令都在时，按旧 Action 处理；只有命令时交给命令的工具
+    void back() override;
+    /// @brief 命令行输入：有旧 Action 时交给它；只有命令时解析坐标，经 ViewToolControl
+    ///        交给命令的工具
+    void commandEvent(GuiCommandEvent* e) override;
+    /// @brief 按 5.1 节先征求命令同意（Cancelled），被否决时什么也不做
+    bool killAllActions() override;
+    /// @brief 视图关闭：回调命令（ViewClosing，不能否决）后结束全部
+    void killAllActionsOnClose() override;
+    /// @brief 旧 Action 栈非空或有活动命令
+    bool hasActiveCommand() override;
+
+    /// @brief 启动旧版 Action：排他的先请命令让位；回调期间的启动请求被忽略
+    void setCurrentAction(ActionInterface* action) override;
+
+    /// @brief 设置默认捕捉模式，并同步给选择层与活动命令的捕捉器
     void setDefaultSnapMode(SnapMode sm) override;
-    /// @brief 设置捕捉限制，并同步给选择层的捕捉器
+    /// @brief 设置捕捉限制，并同步给选择层与活动命令的捕捉器
     void setSnapRestriction(DM::SnapRestriction sr) override;
 
 protected:
@@ -85,23 +127,37 @@ protected:
     void keyPressEvent(QKeyEvent* e) override;
     void keyReleaseEvent(QKeyEvent* e) override;
 
-    /// @brief 有业务 Action 时取它的捕捉器，空闲态取选择层的
+    /// @brief 有业务 Action 时取它的捕捉器，有命令时取命令的，空闲态取选择层的
     SnapResultType currentSnapResult() override;
     /// @brief 与 currentSnapResult() 取自同一个捕捉器
     DmVector currentSnapSpot() override;
 
 private:
-    // 注意声明顺序：成员按声明的逆序析构。m_pViewToolControl 最后声明、最先
-    // 析构，析构时向各层工具发 onDeactivate()，被它引用的工具此时都还在；
-    // 工具之间的裸指针（LegacyActionTool/SelectTool 引用 PanZoomTool，
-    // SelectTool 引用捕捉器与预览容器）也按被引用者在前排列。全部成员都在
-    // 基类析构之前析构，基类持有的预览容器与 GuiEventHandler 这时仍然有效。
-    std::unique_ptr<PanZoomTool>        m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
-    std::unique_ptr<LegacyActionTool>   m_pLegacyActionTool;    ///< 业务层：包装基类的 GuiEventHandler
-    std::unique_ptr<Snapper>            m_pSelectSnapper;       ///< 选择层的捕捉器，空闲态的捕捉提示也读它
-    std::unique_ptr<Preview>            m_pSelectPreview;       ///< 选择层拖动实体时的预览容器
-    std::unique_ptr<SelectTool>         m_pSelectTool;          ///< 选择层；没有文档时为空
-    std::unique_ptr<ViewToolControl>    m_pViewToolControl;     ///< 交互层工具控制器
+    // ---- ILegacyStackBase：旧 Action 栈之下的一层是选择层与命令 ----
+    void suspendForLegacy() override;
+    void resumeAfterLegacy() override;
+    void resetAfterKill() override;
+
+    /// @brief 活动命令的捕捉器：命令未挂起、不在选择阶段且有捕捉器时返回它
+    ISnapService* commandSnapService() const;
+
+    /// @brief 右键释放（含 back() 合成的）：有旧 Action 交给它，否则经 ViewToolControl 交给命令
+    void routeBack(QMouseEvent* e);
+
+    // 注意声明顺序：成员按声明的逆序析构。m_pCommandBus 最后声明、最先析构
+    // （析构函数里还会提前显式释放），结束活动命令时它的工具、选择层与
+    // ViewToolControl 都还在；m_pViewToolControl 随后析构，向各层工具发
+    // onDeactivate()，被它引用的工具此时都还在；工具之间的裸指针（
+    // LegacyActionTool/SelectTool 引用 PanZoomTool，SelectTool 引用捕捉器与
+    // 预览容器）也按被引用者在前排列。全部成员都在基类析构之前析构，基类持有
+    // 的预览容器与 GuiEventHandler 这时仍然有效。
+    std::unique_ptr<PanZoomTool>            m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
+    std::unique_ptr<LegacyActionTool>       m_pLegacyActionTool;    ///< 业务层：包装基类的 GuiEventHandler
+    std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层的捕捉器，空闲态的捕捉提示也读它
+    std::unique_ptr<Preview>                m_pSelectPreview;       ///< 选择层拖动实体时的预览容器
+    std::unique_ptr<SelectTool>             m_pSelectTool;          ///< 选择层；没有文档时为空
+    std::unique_ptr<ViewToolControl>        m_pViewToolControl;     ///< 交互层工具控制器
+    std::unique_ptr<ExclusiveCommandBus>    m_pCommandBus;          ///< 命令总线；没有文档时为空
 };
 
 #endif // UIVIEW_H

@@ -26,6 +26,7 @@
 #include "Datamodel.h"
 
 class ActionInterface;
+class IExclusiveCommand;
 class AttributesData;
 class BevelData;
 class DmBlock;
@@ -147,6 +148,12 @@ public:
     /// @param on true 打开控件，false 关闭控件
     /// @param update true 从操作获取数据，false 从配置文件获取数据
     virtual void requestOptions(ActionInterface* action, bool on, bool update = false) = 0;
+
+    /// @brief 显示交互命令的选项条（CommandInfo::commandOptionsFactory 注册的控件）
+    /// @param command 需要选项的命令
+    /// @param on true 打开控件，false 关闭控件
+    /// @param update true 从命令获取数据，false 从配置文件获取数据
+    virtual void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) = 0;
 
     /// @brief 显示带距离选项的捕捉点控件
     /// @param[out] dist 距离值，控件可直接修改

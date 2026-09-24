@@ -1531,19 +1531,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionInfoTotalLength</name>
-    <message>
-        <location filename="../src/actions/ActionInfoTotalLength.cpp" line="59"/>
-        <source>Total Length of selected entities: %1</source>
-        <translation>所选实体的总长度: %1</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoTotalLength.cpp" line="63"/>
-        <source>At least one of the selected entities cannot be measured.</source>
-        <translation>至少有一个选定的实体无法测量。</translation>
-    </message>
-</context>
-<context>
     <name>ActionLayersActivate</name>
     <message>
         <location filename="../src/actions/ActionLayersActivate.cpp" line="77"/>
@@ -2359,6 +2346,19 @@ This block cannot be inserted.</source>
         <location filename="../src/kernel/gui/GuiDocumentView.cpp" line="1435"/>
         <source>Grid</source>
         <translation>网格</translation>
+    </message>
+</context>
+<context>
+    <name>InfoTotalLengthCommand</name>
+    <message>
+        <location filename="../src/actions/InfoTotalLengthCommand.cpp" line="45"/>
+        <source>Total Length of selected entities: %1</source>
+        <translation>所选实体的总长度: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoTotalLengthCommand.cpp" line="49"/>
+        <source>At least one of the selected entities cannot be measured.</source>
+        <translation>至少有一个选定的实体无法测量。</translation>
     </message>
 </context>
 <context>
@@ -3797,6 +3797,29 @@ This block cannot be inserted.</source>
         <location filename="../src/kernel/fileio/Fileio.cpp" line="87"/>
         <source>Unsupported file format, please use another format to export!</source>
         <translation>不支持的文件格式，请使用其他格式导出！</translation>
+    </message>
+</context>
+<context>
+    <name>SelectTool</name>
+    <message>
+        <location filename="../src/kernel/actions/SelectTool.cpp" line="227"/>
+        <source>Click and drag for the selection window</source>
+        <translation>单击并拖动选择窗口</translation>
+    </message>
+    <message>
+        <location filename="../src/kernel/actions/SelectTool.cpp" line="227"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/kernel/actions/SelectTool.cpp" line="230"/>
+        <source>Choose second edge</source>
+        <translation>选择第二个点</translation>
+    </message>
+    <message>
+        <location filename="../src/kernel/actions/SelectTool.cpp" line="230"/>
+        <source>Back</source>
+        <translation>返回</translation>
     </message>
 </context>
 <context>

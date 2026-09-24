@@ -26,7 +26,6 @@
 #include "DmVector.h"
 
 class ActionInterface;
-class SelectTool;
 class QAction;
 class QMouseEvent;
 class QKeyEvent;
@@ -35,10 +34,29 @@ class DmVector;
 
 struct SnapMode;
 
+/// @brief 旧版 Action 栈之下的一层（过渡期接口，第四步随 GuiEventHandler 删除）
+/// @details 原默认 Action 承担的三处切换：业务 Action 从空栈启动时挂起这一层、
+///          栈空时恢复、killAllActions() 后复位。第一步起这一层是选择层；第二步
+///          起命令（IExclusiveCommand）活动时也是它：旧 Action 叠在命令之上时
+///          命令被挂起，旧 Action 全部结束后恢复。由交互视图 UIView 实现。
+class ILegacyStackBase
+{
+public:
+    virtual ~ILegacyStackBase() = default;
+
+    /// @brief 旧 Action 从空栈启动，挂起这一层
+    virtual void suspendForLegacy() = 0;
+    /// @brief 旧 Action 栈清空，恢复这一层
+    virtual void resumeAfterLegacy() = 0;
+    /// @brief killAllActions() 之后复位这一层
+    virtual void resetAfterKill() = 0;
+};
+
 /// @brief GUI 事件处理器
 /// @details 拥有并管理所有当前活跃的旧版业务 Action。视图的事件经
 ///          LegacyActionTool 转到这里；没有业务 Action 时事件不经过本类，
-///          直接由选择层 SelectTool 处理（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步）。
+///          直接由选择层 SelectTool 或命令的工具处理
+///          （doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步、第二步）。
 class GuiEventHandler : public QObject
 {
     Q_OBJECT
@@ -79,12 +97,18 @@ public:
     void enableCoordinateInput();
     /// @brief 禁用坐标输入
     void disableCoordinateInput();
+    /// @brief 命令行坐标输入是否启用（命令的工具也遵守这一开关）
+    bool isCoordinateInputEnabled() const;
 
-    /// @brief 设置空闲态的选择层，由视图持有
-    /// @details 原默认 Action 承担的三处空闲态切换改由它完成：业务 Action 从空闲态
-    ///          启动时挂起、回到空闲态时恢复、killAllActions() 时复位。
-    /// @param tool 非持有，可为空（没有文档的视图）
-    void setSelectTool(SelectTool* tool);
+    /// @brief 设置旧 Action 栈之下的一层，由视图持有
+    /// @param base 非持有，可为空（没有文档的视图）
+    void setStackBase(ILegacyStackBase* base);
+
+    /// @brief 即时命令执行前，按旧规则处理栈顶 Action
+    /// @details 旧 Action 启动时，不可打断（canBeInterrupt() 为 false）的前一个
+    ///          Action 被结束，可打断的被挂起再恢复；即时命令立即完成，后者等于
+    ///          不变，只需结束前者（如多行文字属性编辑，否则它会继续编辑被删除的文字）。
+    void interruptForInstantCommand();
 
     /// @brief 设置当前操作
     void setCurrentAction(ActionInterface* action);
@@ -112,7 +136,7 @@ public:
 
 private:
     QAction*                m_pAction = nullptr;                    ///< 关联的 QAction
-    SelectTool*             m_pSelectTool = nullptr;                ///< 空闲态的选择层（非持有）
+    ILegacyStackBase*       m_pStackBase = nullptr;                 ///< 旧 Action 栈之下的一层（非持有）
     QList<ActionInterface*> m_currentActions;                       ///< 当前操作栈
     bool                    m_isCoordinateInputEnabled = true;      ///< 是否启用坐标输入
     DmVector                m_relativeZero;                         ///< 相对零点

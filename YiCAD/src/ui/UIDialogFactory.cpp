@@ -33,6 +33,7 @@
 #include "DmSettings.h"
 #include "DmSystem.h"
 #include "ActionInterface.h"
+#include "IExclusiveCommand.h"
 #include "DmDocument.h"
 #include "DmHatch.h"
 #include "DmDimLinear.h"
@@ -389,7 +390,7 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 	// 没有枚举值可供下面的 switch 分发。
 	if (CommandOptionsFactory factory = CommandRegistry::instance().optionsFactory(action->getCommandId()))
 	{
-		requestRegisteredOptions(factory, action, on, update);
+		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, action, update); }, on);
 		return;
 	}
 
@@ -810,8 +811,19 @@ void UIDialogFactory::requestImageOptions(ActionInterface* action, bool on, bool
 	}
 }
 
-void UIDialogFactory::requestRegisteredOptions(const CommandOptionsFactory& factory, ActionInterface* action,
-											   bool on, bool update)
+void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on, bool update)
+{
+	if (!command)
+	{
+		return;
+	}
+	if (ExclusiveCommandOptionsFactory factory = CommandRegistry::instance().commandOptionsFactory(command->commandId()))
+	{
+		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, command, update); }, on);
+	}
+}
+
+void UIDialogFactory::requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on)
 {
 	if (!optionWidget)
 	{
@@ -824,7 +836,7 @@ void UIDialogFactory::requestRegisteredOptions(const CommandOptionsFactory& fact
 	}
 	if (on)
 	{
-		m_pRegisteredOptions = factory(optionWidget, action, update);
+		m_pRegisteredOptions = build(optionWidget);
 		if (m_pRegisteredOptions)
 		{
 			m_pRegisteredOptions->show();

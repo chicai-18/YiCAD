@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "ExtensionManager.h"
 #include "IExtension.h"
@@ -299,4 +300,36 @@ TEST(ExtensionManagerTest, Shutdown在OnShutdown之后注销扩展命令且可�
     EXPECT_TRUE(CommandRegistry::instance().hasCommand("ext.life.cmd"));
     manager.Shutdown();
     EXPECT_FALSE(CommandRegistry::instance().hasCommand("ext.life.cmd"));
+}
+
+TEST(ExtensionManagerTest, 交互命令与即时命令同样按命名空间校验并在Shutdown后注销)
+{
+    std::vector<std::string> log;
+    FakeExtensionHost host;
+    auto& manager = ExtensionManager::instance();
+    std::vector<bool> results;
+
+    const ExclusiveCommandFactory commandFactory = [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand>
+    { return nullptr; };
+    const InstantCommand instant = [](const CommandContext&) {};
+
+    ASSERT_TRUE(manager.Register(std::make_unique<RecordingExtension>(
+        "ext.kinds", log,
+        [&](IExtensionContext& ctx)
+        {
+            results.push_back(ctx.registerExclusiveCommand("ext.kinds.exclusive", commandFactory, {}));
+            results.push_back(ctx.registerInstantCommand("ext.kinds.instant", instant, {}));
+            results.push_back(ctx.registerExclusiveCommand("draw.kinds_bad", commandFactory, {}));
+            results.push_back(ctx.registerInstantCommand("ext.kindsx.bad", instant, {}));
+        })));
+    manager.BootAll(host);
+
+    EXPECT_EQ(results, (std::vector<bool>{true, true, false, false}));
+    EXPECT_EQ(CommandRegistry::instance().kind("ext.kinds.exclusive"), CommandKind::Exclusive);
+    EXPECT_EQ(CommandRegistry::instance().kind("ext.kinds.instant"), CommandKind::Instant);
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("draw.kinds_bad"));
+
+    manager.Shutdown();
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("ext.kinds.exclusive"));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("ext.kinds.instant"));
 }

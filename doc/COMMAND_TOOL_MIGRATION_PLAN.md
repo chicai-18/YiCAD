@@ -483,3 +483,97 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 **验证**：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
 76 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对，
 核对结果记入清单第 8 节。
+
+### 9.2 第二步（2026-09-24）
+
+2026-09-24 确认分三个提交落地：① 命令框架与先选后建的试点（删除、总长度）；
+② 其余 11 个先选后建命令；③ 块编辑模式与 `blocks.edit`，删除选择 Action。
+
+**提交①：命令框架与试点**
+
+1. **命令框架**（`kernel/actions/`）：`IExclusiveCommand`（含 `CommandEndReason` 与
+   `onEndRequested()`）、`BaseExclusiveCommand`、`ExclusiveCommandBus`，总线由 `UIView`
+   持有。与 DS 的差异按第 6 节第二步第 1 项：
+   - 总线持有命令，结束后销毁；
+   - `ExclusiveCommandBus::DispatchScope` 标出一次分发的范围，`UIView` 的每个事件入口
+     都包一层。范围内请求的结束延迟到范围结束，范围内被外部结束的命令也延迟到那时才
+     销毁（它的工具可能还在调用栈上）；范围外的请求（如选项条按钮）经 0 毫秒定时器；
+   - 5.1 节：`approveEnd()` 只问不改，调用方全部征得同意后再 `end()`；
+     `UIView::startCommand()`/`killAllActions()`/`killAllActionsOnClose()` 与排他旧 Action
+     的启动都先问；回调期间的启动与结束请求一律忽略；
+   - 命令经总线拿到文档、视图、工具控制器与选择层（命令不能认识 `UIView`）。
+2. **两类新注册**：`CommandRegistry::registerExclusiveCommand`/`registerInstantCommand`，
+   `kind()` 区分三类；`bindLegacyType()` 给新类型命令建 `DM::ActionType` 桥接（keyconfig
+   仍以枚举为键，第四步删除）。`UIActionHandler::activateCommand` 按类型分派：交互命令
+   交给视图的总线，没有视图时不构造；即时命令直接执行，没有视图时 document/view 为空。
+   `IExtensionContext`/`ExtensionManager` 同步增加两个注册方法，命名空间规则不变。
+3. **输入与界面**：
+   - 坐标解析抽成 `GuiCoordinateInput`（放在 `kernel/view/`，旧 Action 栈与命令共用，
+     渲染层不反向依赖交互层），逐分支保持原行为；
+   - `IViewTool` 增加 `coordinateEvent`/`commandEvent`，`ViewToolControl` 只沿业务栈分发；
+     `UIView::commandEvent` 在没有旧 Action、有命令时解析坐标交给命令的工具，同样遵守
+     `enableCoordinateInput`/`disableCoordinateInput` 的开关；
+   - 右键释放与 `back()`（命令行 "escape"）在没有旧 Action、有命令时经 `ViewToolControl`
+     交给命令的工具（主计划 5.7 节：右键释放原先不走 `ViewToolControl`）；
+   - 选项条：`GuiDialogFactoryInterface::requestCommandOptions` 与
+     `CommandInfo::commandOptionsFactory`，供交互命令注册选项条。第二步的 14 个命令都
+     没有选项条，块编辑的选项条见提交③。
+4. **选择阶段**：`SelectTool::beginSelectionPhase`/`endSelectionPhase`，约束为实体类型
+   过滤与不拖夹点；`BaseExclusiveCommand::enterSelectionPhase`/`leaveSelectionPhase`；
+   总线在命令结束时清除约束。先选后建的公共部分是 `SelectFirstCommand`：没有选择集时
+   激活选择阶段工具，只接管回车、右键、Esc、其余按键与双击，鼠标事件落到选择层；有
+   选择集或回车确认后调用子类的 `onSelectionReady()`，相当于原先选择完成后才构造的那个
+   Action。
+5. **试点**：`modify.delete`（`ModifyDeleteCommand`，总是先进入选择阶段）、
+   `modify.delete_no_select`（即时命令：Delete 键、手写板橡皮擦）、`info.total_length`
+   （`InfoTotalLengthCommand`）。删除 `ActionModifyDelete`、`ActionInfoTotalLength` 与
+   `info.total_length_no_select`（只供 `ActionSelect` 选择完成后使用）。
+6. **测试**：新增 `test_exclusive_command_bus`（16 例：生命周期、替换与否决、三种结束
+   原因、`ViewClosing` 忽略否决、回调期间的重入、分发范围内外的延迟结束与延迟销毁、
+   激活失败与激活期间完成、挂起恢复、清除选择阶段约束、捕捉设置同步）、
+   `test_select_first_commands`（14 例：清单 P1–P11、中键平移、实体类型过滤与新旧并存）、`test_coordinate_input`
+   （8 例）；`test_command_registry` 补 6 例、`test_command_dispatch` 与
+   `test_extension_manager` 各补 1 例；`FakeDocumentView` 记录 `selectedChanged`。
+
+**与方案的偏差与补充**
+
+1. **选择阶段的提示与空格按代码为准**（2026-09-24 确认）。第 3 节"选择阶段的现有交互"
+   与清单 P1、P6 由代码推出，但推错了两处：
+   - 提示：`ActionSelect` 启动后立即把 `ActionSelectMultiple` 压在自己上面，后者恢复时
+     刷新提示，屏幕上一直是 "Click and drag for the selection window" / "Cancel"（框选
+     第二点时 "Choose second edge" / "Back"）；`ActionSelect` 按命令给出的 "Select to …"
+     从未显示过，`ActionNoSelectCopyToLayer` 缺 `break` 的缺陷也因此没有可见影响；
+   - 空格：`ActionSelectMultiple::keyPressEvent` 不处理空格也不忽略，事件保持接受，
+     主窗口因此不结束命令；只有 Esc（`ActionSelect` 转给基类后被忽略）结束全部命令。
+   迁移按实际行为实现，清单 P1、P6 已更正。
+2. **新旧并存的规则**（2026-09-24 确认，第 6 节第二步第 2 项只写了一个方向）：
+   - 启动命令：先按 5.1 节请当前命令让位，再结束全部旧 Action、不再恢复——提前适用
+     "被打断的命令不再恢复"（清单第 7 节）。原方案"旧 Action 仍按 `GuiEventHandler`
+     规则处理"会让挂起的旧 Action 夹在命令之下，旧 Action 栈清空时恢复的对象要跨两套
+     栈判断，放弃；
+   - 命令运行中启动旧 Action：命令被挂起，旧 Action 全部结束后恢复，与原先旧 Action
+     之间的规则相同，撤销、缩放、图层操作等因此不会结束命令。`GuiEventHandler` 原先
+     直接调选择层的三处（从空栈启动时挂起、栈空时恢复、`killAllActions()` 后复位）改为
+     调 `ILegacyStackBase`，由 `UIView` 实现为"命令与选择层"；`GuiEventHandler` 随之
+     不再包含 `SelectTool.h`。排他的旧 Action（文件新建、打开等）要结束全部，先按 5.1
+     节（`Replaced`）请命令让位；
+   - 即时命令不碰总线；只结束不可打断（`canBeInterrupt()` 为 false）的旧 Action，与原先
+     压栈时一致，否则多行文字属性编辑会继续编辑被删除的文字。
+3. **选择阶段复刻 `ActionSelectMultiple` 的细节**：
+   - Ctrl+左键不让给平移，双击与其它按键到此为止（清单 P9、P10）；
+   - 选中后只刷新选择计数，不发 `selectedChanged`：发了会启动 `ActionSelectedChanged`，
+     按上一条规则挂起当前命令，单选多行文字时还会进入属性编辑；
+   - 选择层区分"命令活动"与"旧 Action 叠在命令之上"（`SelectTool::Overlay`）：后者时
+     选择阶段让出提示与光标。
+4. **`Preview` 增加以视图构造的重载**，命令用它预览到自己视图的预览容器，
+   `FakeDocumentView` 下也能构造；原构造函数的行为不变。
+5. **`ViewToolControl` 在业务栈变化时重新应用光标**：旧 Action 绕过仲裁直接设置光标，
+   `m_lastAppliedCursor` 会过期，按它去重会漏掉命令工具激活、停用时的光标切换。
+6. **命令行的 "[说明]" 前缀**：交互命令按 ID 反查桥接的枚举（`CommandRegistry::legacyType`）
+   取 keyconfig 里的说明；"是否有命令在运行"改由 `GuiDocumentView::hasActiveCommand()`
+   回答（主窗口右键、命令行浮窗）。
+7. **翻译**：新类的 `tr()` 上下文随类名变化，`YiCAD_zh_cn.ts` 里的译文从原上下文搬到
+   新上下文（`SelectTool`、`InfoTotalLengthCommand`），删除类的上下文随之删除。
+
+提交①验证：Debug、Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction`
+122 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单尚待手工核对。

@@ -28,8 +28,7 @@
 #include "GuiDialogFactory.h"
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateEvent.h"
-#include "Math2d.h"
-#include "SelectTool.h"
+#include "GuiCoordinateInput.h"
 #include "Debug.h"
 
 GuiEventHandler::GuiEventHandler(QObject* parent) : QObject(parent)
@@ -150,120 +149,32 @@ void GuiEventHandler::keyReleaseEvent(QKeyEvent* e)
     }
 }
 
-/// @brief 处理命令行事件
+/// @brief 处理命令行事件：坐标（见 GuiCoordinateInput）转成坐标事件，其余交给当前 Action
 void GuiEventHandler::commandEvent(GuiCommandEvent* e)
 {
-    QString cmd = e->getCommand();
-
-    if (m_isCoordinateInputEnabled)
+    if (!m_isCoordinateInputEnabled || e->isAccepted() || !hasAction())
     {
-        if (!e->isAccepted())
-        {
-            if (hasAction())
-            {
-                // handle absolute cartesian coordinate input:
-                if (cmd.contains(',') && cmd.at(0) != '@')
-                {
-                    int commaPos = cmd.indexOf(',');
-                    bool ok1 = false;
-                    bool ok2 = false;
-                    double x = Math2d::eval(cmd.left(commaPos), &ok1);
-                    double y = Math2d::eval(cmd.mid(commaPos + 1), &ok2);
+        return;
+    }
 
-                    if (ok1 && ok2)
-                    {
-                        GuiCoordinateEvent ce(DmVector(x, y));
-                        m_currentActions.last()->coordinateEvent(&ce);
-                    }
-                    else
-                    {
-                        GUIDIALOGFACTORY->commandMessage("Expression Syntax Error");
-                    }
-                    e->accept();
-                }
-
-                // handle relative cartesian coordinate input:
-                if (!e->isAccepted())
-                {
-                    if (cmd.contains(',') && cmd.at(0) == '@')
-                    {
-                        int commaPos = cmd.indexOf(',');
-                        bool ok1 = false;
-                        bool ok2 = false;
-                        double x = Math2d::eval(cmd.mid(1, commaPos - 1), &ok1);
-                        double y = Math2d::eval(cmd.mid(commaPos + 1), &ok2);
-
-                        if (ok1 && ok2)
-                        {
-                            GuiCoordinateEvent ce(DmVector(x, y) + m_relativeZero);
-
-                            m_currentActions.last()->coordinateEvent(&ce);
-                        }
-                        else
-                        {
-                            GUIDIALOGFACTORY->commandMessage("Expression Syntax Error");
-                        }
-                        e->accept();
-                    }
-                }
-
-                // handle absolute polar coordinate input:
-                if (!e->isAccepted())
-                {
-                    if (cmd.contains('<') && cmd.at(0) != '@')
-                    {
-                        int commaPos = cmd.indexOf('<');
-                        bool ok1 = false;
-                        bool ok2 = false;
-                        double r = Math2d::eval(cmd.left(commaPos), &ok1);
-                        double a = Math2d::eval(cmd.mid(commaPos + 1), &ok2);
-
-                        if (ok1 && ok2)
-                        {
-                            DmVector pos{ DmVector::polar(r,Math2d::deg2rad(a)) };
-                            GuiCoordinateEvent ce(pos);
-                            m_currentActions.last()->coordinateEvent(&ce);
-                        }
-                        else
-                        {
-                            GUIDIALOGFACTORY->commandMessage("Expression Syntax Error");
-                        }
-                        e->accept();
-                    }
-                }
-
-                // handle relative polar coordinate input:
-                if (!e->isAccepted())
-                {
-                    if (cmd.contains('<') && cmd.at(0) == '@')
-                    {
-                        int commaPos = cmd.indexOf('<');
-                        bool ok1 = false;
-                        bool ok2 = false;
-                        double r = Math2d::eval(cmd.mid(1, commaPos - 1), &ok1);
-                        double a = Math2d::eval(cmd.mid(commaPos + 1), &ok2);
-
-                        if (ok1 && ok2)
-                        {
-                            DmVector pos = DmVector::polar(r, Math2d::deg2rad(a));
-                            GuiCoordinateEvent ce(pos + m_relativeZero);
-                            m_currentActions.last()->coordinateEvent(&ce);
-                        }
-                        else
-                        {
-                            GUIDIALOGFACTORY->commandMessage("Expression Syntax Error");
-                        }
-                        e->accept();
-                    }
-                }
-
-                // send command event directly to current action:
-                if (!e->isAccepted())
-                {
-                    m_currentActions.last()->commandEvent(e);
-                }
-            }
-        }
+    const GuiCoordinateInput input = GuiCoordinateInput::parse(e->getCommand(), m_relativeZero);
+    switch (input.status)
+    {
+    case GuiCoordinateInput::Status::Ok:
+    {
+        GuiCoordinateEvent ce(input.position);
+        m_currentActions.last()->coordinateEvent(&ce);
+        e->accept();
+        break;
+    }
+    case GuiCoordinateInput::Status::SyntaxError:
+        GUIDIALOGFACTORY->commandMessage("Expression Syntax Error");
+        e->accept();
+        break;
+    case GuiCoordinateInput::Status::NotCoordinate:
+        // send command event directly to current action:
+        m_currentActions.last()->commandEvent(e);
+        break;
     }
 }
 
@@ -277,6 +188,11 @@ void GuiEventHandler::enableCoordinateInput()
 void GuiEventHandler::disableCoordinateInput()
 {
     m_isCoordinateInputEnabled = false;
+}
+
+bool GuiEventHandler::isCoordinateInputEnabled() const
+{
+    return m_isCoordinateInputEnabled;
 }
 
 /// @brief 获取当前操作
@@ -296,10 +212,25 @@ int GuiEventHandler::getCurrentActionNum()
     return m_currentActions.size();
 }
 
-/// @brief 设置空闲态的选择层
-void GuiEventHandler::setSelectTool(SelectTool* tool)
+/// @brief 设置旧 Action 栈之下的一层
+void GuiEventHandler::setStackBase(ILegacyStackBase* base)
 {
-    m_pSelectTool = tool;
+    m_pStackBase = base;
+}
+
+/// @brief 即时命令执行前，结束不可打断的栈顶 Action
+void GuiEventHandler::interruptForInstantCommand()
+{
+    if (!hasAction())
+    {
+        return;
+    }
+    ActionInterface* predecessor = m_currentActions.last();
+    if (!predecessor->canBeInterrupt())
+    {
+        predecessor->finish();
+        cleanUp();
+    }
 }
 
 /// @brief 设置当前操作
@@ -310,11 +241,11 @@ void GuiEventHandler::setCurrentAction(ActionInterface* action)
         return;
     }
 
-    // 按需要挂起或终止前一个action；从空闲态启动时挂起选择层
+    // 按需要挂起或终止前一个action；从空栈启动时挂起栈下的一层（选择层或命令）
     ActionInterface* predecessor = hasAction() ? m_currentActions.last() : nullptr;
-    if (!predecessor && m_pSelectTool)
+    if (!predecessor && m_pStackBase)
     {
-        m_pSelectTool->suspend();
+        m_pStackBase->suspendForLegacy();
     }
     if (predecessor)
     {
@@ -375,7 +306,7 @@ void GuiEventHandler::setCurrentAction(ActionInterface* action)
     }
 }
 
-/// @brief 终止所有活动操作，并把选择层复位到初始状态
+/// @brief 终止所有活动操作，并复位栈下的一层
 void GuiEventHandler::killAllActions()
 {
     if (m_pAction)
@@ -392,9 +323,9 @@ void GuiEventHandler::killAllActions()
         }
     }
 
-    if (m_pSelectTool)
+    if (m_pStackBase)
     {
-        m_pSelectTool->init();
+        m_pStackBase->resetAfterKill();
     }
 }
 
@@ -444,9 +375,9 @@ void GuiEventHandler::cleanUp()
         m_currentActions.last()->resume();
         m_currentActions.last()->showOptions();
     }
-    else if (m_pSelectTool)
+    else if (m_pStackBase)
     {
-        m_pSelectTool->resume();
+        m_pStackBase->resumeAfterLegacy();
     }
 }
 

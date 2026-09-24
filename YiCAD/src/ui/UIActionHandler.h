@@ -49,10 +49,12 @@ public:
     ActionInterface* setCurrentAction(DM::ActionType id);
 
     /// @brief 按字符串命令 ID 启动命令（Ribbon、命令行别名、扩展共用的入口）。
+    /// @details 按注册类型分派（CommandRegistry::kind）：旧版 Action 交给视图的
+    /// Action 栈；交互命令交给视图的命令总线；即时命令直接执行。
     /// @param commandId CommandRegistry 里注册的命令 ID
     /// @param source 触发源，透传为 CommandContext::sender；为空时取 Qt 的 sender()
-    /// @return 已交给视图管理的 Action；命令未注册、工厂未构造 Action，或
-    /// 没有打开文档时构造后立即触发并删除的，都返回 nullptr。
+    /// @return 已交给视图管理的旧版 Action；交互命令、即时命令、命令未注册、
+    /// 工厂未构造 Action，或没有打开文档时构造后立即触发并删除的，都返回 nullptr。
     ActionInterface* activateCommand(const QString& commandId, QObject* source = nullptr);
 
     void setSnapToolBar(UISnapWidget* toolbar);

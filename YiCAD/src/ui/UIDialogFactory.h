@@ -87,6 +87,7 @@ public:
 
 	// 请求类型处理
 	void requestOptions(ActionInterface* action,bool on, bool update = false) override;
+	void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) override;
 
 protected:
 	// Links factory to a widget that can host tool options.
@@ -116,9 +117,9 @@ protected:
 	void requestBevelOptions(ActionInterface* action, bool on, bool update);
 	void requestRoundOptions(ActionInterface* action, bool on, bool update);
 
-	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（扩展命令用）。
-	void requestRegisteredOptions(const CommandOptionsFactory& factory, ActionInterface* action,
-								  bool on, bool update);
+	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（扩展命令与交互命令用）。
+	/// @param build 在给定的选项条容器里构造控件
+	void requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on);
 
 public:
 	void requestSnapDistOptions(double& dist, bool on) override;
