@@ -241,124 +241,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionEditPaste</name>
-    <message>
-        <location filename="../src/actions/ActionEditPaste.cpp" line="64"/>
-        <source>Paste</source>
-        <translation>粘贴</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionEditPaste.cpp" line="199"/>
-        <source>Set reference point</source>
-        <translation>设置引用点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionEditPaste.cpp" line="199"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ActionInfoAngle</name>
-    <message>
-        <location filename="../src/actions/ActionInfoAngle.cpp" line="104"/>
-        <source>Angle: %1</source>
-        <translation>角度：%1</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoAngle.cpp" line="109"/>
-        <source>Lines are parallel</source>
-        <translation>线是平行的</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoAngle.cpp" line="220"/>
-        <source>Specify first line</source>
-        <translation>指定第一条线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoAngle.cpp" line="220"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoAngle.cpp" line="223"/>
-        <source>Specify second line</source>
-        <translation>指定第二条线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoAngle.cpp" line="223"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionInfoArea</name>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="86"/>
-        <source>Circumference: %1</source>
-        <translation>圆周：%1</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="87"/>
-        <source>Area: %1 %2^2</source>
-        <translation>面积：%1%2^2</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="134"/>
-        <source>Closing Point: %1/%2</source>
-        <translation>删除点：%1 %2</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="141"/>
-        <source>Point: %1/%2</source>
-        <translation>点：%1 %2</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="162"/>
-        <source>Specify first point of polygon</source>
-        <translation>指定多边形上的第一个点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="162"/>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="165"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoArea.cpp" line="165"/>
-        <source>Specify next point of polygon</source>
-        <translation>指定多边形上的下一个点</translation>
-    </message>
-</context>
-<context>
-    <name>ActionInfoDist</name>
-    <message>
-        <location filename="../src/actions/ActionInfoDist.cpp" line="71"/>
-        <source>Distance: %1 Cartesian: (%2 , %3), Polar: (%4&lt;%5)</source>
-        <translation>距离: %1 笛卡尔: (%2 , %3), 极坐标: (%4&lt;%5)</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoDist.cpp" line="163"/>
-        <source>Specify first point of distance</source>
-        <translation>指定第一个距离点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoDist.cpp" line="163"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoDist.cpp" line="166"/>
-        <source>Specify second point of distance</source>
-        <translation>指定第二个距离点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionInfoDist.cpp" line="166"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
     <name>ActionLayersActivate</name>
     <message>
         <location filename="../src/actions/ActionLayersActivate.cpp" line="77"/>
@@ -447,161 +329,6 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
-    <name>ActionModifyBevel</name>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="470"/>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="488"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="577"/>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="581"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="186"/>
-        <source>Bevel</source>
-        <translation>倒角</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="569"/>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="573"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="569"/>
-        <source>Specify first entity</source>
-        <translation>指定第一个实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="573"/>
-        <source>Specify second entity</source>
-        <translation>指定第二个实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="577"/>
-        <source>Enter length 1:</source>
-        <translation>输入长度1：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyBevel.cpp" line="581"/>
-        <source>Enter length 2:</source>
-        <translation>输入长度2：</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyCut</name>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="128"/>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="146"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="138"/>
-        <source>Entity must be a line, arc, ellipse or polyline.</source>
-        <translation>实体必须是直线、圆弧、椭圆弧或多段线。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="151"/>
-        <source>Cutting point is invalid.</source>
-        <translation>切割点是无效的。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="156"/>
-        <source>Cutting point is not on entity.</source>
-        <translation>切割点不在实体上。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="186"/>
-        <source>Specify entity to cut</source>
-        <translation>指定要剪切的实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="186"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="189"/>
-        <source>Specify cutting point</source>
-        <translation>指定切割点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut.cpp" line="189"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyCut2P</name>
-    <message>
-        <location filename="../src/actions/ActionModifyCut2P.cpp" line="128"/>
-        <location filename="../src/actions/ActionModifyCut2P.cpp" line="149"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut2P.cpp" line="139"/>
-        <source>Entity must be a line, arc, circle, ellipse or polyline.</source>
-        <translation>实体必须是直线、圆弧、圆、椭圆或多段线。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut2P.cpp" line="153"/>
-        <source>Cutting point is invalid.</source>
-        <translation>切割点是无效的。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyCut2P.cpp" line="157"/>
-        <source>Cutting point is not on entity.</source>
-        <translation>切割点不在实体上。</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyEntity</name>
-    <message>
-        <location filename="../src/actions/ActionModifyEntity.cpp" line="89"/>
-        <source>Click on entity to modify</source>
-        <translation>点击需修改的实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyEntity.cpp" line="89"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyExtend</name>
-    <message>
-        <location filename="../src/actions/ActionModifyExtend.cpp" line="98"/>
-        <source>extend entity</source>
-        <translation>延伸</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExtend.cpp" line="106"/>
-        <source>Extend success.</source>
-        <translation>延伸成功。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExtend.cpp" line="111"/>
-        <source>Entity extend failure.</source>
-        <translation>延伸失败。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExtend.cpp" line="191"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyExtend.cpp" line="198"/>
-        <source>Entity is not extendable.</source>
-        <translation>实体不可延伸。</translation>
-    </message>
-</context>
-<context>
     <name>ActionModifyMText</name>
     <message>
         <location filename="../src/actions/ActionModifyMText.cpp" line="169"/>
@@ -611,219 +338,6 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/ActionModifyMText.cpp" line="264"/>
         <source>Modify MText</source>
         <translation>修改多行文字</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyRound</name>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="161"/>
-        <source>Round</source>
-        <translation>圆角</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="442"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="508"/>
-        <source>Specify first entity</source>
-        <translation>指定第一个实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="508"/>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="511"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="511"/>
-        <source>Specify second entity</source>
-        <translation>指定第二个实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="514"/>
-        <source>Enter radius:</source>
-        <translation>输入半径：</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyRound.cpp" line="514"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifySingleOffset</name>
-    <message>
-        <location filename="../src/actions/ActionModifySingleOffset.cpp" line="74"/>
-        <source>Choose the original entity</source>
-        <translation>选择原始实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifySingleOffset.cpp" line="91"/>
-        <source>Offset</source>
-        <translation>偏移</translation>
-    </message>
-</context>
-<context>
-    <name>ActionModifyTrim</name>
-    <message>
-        <location filename="../src/actions/ActionModifyTrim.cpp" line="224"/>
-        <location filename="../src/actions/ActionModifyTrim.cpp" line="228"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyTrim.cpp" line="224"/>
-        <source>Select entitys</source>
-        <translation>选择实体</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionModifyTrim.cpp" line="228"/>
-        <source>Select entity to be cut</source>
-        <translation>选择被修剪实体</translation>
-    </message>
-</context>
-<context>
-    <name>ActionPolylineAdd</name>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="111"/>
-        <source>Add polyline point</source>
-        <translation>多段线插入顶点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="213"/>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="234"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="217"/>
-        <source>Entity must be a polyline.</source>
-        <translation>实体必须是多段线。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="238"/>
-        <source>Adding point is invalid.</source>
-        <translation>添加的点是无效的。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="244"/>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="266"/>
-        <source>Adding point is not on entity.</source>
-        <translation>添加的点不在实体上。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="305"/>
-        <source>Specify polyline to add nodes</source>
-        <translation>指定多段线以添加节点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="305"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="309"/>
-        <source>Specify adding node&apos;s point</source>
-        <translation>指定添加节点的点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAdd.cpp" line="309"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ActionPolylineAppend</name>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="52"/>
-        <source>Append polyline point</source>
-        <translation>多段线追加顶点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="76"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="81"/>
-        <source>Entity must be a polyline.</source>
-        <translation>实体必须是多段线。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="89"/>
-        <source>Can not append nodes in a closed polyline.</source>
-        <translation>不能在闭合多段线中附加节点。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="227"/>
-        <source>Specify the polyline somewhere near the beginning or end point</source>
-        <translation>在起点或终点附近的某处指定多段线</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="229"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="234"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineAppend.cpp" line="234"/>
-        <source>Specify next point</source>
-        <translation>指定下一个点</translation>
-    </message>
-</context>
-<context>
-    <name>ActionPolylineDel</name>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="79"/>
-        <source>Append polyline point</source>
-        <translation>多段线追加顶点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="143"/>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="168"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="147"/>
-        <source>Entity must be a polyline.</source>
-        <translation>实体必须是多段线。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="172"/>
-        <source>Deleting point is invalid.</source>
-        <translation>删除点是无效的。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="176"/>
-        <source>Deleting point is not on entity.</source>
-        <translation>删除点不在实体上。</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="210"/>
-        <source>Specify polyline to delete node</source>
-        <translation>指定多段线以删除节点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="210"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="214"/>
-        <source>Specify deleting node&apos;s point</source>
-        <translation>指定删除节点的点</translation>
-    </message>
-    <message>
-        <location filename="../src/actions/ActionPolylineDel.cpp" line="214"/>
-        <source>Back</source>
-        <translation>返回</translation>
     </message>
 </context>
 <context>
@@ -1910,6 +1424,24 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>EditPasteCommand</name>
+    <message>
+        <location filename="../src/actions/EditPasteCommand.cpp" line="82"/>
+        <source>Paste</source>
+        <translation>粘贴</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/EditPasteCommand.cpp" line="153"/>
+        <source>Set reference point</source>
+        <translation>设置引用点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/EditPasteCommand.cpp" line="154"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>GuiDocumentView</name>
     <message>
         <location filename="../src/kernel/gui/GuiDocumentView.cpp" line="1429"/>
@@ -1945,6 +1477,105 @@ This block cannot be inserted.</source>
         <location filename="../src/kernel/gui/GuiDocumentView.cpp" line="1435"/>
         <source>Grid</source>
         <translation>网格</translation>
+    </message>
+</context>
+<context>
+    <name>InfoAngleCommand</name>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="214"/>
+        <source>Angle: %1</source>
+        <translation>角度：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="219"/>
+        <source>Lines are parallel</source>
+        <translation>线是平行的</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="330"/>
+        <source>Specify first line</source>
+        <translation>指定第一条线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="330"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="333"/>
+        <source>Specify second line</source>
+        <translation>指定第二条线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="333"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>InfoAreaCommand</name>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="359"/>
+        <source>Circumference: %1</source>
+        <translation>圆周：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="360"/>
+        <source>Area: %1 %2^2</source>
+        <translation>面积：%1%2^2</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="401"/>
+        <source>Closing Point: %1/%2</source>
+        <translation>删除点：%1 %2</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="408"/>
+        <source>Point: %1/%2</source>
+        <translation>点：%1 %2</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="429"/>
+        <source>Specify first point of polygon</source>
+        <translation>指定多边形上的第一个点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="330"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoAngleAreaCommands.cpp" line="432"/>
+        <source>Specify next point of polygon</source>
+        <translation>指定多边形上的下一个点</translation>
+    </message>
+</context>
+<context>
+    <name>InfoDistCommand</name>
+    <message>
+        <location filename="../src/actions/InfoDistCommand.cpp" line="60"/>
+        <source>Distance: %1 Cartesian: (%2 , %3), Polar: (%4&lt;%5)</source>
+        <translation>距离: %1 笛卡尔: (%2 , %3), 极坐标: (%4&lt;%5)</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoDistCommand.cpp" line="95"/>
+        <source>Specify first point of distance</source>
+        <translation>指定第一个距离点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoDistCommand.cpp" line="96"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoDistCommand.cpp" line="99"/>
+        <source>Specify second point of distance</source>
+        <translation>指定第二个距离点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/InfoDistCommand.cpp" line="100"/>
+        <source>Back</source>
+        <translation>返回</translation>
     </message>
 </context>
 <context>
@@ -2040,6 +1671,49 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>ModifyBevelCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="526"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="569"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="242"/>
+        <source>Bevel</source>
+        <translation>倒角</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="561"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="561"/>
+        <source>Specify first entity</source>
+        <translation>指定第一个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="565"/>
+        <source>Specify second entity</source>
+        <translation>指定第二个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="569"/>
+        <source>Enter length 1:</source>
+        <translation>输入长度1：</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyBevelCommand.cpp" line="573"/>
+        <source>Enter length 2:</source>
+        <translation>输入长度2：</translation>
+    </message>
+</context>
+<context>
     <name>ModifyCopyCommand</name>
     <message>
         <location filename="../src/actions/ModifyCopyCommand.cpp" line="76"/>
@@ -2074,6 +1748,85 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>ModifyCut2PCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="252"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="382"/>
+        <source>Entity must be a line, arc, circle, ellipse or polyline.</source>
+        <translation>实体必须是直线、圆弧、圆、椭圆或多段线。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="275"/>
+        <source>Cutting point is invalid.</source>
+        <translation>切割点是无效的。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="280"/>
+        <source>Cutting point is not on entity.</source>
+        <translation>切割点不在实体上。</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyCutCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="252"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="262"/>
+        <source>Entity must be a line, arc, ellipse or polyline.</source>
+        <translation>实体必须是直线、圆弧、椭圆弧或多段线。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="275"/>
+        <source>Cutting point is invalid.</source>
+        <translation>切割点是无效的。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="280"/>
+        <source>Cutting point is not on entity.</source>
+        <translation>切割点不在实体上。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="310"/>
+        <source>Specify entity to cut</source>
+        <translation>指定要剪切的实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="310"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="313"/>
+        <source>Specify cutting point</source>
+        <translation>指定切割点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyCutCommands.cpp" line="313"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyEntityCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyEntityCommand.cpp" line="81"/>
+        <source>Click on entity to modify</source>
+        <translation>点击需修改的实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyEntityCommand.cpp" line="82"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>ModifyExplodeCommand</name>
     <message>
         <location filename="../src/actions/ModifyExplodeCommand.cpp" line="80"/>
@@ -2097,6 +1850,34 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/ModifyExplodeCommand.cpp" line="185"/>
         <source>Explode success, %1 entities exploded.</source>
         <translation>分解成功，已分解 %1 个实体。</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyExtendCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyExtendCommand.cpp" line="201"/>
+        <source>extend entity</source>
+        <translation>延伸</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExtendCommand.cpp" line="209"/>
+        <source>Extend success.</source>
+        <translation>延伸成功。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExtendCommand.cpp" line="214"/>
+        <source>Entity extend failure.</source>
+        <translation>延伸失败。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExtendCommand.cpp" line="294"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyExtendCommand.cpp" line="301"/>
+        <source>Entity is not extendable.</source>
+        <translation>实体不可延伸。</translation>
     </message>
 </context>
 <context>
@@ -2215,6 +1996,44 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>ModifyRoundCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="225"/>
+        <source>Round</source>
+        <translation>圆角</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="509"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="525"/>
+        <source>Specify first entity</source>
+        <translation>指定第一个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="525"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="528"/>
+        <source>Specify second entity</source>
+        <translation>指定第二个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="531"/>
+        <source>Enter radius:</source>
+        <translation>输入半径：</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyRoundCommand.cpp" line="531"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>ModifyScaleCommand</name>
     <message>
         <location filename="../src/actions/ModifyScaleCommand.cpp" line="69"/>
@@ -2246,6 +2065,176 @@ This block cannot be inserted.</source>
         <location filename="../src/actions/ModifyScaleCommand.cpp" line="209"/>
         <source>Scale</source>
         <translation>缩放</translation>
+    </message>
+</context>
+<context>
+    <name>ModifySingleOffsetCommand</name>
+    <message>
+        <location filename="../src/actions/ModifySingleOffsetCommand.cpp" line="142"/>
+        <source>Choose the original entity</source>
+        <translation>选择原始实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifySingleOffsetCommand.cpp" line="86"/>
+        <source>Offset</source>
+        <translation>偏移</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyTrimCommand</name>
+    <message>
+        <location filename="../src/actions/ModifyTrimCommand.cpp" line="286"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyTrimCommand.cpp" line="286"/>
+        <source>Select entitys</source>
+        <translation>选择实体</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/ModifyTrimCommand.cpp" line="290"/>
+        <source>Select entity to be cut</source>
+        <translation>选择被修剪实体</translation>
+    </message>
+</context>
+<context>
+    <name>PolylineAddCommand</name>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="262"/>
+        <source>Add polyline point</source>
+        <translation>多段线插入顶点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="364"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="368"/>
+        <source>Entity must be a polyline.</source>
+        <translation>实体必须是多段线。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="389"/>
+        <source>Adding point is invalid.</source>
+        <translation>添加的点是无效的。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="395"/>
+        <source>Adding point is not on entity.</source>
+        <translation>添加的点不在实体上。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="456"/>
+        <source>Specify polyline to add nodes</source>
+        <translation>指定多段线以添加节点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="456"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="460"/>
+        <source>Specify adding node&apos;s point</source>
+        <translation>指定添加节点的点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="460"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>PolylineAppendCommand</name>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="473"/>
+        <source>Append polyline point</source>
+        <translation>多段线追加顶点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="364"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="368"/>
+        <source>Entity must be a polyline.</source>
+        <translation>实体必须是多段线。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="510"/>
+        <source>Can not append nodes in a closed polyline.</source>
+        <translation>不能在闭合多段线中附加节点。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="641"/>
+        <source>Specify the polyline somewhere near the beginning or end point</source>
+        <translation>在起点或终点附近的某处指定多段线</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="456"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="460"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="647"/>
+        <source>Specify next point</source>
+        <translation>指定下一个点</translation>
+    </message>
+</context>
+<context>
+    <name>PolylineDelCommand</name>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="473"/>
+        <source>Append polyline point</source>
+        <translation>多段线追加顶点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="364"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="368"/>
+        <source>Entity must be a polyline.</source>
+        <translation>实体必须是多段线。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="758"/>
+        <source>Deleting point is invalid.</source>
+        <translation>删除点是无效的。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="762"/>
+        <source>Deleting point is not on entity.</source>
+        <translation>删除点不在实体上。</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="796"/>
+        <source>Specify polyline to delete node</source>
+        <translation>指定多段线以删除节点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="456"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="800"/>
+        <source>Specify deleting node&apos;s point</source>
+        <translation>指定删除节点的点</translation>
+    </message>
+    <message>
+        <location filename="../src/actions/PolylineEditCommands.cpp" line="460"/>
+        <source>Back</source>
+        <translation>返回</translation>
     </message>
 </context>
 <context>

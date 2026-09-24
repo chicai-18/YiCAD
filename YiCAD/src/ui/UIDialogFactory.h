@@ -117,8 +117,8 @@ protected:
 	void requestInsertOptions(ActionInterface* action, bool on, bool update);
 	void requestImageOptions(IExclusiveCommand* command, bool on, bool update);
 
-	void requestBevelOptions(ActionInterface* action, bool on, bool update);
-	void requestRoundOptions(ActionInterface* action, bool on, bool update);
+	void requestBevelOptions(IExclusiveCommand* command, bool on, bool update);
+	void requestRoundOptions(IExclusiveCommand* command, bool on, bool update);
 
 	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（扩展命令与交互命令用）。
 	/// @param build 在给定的选项条容器里构造控件

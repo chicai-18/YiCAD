@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,57 +18,154 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file ModifyExtendCommand.cpp
+/// @brief 延伸命令 modify.extend，取代原 ActionModifyExtend：把直线、圆弧、开放的多段线、
+///        椭圆弧和样条曲线的近端延伸到边界。命令开始时有选中的实体就以它们为边界，
+///        否则以视图内的实体为边界
+///
+/// 命令没有选项条，只在本文件里定义；工具的事件处理与延伸计算从原 Action 机械改写而来。
 
-/// @file ActionModifyExtend.cpp
-/// @brief 延伸实体的交互动作类实现
+#include <memory>
+#include <vector>
 
-#include "ActionModifyExtend.h"
+#include <QCoreApplication>
+#include <QMouseEvent>
+
+#include "BasePlaceTool.h"
+#include "CommandPreview.h"
 #include "CommandRegistry.h"
-
 #include "DmArc.h"
 #include "DmCircle.h"
+#include "DmDocument.h"
 #include "DmEllipse.h"
+#include "DmEntityContainer.h"
 #include "DmLine.h"
 #include "DmPolyline.h"
 #include "DmSpline.h"
+#include "EntityTable.h"
 #include "GeometryMethods.h"
 #include "GuiDialogFactory.h"
+#include "GuiDocumentView.h"
 #include "IDocumentView.h"
+#include "ISnapService.h"
 #include "Information.h"
 #include "Math2d.h"
 #include "Modification.h"
-#include "Preview.h"
+#include "PlaceCommand.h"
 #include "Tools.h"
 #include "Transaction.h"
 
-#include "qevent.h"
-
-/// @brief 构造函数
-/// @param [in] doc 文档指针
-/// @param [in] docView 文档视图指针
-ActionModifyExtend::ActionModifyExtend(DmDocument* doc, IDocumentView* docView)
-    : PreviewActionInterface("Extend Entity", doc, docView)
-    , m_entToTrim(nullptr)
-    , m_entUnderCursor(nullptr)
-    , m_trimPt({false})
-    , m_bExtendToSelect(false)
-    , m_side(PickEntitySide::Begin)
-    , m_extendedEnt(nullptr)
+namespace
 {
-    actionType = DM::ActionModifyExtend;
-
-    connect(docView->asQObject(), SIGNAL(viewChanged()), this, SLOT(slotViewChanged()));
-}
-
-/// @brief 析构函数
-ActionModifyExtend::~ActionModifyExtend() = default;
-
-/// @brief 初始化动作
-/// @param [in] status 初始状态
-void ActionModifyExtend::init(int status)
+/// @brief 延伸命令；交互由 ModifyExtendTool 驱动
+class ModifyExtendCommand : public PlaceCommand
 {
-    PreviewActionInterface::init(status);
+    Q_DECLARE_TR_FUNCTIONS(ModifyExtendCommand)
 
+protected:
+    std::unique_ptr<BasePlaceTool> createTool() override;
+};
+
+/// @brief 延伸工具：悬停预览延伸结果，单击延伸；可连续延伸
+class ModifyExtendTool : public BasePlaceTool
+{
+public:
+    /// @brief 交互状态
+    enum Status
+    {
+        ChooseEntity ///< 选择实体
+    };
+
+    /// @brief 拾取实体端点侧
+    enum class PickEntitySide
+    {
+        Begin, ///< 起始端
+        End    ///< 末端
+    };
+
+    ModifyExtendTool(ModifyExtendCommand& command, DmDocument* doc, IDocumentView* view)
+        : BasePlaceTool(command, doc, view)
+        , m_command(command)
+    {
+        // 以视图内的实体为边界时，视图变化后重新收集（假视图没有 QObject，跳过）
+        if (auto* guiView = qobject_cast<GuiDocumentView*>(view->asQObject()))
+        {
+            m_viewChanged = QObject::connect(guiView, &GuiDocumentView::viewChanged, [this]() { onViewChanged(); });
+        }
+        resetState();
+    }
+
+    ~ModifyExtendTool() override { QObject::disconnect(m_viewChanged); }
+
+    std::optional<DM::CursorType> getCursor() const override { return DM::SelectCursor; }
+
+protected:
+    /// @brief 原 Action 没有按键提示
+    void updateHints() override {}
+    void onMouseMove(QMouseEvent* e) override;
+    void onMouseRelease(QMouseEvent* e) override;
+    void onFinish() override { restoreEntityUnderCursor(); }
+
+private:
+    /// @brief 回到某一状态并重新收集边界（原 init(status)）；status < 0 时结束命令
+    void init(int s = ChooseEntity)
+    {
+        if (s < 0)
+        {
+            command().finish();
+            return;
+        }
+        restart(s);
+        resetState();
+    }
+
+    /// @brief 清空拾取状态，按当前选择重新确定边界
+    void resetState();
+
+    /// @brief 预览延伸时隐藏了光标下的实体；结束前让它重新可见
+    ///        （原 Action 在右键或 Esc 结束时没有恢复，实体会一直不可见）
+    void restoreEntityUnderCursor()
+    {
+        if (m_entUnderCursor)
+        {
+            m_entUnderCursor->setVisible(true);
+        }
+    }
+
+    void trigger();
+    PickEntitySide getEntitySide(DmEntity* e, const DmVector& pt);
+    PickEntitySide getEntitySideOfLine(DmLine* e, const DmVector& pt);
+    PickEntitySide getEntitySideOfArc(DmArc* e, const DmVector& pt);
+    PickEntitySide getEntitySideOfPolyline(DmPolyline* e, const DmVector& pt);
+    PickEntitySide getEntitySideOfEllipse(DmEllipse* e, const DmVector& pt);
+    PickEntitySide getEntitySideOfSpline(DmSpline* e, const DmVector& pt);
+    DmEntity* extend(DmEntity* e, PickEntitySide side);
+    DmLine* extendForLine(DmLine* line, PickEntitySide side);
+    DmArc* extendForArc(DmArc* arc, PickEntitySide side);
+    DmPolyline* extendForPolyline(DmPolyline* poly, PickEntitySide side);
+    DmEllipse* extendForEllipse(DmEllipse* ellipse, PickEntitySide side);
+    DmSpline* extendForSpline(DmSpline* spline, PickEntitySide side);
+    static bool isExtendableEntity(DmEntity* ent);
+    void updateEntitiesInView();
+    void onViewChanged();
+
+    ModifyExtendCommand& m_command;
+    QMetaObject::Connection m_viewChanged; ///< 与视图 viewChanged 信号的连接
+
+    DmEntity* m_entToTrim = nullptr;      ///< 待延伸的实体
+    DmEntity* m_entUnderCursor = nullptr; ///< 当前鼠标下的实体
+    DmVector m_trimPt{false};             ///< 确认延伸时，鼠标点下的位置
+    bool m_bExtendToSelect = false;       ///< 是否延伸至选择的实体
+
+    PickEntitySide m_side = PickEntitySide::Begin; ///< 延伸的端，鼠标移动时记录同一实体端变化以减少延伸计算
+    std::unique_ptr<DmEntity> m_extendedEnt;       ///< 预览时临时的延伸后的实体
+
+    std::vector<DmEntity*> m_seleltedEnts; ///< 选择的实体，作为延伸的边界，也可以是待延伸的实体
+    std::vector<DmEntity*> m_entsInView;   ///< 当前视图内的实体
+};
+
+void ModifyExtendTool::resetState()
+{
     m_entToTrim = nullptr;
     m_entUnderCursor = nullptr;
     m_trimPt = DmVector(false);
@@ -78,7 +175,7 @@ void ActionModifyExtend::init(int status)
     m_seleltedEnts.clear();
 
     // 判断是否有选择的实体
-    for (auto e : *pDocument->getEntityTable())
+    for (auto e : *document()->getEntityTable())
     {
         if (e->isSelected())
         {
@@ -93,7 +190,7 @@ void ActionModifyExtend::init(int status)
 }
 
 /// @brief 触发延伸操作
-void ActionModifyExtend::trigger()
+void ModifyExtendTool::trigger()
 {
     if (m_entToTrim)
     {
@@ -101,31 +198,31 @@ void ActionModifyExtend::trigger()
         DmEntity* extendEnt = extend(m_entToTrim, m_side);
         if (extendEnt)
         {
-            Transaction t(tr("extend entity").toStdString(), pDocument);
+            Transaction t(ModifyExtendCommand::tr("extend entity").toStdString(), document());
             t.start();
-            pDocument->getEntityTable()->startModify(m_entToTrim);
+            document()->getEntityTable()->startModify(m_entToTrim);
             Modification::updateEntityData(m_entToTrim, extendEnt);
             delete extendEnt;
             extendEnt = nullptr;
             t.commit();
 
-            GUIDIALOGFACTORY->commandMessage(tr("Extend success."));
+            GUIDIALOGFACTORY->commandMessage(ModifyExtendCommand::tr("Extend success."));
             init();
         }
         else
         {
-            GUIDIALOGFACTORY->commandMessage(tr("Entity extend failure."));
+            GUIDIALOGFACTORY->commandMessage(ModifyExtendCommand::tr("Entity extend failure."));
         }
     }
 }
 
 /// @brief 鼠标移动事件处理
 /// @param [in] e 鼠标事件指针
-void ActionModifyExtend::mouseMoveEvent(QMouseEvent* e)
+void ModifyExtendTool::onMouseMove(QMouseEvent* e)
 {
-    DmEntity* se = catchEntity(e);
-    DmVector mouse = docView->toGraph(e->x(), e->y());
-    switch (getStatus())
+    DmEntity* se = snapper()->catchEntity(e);
+    DmVector mouse = view()->toGraph(e->x(), e->y());
+    switch (status())
     {
     case ChooseEntity:
     {
@@ -146,11 +243,11 @@ void ActionModifyExtend::mouseMoveEvent(QMouseEvent* e)
             }
         }
 
-        deletePreview();
+        m_command.preview().clear();
         m_entUnderCursor = se;
         if (!needRecalculate)
         {
-            preview->getEntityContainer()->addEntity(m_extendedEnt->clone());
+            m_command.preview().entities().getEntityContainer()->addEntity(m_extendedEnt->clone());
         }
         else
         {
@@ -165,14 +262,14 @@ void ActionModifyExtend::mouseMoveEvent(QMouseEvent* e)
                     if (extendEnt)
                     {
                         m_entUnderCursor->setVisible(false);
-                        preview->addEntity(extendEnt);
+                        m_command.preview().entities().addEntity(extendEnt);
                         m_extendedEnt.reset(extendEnt->clone());
                         m_side = side;
                     }
                 }
             }
         }
-        drawPreview();
+        m_command.preview().draw();
     }
     break;
     default:
@@ -182,33 +279,33 @@ void ActionModifyExtend::mouseMoveEvent(QMouseEvent* e)
 
 /// @brief 鼠标释放事件处理
 /// @param [in] e 鼠标事件指针
-void ActionModifyExtend::mouseReleaseEvent(QMouseEvent* e)
+void ModifyExtendTool::onMouseRelease(QMouseEvent* e)
 {
-    DmVector mouse = docView->toGraph(e->x(), e->y());
+    DmVector mouse = view()->toGraph(e->x(), e->y());
     if (e->button() == Qt::LeftButton)
     {
-        switch (getStatus())
+        switch (status())
         {
         case ChooseEntity:
         {
-            m_entToTrim = catchEntity(e);
+            m_entToTrim = snapper()->catchEntity(e);
             if (m_entToTrim == nullptr)
             {
-                GUIDIALOGFACTORY->commandMessage(tr("No Entity found."));
+                GUIDIALOGFACTORY->commandMessage(ModifyExtendCommand::tr("No Entity found."));
             }
             else
             {
                 m_entToTrim->setVisible(true);
                 if (!isExtendableEntity(m_entToTrim))
                 {
-                    GUIDIALOGFACTORY->commandMessage(tr("Entity is not extendable."));
+                    GUIDIALOGFACTORY->commandMessage(ModifyExtendCommand::tr("Entity is not extendable."));
                 }
                 else
                 {
                     DmVector ptOnEntity = m_entToTrim->getNearestPointOnEntity(mouse);
                     m_trimPt = ptOnEntity;
                     trigger();
-                    deleteSnapper();
+                    snapper()->deleteSnapper();
                 }
             }
             break;
@@ -219,20 +316,7 @@ void ActionModifyExtend::mouseReleaseEvent(QMouseEvent* e)
     }
     else if (e->button() == Qt::RightButton)
     {
-        finish();
-    }
-}
-
-/// @brief 更新鼠标光标样式
-void ActionModifyExtend::updateMouseCursor()
-{
-    if (getStatus() == ChooseEntity)
-    {
-        docView->setMouseCursor(DM::SelectCursor);
-    }
-    else
-    {
-        docView->setMouseCursor(DM::ArrowCursor);
+        command().finish();
     }
 }
 
@@ -240,7 +324,7 @@ void ActionModifyExtend::updateMouseCursor()
 /// @param [in] e 实体指针
 /// @param [in] pt 参考点
 /// @return 拾取的实体端点侧
-ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySide(DmEntity* e, const DmVector& pt)
+ModifyExtendTool::PickEntitySide ModifyExtendTool::getEntitySide(DmEntity* e, const DmVector& pt)
 {
     switch (e->getEntityType())
     {
@@ -284,7 +368,7 @@ ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySide(DmEntity* e
 /// @param [in] line 直线实体指针
 /// @param [in] pt 参考点
 /// @return 拾取的实体端点侧
-ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfLine(DmLine* line, const DmVector& pt)
+ModifyExtendTool::PickEntitySide ModifyExtendTool::getEntitySideOfLine(DmLine* line, const DmVector& pt)
 {
     double d1 = line->getStartpoint().distanceTo(pt);
     double d2 = line->getEndpoint().distanceTo(pt);
@@ -302,7 +386,7 @@ ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfLine(DmLin
 /// @param [in] arc 圆弧实体指针
 /// @param [in] pt 参考点
 /// @return 拾取的实体端点侧
-ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfArc(DmArc* arc, const DmVector& pt)
+ModifyExtendTool::PickEntitySide ModifyExtendTool::getEntitySideOfArc(DmArc* arc, const DmVector& pt)
 {
     double sAngle = arc->getStartAngle();
     double eAngle = arc->getEndAngle();
@@ -327,7 +411,7 @@ ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfArc(DmArc*
 /// @param [in] poly 多段线实体指针
 /// @param [in] pt 参考点
 /// @return 拾取的实体端点侧
-ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfPolyline(DmPolyline* poly, const DmVector& pt)
+ModifyExtendTool::PickEntitySide ModifyExtendTool::getEntitySideOfPolyline(DmPolyline* poly, const DmVector& pt)
 {
     double minDist = DM_MAXDOUBLE;
     int minDistIdx = -1;
@@ -389,7 +473,7 @@ ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfPolyline(D
 /// @param [in] ellipse 椭圆弧实体指针
 /// @param [in] pt 参考点
 /// @return 拾取的实体端点侧
-ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfEllipse(DmEllipse* ellipse, const DmVector& pt)
+ModifyExtendTool::PickEntitySide ModifyExtendTool::getEntitySideOfEllipse(DmEllipse* ellipse, const DmVector& pt)
 {
     // 跟圆弧一样处理
     double sAngle = ellipse->getStartAngle();
@@ -415,7 +499,7 @@ ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfEllipse(Dm
 /// @param [in] e 样条曲线实体指针
 /// @param [in] pt 参考点
 /// @return 拾取的实体端点侧
-ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfSpline(DmSpline* e, const DmVector& pt)
+ModifyExtendTool::PickEntitySide ModifyExtendTool::getEntitySideOfSpline(DmSpline* e, const DmVector& pt)
 {
     double d1 = e->getStartpoint().distanceTo(pt);
     double d2 = e->getEndpoint().distanceTo(pt);
@@ -433,7 +517,7 @@ ActionModifyExtend::PickEntitySide ActionModifyExtend::getEntitySideOfSpline(DmS
 /// @param [in] e 待延伸实体指针
 /// @param [in] side 延伸端侧
 /// @return 延伸后的新实体指针，失败返回nullptr
-DmEntity* ActionModifyExtend::extend(DmEntity* e, ActionModifyExtend::PickEntitySide side)
+DmEntity* ModifyExtendTool::extend(DmEntity* e, PickEntitySide side)
 {
     switch (e->getEntityType())
     {
@@ -478,7 +562,7 @@ DmEntity* ActionModifyExtend::extend(DmEntity* e, ActionModifyExtend::PickEntity
 /// @param [in] line 直线实体指针
 /// @param [in] side 延伸端侧
 /// @return 延伸后的新直线指针，失败返回nullptr
-DmLine* ActionModifyExtend::extendForLine(DmLine* line, ActionModifyExtend::PickEntitySide side)
+DmLine* ModifyExtendTool::extendForLine(DmLine* line, PickEntitySide side)
 {
     // 计算直线求交时需要延伸的长度
     double extLength = 0.0;
@@ -504,7 +588,7 @@ DmLine* ActionModifyExtend::extendForLine(DmLine* line, ActionModifyExtend::Pick
     }
     else
     {
-        DmRect rect = docView->getViewRect();
+        DmRect rect = view()->getViewRect();
         min = rect.minP();
         max = rect.maxP();
         extLength = 2.0 * (std::max(max.x - min.x, max.y - min.y));
@@ -570,7 +654,7 @@ DmLine* ActionModifyExtend::extendForLine(DmLine* line, ActionModifyExtend::Pick
 /// @param [in] arc 圆弧实体指针
 /// @param [in] side 延伸端侧
 /// @return 延伸后的新圆弧指针，失败返回nullptr
-DmArc* ActionModifyExtend::extendForArc(DmArc* arc, ActionModifyExtend::PickEntitySide side)
+DmArc* ModifyExtendTool::extendForArc(DmArc* arc, PickEntitySide side)
 {
     // 获得一些参数
     DmVector center = arc->getCenter();
@@ -664,7 +748,7 @@ DmArc* ActionModifyExtend::extendForArc(DmArc* arc, ActionModifyExtend::PickEnti
 /// @param [in] poly 多段线实体指针
 /// @param [in] side 延伸端侧
 /// @return 延伸后的新多段线指针，失败返回nullptr
-DmPolyline* ActionModifyExtend::extendForPolyline(DmPolyline* poly, ActionModifyExtend::PickEntitySide side)
+DmPolyline* ModifyExtendTool::extendForPolyline(DmPolyline* poly, PickEntitySide side)
 {
     int segCount = poly->getSegmentCount();
     double bulge = 0.0, radius = 0.0, startAng = 0.0, endAng = 0.0;
@@ -767,7 +851,7 @@ DmPolyline* ActionModifyExtend::extendForPolyline(DmPolyline* poly, ActionModify
 /// @param [in] ellipse 椭圆弧实体指针
 /// @param [in] side 延伸端侧
 /// @return 延伸后的新椭圆弧指针，失败返回nullptr
-DmEllipse* ActionModifyExtend::extendForEllipse(DmEllipse* ellipse, ActionModifyExtend::PickEntitySide side)
+DmEllipse* ModifyExtendTool::extendForEllipse(DmEllipse* ellipse, PickEntitySide side)
 {
     // 与圆弧类似处理
     // 获得一些参数
@@ -864,14 +948,14 @@ DmEllipse* ActionModifyExtend::extendForEllipse(DmEllipse* ellipse, ActionModify
 /// @param [in] spline 样条曲线实体指针
 /// @param [in] side 延伸端侧
 /// @return 延伸后的新样条曲线指针，失败返回nullptr
-DmSpline* ActionModifyExtend::extendForSpline(DmSpline* spline, ActionModifyExtend::PickEntitySide side)
+DmSpline* ModifyExtendTool::extendForSpline(DmSpline* spline, PickEntitySide side)
 {
     // 获得端点及端点方向
     DmVector beginPt(false);
     DmVector dir(false);
     double t1 = 0.0, t2 = 0.0;
     spline->getDomainOfDefinition(t1, t2);
-    if (side == ActionModifyExtend::PickEntitySide::Begin)
+    if (side == ModifyExtendTool::PickEntitySide::Begin)
     {
         beginPt = spline->getStartpoint();
         dir = -spline->derivative(t1).normalize(); // 切向的反向
@@ -906,7 +990,7 @@ DmSpline* ActionModifyExtend::extendForSpline(DmSpline* spline, ActionModifyExte
     }
     else
     {
-        DmRect rect = docView->getViewRect();
+        DmRect rect = view()->getViewRect();
         min = rect.minP();
         max = rect.maxP();
         extLength = 2.0 * (std::max(max.x - min.x, max.y - min.y));
@@ -960,7 +1044,7 @@ DmSpline* ActionModifyExtend::extendForSpline(DmSpline* spline, ActionModifyExte
 /// @brief 判断实体是否可被延伸
 /// @param [in] ent 实体指针
 /// @return 可延伸返回true，否则返回false
-bool ActionModifyExtend::isExtendableEntity(DmEntity* ent)
+bool ModifyExtendTool::isExtendableEntity(DmEntity* ent)
 {
     if (ent->isLocked() || !ent->isVisible())
     {
@@ -1014,15 +1098,15 @@ bool ActionModifyExtend::isExtendableEntity(DmEntity* ent)
 }
 
 /// @brief 更新当前视图内的实体列表
-void ActionModifyExtend::updateEntitiesInView()
+void ModifyExtendTool::updateEntitiesInView()
 {
     m_entsInView.clear();
-    DmRect rect = docView->getViewRect();
-    pDocument->searchEntities(rect.minP(), rect.maxP(), m_entsInView);
+    DmRect rect = view()->getViewRect();
+    document()->searchEntities(rect.minP(), rect.maxP(), m_entsInView);
 }
 
-/// @brief 视图变化槽函数
-void ActionModifyExtend::slotViewChanged()
+/// @brief 视图变化后重新收集视图内的实体（原 slotViewChanged）
+void ModifyExtendTool::onViewChanged()
 {
     if (!m_bExtendToSelect)
     {
@@ -1030,10 +1114,11 @@ void ActionModifyExtend::slotViewChanged()
     }
 }
 
-namespace
+std::unique_ptr<BasePlaceTool> ModifyExtendCommand::createTool()
 {
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionModifyExtend, QStringLiteral("modify.extend"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionModifyExtend(ctx.document, ctx.view); });
+    return std::make_unique<ModifyExtendTool>(*this, document(), view());
+}
+
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionModifyExtend, QStringLiteral("modify.extend"), exclusiveCommandFactory<ModifyExtendCommand>());
 }  // namespace

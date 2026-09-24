@@ -67,6 +67,21 @@ public:
         options.push_back({command ? command->commandId() : QString(), on, update});
     }
 
+    std::vector<bool> offsetOptions;  ///< 单个偏移选项条的打开/关闭请求
+    double* offsetDistance = nullptr; ///< 打开时选项条拿到的距离引用（选项条经它改写距离）
+    void requestModifySingleOffsetOptions(double& dist, bool on, bool) override
+    {
+        offsetOptions.push_back(on);
+        offsetDistance = on ? &dist : nullptr;
+    }
+
+    std::vector<DmEntity*> entityDialogs; ///< 弹出属性对话框的实体
+    bool requestModifyEntityDialog(DmEntity* entity) override
+    {
+        entityDialogs.push_back(entity);
+        return false;
+    }
+
     /// @brief 最近一次按键提示的左键部分
     QString lastHint() const { return hints.empty() ? QString() : hints.back().first; }
     /// @brief 最近一次按键提示的右键部分

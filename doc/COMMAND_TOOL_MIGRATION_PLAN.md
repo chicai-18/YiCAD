@@ -881,3 +881,47 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交③验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 204 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单
 新增 D17–D24，尚待手工核对。
+
+**提交④：修改与查询**
+
+1. **迁移**（15 个）：查询距离 `InfoDistCommand`、查询角度与面积（`InfoAngleAreaCommands.cpp`）、
+   粘贴 `EditPasteCommand`、修改实体属性 `ModifyEntityCommand`、打断与两点打断
+   （`ModifyCutCommands.cpp`）、单个偏移 `ModifySingleOffsetCommand`、多段线添加/追加/删除节点
+   （`PolylineEditCommands.cpp`）、修剪 `ModifyTrimCommand`、倒角 `ModifyBevelCommand`、圆角
+   `ModifyRoundCommand`、延伸 `ModifyExtendCommand`。只有倒角、圆角有头文件（选项条要用命令
+   类型），其余只在自己的 .cpp 里定义。
+2. **选项参数归命令**：倒角的两段长度与是否修剪、圆角的半径与是否修剪、单个偏移的
+   `OffsetData` 都在命令上，工具经命令读写；偏移的选项条仍经 `double&` 直接改写距离，接口
+   `requestModifySingleOffsetOptions` 不变。
+3. **选项条**：`UIBevelOptions`、`UIRoundOptions` 改为接收命令；命令 ID 表补上
+   `modify.bevel`、`modify.round`，`requestOptions` 的 switch 只剩文字与插入块两个分支。
+4. **延伸监听视图变化**：原 Action 是 QObject，用槽接 `viewChanged()`；工具不是 QObject，
+   改为保存 `QMetaObject::Connection`，连到 `GuiDocumentView::viewChanged`，析构时断开
+   （测试用的假视图没有 QObject，跳过）。
+5. **修改实体属性的多行文字分支**：仍把旧版 `ActionModifyMText` 叠在命令之上，结束后回到
+   本命令；第⑦批迁到 `ext.text` 后改为启动命令。
+6. **测试**：新增 `test_modify_commands`（19 例：注册与桥接、15 个命令的第一步提示与右键
+   结束、倒角/圆角的选项条与命令行、偏移经选项条改距离后的预览、修剪的按键、修剪与延伸
+   结束后实体恢复可见、多段线节点命令的拾取检查、追加节点、查询距离/角度/面积、打断、
+   修改实体属性、剪贴板为空时粘贴）。夹具的 `UiRecorder` 增加记录偏移选项条与属性对话框。
+
+**与方案的偏差与补充**
+
+1. **原样保留的既有行为**：
+   - `checkCommand` 对 help/close/undo 以外的关键字一律返回真：倒角在前两步输入任何文字都
+     进入"输入长度 1"，命令行设不了长度 2、切换不了修剪；圆角输入任何文字都进入"输入半径"，
+     "trim" 分支到不了（到得了的话会停在一个没有任何处理的状态，代码里注明）；
+   - 修剪只响应小键盘回车（`Qt::Key_Enter`），主键盘回车不切换，按键也不被接受；
+   - 多段线添加节点在"指定插入位置"时右键退回到"指定参考点"，但已选的多段线被清空，下一次
+     单击提示"No Entity found."，要再右键回到第一步；
+   - 删除节点的事务名是"Append polyline point"；追加节点在任何一步右键都直接结束；
+   - 粘贴原先没有设置 Action 类型，结束时不复位正交零点，工具照此设置。
+2. **修正的实体隐藏问题**：修剪、延伸悬停预览时把光标下的原实体设为不可见，原 Action 在
+   修剪右键退回、两者右键或 Esc 结束时都不恢复，这个实体一直不可见（延伸还因此不再能拾取
+   它）。现在退回、结束时恢复可见。
+3. **单个偏移的提示**：原 Action 只在开始时显示一次"Choose the original entity"，现在离开
+   画布再回来时也重新显示。
+
+提交④验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 223 例）；`check_layering.py` 通过；安装后程序能启动。交互回归清单
+新增 D25–D34，尚待手工核对。

@@ -9,6 +9,7 @@ yicad_add_test(interaction
         test_zoom_pan_tool.cpp
         test_draw_line_commands.cpp
         test_draw_curve_commands.cpp
+        test_modify_commands.cpp
         test_select_tool.cpp
         test_legacy_action_tool.cpp
         test_command_registry.cpp

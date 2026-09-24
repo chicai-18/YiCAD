@@ -20,7 +20,7 @@
 
 #include "UIBevelOptions.h"
 
-#include "ActionModifyBevel.h"
+#include "ModifyBevelCommand.h"
 
 #include "ui_UIBevelOptions.h"
 #include "DmSettings.h"
@@ -58,20 +58,19 @@ void UIBevelOptions::saveSettings()
     DMSETTINGS->endGroup();
 }
 
-void UIBevelOptions::setAction(ActionInterface* a, bool update)
+void UIBevelOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-    if (a && a->getEntityType() == DM::ActionModifyBevel)
+    command = dynamic_cast<ModifyBevelCommand*>(c);
+    if (command)
     {
-        action = static_cast<ActionModifyBevel*>(a);
-
         QString sd1;
         QString sd2;
         QString st;
         if (update)
         {
-            sd1 = QString("%1").arg(action->getLength1());
-            sd2 = QString("%1").arg(action->getLength2());
-            st = QString("%1").arg(static_cast<int>(action->isTrimOn()));
+            sd1 = QString("%1").arg(command->length1());
+            sd2 = QString("%1").arg(command->length2());
+            st = QString("%1").arg(static_cast<int>(command->isTrimOn()));
         }
         else
         {
@@ -85,19 +84,15 @@ void UIBevelOptions::setAction(ActionInterface* a, bool update)
         ui->leLength2->setText(sd2);
         ui->cbTrim->setChecked(st == "1");
     }
-    else
-    {
-        action = nullptr;
-    }
 }
 
-/// @brief 将界面数据更新到 Action
+/// @brief 将界面数据更新到命令
 void UIBevelOptions::updateData()
 {
-    if (action)
+    if (command)
     {
-        action->setTrim(ui->cbTrim->isChecked());
-        action->setLength1(Math2d::eval(ui->leLength1->text()));
-        action->setLength2(Math2d::eval(ui->leLength2->text()));
+        command->setTrim(ui->cbTrim->isChecked());
+        command->setLength1(Math2d::eval(ui->leLength1->text()));
+        command->setLength2(Math2d::eval(ui->leLength2->text()));
     }
 }

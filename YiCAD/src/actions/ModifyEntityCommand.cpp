@@ -1,0 +1,112 @@
+/**
+ * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
+ * Copyright (C) 2024-2026 YiCAD Contributors
+ *
+ * This file is part of the YiCAD project.
+ *
+ * YiCAD is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * YiCAD is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// @file ModifyEntityCommand.cpp
+/// @brief 修改实体属性命令 modify.entity，取代原 ActionModifyEntity：单击实体，弹出它的属性
+///        对话框；多行文字进入属性编辑
+
+#include <memory>
+
+#include <QCoreApplication>
+#include <QMouseEvent>
+
+#include "ActionModifyMText.h"
+#include "BasePlaceTool.h"
+#include "CommandRegistry.h"
+#include "DmMText.h"
+#include "GuiDialogFactory.h"
+#include "IDocumentView.h"
+#include "ISnapService.h"
+#include "PlaceCommand.h"
+
+namespace
+{
+/// @brief 修改实体属性命令；交互由 ModifyEntityTool 驱动
+class ModifyEntityCommand : public PlaceCommand
+{
+    Q_DECLARE_TR_FUNCTIONS(ModifyEntityCommand)
+
+public:
+    /// @brief 修改实体：多行文字进入属性编辑，其余弹出属性对话框
+    void modify(DmEntity* entity)
+    {
+        if (entity->getEntityType() == DM::EntityMText)
+        {
+            // 多行文字的属性编辑仍是旧版 Action，叠在本命令之上，结束后回到本命令
+            // （与原先一致；第⑦批迁到 ext.text 后改为启动命令）
+            ActionModifyMText* action = new ActionModifyMText(document(), view());
+            action->setText(static_cast<DmMText*>(entity));
+            view()->setCurrentAction(action);
+            return;
+        }
+        GUIDIALOGFACTORY->requestModifyEntityDialog(entity);
+    }
+
+protected:
+    std::unique_ptr<BasePlaceTool> createTool() override;
+};
+
+/// @brief 修改实体属性工具：只有一步
+class ModifyEntityTool : public BasePlaceTool
+{
+public:
+    ModifyEntityTool(ModifyEntityCommand& command, DmDocument* doc, IDocumentView* view)
+        : BasePlaceTool(command, doc, view)
+        , m_command(command)
+    {
+    }
+
+    std::optional<DM::CursorType> getCursor() const override { return DM::SelectCursor; }
+
+protected:
+    void updateHints() override
+    {
+        GUIDIALOGFACTORY->updateMouseWidget(ModifyEntityCommand::tr("Click on entity to modify"),
+                                            ModifyEntityCommand::tr("Cancel"));
+    }
+
+    void onMouseRelease(QMouseEvent* e) override
+    {
+        if (e->button() == Qt::RightButton)
+        {
+            stepBack();
+            return;
+        }
+        DmEntity* entity = snapper()->catchEntity(e);
+        if (entity)
+        {
+            entity->setSelected(true);
+            view()->emitSelectedChanged();
+            m_command.modify(entity);
+        }
+    }
+
+private:
+    ModifyEntityCommand& m_command;
+};
+
+std::unique_ptr<BasePlaceTool> ModifyEntityCommand::createTool()
+{
+    return std::make_unique<ModifyEntityTool>(*this, document(), view());
+}
+
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionModifyEntity, QStringLiteral("modify.entity"), exclusiveCommandFactory<ModifyEntityCommand>());
+}  // namespace

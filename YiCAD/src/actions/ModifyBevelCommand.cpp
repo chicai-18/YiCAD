@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Copyright (c) 2011-2018 by Andrew Mustun. All rights reserved.
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
@@ -18,82 +18,132 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+/// @file ModifyBevelCommand.cpp
+/// @brief ModifyBevelCommand 与倒角工具的实现；工具的事件处理从原 ActionModifyBevel 机械改写而来
 
-/// @file ActionModifyBevel.cpp
-/// @brief 倒角修改 Action 类的实现
+#include "ModifyBevelCommand.h"
 
-#include "ActionModifyBevel.h"
-#include "CommandRegistry.h"
+#include <memory>
 
-#include <QAction>
 #include <QMouseEvent>
 
-#include "ArcData.h"
+#include "BasePlaceTool.h"
+#include "CommandPreview.h"
+#include "CommandRegistry.h"
+#include "Commands.h"
 #include "DmAtomicEntity.h"
-#include "DmArc.h"
-#include "DmCircle.h"
+#include "DmDocument.h"
 #include "DmLine.h"
-#include "DmSpline.h"
-#include "DmEllipse.h"
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
+#include "ISnapService.h"
 #include "Information.h"
 #include "LineData.h"
 #include "Math2d.h"
 #include "Modification.h"
-#include "Preview.h"
 #include "Transaction.h"
 
-/// @brief 端点判定距离阈值
-constexpr double BEVEL_ENDPOINT_TOLERANCE = 1e-10;
-
-/// @brief 内部点数据结构，保存倒角计算所需的坐标和数据
-struct ActionModifyBevel::Points
+namespace
 {
-    DmVector coord1;
-    DmVector coord2;
-    double length1 = 1.0;
-    double length2 = 1.0;
-    bool trim = true;
+constexpr double BEVEL_ENDPOINT_TOLERANCE = 1e-10; ///< 端点判定距离阈值
+
+/// @brief 倒角工具：选第一个实体，再选第二个实体后倒角；可连续倒角
+class ModifyBevelTool : public BasePlaceTool
+{
+public:
+    /// @brief 交互状态
+    enum Status
+    {
+        SetEntity1, ///< 选择第一个实体
+        SetEntity2, ///< 选择第二个实体
+        SetLength1, ///< 在命令行中设置长度1
+        SetLength2  ///< 在命令行中设置长度2
+    };
+
+    ModifyBevelTool(ModifyBevelCommand& command, DmDocument* doc, IDocumentView* view)
+        : BasePlaceTool(command, doc, view)
+        , m_command(command)
+    {
+        clearSnapMode();
+    }
+
+    std::optional<DM::CursorType> getCursor() const override { return DM::SelectCursor; }
+
+protected:
+    void updateHints() override;
+    void onMouseMove(QMouseEvent* e) override;
+    void onMouseRelease(QMouseEvent* e) override;
+    void onCommand(GuiCommandEvent* e) override;
+    /// @brief 原 Action 在析构时取消高亮
+    void onFinish() override { unhighlightEntity(); }
+
+private:
+    /// @brief 倒角计算结果
+    struct BevelResult
+    {
+        bool valid = false;
+        DmVector point1;       ///< entity1 上的倒角点（距交点 length1）
+        DmVector point2;       ///< entity2 上的倒角点（距交点 length2）
+        DmVector intersection; ///< 两实体交点
+    };
+
+    /// @brief 两个实体上的点击位置
+    struct Points
+    {
+        DmVector coord1;
+        DmVector coord2;
+    };
+
+    /// @brief 原 Action 只拾取实体，不捕捉点：初始化捕捉器之后清空捕捉方式
+    void clearSnapMode()
+    {
+        snapper()->getSnapMode()->clear();
+        snapper()->getSnapMode()->restriction = DM::RestrictNothing;
+    }
+
+    /// @brief 回到某一状态（原 init(status)）；status < 0 时结束命令
+    void init(int s)
+    {
+        if (s < 0)
+        {
+            command().finish();
+            return;
+        }
+        restart(s);
+        clearSnapMode();
+    }
+
+    BevelResult computeBevel(const DmVector& ref1, DmAtomicEntity* e1, const DmVector& ref2, DmAtomicEntity* e2,
+                             double l1, double l2) const;
+    void trigger();
+    DmVector setmousePoint(const DmVector& m_p, DmEntity* e);
+    QStringList availableCommands() const;
+    void unhighlightEntity();
+
+    ModifyBevelCommand& m_command;
+    DmEntity* entity1 = nullptr;         ///< 第一个选中实体
+    DmEntity* entity2 = nullptr;         ///< 第二个选中实体
+    Points m_points;                     ///< 两个实体上的点击位置
+    Status lastStatus = SetEntity1;      ///< 进入长度设置前的上一个状态
+    bool isEndPt = false;                ///< 鼠标是否在实体端点附近
+    DmEntity* prevHighlighted = nullptr; ///< 上次高亮的实体
 };
+}  // namespace
 
-ActionModifyBevel::ActionModifyBevel(DmDocument* doc, IDocumentView* docView)
-    : PreviewActionInterface("Bevel Entities", doc, docView)
-    , entity1(nullptr)
-    , entity2(nullptr)
-    , pPoints(new Points{})
-    , lastStatus(SetEntity1)
-{
-    actionType = DM::ActionModifyBevel;
-}
-
-ActionModifyBevel::~ActionModifyBevel()
-{
-    unhighlightEntity();
-}
-
-void ActionModifyBevel::unhighlightEntity()
+void ModifyBevelTool::unhighlightEntity()
 {
     if (prevHighlighted)
     {
         prevHighlighted->setHighlighted(false);
-        docView->specifyDocumentModified();
-        docView->redraw();
+        view()->specifyDocumentModified();
+        view()->redraw();
         prevHighlighted = nullptr;
     }
 }
 
-void ActionModifyBevel::init(int status)
-{
-    ActionInterface::init(status);
-
-    getSnapMode()->clear();
-    getSnapMode()->restriction = DM::RestrictNothing;
-}
-
-ActionModifyBevel::BevelResult ActionModifyBevel::computeBevel(
+ModifyBevelTool::BevelResult ModifyBevelTool::computeBevel(
     const DmVector& ref1, DmAtomicEntity* e1,
     const DmVector& ref2, DmAtomicEntity* e2,
     double l1, double l2) const
@@ -164,7 +214,7 @@ ActionModifyBevel::BevelResult ActionModifyBevel::computeBevel(
     return result;
 }
 
-void ActionModifyBevel::trigger()
+void ModifyBevelTool::trigger()
 {
     if (!entity1 || entity1->isContainer() || !entity2 || entity2->isContainer())
         return;
@@ -177,22 +227,22 @@ void ActionModifyBevel::trigger()
     if (!pe1 || !pe2)
         return;
 
-    deletePreview();
+    m_command.preview().clear();
 
-    double l1 = pPoints->length1;
-    double l2 = pPoints->length2;
-    bool trim = pPoints->trim;
+    double l1 = m_command.length1();
+    double l2 = m_command.length2();
+    bool trim = m_command.isTrimOn();
 
-    BevelResult br = computeBevel(pPoints->coord1, pe1, pPoints->coord2, pe2, l1, l2);
+    BevelResult br = computeBevel(m_points.coord1, pe1, m_points.coord2, pe2, l1, l2);
     if (!br.valid)
         return;
 
     DmVectorSolutions sol2 = Information::getIntersection(pe1, pe2, false);
 
-    Transaction t(tr("Bevel").toStdString(), pDocument);
+    Transaction t(ModifyBevelCommand::tr("Bevel").toStdString(), document());
     t.start();
 
-    auto entTable = pDocument->getEntityTable();
+    auto entTable = document()->getEntityTable();
 
     if (trim)
     {
@@ -202,8 +252,8 @@ void ActionModifyBevel::trigger()
         trimmed2->setParent(nullptr);
 
         // 裁剪 entity1
-        DmVector is2 = sol2.getClosest(pPoints->coord2);
-        DM::Ending ending1 = pe1->getTrimPoint(pPoints->coord1, is2);
+        DmVector is2 = sol2.getClosest(m_points.coord2);
+        DM::Ending ending1 = pe1->getTrimPoint(m_points.coord1, is2);
         switch (ending1)
         {
         case DM::EndingStart:
@@ -217,8 +267,8 @@ void ActionModifyBevel::trigger()
         }
 
         // 裁剪 entity2
-        is2 = sol2.getClosest(pPoints->coord1);
-        DM::Ending ending2 = pe2->getTrimPoint(pPoints->coord2, is2);
+        is2 = sol2.getClosest(m_points.coord1);
+        DM::Ending ending2 = pe2->getTrimPoint(m_points.coord2, is2);
         switch (ending2)
         {
         case DM::EndingStart:
@@ -245,16 +295,16 @@ void ActionModifyBevel::trigger()
     t.commit();
 
     unhighlightEntity();
-    pPoints->coord1 = DmVector(false);
+    m_points.coord1 = DmVector(false);
     entity1 = nullptr;
-    pPoints->coord2 = DmVector(false);
+    m_points.coord2 = DmVector(false);
     entity2 = nullptr;
     setStatus(SetEntity1);
 
-    GUIDIALOGFACTORY->updateSelectionWidget(pDocument->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
 }
 
-DmVector ActionModifyBevel::setmousePoint(const DmVector& m_p, DmEntity* e)
+DmVector ModifyBevelTool::setmousePoint(const DmVector& m_p, DmEntity* e)
 {
     DmVector c_p;
     isEndPt = false;
@@ -276,12 +326,12 @@ DmVector ActionModifyBevel::setmousePoint(const DmVector& m_p, DmEntity* e)
     return c_p;
 }
 
-void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
+void ModifyBevelTool::onMouseMove(QMouseEvent* e)
 {
-    DmVector mouse = docView->toGraph(e->x(), e->y());
-    DmEntity* se = catchEntity(e, { DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse, DM::EntitySpline }, DM::ResolveAllButTextImage);
+    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmEntity* se = snapper()->catchEntity(e, { DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse, DM::EntitySpline }, DM::ResolveAllButTextImage);
 
-    switch (getStatus())
+    switch (status())
     {
     case SetEntity1:
     {
@@ -292,12 +342,12 @@ void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
             if (entity1)
             {
                 entity1->setHighlighted(true);
-                docView->specifyDocumentModified();
-                docView->redraw();
+                view()->specifyDocumentModified();
+                view()->redraw();
                 prevHighlighted = entity1;
             }
         }
-        pPoints->coord1 = setmousePoint(mouse, entity1);
+        m_points.coord1 = setmousePoint(mouse, entity1);
     }
     break;
 
@@ -308,15 +358,15 @@ void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
             if (prevHighlighted && prevHighlighted != entity1)
             {
                 prevHighlighted->setHighlighted(false);
-                docView->specifyDocumentModified();
-                docView->redraw();
+                view()->specifyDocumentModified();
+                view()->redraw();
             }
             entity2 = se;
             if (entity2 && entity2 != entity1)
             {
                 entity2->setHighlighted(true);
-                docView->specifyDocumentModified();
-                docView->redraw();
+                view()->specifyDocumentModified();
+                view()->redraw();
                 prevHighlighted = entity2;
             }
             else
@@ -328,9 +378,9 @@ void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
         {
             entity2 = se;
         }
-        pPoints->coord2 = setmousePoint(mouse, entity2);
+        m_points.coord2 = setmousePoint(mouse, entity2);
 
-        deletePreview();
+        m_command.preview().clear();
         if (entity1 && entity2 && entity2 != entity1 && !entity2->isContainer() && !isEndPt &&
             Modification::isCutableEntity(entity1) && Modification::isCutableEntity(entity2))
         {
@@ -338,14 +388,14 @@ void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
             auto pe2 = dynamic_cast<DmAtomicEntity*>(entity2);
             if (pe1 && pe2)
             {
-                BevelResult br = computeBevel(pPoints->coord1, pe1, pPoints->coord2, pe2, pPoints->length1, pPoints->length2);
+                BevelResult br = computeBevel(m_points.coord1, pe1, m_points.coord2, pe2, m_command.length1(), m_command.length2());
                 if (br.valid)
                 {
                     // 预览倒角线
                     DmLine* previewLine = new DmLine(nullptr, LineData(br.point1, br.point2));
-                    preview->addEntity(previewLine);
+                    m_command.preview().entities().addEntity(previewLine);
 
-                    if (pPoints->trim)
+                    if (m_command.isTrimOn())
                     {
                         DmAtomicEntity* t1 = static_cast<DmAtomicEntity*>(pe1->clone());
                         DmAtomicEntity* t2 = static_cast<DmAtomicEntity*>(pe2->clone());
@@ -354,27 +404,27 @@ void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
 
                         DmVectorSolutions sol2 = Information::getIntersection(pe1, pe2, false);
 
-                        DmVector is2 = sol2.getClosest(pPoints->coord2);
-                        DM::Ending e1 = pe1->getTrimPoint(pPoints->coord1, is2);
+                        DmVector is2 = sol2.getClosest(m_points.coord2);
+                        DM::Ending e1 = pe1->getTrimPoint(m_points.coord1, is2);
                         if (e1 == DM::EndingStart)
                             t1->trimStartpoint(br.point1);
                         else if (e1 == DM::EndingEnd)
                             t1->trimEndpoint(br.point1);
 
-                        is2 = sol2.getClosest(pPoints->coord1);
-                        DM::Ending e2 = pe2->getTrimPoint(pPoints->coord2, is2);
+                        is2 = sol2.getClosest(m_points.coord1);
+                        DM::Ending e2 = pe2->getTrimPoint(m_points.coord2, is2);
                         if (e2 == DM::EndingStart)
                             t2->trimStartpoint(br.point2);
                         else if (e2 == DM::EndingEnd)
                             t2->trimEndpoint(br.point2);
 
-                        preview->addEntity(t1);
-                        preview->addEntity(t2);
+                        m_command.preview().entities().addEntity(t1);
+                        m_command.preview().entities().addEntity(t2);
                     }
                 }
             }
         }
-        drawPreview();
+        m_command.preview().draw();
     }
     break;
 
@@ -383,19 +433,19 @@ void ActionModifyBevel::mouseMoveEvent(QMouseEvent* e)
     }
 }
 
-void ActionModifyBevel::mouseReleaseEvent(QMouseEvent* e)
+void ModifyBevelTool::onMouseRelease(QMouseEvent* e)
 {
-    DmVector mouse = docView->toGraph(e->x(), e->y());
-    DmEntity* se = catchEntity(e, { DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse, DM::EntitySpline }, DM::ResolveAll);
+    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmEntity* se = snapper()->catchEntity(e, { DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse, DM::EntitySpline }, DM::ResolveAll);
 
     if (e->button() == Qt::LeftButton)
     {
-        switch (getStatus())
+        switch (status())
         {
         case SetEntity1:
         {
             entity1 = se;
-            pPoints->coord1 = setmousePoint(mouse, entity1);
+            m_points.coord1 = setmousePoint(mouse, entity1);
             if (entity1 && !entity1->isContainer() && !isEndPt && Modification::isCutableEntity(entity1))
             {
                 setStatus(SetEntity2);
@@ -406,7 +456,7 @@ void ActionModifyBevel::mouseReleaseEvent(QMouseEvent* e)
         case SetEntity2:
         {
             entity2 = se;
-            pPoints->coord2 = setmousePoint(mouse, entity2);
+            m_points.coord2 = setmousePoint(mouse, entity2);
             if (entity2 && entity2 != entity1 && !entity2->isContainer() && !isEndPt && Modification::isCutableEntity(entity2))
             {
                 trigger();
@@ -421,44 +471,44 @@ void ActionModifyBevel::mouseReleaseEvent(QMouseEvent* e)
     else if (e->button() == Qt::RightButton)
     {
         unhighlightEntity();
-        deletePreview();
-        init(getStatus() - 1);
+        m_command.preview().clear();
+        init(status() - 1);
     }
 }
 
-void ActionModifyBevel::commandEvent(GuiCommandEvent* e)
+void ModifyBevelTool::onCommand(GuiCommandEvent* e)
 {
     QString c = e->getCommand().toLower();
 
-    if (checkCommand("help", c))
+    if (Commands::checkCommand("help", c))
     {
-        GUIDIALOGFACTORY->commandMessage(msgAvailableCommands() + getAvailableCommands().join(", "));
+        GUIDIALOGFACTORY->commandMessage(Commands::msgAvailableCommands() + availableCommands().join(", "));
         return;
     }
 
-    switch (getStatus())
+    switch (status())
     {
     case SetEntity1:
     case SetEntity2:
-        if (checkCommand("length1", c))
+        if (Commands::checkCommand("length1", c))
         {
             e->accept();
-            deletePreview();
-            lastStatus = (Status)getStatus();
+            m_command.preview().clear();
+            lastStatus = (Status)status();
             setStatus(SetLength1);
         }
-        else if (checkCommand("length2", c))
+        else if (Commands::checkCommand("length2", c))
         {
             e->accept();
-            deletePreview();
-            lastStatus = (Status)getStatus();
+            m_command.preview().clear();
+            lastStatus = (Status)status();
             setStatus(SetLength2);
         }
-        else if (checkCommand("trim", c))
+        else if (Commands::checkCommand("trim", c))
         {
             e->accept();
-            pPoints->trim = !pPoints->trim;
-            GUIDIALOGFACTORY->requestOptions(this, true, true);
+            m_command.setTrim(!m_command.isTrimOn());
+            GUIDIALOGFACTORY->requestCommandOptions(&m_command, true, true);
         }
         break;
 
@@ -469,13 +519,13 @@ void ActionModifyBevel::commandEvent(GuiCommandEvent* e)
         if (ok)
         {
             e->accept();
-            pPoints->length1 = l;
+            m_command.setLength1(l);
         }
         else
         {
-            GUIDIALOGFACTORY->commandMessage(tr("Not a valid expression"));
+            GUIDIALOGFACTORY->commandMessage(ModifyBevelCommand::tr("Not a valid expression"));
         }
-        GUIDIALOGFACTORY->requestOptions(this, true, true);
+        GUIDIALOGFACTORY->requestCommandOptions(&m_command, true, true);
         setStatus(lastStatus);
     }
     break;
@@ -487,13 +537,13 @@ void ActionModifyBevel::commandEvent(GuiCommandEvent* e)
         if (ok)
         {
             e->accept();
-            pPoints->length2 = l;
+            m_command.setLength2(l);
         }
         else
         {
-            GUIDIALOGFACTORY->commandMessage(tr("Not a valid expression"));
+            GUIDIALOGFACTORY->commandMessage(ModifyBevelCommand::tr("Not a valid expression"));
         }
-        GUIDIALOGFACTORY->requestOptions(this, true, true);
+        GUIDIALOGFACTORY->requestCommandOptions(&m_command, true, true);
         setStatus(lastStatus);
     }
     break;
@@ -503,88 +553,24 @@ void ActionModifyBevel::commandEvent(GuiCommandEvent* e)
     }
 }
 
-void ActionModifyBevel::setLength1(double l1)
+void ModifyBevelTool::updateHints()
 {
-    pPoints->length1 = l1;
-}
-
-double ActionModifyBevel::getLength1() const
-{
-    return pPoints->length1;
-}
-
-void ActionModifyBevel::setLength2(double l2)
-{
-    pPoints->length2 = l2;
-}
-
-double ActionModifyBevel::getLength2() const
-{
-    return pPoints->length2;
-}
-
-void ActionModifyBevel::setTrim(bool t)
-{
-    pPoints->trim = t;
-}
-
-bool ActionModifyBevel::isTrimOn() const
-{
-    return pPoints->trim;
-}
-
-QStringList ActionModifyBevel::getAvailableCommands()
-{
-    QStringList cmd;
-
-    switch (getStatus())
+    switch (status())
     {
     case SetEntity1:
-    case SetEntity2:
-        cmd += command("length1");
-        cmd += command("length2");
-        cmd += command("trim");
-        break;
-
-    default:
-        break;
-    }
-
-    return cmd;
-}
-
-void ActionModifyBevel::showOptions()
-{
-    ActionInterface::showOptions();
-
-    GUIDIALOGFACTORY->requestOptions(this, true);
-}
-
-void ActionModifyBevel::hideOptions()
-{
-    ActionInterface::hideOptions();
-
-    GUIDIALOGFACTORY->requestOptions(this, false);
-}
-
-void ActionModifyBevel::updateMouseButtonHints()
-{
-    switch (getStatus())
-    {
-    case SetEntity1:
-        GUIDIALOGFACTORY->updateMouseWidget(tr("Specify first entity"), tr("Back"));
+        GUIDIALOGFACTORY->updateMouseWidget(ModifyBevelCommand::tr("Specify first entity"), ModifyBevelCommand::tr("Back"));
         break;
 
     case SetEntity2:
-        GUIDIALOGFACTORY->updateMouseWidget(tr("Specify second entity"), tr("Back"));
+        GUIDIALOGFACTORY->updateMouseWidget(ModifyBevelCommand::tr("Specify second entity"), ModifyBevelCommand::tr("Back"));
         break;
 
     case SetLength1:
-        GUIDIALOGFACTORY->updateMouseWidget(tr("Enter length 1:"), tr("Cancel"));
+        GUIDIALOGFACTORY->updateMouseWidget(ModifyBevelCommand::tr("Enter length 1:"), ModifyBevelCommand::tr("Cancel"));
         break;
 
     case SetLength2:
-        GUIDIALOGFACTORY->updateMouseWidget(tr("Enter length 2:"), tr("Cancel"));
+        GUIDIALOGFACTORY->updateMouseWidget(ModifyBevelCommand::tr("Enter length 2:"), ModifyBevelCommand::tr("Cancel"));
         break;
 
     default:
@@ -592,16 +578,41 @@ void ActionModifyBevel::updateMouseButtonHints()
         break;
     }
 }
-
-void ActionModifyBevel::updateMouseCursor()
+QStringList ModifyBevelTool::availableCommands() const
 {
-    docView->setMouseCursor(DM::SelectCursor);
+    QStringList cmd;
+    switch (status())
+    {
+    case SetEntity1:
+    case SetEntity2:
+        cmd += Commands::command("length1");
+        cmd += Commands::command("length2");
+        cmd += Commands::command("trim");
+        break;
+
+    default:
+        break;
+    }
+    return cmd;
+}
+
+std::unique_ptr<BasePlaceTool> ModifyBevelCommand::createTool()
+{
+    return std::make_unique<ModifyBevelTool>(*this, document(), view());
+}
+
+void ModifyBevelCommand::showOptions()
+{
+    GUIDIALOGFACTORY->requestCommandOptions(this, true);
+}
+
+void ModifyBevelCommand::hideOptions()
+{
+    GUIDIALOGFACTORY->requestCommandOptions(this, false);
 }
 
 namespace
 {
-const bool g_registered = CommandRegistry::instance().registerLegacyCommand(
-    DM::ActionModifyBevel, QStringLiteral("modify.bevel"),
-    [](const CommandContext& ctx) -> ActionInterface*
-    { return new ActionModifyBevel(ctx.document, ctx.view); });
+const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
+    DM::ActionModifyBevel, QStringLiteral("modify.bevel"), exclusiveCommandFactory<ModifyBevelCommand>());
 }  // namespace

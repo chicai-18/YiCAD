@@ -20,7 +20,7 @@
 
 #include "UIRoundOptions.h"
 
-#include "ActionModifyRound.h"
+#include "ModifyRoundCommand.h"
 #include "DmSettings.h"
 #include "Math2d.h"
 #include "ui_UIRoundOptions.h"
@@ -53,18 +53,17 @@ void UIRoundOptions::saveSettings()
 	DMSETTINGS->endGroup();
 }
 
-void UIRoundOptions::setAction(ActionInterface* a, bool update)
+void UIRoundOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	if (a && a->getEntityType() == DM::ActionModifyRound)
+	command = dynamic_cast<ModifyRoundCommand*>(c);
+	if (command)
 	{
-		action = static_cast<ActionModifyRound*>(a);
-
 		QString sr;
 		QString st;
 		if (update)
 		{
-			sr = QString("%1").arg(action->getRadius());
-			st = QString("%1").arg((int)action->isTrimOn());
+			sr = QString("%1").arg(command->radius());
+			st = QString("%1").arg((int)command->isTrimOn());
 		}
 		else
 		{
@@ -76,17 +75,13 @@ void UIRoundOptions::setAction(ActionInterface* a, bool update)
 		ui->leRadius->setText(sr);
 		ui->cbTrim->setChecked(st == "1");
 	}
-	else
-	{
-		action = nullptr;
-	}
 }
 
 void UIRoundOptions::updateData()
 {
-	if (action)
+	if (command)
 	{
-		action->setTrim(ui->cbTrim->isChecked());
-		action->setRadius(Math2d::eval(ui->leRadius->text()));
+		command->setTrim(ui->cbTrim->isChecked());
+		command->setRadius(Math2d::eval(ui->leRadius->text()));
 	}
 }

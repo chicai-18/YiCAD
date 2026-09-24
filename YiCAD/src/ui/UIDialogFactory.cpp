@@ -431,13 +431,6 @@ void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool upda
 		requestInsertOptions(action, on, update);
 		break;
 
-	case DM::ActionModifyBevel:
-		requestBevelOptions(action, on, update);
-		break;
-
-	case DM::ActionModifyRound:
-		requestRoundOptions(action, on, update);
-		break;
 	default:
 		break;
 	}
@@ -819,6 +812,8 @@ void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on,
 		{QStringLiteral("draw.cloud_line_polygon"), &UIDialogFactory::requestCloudLineOptions},
 		{QStringLiteral("draw.cloud_line_free"), &UIDialogFactory::requestCloudLineOptions},
 		{QStringLiteral("draw.image"), &UIDialogFactory::requestImageOptions},
+		{QStringLiteral("modify.bevel"), &UIDialogFactory::requestBevelOptions},
+		{QStringLiteral("modify.round"), &UIDialogFactory::requestRoundOptions},
 	};
 	auto it = builtins.find(command->commandId());
 	if (it != builtins.end())
@@ -912,7 +907,7 @@ void UIDialogFactory::requestSnapDistOptions(double& dist, bool on)
 }
 
 // Shows a widget for beveling options.
-void UIDialogFactory::requestBevelOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestBevelOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -926,7 +921,7 @@ void UIDialogFactory::requestBevelOptions(ActionInterface* action, bool on, bool
 		if (on)
 		{
 			toolWidget = new UIBevelOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
@@ -935,7 +930,7 @@ void UIDialogFactory::requestBevelOptions(ActionInterface* action, bool on, bool
 }
 
 // Shows a widget for rounding options.
-void UIDialogFactory::requestRoundOptions(ActionInterface* action, bool on, bool update)
+void UIDialogFactory::requestRoundOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (optionWidget)
 	{
@@ -949,7 +944,7 @@ void UIDialogFactory::requestRoundOptions(ActionInterface* action, bool on, bool
 		if (on)
 		{
 			toolWidget = new UIRoundOptions(optionWidget);
-			toolWidget->setAction(action, update);
+			toolWidget->setCommand(command, update);
 			toolWidget->show();
 			optionWidget->resize(toolWidget->width(), 23);
 			optionWidget->show();
