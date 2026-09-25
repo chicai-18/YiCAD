@@ -20,6 +20,8 @@
 
 #include "UIPolylineOptions.h"
 
+#include <QRegularExpressionValidator>
+
 #include "DrawPolylineCommand.h"
 #include "DmSettings.h"
 #include "Math2d.h"
@@ -35,8 +37,8 @@ UIPolylineOptions::UIPolylineOptions(QWidget* parent, Qt::WindowFlags fl)
 	ui->setupUi(this);
 
 	// 起终点线宽只允许输入数值
-	ui->startWeight->setValidator(new QRegExpValidator(QRegExp("[0-9]+$")));
-	ui->endWeight->setValidator(new QRegExpValidator(QRegExp("[0-9]+$")));
+	ui->startWeight->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]+$")));
+	ui->endWeight->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]+$")));
 
 	connect(ui->startWeight, SIGNAL(editingFinished()), this, SLOT(updateStartLineWeight()));
 	connect(ui->endWeight, SIGNAL(editingFinished()), this, SLOT(updateEndLineWeight()));

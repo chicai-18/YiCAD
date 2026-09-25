@@ -487,7 +487,7 @@ void UIView::tabletEvent(QTabletEvent* e)
 {
     if (testAttribute(Qt::WA_UnderMouse))
     {
-        switch (e->device())
+        switch (e->deviceType())
         {
         case QTabletEvent::Eraser:
             if (e->type() == QEvent::TabletRelease)
@@ -523,7 +523,7 @@ void UIView::tabletEvent(QTabletEvent* e)
             }
             else if (e->type() == QEvent::TabletMove)
             {
-                QMouseEvent ev(QEvent::MouseMove, e->pos(), Qt::NoButton, 0, Qt::NoModifier);
+                QMouseEvent ev(QEvent::MouseMove, e->pos(), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
                 mouseMoveEvent(&ev);
             }
             break;
@@ -583,7 +583,8 @@ void UIView::wheelEvent(QWheelEvent* e)
     const double TRACKPAD_ZOOM_SCALE = 100.;     // 触控板缩放的每像素百分比
     const int TRACKPAD_ANGLE_DIVISOR = 4;        // 触控板角度增量除数
 
-    DmVector mouse = toGraph(e->x(), e->y());
+    const QPoint pos = e->position().toPoint();
+    DmVector mouse = toGraph(pos.x(), pos.y());
     DispatchScope scope(m_pCommandBus.get());
 
     if (getStrDevice() == "Trackpad")
@@ -631,7 +632,10 @@ void UIView::wheelEvent(QWheelEvent* e)
         return;
     }
 
-    if (e->delta() == 0)
+    // 取主方向的角度增量：纵向为主取 y，横向为主取 x，与 Qt 5 的 QWheelEvent::delta() 一致
+    const QPoint angle = e->angleDelta();
+    const int delta = (qAbs(angle.x()) > qAbs(angle.y())) ? angle.x() : angle.y();
+    if (delta == 0)
     {
         // A zero delta event occurs when smooth scrolling is ended. Ignore this
         e->accept();
@@ -645,7 +649,7 @@ void UIView::wheelEvent(QWheelEvent* e)
         bool invZoom = (DMSETTINGS->readNumEntry("/InvertZoomDirection", 0) == 1);
         DMSETTINGS->endGroup();
 
-        if ((e->delta() > 0 && !invZoom) || (e->delta() < 0 && invZoom))
+        if ((delta > 0 && !invZoom) || (delta < 0 && invZoom))
         {
             zoomOut(ZOOM_FACTOR_MOUSE, mouse);
         }
@@ -657,7 +661,7 @@ void UIView::wheelEvent(QWheelEvent* e)
 
     // 缩放后按原位置补发一次移动：基类更新鼠标世界坐标，再交给工具栈
     // （框选框、拖动预览跟上新的缩放）。
-    QMouseEvent event(QEvent::MouseMove, QPoint(e->x(), e->y()), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QMouseEvent event(QEvent::MouseMove, QPointF(pos), e->globalPosition(), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     GuiDocumentView::mouseMoveEvent(&event);
     m_pViewToolControl->mouseMoveEvent(&event);
 

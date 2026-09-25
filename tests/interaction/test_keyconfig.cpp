@@ -199,3 +199,14 @@ TEST(KeyconfigTest, 默认配置里的命令都已注册)
         }
     }
 }
+
+TEST(KeyconfigTest, 命令行计算器取表达式)
+{
+    // 阶段 5：QRegExp 换成 QRegularExpression。QRegExp 的 \s 按 QChar::isSpace 判断，
+    // 包括全角空格 U+3000，换过去要带 UseUnicodePropertiesOption 才保持一致。
+    EXPECT_EQ(Commands::filterCliCal(QStringLiteral("cal 1+2")), QStringLiteral("1+2"));
+    EXPECT_EQ(Commands::filterCliCal(QStringLiteral("  calculate   3*4 ")), QStringLiteral("3*4"));
+    EXPECT_EQ(Commands::filterCliCal(QString::fromUtf8("cal　5-1")), QStringLiteral("5-1"));
+    EXPECT_EQ(Commands::filterCliCal(QStringLiteral("cal")), QString());
+    EXPECT_EQ(Commands::filterCliCal(QStringLiteral("line 1,2")), QString());
+}

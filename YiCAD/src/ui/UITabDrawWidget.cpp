@@ -28,6 +28,7 @@
 #include <QSvgGenerator>
 #include <QHBoxLayout>
 #include <QMdiSubWindow>
+#include <QRegularExpression>
 
 #include "DmDocument.h"
 #include "GuiDocumentView.h"
@@ -653,7 +654,7 @@ void UITabDrawWidget::slotFileExportImage()
 			int i = filter.indexOf("(*.");
 			if (i != -1)
 			{
-				int i2 = filter.indexOf(QRegExp("[) ]"), i);
+				int i2 = filter.indexOf(QRegularExpression("[) ]"), i);
 				format = filter.mid(i + 3, i2 - (i + 3));
 				format = format.toUpper();
 			}
@@ -899,7 +900,7 @@ bool UITabDrawWidget::slotFileExport(const QString& name, const QString& format,
 	bool ret = false;
 
 	// set vars for normal pictures and vectors (svg)
-	QPixmap picture = QPixmap::grabWidget(w->getDocumentView(), w->getDocumentView()->rect());
+	QPixmap picture = w->getDocumentView()->grab(w->getDocumentView()->rect());
 
 	// end the picture output
 	if (format.toLower() != "svg")

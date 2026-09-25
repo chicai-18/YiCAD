@@ -26,7 +26,6 @@
 #include <unordered_map>
 
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QAction>
 #include <QMouseEvent>
 #include <QOpenGLContext>

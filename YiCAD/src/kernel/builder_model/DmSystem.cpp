@@ -674,23 +674,23 @@ QStringList DmSystem::getDirectoryList(const QString& _subDirectory)
 	DMSETTINGS->beginGroup("/Paths");
 	if (subDirectory == "fonts")
 	{
-		dirList += (DMSETTINGS->readEntry("/Fonts", "")).split(QRegExp("[;]"), Qt::SkipEmptyParts);
+		dirList += (DMSETTINGS->readEntry("/Fonts", "")).split(QLatin1Char(';'), Qt::SkipEmptyParts);
 	}
 	else if (subDirectory == "patterns")
 	{
-		dirList += (DMSETTINGS->readEntry("/Patterns", "")).split(QRegExp("[;]"), Qt::SkipEmptyParts);
+		dirList += (DMSETTINGS->readEntry("/Patterns", "")).split(QLatin1Char(';'), Qt::SkipEmptyParts);
 	}
 	else if (subDirectory.startsWith("scripts"))
 	{
-		dirList += (DMSETTINGS->readEntry("/Scripts", "")).split(QRegExp("[;]"), Qt::SkipEmptyParts);
+		dirList += (DMSETTINGS->readEntry("/Scripts", "")).split(QLatin1Char(';'), Qt::SkipEmptyParts);
 	}
 	else if (subDirectory.startsWith("library"))
 	{
-		dirList += (DMSETTINGS->readEntry("/Library", "")).split(QRegExp("[;]"), Qt::SkipEmptyParts);
+		dirList += (DMSETTINGS->readEntry("/Library", "")).split(QLatin1Char(';'), Qt::SkipEmptyParts);
 	}
 	else if (subDirectory.startsWith("po"))
 	{
-		dirList += (DMSETTINGS->readEntry("/Translations", "")).split(QRegExp("[;]"), Qt::SkipEmptyParts);
+		dirList += (DMSETTINGS->readEntry("/Translations", "")).split(QLatin1Char(';'), Qt::SkipEmptyParts);
 	}
 	DMSETTINGS->endGroup();
 

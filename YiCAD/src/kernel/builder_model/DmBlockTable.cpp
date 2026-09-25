@@ -28,7 +28,7 @@
 #include <iostream>
 #include <algorithm>
 #include <QString>
-#include <QRegExp>
+#include <QRegularExpression>
 
 #include "Debug.h"
 #include "DmBlock.h"
@@ -213,7 +213,7 @@ QString DmBlockTable::newName(const QString& suggestion)
     }
 
     QString name = suggestion;
-    QRegExp const rx(R"(-\d+$)");
+    QRegularExpression const rx(R"(-\d+$)");
     int index = name.lastIndexOf(rx);
     int i = -1;
     if (index > 0)

@@ -20,6 +20,8 @@
 
 #include "FilterJsonIO.h"
 
+#include <QRegularExpression>
+
 #include "DmArc.h"
 #include "DmCircle.h"
 #include "DmDimensionStyle.h"
@@ -977,7 +979,7 @@ DmLineType* FilterJsonIO::jsonToLineType(DmDocument* doc, const nlohmann::json& 
 
 	DmLineType* linetype = new DmLineType(name);
 	QString desp = QString::fromStdWString(json["linetype"]["comment"]);
-	QString outward = desp.replace(QRegExp("[a-zA-Z0-9()]"), "");
+	QString outward = desp.replace(QRegularExpression("[a-zA-Z0-9()]"), "");
 	std::vector<double> pattern;
 	for (auto& d : json["linetype"]["dash"])
 	{

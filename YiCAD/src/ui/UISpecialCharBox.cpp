@@ -20,6 +20,8 @@
 
 #include "UISpecialCharBox.h"
 
+#include <QRegularExpression>
+
 UISpecialCharBox::UISpecialCharBox(QWidget* parent /*= nullptr*/)
     : QComboBox(parent)
 {
@@ -28,7 +30,7 @@ UISpecialCharBox::UISpecialCharBox(QWidget* parent /*= nullptr*/)
 
 void UISpecialCharBox::slotTextActivated(const QString& text)
 {
-    QStringList strs = text.split(QRegExp("\\s"));
+    QStringList strs = text.split(QRegularExpression("\\s", QRegularExpression::UseUnicodePropertiesOption));
     QString last = strs.back();
     QString res{ "" };
     if (last.startsWith("%%"))

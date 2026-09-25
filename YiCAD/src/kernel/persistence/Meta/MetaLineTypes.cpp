@@ -20,6 +20,8 @@
 
 #include "MetaLineTypes.h"
 
+#include <QRegularExpression>
+
 #include "DmLineType.h"
 #include "DmLineTypeTable.h"
 #include "DmDocument.h"
@@ -91,7 +93,7 @@ void MetaLineTypesContainer::restoreXML(XMLReader& reader)
 
 		reader.readElement("LineTypeDesp");
 		QString desp = QString::fromStdString(reader.getAttribute("desp"));
-		QString outward = desp.replace(QRegExp("[a-zA-Z0-9()]"), "");
+		QString outward = desp.replace(QRegularExpression("[a-zA-Z0-9()]"), "");
 
 		reader.readElement("LineTypeData");
 		auto iDataCount = (size_t)reader.getAttributeAsInteger("Count");

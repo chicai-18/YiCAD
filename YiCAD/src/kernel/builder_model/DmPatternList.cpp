@@ -25,6 +25,7 @@
 #include "DmPatternList.h"
 
 #include <iostream>
+#include <QRegularExpression>
 #include <QString>
 #include "Math2d.h"
 
@@ -99,7 +100,7 @@ void DmPatternList::init()
                         break;
                     }
 
-                    s.remove(QRegExp("\\s"));
+                    s.remove(QRegularExpression("\\s", QRegularExpression::UseUnicodePropertiesOption));
                     QStringList slist = s.split(",");
 
                     std::vector<double> pat;

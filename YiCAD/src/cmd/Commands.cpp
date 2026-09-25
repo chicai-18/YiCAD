@@ -22,6 +22,7 @@
 #include <QObject>
 #include <QTextStream>
 #include <QDomDocument>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include "Commands.h"
 #include "DmSettings.h"
@@ -272,7 +273,7 @@ QString Commands::keycodeToCommand(const QString& code) const
           || code.startsWith(MetaPrefix)))
     {
         if (code.size() < 1
-            || code.contains(QRegExp("^[a-z].*", Qt::CaseInsensitive))
+            || code.contains(QRegularExpression("^[a-z].*", QRegularExpression::CaseInsensitiveOption))
                == false)
         {
             return QString();
@@ -434,7 +435,7 @@ QString Commands::msgAvailableCommands()
 QString Commands::filterCliCal(const QString& cmd)
 {
     QString str = cmd.trimmed();
-    const QRegExp calCmd(R"(^(cal|calculate))");
+    const QRegularExpression calCmd(R"(^(cal|calculate))");
     if (!(str.contains(calCmd)
           || str.startsWith(
               QObject::tr("cal", "command to trigger cli calculator"),
@@ -446,10 +447,10 @@ QString Commands::filterCliCal(const QString& cmd)
     {
         return QString();
     }
-    int index = str.indexOf(QRegExp(R"(\s)"));
+    int index = str.indexOf(QRegularExpression(R"(\s)", QRegularExpression::UseUnicodePropertiesOption));
     bool spaceFound = (index >= 0);
     str = str.mid(index);
-    index = str.indexOf(QRegExp(R"(\S)"));
+    index = str.indexOf(QRegularExpression(R"(\S)", QRegularExpression::UseUnicodePropertiesOption));
     if (!(spaceFound && index >= 0))
     {
         return QString();

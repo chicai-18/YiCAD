@@ -20,6 +20,8 @@
 
 #include "UIDlgLoadLineType.h"
 
+#include <QRegularExpression>
+
 #include "Debug.h"
 #include "DmDocument.h"
 
@@ -131,7 +133,7 @@ void UIDlgLoadLineType::readFile(const QString& path)
             lineType->setLineTypeName(m_Lname.remove(0, LINETYPE_NAME_OFFSET));
             QString m_LDescription = strList[1];
             lineType->setLineTypeDesp(m_LDescription.trimmed());
-            QString m_LOutward = m_LDescription.replace(QRegExp("[a-zA-Z0-9()]"), "");
+            QString m_LOutward = m_LDescription.replace(QRegularExpression("[a-zA-Z0-9()]"), "");
             lineType->setLineTypeOutWard(m_LOutward.trimmed());
 
             // LINETYPEDATA

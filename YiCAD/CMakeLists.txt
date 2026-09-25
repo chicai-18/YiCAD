@@ -374,7 +374,9 @@ target_include_directories(YiCadMath PUBLIC
 target_compile_definitions(YiCadMath PUBLIC
     _USE_MATH_DEFINES
     _ENABLE_EXTENDED_ALIGNED_STORAGE
-    APPDIR="YiCAD")
+    APPDIR="YiCAD"
+    # 屏蔽 Qt 6.0 及以前废弃的 API，用到即编译失败，防止旧写法回流
+    QT_DISABLE_DEPRECATED_BEFORE=0x060000)
 remove_definitions(-D_HAS_STD_BYTE)
 
 # MSVC: 强制源文件和执行字符集为 UTF-8，避免中文乱码。
