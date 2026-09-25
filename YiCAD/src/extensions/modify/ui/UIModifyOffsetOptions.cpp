@@ -20,6 +20,7 @@
 
 #include "UIModifyOffsetOptions.h"
 
+#include "ModifySingleOffsetCommand.h"
 #include "DmSettings.h"
 #include "ui_UIModifyOffsetOptions.h"
 #include "Math2d.h"
@@ -48,37 +49,35 @@ void UIModifyOffsetOptions::saveSettings()
 	DMSETTINGS->endGroup();
 }
 
-void UIModifyOffsetOptions::setDist(double& d, bool initial)
+void UIModifyOffsetOptions::setCommand(IExclusiveCommand* c, bool update)
 {
-	dist = &d;
-	bool ok = false;
-	if (initial)
+	command = dynamic_cast<ModifySingleOffsetCommand*>(c);
+	if (!command)
 	{
-		DMSETTINGS->beginGroup("/Draw");
-		QString r = DMSETTINGS->readEntry("/ModifyOffsetDistance", "1.0");
-		DMSETTINGS->endGroup();
+		return;
+	}
+	if (update)
+	{
+		ui->leDist->setText(QString("%1").arg(command->distance()));
+		return;
+	}
 
-		ui->leDist->setText(r);
-		*dist = Math2d::eval(r, &ok);
-		if (!ok)
-		{
-			*dist = 1.;
-		}
-	}
-	else
-	{
-		*dist = Math2d::eval(ui->leDist->text(), &ok);
-		if (!ok)
-		{
-			*dist = 1.;
-		}
-	}
+	DMSETTINGS->beginGroup("/Draw");
+	QString r = DMSETTINGS->readEntry("/ModifyOffsetDistance", "1.0");
+	DMSETTINGS->endGroup();
+
+	ui->leDist->setText(r);
+
+	// 无效表达式时用 1（textChanged 经 updateDist 写入的是 eval 的原始结果）
+	bool ok = false;
+	const double dist = Math2d::eval(r, &ok);
+	command->setDistance(ok ? dist : 1.);
 }
 
 void UIModifyOffsetOptions::updateDist(const QString& d)
 {
-	if (dist)
+	if (command)
 	{
-		*dist = Math2d::eval(d);
+		command->setDistance(Math2d::eval(d));
 	}
 }

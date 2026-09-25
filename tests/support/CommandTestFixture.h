@@ -33,6 +33,7 @@
 #include "Snapper.h"
 #include "ViewToolControl.h"
 #include "support/CommandExtensions.h"
+#include "support/DialogRecorder.h"
 #include "support/FakeDocumentView.h"
 
 namespace yicad_test
@@ -68,14 +69,6 @@ public:
         options.push_back({command ? command->commandId() : QString(), on, update});
     }
 
-    std::vector<bool> offsetOptions;  ///< 单个偏移选项条的打开/关闭请求
-    double* offsetDistance = nullptr; ///< 打开时选项条拿到的距离引用（选项条经它改写距离）
-    void requestModifySingleOffsetOptions(double& dist, bool on, bool) override
-    {
-        offsetOptions.push_back(on);
-        offsetDistance = on ? &dist : nullptr;
-    }
-
     std::vector<DmEntity*> entityDialogs; ///< 弹出属性对话框的实体
     bool requestModifyEntityDialog(DmEntity* entity) override
     {
@@ -89,10 +82,12 @@ public:
     QString lastRightHint() const { return hints.empty() ? QString() : hints.back().second; }
 };
 
-/// @brief 与 UIView 相同的装配；UiRecorder 在用例期间装进 GUIDIALOGFACTORY
+/// @brief 与 UIView 相同的装配；UiRecorder 在用例期间装进 GUIDIALOGFACTORY，
+///        DialogRecorder 记录扩展经 UIDialogRunner 弹出的对话框（一律视为取消）
 struct CommandFixture : ::testing::Test
 {
     UiRecorder ui;
+    DialogRecorder dialogs;
     DmDocument doc;
     FakeDocumentView view;
     Preview preview{&doc, &view};

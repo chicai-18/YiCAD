@@ -134,17 +134,6 @@ public:
     /// @return 导入是否成功
     virtual bool requestFileImport(DmDocument& document, const QString& file) = 0;
 
-    /// @brief 请求新建图层对话框
-    /// @param layerTable 图层表
-    /// @return 新创建的图层或 nullptr
-    virtual DmLayer* requestNewLayerDialog(DmLayerTable* layerTable = NULL) = 0;
-
-    /// @brief 请求编辑图层属性对话框
-    /// @details 该方法不应实际编辑图层，由调用者负责编辑操作
-    /// @param layerTable 图层表
-    /// @return 修改后的图层指针，用户取消则返回 nullptr
-    virtual DmLayer* requestEditLayerDialog(DmLayerTable* layerTable = NULL) = 0;
-
     /// @brief 请求新建块对话框
     /// @details 该方法应创建新块但不将其添加到块列表中，由调用者负责添加
     /// @param blockTable 块表
@@ -163,11 +152,6 @@ public:
     /// @return true 表示用户确认，false 表示取消
     virtual bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) = 0;
 
-    /// @brief 请求打开图片文件对话框
-    /// @details 该方法不应实际打开文件，由调用者负责打开操作
-    /// @return 文件名，用户取消则返回空字符串
-    virtual QString requestImageOpenDialog() = 0;
-
     /// @brief 显示交互命令的选项条（CommandInfo::commandOptionsFactory 注册的控件）
     /// @param command 需要选项的命令
     /// @param on true 打开控件，false 关闭控件
@@ -179,12 +163,6 @@ public:
     /// @param on true 打开控件，false 关闭控件
     virtual void requestSnapMiddleOptions(int& middlePoints, bool on) = 0;
 
-    /// @brief 偏移单个实体选项
-    /// @param[out] dist 偏移距离
-    /// @param on true 打开控件，false 关闭控件
-    /// @param update true 从操作获取数据，false 从配置文件获取数据
-    virtual void requestModifySingleOffsetOptions(double& dist, bool on, bool update = false) = 0;
-
     /// @brief 显示编辑实体属性对话框
     /// @param entity 要编辑的实体
     /// @return true 表示用户确认，false 表示取消
@@ -195,23 +173,10 @@ public:
     /// @return true 表示用户确认，false 表示取消
     virtual bool requestTextDialog(DmText* text) = 0;
 
-    /// @brief 显示文字样式窗口
-    /// @param textStyleTable 文档原有的文字样式表
-    /// @param document 当前文档
-    /// @return 用户确定返回 true，取消返回 false
-    virtual bool requestTextStyleDialog(DmTextStyleTable* textStyleTable, DmDocument* document) = 0;
-
     /// @brief 显示填充图案选择对话框
     /// @param hatch 填充实体
     /// @return true 表示用户确认，false 表示取消
     virtual bool requestHatchDialog(DmHatch* hatch) = 0;
-
-    /// @brief 显示应用程序通用选项对话框
-    virtual void requestOptionsGeneralDialog() = 0;
-
-    /// @brief 显示绘图选项对话框
-    /// @param document 当前文档
-    virtual void requestOptionsDrawingDialog(DmDocument& document) = 0;
 
     /// @brief 更新坐标显示控件
     /// @details 每次鼠标位置变化时调用
@@ -243,12 +208,6 @@ public:
     /// @brief 设置底部窗口控件
     /// @param widget 底部窗口控件指针
     virtual void setBottomWidget(UIBottomWindow* widget) = 0;
-
-    /// @brief 显示线型管理对话框
-    /// @param lineTypeTable 线型表
-    /// @param document 当前文档
-    /// @return true 表示用户确认，false 表示取消
-    virtual bool requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document) = 0;
 };
 
 #endif

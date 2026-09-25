@@ -30,6 +30,7 @@
 
 #include <QString>
 #include <QStringList>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -67,6 +68,15 @@ public:
     /// @details 用户配置文件是旧格式时先改写为新格式（见 migrateLegacyConfig()）
     /// @return true表示加载成功
     bool load();
+
+    /// @brief 登记 load() 完成后的回调（命令行据此刷新补全列表）
+    /// @return 注销用的编号，见 removeReloadListener()
+    int addReloadListener(std::function<void()> listener);
+
+    /// @brief 注销 addReloadListener() 登记的回调
+    /// @details 静态：退出时单例先于命令行删除（ApplicationWindow 的析构），这时什么也不做，
+    ///          不重新创建单例
+    static void removeReloadListener(int id);
 
     /// @brief 通过XML读取的数据加载
     /// @param [in] data 命令数据列表
@@ -184,6 +194,10 @@ private:
 
     ///< 当前命令对应的组，一个组对应一套命令
     QString m_curGroup;
+
+    ///< load() 完成后的回调，按登记编号
+    std::map<int, std::function<void()>> m_reloadListeners;
+    int m_nextListenerId = 0;
 };
 
 #endif // COMMANDS_H

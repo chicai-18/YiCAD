@@ -1673,8 +1673,9 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
   预设回答。
 - 多个扩展共用的控件 `UIWidgetPen`，以及宿主与 `ui/` 自己用的窗体（线型、退出确认、捕捉中点）
   留在 `ui/forms/`。
-- 分四批提交：①删死代码；②图层、选项、文字、填充与图片文件对话框改为直接构造，偏移选项条
-  改为随命令注册；③块；④属性对话框按登记分派。
+- 分四批提交：①删死代码；②图层、选项、文字样式、线型与图片文件对话框改为直接构造，偏移
+  选项条改为随命令注册；③块；④属性对话框按登记分派。文字、填充、属性定义对话框同时是
+  属性对话框，随④搬。
 
 **提交①：删除死代码**
 
@@ -1689,6 +1690,65 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
 
 提交①验证：Release 构建通过；`ctest` 4 个测试程序通过（`test_interaction` 266 例，1 例跳过）；
 `check_layering.py` 通过；安装后程序能启动。
+
+**提交②：图层、选项、文字样式、线型、图片文件对话框与偏移选项条**
+
+1. **模态运行入口 `UIDialogRunner`（`ui/`）**：扩展构造对话框后经 `UIDialogRunner::exec()` 运行。
+   原先测试经对话框工厂的默认实现"取消"对话框（`GuiDialogFactoryAdapter`），对话框改由扩展
+   直接弹出后，测试进程有真实窗口站（`yicad_test_main.cpp`），真弹出来会卡住用例。
+   `test_interaction` 的全局环境（`interaction/test_environment.cpp`）让所有对话框视为取消，
+   `tests/support/DialogRecorder.h` 记录弹出的是哪个对话框（类名），`CommandFixture` 带一个。
+   只有命令直接弹出的对话框走它；对话框里再弹的（如系统设置里的"命令设置"）仍直接 `exec()`。
+2. **图层**：`UILayerDialog` 搬进 `extensions/layer/ui/`，新建、修改图层的命令直接构造，
+   新图层默认名的推算（当前图层名末尾数字加一）从工厂搬进 `LayerCommands::nextLayerName()`。
+   对话框挂在主窗口上（`IExtensionContext::mainWindow()`，与工厂的 `parent` 相同）。
+3. **选项**：`UIDlgOptionsGeneral`、`UIDlgOptionsDrawing`、`UIDlgCmdsSetting` 搬进
+   `extensions/options/ui/`。`UIDlgOptionsGeneral` 原先经 `ApplicationWindow` 取全部打开的文档
+   （应用自动保存设置）与命令行控件（切换快捷键组后刷新补全列表），扩展不能包含 `main/`：
+   文档改由扩展经 `IExtensionContext::tabDrawWidget()` 取来传入（`setDocuments()`）；补全列表改为
+   命令行自己刷新——`Commands` 增加 `addReloadListener()`/`removeReloadListener()`，
+   `UICommandWidget` 构造时登记，`load()` 之后按 keyconfig.xml 与注册表重建列表，
+   `setCompleterStrings()` 随之删除。退出时 `Commands` 单例先于命令行删除，所以注销是静态的，
+   单例已删除时什么也不做。
+4. **文字样式**：`UIDlgTextStyle` 搬进 `extensions/text/ui/`，改为栈上对象（工厂每次 `new`、从不释放）。
+5. **线型**：`UIDlgLineType` 仍在 `ui/forms/`，调用方 `UILineTypeBox` 也在 `ui/`，直接构造，
+   `requestLineTypeDialog` 删除。父窗口从主窗口改为线型框所在的窗口（`window()`）：线型框在
+   图层、属性、标注样式对话框里时，线型对话框挂在那个对话框上，与 7.10 节标注样式的做法一致。
+6. **图片文件对话框**：`requestImageOpenDialog` 的实现搬进 `DrawImageCommand.cpp`
+   （`chooseImageFile()`），译文上下文从 `QObject` 改为 `DrawImageCommand`。
+7. **偏移选项条**：`ModifySingleOffsetCommand` 从 `.cpp` 的匿名命名空间移到头文件，持有距离
+   （`distance()`/`setDistance()`，原先的 `OffsetData` 只用到距离）；`UIModifyOffsetOptions` 搬进
+   `extensions/modify/ui/`，与其他选项条一样经 `setCommand()` 绑定命令，随命令经
+   `CommandInfo::commandOptionsFactory` 注册，`showOptions()`/`hideOptions()` 改走
+   `requestCommandOptions`。距离的来源不变：打开时读配置 `/Draw/ModifyOffsetDistance`，
+   无效表达式时为 1，关闭时写回。
+8. **删除的工厂方法**：`requestNew/EditLayerDialog`、`requestOptionsGeneral/DrawingDialog`、
+   `requestTextStyleDialog`、`requestLineTypeDialog`、`requestImageOpenDialog`、
+   `requestModifySingleOffsetOptions`，连同 `UIDialogFactory` 里对应的成员。
+9. **译文**：搬走的表单与字符串的译文从 `YiCAD_zh_cn.ts` 迁到 layer、options、text、draw、modify
+   五个扩展的 `.ts`，共 109 条。其中图片对话框 3 条与新图层默认名 1 条的上下文从 `QObject` 改为
+   扩展里的类，文字样式里 `QObject::tr("Tips")` 1 条 lupdate 预填了猜测，这 5 条手工补上。
+   原先作对象名用的"Layer Dialog"（`QMessageBox` 上下文）不再有源码，删除。
+
+**与方案的偏差与补充**
+
+1. **测试入口 `UIDialogRunner`**：方案里说"通用提示留在接口里，测试夹具靠重写它们预设回答"，
+   没有考虑业务对话框本身。"取消插入图片对话框时启动失败"等用例原先靠工厂的默认实现，
+   现在靠 `UIDialogRunner` 的替身。
+2. **`UILineTypeBox` 在没有主窗口时可用**：它在构造函数里经 `ApplicationWindow::getAppWindow()`
+   取当前文档的线型表，单测里没有主窗口，含画笔控件（`UIWidgetPen`）的对话框——图层、块、
+   全部属性对话框——一构造就崩溃。改为没有主窗口时线型表为空，下拉框只有"自定义"一项，
+   选中也什么都不做；程序里构造时总有当前文档，行为不变。
+
+新增与修改的用例：图层的新建、修改弹出 `UILayerDialog`，预填的图层名与取消后图层表不变；
+系统设置、图纸设置、文字样式弹出各自的对话框；插入图片取消时弹出的是 `QFileDialog`；
+单个偏移的选项条经 `requestCommandOptions` 打开、关闭，距离经命令改写；`ext.modify.single_offset`
+列入"选项条随命令注册"。
+
+提交②验证：Release 构建通过；`ctest` 4 个测试程序通过（`test_interaction` 269 例，1 例跳过）；
+`check_layering.py` 通过；`update_translations` 后各 `.ts` 没有未完成与失效条目，再跑一次没有变化；
+安装后程序能启动。搬走的对话框没有在界面上逐个点开核对：向主窗口投递的鼠标消息 Qt 不响应，
+改用真实光标或全局按键会落到别的窗口，没有做。
 
 ---
 

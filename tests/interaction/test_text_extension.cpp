@@ -93,6 +93,12 @@ TEST_F(TextFixture, 按钮挂进宿主占位的文字面板)
     EXPECT_EQ(extensionHost.ribbon.entriesOf(UIRibbonIds::kPanelDraw2dText).size(), 3u);
 }
 
+TEST_F(TextFixture, 文字样式弹出文字样式对话框)
+{
+    EXPECT_TRUE(CommandRegistry::instance().runInstant(QStringLiteral("ext.text.style"), CommandContext{&doc, &view}));
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgTextStyle")});
+}
+
 TEST_F(TextFixture, 单行文字取消对话框时启动失败)
 {
     // 对话框工厂的默认实现返回"取消"

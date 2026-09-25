@@ -247,87 +247,87 @@
 <context>
     <name>ModifyExtension</name>
     <message>
-        <location filename="../ModifyExtension.cpp" line="65"/>
+        <location filename="../ModifyExtension.cpp" line="66"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="67"/>
+        <location filename="../ModifyExtension.cpp" line="68"/>
         <source>Move</source>
         <translation>移动</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="69"/>
+        <location filename="../ModifyExtension.cpp" line="70"/>
         <source>Rotate</source>
         <translation>旋转</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="71"/>
+        <location filename="../ModifyExtension.cpp" line="72"/>
         <source>Scale</source>
         <translation>缩放</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="73"/>
+        <location filename="../ModifyExtension.cpp" line="74"/>
         <source>Mirror</source>
         <translation>镜像</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="75"/>
+        <location filename="../ModifyExtension.cpp" line="76"/>
         <source>Trim</source>
         <translation>修剪</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="77"/>
+        <location filename="../ModifyExtension.cpp" line="78"/>
         <source>Lengthen</source>
         <translation>延伸</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="79"/>
+        <location filename="../ModifyExtension.cpp" line="80"/>
         <source>Offset</source>
         <translation>偏移</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="81"/>
+        <location filename="../ModifyExtension.cpp" line="82"/>
         <source>Bevel</source>
         <translation>倒角</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="83"/>
+        <location filename="../ModifyExtension.cpp" line="84"/>
         <source>Fillet</source>
         <translation>圆角</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="85"/>
+        <location filename="../ModifyExtension.cpp" line="86"/>
         <source>Divide</source>
         <translation>打断</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="87"/>
+        <location filename="../ModifyExtension.cpp" line="88"/>
         <source>Divide_2P</source>
         <translation>两点打断</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="89"/>
+        <location filename="../ModifyExtension.cpp" line="90"/>
         <source>Properties</source>
         <translation>特性</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="91"/>
+        <location filename="../ModifyExtension.cpp" line="92"/>
         <source>Explode</source>
         <translation>分解</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="95"/>
+        <location filename="../ModifyExtension.cpp" line="96"/>
         <source>Add node</source>
         <translation>添加顶点</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="97"/>
+        <location filename="../ModifyExtension.cpp" line="98"/>
         <source>Append node</source>
         <translation>追加顶点</translation>
     </message>
     <message>
-        <location filename="../ModifyExtension.cpp" line="99"/>
+        <location filename="../ModifyExtension.cpp" line="100"/>
         <source>Delete node</source>
         <translation>删除顶点</translation>
     </message>
@@ -523,12 +523,12 @@
 <context>
     <name>ModifySingleOffsetCommand</name>
     <message>
-        <location filename="../commands/ModifySingleOffsetCommand.cpp" line="142"/>
+        <location filename="../commands/ModifySingleOffsetCommand.cpp" line="117"/>
         <source>Choose the original entity</source>
         <translation>选择原始实体</translation>
     </message>
     <message>
-        <location filename="../commands/ModifySingleOffsetCommand.cpp" line="86"/>
+        <location filename="../commands/ModifySingleOffsetCommand.cpp" line="59"/>
         <source>Offset</source>
         <translation>偏移</translation>
     </message>
@@ -720,6 +720,24 @@
         <location filename="../ui/UIBevelOptions.ui" line="92"/>
         <source>Length 2:</source>
         <translation>长度2：</translation>
+    </message>
+</context>
+<context>
+    <name>Ui_ModifyOffsetOptions</name>
+    <message>
+        <location filename="../ui/UIModifyOffsetOptions.ui" line="32"/>
+        <source>Modify Offset Options</source>
+        <translation>修改偏移选项</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIModifyOffsetOptions.ui" line="56"/>
+        <source>Distance:</source>
+        <translation>距离：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIModifyOffsetOptions.ui" line="72"/>
+        <source>Offset from original entity</source>
+        <translation>从初始实体偏移</translation>
     </message>
 </context>
 <context>

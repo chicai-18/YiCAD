@@ -28,9 +28,13 @@
 
 #include "LayerExtension.h"
 
+#include <memory>
+
 #include <QColorDialog>
 #include <QCoreApplication>
+#include <QLineEdit>
 #include <QMessageBox>
+#include <QRegularExpression>
 
 #include "CommandRegistry.h"
 #include "CustomComboboxItem.h"
@@ -44,9 +48,10 @@
 #include "DmPen.h"
 #include "DmSystem.h"
 #include "EntityTable.h"
-#include "GuiDialogFactory.h"
 #include "IExtensionContext.h"
 #include "Transaction.h"
+#include "UIDialogRunner.h"
+#include "UILayerDialog.h"
 
 namespace
 {
@@ -79,41 +84,62 @@ public:
         t.commit();
     }
 
-    /// @brief 经对话框新建图层
-    static void add(const CommandContext& ctx)
+    /// @brief 经对话框新建图层；新图层名由当前图层名末尾的数字递增得出
+    static void add(const CommandContext& ctx, QWidget* parent)
     {
         if (!ctx.document)
         {
             return;
         }
-        DmLayer* layer = GUIDIALOGFACTORY->requestNewLayerDialog(ctx.document->getLayerTable());
-        if (layer)
+        DmLayerTable* layerTable = ctx.document->getLayerTable();
+        DmLayer* layer = new DmLayer(nextLayerName(layerTable));
+        layer->setDocument(layerTable->getDocument());
+        UILayerDialog dlg(parent, QStringLiteral("Layer Dialog"));
+        dlg.setLayer(layer);
+        dlg.setLayerTable(layerTable);
+        dlg.getQLineEdit()->selectAll();
+        if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
         {
-            Transaction t("Add Layer", ctx.document);
-            t.start();
-            ctx.document->getLayerTable()->add(layer);
-            t.commit();
+            delete layer;
+            return;
         }
+        dlg.updateLayer();
+
+        Transaction t("Add Layer", ctx.document);
+        t.start();
+        layerTable->add(layer);
+        t.commit();
     }
 
-    /// @brief 经对话框修改当前图层（名称等）
-    static void rename(const CommandContext& ctx)
+    /// @brief 经对话框修改当前图层（名称等）：对话框改的是当前图层的副本，确认后写回
+    static void rename(const CommandContext& ctx, QWidget* parent)
     {
         if (!ctx.document)
         {
             return;
         }
-        DmLayer* layer = GUIDIALOGFACTORY->requestEditLayerDialog(ctx.document->getLayerTable());
-        if (layer)
+        DmLayerTable* layerTable = ctx.document->getLayerTable();
+        DmLayer* activeLayer = layerTable->getActive();
+        if (!activeLayer)
         {
-            Transaction t(tr("Rename Layer").toStdString(), ctx.document);
-            t.start();
-            DmLayer* activeLayer = ctx.document->getLayerTable()->getActive();
-            ctx.document->getLayerTable()->startModify(activeLayer);
-            activeLayer->setData(layer->getData());
-            t.commit();
-            delete layer;
+            return;
         }
+        std::unique_ptr<DmLayer> layer(activeLayer->clone());
+        UILayerDialog dlg(parent, QStringLiteral("Layer Dialog"));
+        dlg.setLayer(layer.get());
+        dlg.setLayerTable(layerTable);
+        dlg.setEditLayer(true);
+        if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
+        {
+            return;
+        }
+        dlg.updateLayer();
+
+        Transaction t(tr("Rename Layer").toStdString(), ctx.document);
+        t.start();
+        layerTable->startModify(activeLayer);
+        activeLayer->setData(layer->getData());
+        t.commit();
     }
 
     /// @brief 经颜色对话框修改按钮所在行图层的颜色
@@ -258,6 +284,39 @@ public:
     }
 
 private:
+    /// @brief 新图层的默认名：从当前图层名匹配"基本名+数字"，数字往上累加直到不重名；
+    ///        当前图层是 0 层或没有名字时从"Level"起
+    static QString nextLayerName(DmLayerTable* layerTable)
+    {
+        QString layerName = layerTable->getActive()->getName();
+        if (layerName.isEmpty() || !layerName.compare("0"))
+        {
+            layerName = tr("Level");
+        }
+
+        QString baseName(layerName);
+        int width = 1;
+        int number = 0;
+        const QRegularExpressionMatch match = QRegularExpression("^(.*\\D+|)(\\d+)$").match(layerName);
+        if (match.hasMatch())
+        {
+            baseName = match.captured(1);
+            if (1 < match.lastCapturedIndex())
+            {
+                const QString digits = match.captured(2);
+                width = digits.length();
+                number = digits.toInt();
+            }
+        }
+
+        QString newName;
+        do
+        {
+            newName = QString("%1%2").arg(baseName).arg(++number, width, 10, QChar('0'));
+        } while (layerTable->find(newName));
+        return newName;
+    }
+
     /// @brief 触发命令的按钮所在行的图层；没有文档、不是图层行的按钮或图层已不存在时返回空
     static DmLayer* layerOf(const CommandContext& ctx)
     {
@@ -315,9 +374,14 @@ void LayerExtension::OnRegister(IExtensionContext& ctx)
     // 本扩展的翻译包（src/extensions/layer/ts/）。
     DMSYSTEM->loadExtensionTranslation(QStringLiteral("layer"));
 
+    // 上下文有效到 OnShutdown 返回，命令在那之后才注销（IExtension.h 的契约）
+    IExtensionContext* context = &ctx;
     ctx.registerInstantCommand(QStringLiteral("ext.layer.activate"), &LayerCommands::activate, {});
-    ctx.registerInstantCommand(QStringLiteral("ext.layer.add"), &LayerCommands::add, {});
-    ctx.registerInstantCommand(QStringLiteral("ext.layer.rename"), &LayerCommands::rename, {});
+    ctx.registerInstantCommand(QStringLiteral("ext.layer.add"),
+                               [context](const CommandContext& c) { LayerCommands::add(c, context->mainWindow()); }, {});
+    ctx.registerInstantCommand(QStringLiteral("ext.layer.rename"),
+                               [context](const CommandContext& c) { LayerCommands::rename(c, context->mainWindow()); },
+                               {});
     ctx.registerInstantCommand(QStringLiteral("ext.layer.color"), &LayerCommands::color, {});
     ctx.registerInstantCommand(QStringLiteral("ext.layer.delete"), &LayerCommands::remove, {});
     ctx.registerInstantCommand(QStringLiteral("ext.layer.freeze"), &LayerCommands::freeze, {});

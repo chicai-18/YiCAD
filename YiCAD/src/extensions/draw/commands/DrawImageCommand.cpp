@@ -25,7 +25,10 @@
 
 #include <cmath>
 
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QImage>
+#include <QImageReader>
 #include <QMouseEvent>
 
 #include "BasePlaceTool.h"
@@ -36,6 +39,8 @@
 #include "DmEntityContainer.h"
 #include "DmImage.h"
 #include "DmLine.h"
+#include "DmSettings.h"
+#include "DmSystem.h"
 #include "DmUnits.h"
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
@@ -44,6 +49,7 @@
 #include "ISnapService.h"
 #include "Math2d.h"
 #include "Transaction.h"
+#include "UIDialogRunner.h"
 
 namespace
 {
@@ -52,6 +58,68 @@ constexpr int IMAGE_DEFAULT_HEIGHT = 50.0; ///< 默认图片高度（像素）
 constexpr double IMAGE_ZERO_COORD = 0.0;   ///< 默认坐标零值
 constexpr double IMAGE_UNIT_SCALE = 1.0;   ///< 默认单位缩放
 constexpr int IMAGE_DEFAULT_DPI = 0;       ///< 默认 DPI（0 表示未设置）
+
+/// @brief 选择要插入的图片文件；上次的目录与过滤器记在设置的 /Paths 组
+/// @return 图片的完整路径；取消时返回空串
+QString chooseImageFile()
+{
+    DMSETTINGS->beginGroup("/Paths");
+    QString defDir = DMSETTINGS->readEntry("/OpenImage", DMSYSTEM->getHomeDir());
+    QString defFilter = DMSETTINGS->readEntry("/ImageFilter", "");
+    DMSETTINGS->endGroup();
+
+    QStringList filters;
+    QString all;
+    bool haveJpeg = false;
+    for (const QByteArray& format : QImageReader::supportedImageFormats())
+    {
+        if (format.toUpper() == "JPG" || format.toUpper() == "JPEG")
+        {
+            if (!haveJpeg)
+            {
+                haveJpeg = true;
+                filters.append("jpeg (*.jpeg *.jpg)");
+                all += " *.jpeg *.jpg";
+            }
+        }
+        else
+        {
+            filters.append(QString("%1 (*.%1)").arg(QString(format)));
+            all += QString(" *.%1").arg(QString(format));
+        }
+    }
+    const QString allImageFiles = DrawImageCommand::tr("All Image Files (%1)").arg(all);
+    filters.append(allImageFiles);
+    filters.append(DrawImageCommand::tr("All Files (*.*)"));
+
+    QFileDialog fileDlg(nullptr, "");
+    fileDlg.setModal(true);
+    fileDlg.setFileMode(QFileDialog::ExistingFile);
+    fileDlg.setWindowTitle(DrawImageCommand::tr("Open Image"));
+    fileDlg.setDirectory(defDir);
+    fileDlg.setNameFilters(filters);
+    if (defFilter.isEmpty())
+    {
+        defFilter = allImageFiles;
+    }
+    fileDlg.selectNameFilter(defFilter);
+
+    QString fileName;
+    if (UIDialogRunner::exec(fileDlg) == QDialog::Accepted)
+    {
+        const QStringList selectedFiles = fileDlg.selectedFiles();
+        if (!selectedFiles.isEmpty())
+        {
+            fileName = selectedFiles.first();
+        }
+
+        DMSETTINGS->beginGroup("/Paths");
+        DMSETTINGS->writeEntry("/OpenImage", QFileInfo(fileName).absolutePath());
+        DMSETTINGS->writeEntry("/ImageFilter", fileDlg.selectedNameFilter());
+        DMSETTINGS->endGroup();
+    }
+    return fileName;
+}
 
 /// @brief 插入图片工具：指定插入点；命令行可改角度、缩放、DPI
 class DrawImageTool : public BasePlaceTool
@@ -236,7 +304,7 @@ std::unique_ptr<BasePlaceTool> DrawImageCommand::createTool()
                      IMAGE_DEFAULT_WIDTH,
                      IMAGE_DEFAULT_HEIGHT,
                      IMAGE_DEFAULT_DPI};
-    m_image->data.setPath(GUIDIALOGFACTORY->requestImageOpenDialog().toStdString());
+    m_image->data.setPath(chooseImageFile().toStdString());
     if (QString::fromStdString(m_image->data.getPath()).isEmpty())
     {
         return nullptr;

@@ -21,7 +21,11 @@
 #ifndef UIDLGOPTIONSGENERAL_H
 #define UIDLGOPTIONSGENERAL_H
 
+#include <vector>
+
 #include "ui_UIDlgOptionsGeneral.h"
+
+class DmDocument;
 
 /// @brief 系统设置窗体
 class UIDlgOptionsGeneral : public QDialog, public Ui::UIDlgOptionsGeneral
@@ -38,6 +42,9 @@ public:
     ~UIDlgOptionsGeneral();
 
     static int current_tab; ///< 当前选项卡索引
+
+    /// @brief 设置确认后要应用自动保存设置的文档（打开的全部图纸）
+    void setDocuments(std::vector<DmDocument*> documents);
 
     /// @brief 设置并弹出颜色选择对话框
     /// @param [in,out] combo 颜色下拉框，用于读取当前颜色和写入新颜色
@@ -76,6 +83,7 @@ private slots:
 
 private:
     bool restartNeeded = false; ///< 是否需要重启应用
+    std::vector<DmDocument*> m_documents; ///< 确认后应用自动保存设置的文档
 
     void init();
     void initComboBox(QComboBox* cb, const QString& text);

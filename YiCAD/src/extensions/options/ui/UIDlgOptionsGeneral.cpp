@@ -29,9 +29,7 @@
 #include "DmUnits.h"
 #include "Commands.h"
 #include "UIFileDialog.h"
-#include "UICommandWidget.h"
 #include "Debug.h"
-#include "ApplicationWindow.h"
 #include "UIDlgCmdsSetting.h"
 #include "DmDocument.h"
 
@@ -56,6 +54,11 @@ UIDlgOptionsGeneral::UIDlgOptionsGeneral(QWidget* parent, bool modal, Qt::Window
 UIDlgOptionsGeneral::~UIDlgOptionsGeneral()
 {
     destroy();
+}
+
+void UIDlgOptionsGeneral::setDocuments(std::vector<DmDocument*> documents)
+{
+    m_documents = std::move(documents);
 }
 
 void UIDlgOptionsGeneral::languageChange()
@@ -190,23 +193,15 @@ void UIDlgOptionsGeneral::ok()
         DMSETTINGS->endGroup();
 
         // 设置自动保存文件
-        for (DmDocument* doc : ApplicationWindow::getAppWindow()->getDocuments())
+        for (DmDocument* doc : m_documents)
         {
             doc->enableAutoSave(isAutoSave, saveMin);
         }
 
-        // 设置快捷键
+        // 设置快捷键；命令行在重新加载后自己刷新补全列表（Commands::addReloadListener）
         QString currentKey = cbKeyboard->currentText();
         DMSETTINGS->writeEntry("/DefaultKeyboard", currentKey);
         COMMANDS->load();
-
-        UICommandWidget* cmdWidget = ApplicationWindow::getAppWindow()->getCmdWidget();
-        QStringList strs;
-        for (const auto& kv : COMMANDS->getKeyCommands())
-        {
-            strs.append(kv.first);
-        }
-        cmdWidget->setCompleterStrings(strs);
 
         DMSETTINGS->beginGroup("/Startup");
         DMSETTINGS->writeEntry("/ShowSplash", cbSplash->isChecked() ? 1 : 0);

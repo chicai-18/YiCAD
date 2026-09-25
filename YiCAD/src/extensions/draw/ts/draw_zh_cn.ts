@@ -628,37 +628,52 @@
 <context>
     <name>DrawImageCommand</name>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="304"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="372"/>
         <source>Draw Image</source>
         <translation>绘制图片</translation>
     </message>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="177"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="245"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
     </message>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="83"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="91"/>
+        <source>All Image Files (%1)</source>
+        <translation>所有图像文件 (%1)</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawImageCommand.cpp" line="93"/>
+        <source>All Files (*.*)</source>
+        <translation>所有文件 (*.*)</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawImageCommand.cpp" line="98"/>
+        <source>Open Image</source>
+        <translation>打开图片</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawImageCommand.cpp" line="151"/>
         <source>Specify reference point</source>
         <translation>指定参考点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="84"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="152"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="87"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="155"/>
         <source>Enter angle:</source>
         <translation>输入角度：</translation>
     </message>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="90"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="158"/>
         <source>Enter factor:</source>
         <translation>输入系数：</translation>
     </message>
     <message>
-        <location filename="../commands/DrawImageCommand.cpp" line="93"/>
+        <location filename="../commands/DrawImageCommand.cpp" line="161"/>
         <source>Enter dpi:</source>
         <translation>输入 dpi：</translation>
     </message>

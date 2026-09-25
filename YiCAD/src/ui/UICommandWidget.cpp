@@ -79,10 +79,14 @@ UICommandWidget::UICommandWidget(QWidget* parent, UITabDrawWidget* tabDrawWidget
 
 	m_pCmdTempWin->lower();
 	m_pCmdTempWin->hide();
+
+	m_reloadListener = COMMANDS->addReloadListener([this]() { refreshCompleter(); });
 }
 
 UICommandWidget::~UICommandWidget()
 {
+	Commands::removeReloadListener(m_reloadListener);
+
 	if (editWidget)
 	{
 		delete editWidget;
@@ -290,12 +294,6 @@ void UICommandWidget::createTempWin(QLineEdit* e)
 	}
 }
 
-void UICommandWidget::setCompleterStrings(const QStringList& strs)
-{
-	m_completerStrings = strs;
-	updateCompleterModel();
-}
-
 void UICommandWidget::refreshCompleter()
 {
 	updateCompleterModel();
@@ -314,10 +312,19 @@ void UICommandWidget::updateCompleterModel()
 		return;
 	}
 
-	QStringList commands = m_completerStrings;
+	model->setStringList(completerStrings());
+}
+
+QStringList UICommandWidget::completerStrings() const
+{
+	QStringList commands;
+	for (const auto& [alias, commandId] : COMMANDS->getKeyCommands())
+	{
+		commands.append(alias);
+	}
 	commands.append(CommandRegistry::instance().aliases());
 	commands.removeDuplicates();
-	model->setStringList(commands);
+	return commands;
 }
 
 QWidget* UICommandWidget::createTempEdit()
@@ -329,17 +336,8 @@ QWidget* UICommandWidget::createTempEdit()
 	m_editline->setAutoFillBackground(true);
 	connect(m_editline, SIGNAL(returnPressed()), this, SLOT(pressShowLineEdit()));
 
-	std::map<QString, QString> cmdTranslation = COMMANDS->getKeyCommands();
-	m_completerStrings.clear();
-	for (auto ite = cmdTranslation.begin(); ite != cmdTranslation.end(); ite++)
-	{
-		m_completerStrings.push_back(ite->first);
-	}
 	m_pCompleter = new QCompleter();
-	QStringList commands = m_completerStrings;
-	commands.append(CommandRegistry::instance().aliases());
-	commands.removeDuplicates();
-	QStringListModel* model = new QStringListModel(commands,m_pCompleter);
+	QStringListModel* model = new QStringListModel(completerStrings(), m_pCompleter);
 	m_pCompleter->setModel(model);
 	m_pCompleter->setCaseSensitivity(Qt::CaseInsensitive);
 	m_pCompleter->setCompletionMode(QCompleter::PopupCompletion);

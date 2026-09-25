@@ -45,10 +45,9 @@ public:
     void createLineEdit();
     void createTempWin(QLineEdit* e);
 
-    void setCompleterStrings(const QStringList& strs);
-
     /// @brief 重建自动补全列表；CommandRegistry 里的命令别名（扩展命令，以及插件命令的
-    /// "pluginId/commandId"）注册完成后由宿主调用一次。
+    /// "pluginId/commandId"）注册完成后由宿主调用一次。keyconfig.xml 重新加载
+    /// （Commands::load()，如切换快捷键组）后自动调用。
     void refreshCompleter();
     QWidget* createTempEdit();
     QWidget* getCommandWidget();
@@ -74,6 +73,9 @@ private slots:
 private:
     void updateCompleterModel();
 
+    /// @brief 补全列表：keyconfig.xml 的别名加 CommandRegistry 登记的别名，去重
+    QStringList completerStrings() const;
+
     QCompleter*                     m_pCompleter = nullptr;
     QLineEdit*                      m_editline = nullptr;
     QLineEdit*                      m_pEdit = nullptr;                      ///< 输入栏
@@ -94,6 +96,6 @@ private:
     QString                         m_Coord;
     UITabDrawWidget*                m_pTabDrawWidget = nullptr;
     std::unique_ptr<QPropertyAnimation> m_pAnimation;
-    QStringList                     m_completerStrings;
+    int                             m_reloadListener = -1;                  ///< Commands::addReloadListener 的编号
 };
 #endif // UICOMMANDWIDGETNEW

@@ -22,7 +22,7 @@
 
 #include "Debug.h"
 
-#include "GuiDialogFactory.h"
+#include "UIDialogRunner.h"
 #include "UIDlgLineType.h"
 #include "ApplicationWindow.h"
 #include "DmDocument.h"
@@ -42,8 +42,11 @@ UILineTypeBox::UILineTypeBox(QWidget* parent)
 {
     m_isShowByLayer = false;
 
-    m_document = static_cast<DmDocument*>(ApplicationWindow::getAppWindow()->getDocument());
-    m_LineTypeTable = m_document->getLineTypeTable();
+    // 默认用当前文档的线型表。没有主窗口时（单测里构造含画笔控件的对话框）为空，这时
+    // 下拉框只有"自定义"一项，选中也什么都不做
+    ApplicationWindow* appWindow = ApplicationWindow::getAppWindow();
+    m_document = appWindow ? static_cast<DmDocument*>(appWindow->getDocument()) : nullptr;
+    m_LineTypeTable = m_document ? m_document->getLineTypeTable() : nullptr;
 }
 
 UILineTypeBox::~UILineTypeBox()
@@ -64,6 +67,12 @@ void UILineTypeBox::updateLineTypeTable()
 {
     m_isChangingByCode = true;
     this->clear();
+    if (!m_LineTypeTable)
+    {
+        addItem(tr("Custom"));
+        m_isChangingByCode = false;
+        return;
+    }
     QStringList list;
 
     for (auto& linetype : *m_LineTypeTable)
@@ -113,6 +122,10 @@ void UILineTypeBox::setLineType(DmLineType* t, DmDocument* d)
 int UILineTypeBox::indexOf(DmLineType* t)
 {
     int index = -1;
+    if (!m_LineTypeTable || !t)
+    {
+        return index;
+    }
     int i = 0;
     for (auto lineType : *m_LineTypeTable)
     {
@@ -128,6 +141,10 @@ int UILineTypeBox::indexOf(DmLineType* t)
 
 DmLineType* UILineTypeBox::lineTypeAt(int idx)
 {
+    if (!m_LineTypeTable)
+    {
+        return nullptr;
+    }
     int i = 0;
     for (auto lineType : *m_LineTypeTable)
     {
@@ -142,7 +159,7 @@ DmLineType* UILineTypeBox::lineTypeAt(int idx)
 
 void UILineTypeBox::slotLineTypeChanged(int index)
 {
-    if (m_isChangingByCode)
+    if (m_isChangingByCode || !m_LineTypeTable)
     {
         return;
     }
@@ -150,7 +167,12 @@ void UILineTypeBox::slotLineTypeChanged(int index)
     // 自定义。加载线型
     if (m_LineTypeTable->count() == index)
     {
-        GUIDIALOGFACTORY->requestLineTypeDialog(m_LineTypeTable, m_document);
+        {
+            // 挂在线型框所在的窗口上：主窗口，或打开它的对话框（如标注样式）
+            UIDlgLineType dlg(window(), true);
+            dlg.setLineTypeTable(m_LineTypeTable, m_document);
+            UIDialogRunner::exec(dlg);
+        }
 
         m_isChangingByCode = true;
         updateLineTypeTable();

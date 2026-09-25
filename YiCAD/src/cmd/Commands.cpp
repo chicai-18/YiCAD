@@ -310,7 +310,29 @@ bool Commands::load()
     loadFromData(m_data, true);
     auto data = readConfigFile(m_strUserConfig, m_curGroup, true);
     loadFromData(data, false);
+
+    // 回调里可能注销自己，拷一份再调
+    const auto listeners = m_reloadListeners;
+    for (const auto& entry : listeners)
+    {
+        entry.second();
+    }
     return true;
+}
+
+int Commands::addReloadListener(std::function<void()> listener)
+{
+    const int id = m_nextListenerId++;
+    m_reloadListeners.emplace(id, std::move(listener));
+    return id;
+}
+
+void Commands::removeReloadListener(int id)
+{
+    if (m_pUniqueInstance)
+    {
+        m_pUniqueInstance->m_reloadListeners.erase(id);
+    }
 }
 
 /// @brief 通过XML读取的数据加载到映射表中

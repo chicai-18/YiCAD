@@ -115,7 +115,8 @@ TEST_F(CommandExtensionsFixture, 选项条随命令注册)
                            "ext.draw.line_polygon_cen_tan", "ext.draw.line_bisector", "ext.draw.arc",
                            "ext.draw.arc_tangential", "ext.draw.circle_tan2", "ext.draw.spline",
                            "ext.draw.spline_points", "ext.draw.cloud_line_rectangle", "ext.draw.cloud_line_polygon",
-                           "ext.draw.cloud_line_free", "ext.draw.image", "ext.modify.bevel", "ext.modify.round"})
+                           "ext.draw.cloud_line_free", "ext.draw.image", "ext.modify.bevel", "ext.modify.round",
+                           "ext.modify.single_offset"})
     {
         EXPECT_TRUE(static_cast<bool>(registry.commandOptionsFactory(id))) << id;
     }

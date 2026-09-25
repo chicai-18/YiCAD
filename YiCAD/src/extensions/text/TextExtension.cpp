@@ -39,6 +39,8 @@
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
 #include "ModifyMTextCommand.h"
+#include "UIDialogRunner.h"
+#include "UIDlgTextStyle.h"
 #include "UIRibbonRegistry.h"
 #include "UITextOptions.h"
 #include "UIView.h"
@@ -98,12 +100,14 @@ void onSelectionChanged(const CommandContext& ctx)
     }
 }
 
-/// @brief 文字样式对话框（原 ActionTextStyle）
-void openTextStyle(const CommandContext& ctx)
+/// @brief 文字样式对话框（原 ActionTextStyle），挂在主窗口上
+void openTextStyle(const CommandContext& ctx, QWidget* parent)
 {
     if (ctx.document)
     {
-        GUIDIALOGFACTORY->requestTextStyleDialog(ctx.document->getTextStyleTable(), ctx.document);
+        UIDlgTextStyle dlg(parent, true);
+        dlg.setStyleList(ctx.document->getTextStyleTable(), ctx.document);
+        UIDialogRunner::exec(dlg);
     }
 }
 }  // namespace
@@ -131,7 +135,11 @@ void TextExtension::OnRegister(IExtensionContext& ctx)
          }});
     ctx.registerExclusiveCommand(QStringLiteral("ext.text.mtext"), exclusiveCommandFactory<DrawMTextCommand>(),
                                  {.description = drawMText, .aliases = {"mtext", "mtxt"}});
-    ctx.registerInstantCommand(QStringLiteral("ext.text.style"), openTextStyle, {.description = textStyle});
+    // 上下文有效到 OnShutdown 返回，命令在那之后才注销（IExtension.h 的契约）
+    IExtensionContext* context = &ctx;
+    ctx.registerInstantCommand(QStringLiteral("ext.text.style"),
+                               [context](const CommandContext& c) { openTextStyle(c, context->mainWindow()); },
+                               {.description = textStyle});
 
     // 双击多行文字就地编辑；上下文的 entity/point 为双击的文字与位置
     ctx.registerExclusiveCommand(QStringLiteral("ext.text.edit_mtext"),

@@ -42,24 +42,9 @@
 <context>
     <name>QMessageBox</name>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="106"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="97"/>
         <source>Warning</source>
         <translation>警告</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.cpp" line="74"/>
-        <source>Layer Properties</source>
-        <translation>图层特性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.cpp" line="75"/>
-        <source>Layer with a name &quot;%1&quot; already exists. Please specify a different name.</source>
-        <translation>名称为“%1”的层已存在。 请指定其他名称。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="236"/>
-        <source>Layer Dialog</source>
-        <translation>图层对话框</translation>
     </message>
 </context>
 <context>
@@ -728,147 +713,127 @@
         <translation>无法备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="335"/>
-        <source>All Image Files (%1)</source>
-        <translation>所有图像文件 (%1)</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="337"/>
-        <source>All Files (*.*)</source>
-        <translation>所有文件 (*.*)</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="342"/>
-        <source>Open Image</source>
-        <translation>打开图片</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="601"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="402"/>
         <source>Modify dimension text</source>
         <translation>修改标注文本</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="601"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="402"/>
         <source>New dimension text:</source>
         <translation>新标注文本：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="789"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="547"/>
         <source>Windows Bitmap</source>
         <translation>BMP</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="805"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="563"/>
         <source>Portable Bit Map</source>
         <translation>PBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="809"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="567"/>
         <source>Portable Grey Map</source>
         <translation>PGM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="817"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="575"/>
         <source>Portable Pixel Map</source>
         <translation>PPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="821"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="579"/>
         <source>X Bitmap Format</source>
         <translation>XBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="825"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="583"/>
         <source>X Pixel Map</source>
         <translation>XPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="172"/>
-        <source>Level</source>
-        <translation>图层</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="604"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="405"/>
         <source>Modify dimension</source>
         <translation>修改标注</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="793"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="551"/>
         <source>Joint Photo document Experts Group</source>
         <translation>JPEG 图像格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="797"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="555"/>
         <source>Documents Interchange Format</source>
         <translation>文档交换格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="801"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="559"/>
         <source>Multiple-image Network Documents</source>
         <translation>多图像网络文档</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="813"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="571"/>
         <source>Portable Network Document</source>
         <translation>便携式网络图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="829"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="587"/>
         <source>Scalable Vector Documents</source>
         <translation>可缩放矢量图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="833"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="591"/>
         <source>SGI Black &amp; White</source>
         <translation>BW</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="837"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="595"/>
         <source>Encapsulated PostScript</source>
         <translation>EPS</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="841"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="599"/>
         <source>Encapsulated PostScript Format</source>
         <translation>EPSF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="845"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="603"/>
         <source>Encapsulated PostScript Interchange</source>
         <translation>EPSI</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="849"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="607"/>
         <source>Windows Icon</source>
         <translation>ICO</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="853"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="611"/>
         <source>JPEG 2000</source>
         <translation>JPEG 2000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="857"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="615"/>
         <source>ZSoft Paintbrush</source>
         <translation>PCX</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="861"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="619"/>
         <source>PC Paint</source>
         <translation>PIC</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="865"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="623"/>
         <source>SGI-Bilddatei</source>
         <translation>SGI-Bilddatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="869"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="627"/>
         <source>Targa Image File</source>
         <translation>TGA</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="873"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="631"/>
         <source>Tagged Image File Format</source>
         <translation>TIF/TIFF</translation>
     </message>
@@ -904,18 +869,18 @@
         <translation>接受的按键代码：%1</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="429"/>
+        <location filename="../src/cmd/Commands.cpp" line="451"/>
         <source>Available commands:</source>
         <translation>可用命令：</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="441"/>
+        <location filename="../src/cmd/Commands.cpp" line="463"/>
         <source>cal</source>
         <comment>command to trigger cli calculator</comment>
         <translation>cal</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="444"/>
+        <location filename="../src/cmd/Commands.cpp" line="466"/>
         <source>calculate</source>
         <comment>command to trigger cli calculator</comment>
         <translation>计算</translation>
@@ -935,7 +900,6 @@
         <location filename="../src/kernel/builder_model/DmDocument.cpp" line="585"/>
         <location filename="../src/ui/forms/UIDlgDefineAttribute.cpp" line="192"/>
         <location filename="../src/ui/forms/UIDlgText.cpp" line="77"/>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="296"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
@@ -1471,17 +1435,17 @@
     <name>UICommandWidget</name>
     <message>
         <location filename="../src/ui/UICommandWidget.cpp" line="59"/>
-        <location filename="../src/ui/UICommandWidget.cpp" line="118"/>
+        <location filename="../src/ui/UICommandWidget.cpp" line="122"/>
         <source>Command</source>
         <translation>命令</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICommandWidget.cpp" line="107"/>
+        <location filename="../src/ui/UICommandWidget.cpp" line="111"/>
         <source>Show command history</source>
         <translation>显示命令历史</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICommandWidget.cpp" line="288"/>
+        <location filename="../src/ui/UICommandWidget.cpp" line="292"/>
         <source>Unknown command</source>
         <translation>未知命令</translation>
     </message>
@@ -1662,29 +1626,6 @@
         <location filename="../src/ui/forms/UIDlgCircle.cpp" line="78"/>
         <source>Modify circle</source>
         <translation>修改圆</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgCmdsSetting</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCmdsSetting.ui" line="26"/>
-        <source>Commands setting</source>
-        <translation>命令设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCmdsSetting.cpp" line="58"/>
-        <source>Command</source>
-        <translation>命令</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCmdsSetting.cpp" line="58"/>
-        <source>Keys</source>
-        <translation>按键</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCmdsSetting.cpp" line="88"/>
-        <source>The last set keys of command: %1 is %2. One command can map multiple keys, keys should be separated by comma(,). </source>
-        <translation>命令：%1 的最新设置按键为：%2。一个命令可以匹配多个按键，多个按键由逗号（,）分割。</translation>
     </message>
 </context>
 <context>
@@ -2287,343 +2228,6 @@
     </message>
 </context>
 <context>
-    <name>UIDlgOptionsDrawing</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="46"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="45"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="80"/>
-        <source>Scientific</source>
-        <translation>科学的</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="80"/>
-        <source>Decimal</source>
-        <translation>十进制</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="80"/>
-        <source>Engineering</source>
-        <translation>工程</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="80"/>
-        <source>Architectural</source>
-        <translation>建筑</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="80"/>
-        <source>Fractional</source>
-        <translation>分数</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="80"/>
-        <source>Architectural (metric)</source>
-        <translation>建筑（公制）</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="85"/>
-        <source>Decimal Degrees</source>
-        <translation>十进制度</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="85"/>
-        <source>Deg/min/sec</source>
-        <translation>度/分/秒</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="85"/>
-        <source>Gradians</source>
-        <translation>格拉迪安</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="85"/>
-        <source>Radians</source>
-        <translation>弧度</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="85"/>
-        <source>Surveyor&apos;s units</source>
-        <translation>测量员单位</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="133"/>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="142"/>
-        <source>Options</source>
-        <translation>设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="133"/>
-        <source>For the length formats &apos;Engineering&apos; and &apos;Architectural&apos;, the unit must be set to Inch.</source>
-        <translation>对于长度格式“工程”和“建筑”，单位必须设置为英寸。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.cpp" line="143"/>
-        <source>For the length format &apos;Architectural (metric)&apos;, the unit must be set to Meter.</source>
-        <translation>对于长度格式“建筑（公制）”，单位必须设置为米。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="14"/>
-        <source>Drawing Preferences</source>
-        <translation>绘图首选项</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="155"/>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="251"/>
-        <source>Preview</source>
-        <translation>预览</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="40"/>
-        <source>Main Unit</source>
-        <translation>主要单元</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="46"/>
-        <source>&amp;Main drawing unit:</source>
-        <translation>&amp;主要绘图单元：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="85"/>
-        <source>Length</source>
-        <translation>长度</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="126"/>
-        <source>&amp;Format:</source>
-        <translation>格式：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="94"/>
-        <source>P&amp;recision:</source>
-        <translation>精度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="161"/>
-        <source>linear</source>
-        <translation>线性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="181"/>
-        <source>Angle</source>
-        <translation>角度</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="187"/>
-        <source>F&amp;ormat:</source>
-        <translation>格式：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="238"/>
-        <source>Pre&amp;cision:</source>
-        <translation>精度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="257"/>
-        <source>angular</source>
-        <translation>有角度的</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsDrawing.ui" line="34"/>
-        <source>&amp;Units</source>
-        <translation>&amp;单位</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgOptionsGeneral</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="89"/>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="102"/>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="115"/>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="128"/>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="141"/>
-        <source>custom</source>
-        <translation>自定义</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="51"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="50"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="113"/>
-        <source>Customize command</source>
-        <translation>自定义命令</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="223"/>
-        <source>Preferences</source>
-        <translation>偏好</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="223"/>
-        <source>Please restart the application to apply all changes.</source>
-        <translation>设置完成，请重新启动应用程序！</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="284"/>
-        <source>Modify command table:%1</source>
-        <translation>修改命令：%1</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="291"/>
-        <source>Clear settings</source>
-        <translation>清除设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.cpp" line="292"/>
-        <source>This will also include custom menus. Continue?</source>
-        <translation>还包括自定义菜单。 继续？</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="14"/>
-        <source>Application Preferences</source>
-        <translation>应用程序设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="58"/>
-        <source>Graphic Colors</source>
-        <translation>颜色设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="69"/>
-        <source>G&amp;rid Color:</source>
-        <translation>网格辅线颜色：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="151"/>
-        <source>&amp;Highlighted Color:</source>
-        <translation>高亮颜色：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="179"/>
-        <source>&amp;Meta Grid Color:</source>
-        <translation>网格主线颜色：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="207"/>
-        <source>S&amp;elected Color:</source>
-        <translation>选中颜色：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="236"/>
-        <source>Backgr&amp;ound:</source>
-        <translation>背景颜色：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="437"/>
-        <source>&amp;Theme Setting</source>
-        <translation>主题设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="46"/>
-        <source>&amp;Appearance</source>
-        <translation>外观</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="320"/>
-        <source>Program Defaults</source>
-        <translation>程序默认值</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="326"/>
-        <source>When set, YunmoshuCAD will automatically generate a backup of your current drawing.</source>
-        <translation>设置后，云磨术CAD会自动生成当前图纸的备份。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="329"/>
-        <source>Auto backup</source>
-        <translation>自动备份</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="338"/>
-        <source>Auto save time:</source>
-        <translation>自动保存时间：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="345"/>
-        <source>Time between automatic saving of the document in minutes.</source>
-        <translation>以分钟为单位自动保存文档之间的时间。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="360"/>
-        <source>Inverts zoom direction when using mouse wheel.</source>
-        <translation>使用鼠标滚轮时反转缩放方向。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="363"/>
-        <source>Invert zoom direction</source>
-        <translation>反转缩放方向</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="372"/>
-        <source>Commands setting:</source>
-        <translation>命令设置：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="445"/>
-        <source>Theme:</source>
-        <translation>主题：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="453"/>
-        <source>light</source>
-        <translation>明</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="458"/>
-        <source>dark</source>
-        <translation>暗</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="471"/>
-        <source>Startup</source>
-        <translation>启动</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="477"/>
-        <source>Display loading screen</source>
-        <translation>显示加载画面</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="484"/>
-        <source>Start with main window maximized</source>
-        <translation>启动程序窗口最大化</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="402"/>
-        <source>Defaults for new drawings</source>
-        <translation>新图纸的默认单位</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="414"/>
-        <source>&amp;Unit:</source>
-        <translation>&amp;单位：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="427"/>
-        <source>Drawing unit.</source>
-        <translation>图纸单元。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgOptionsGeneral.ui" line="302"/>
-        <source>&amp;Defaults</source>
-        <translation>默认</translation>
-    </message>
-</context>
-<context>
     <name>UIDlgPoint</name>
     <message>
         <location filename="../src/ui/forms/UIDlgPoint.ui" line="26"/>
@@ -2811,139 +2415,6 @@
     </message>
 </context>
 <context>
-    <name>UIDlgTextStyle</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="14"/>
-        <source>TextStyle</source>
-        <translation>文字样式</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="29"/>
-        <source>Current Text Style:</source>
-        <translation>当前文字样式:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="36"/>
-        <source>TextLabel</source>
-        <translation>文本标签</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="45"/>
-        <source>Text Styles:</source>
-        <translation>文字样式:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="75"/>
-        <source>Activate</source>
-        <translation>置为当前</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="91"/>
-        <source>New</source>
-        <translation>新建</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="98"/>
-        <source>Rename</source>
-        <translation>重命名</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="105"/>
-        <source>Delete</source>
-        <translation>删除</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="132"/>
-        <source>Font</source>
-        <translation>字体</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="146"/>
-        <source>Font Name:</source>
-        <translation>字体名:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="177"/>
-        <source>Use big font</source>
-        <translation>使用大字体</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="186"/>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="211"/>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="589"/>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="613"/>
-        <source>Big font:</source>
-        <translation>大字体:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="220"/>
-        <source>Effect and size</source>
-        <translation>效果及大小</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="234"/>
-        <source>Upsidedown</source>
-        <translation>颠倒</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="241"/>
-        <source>Reverse</source>
-        <translation>反向</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="248"/>
-        <source>Vertical</source>
-        <translation>垂直</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="265"/>
-        <source>Default Height:</source>
-        <translation>默认高度:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="282"/>
-        <source>Width Factor:</source>
-        <translation>宽度系数:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.ui" line="299"/>
-        <source>Oblique Angle:</source>
-        <translation>倾斜角度:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="233"/>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="571"/>
-        <source>Font style:</source>
-        <translation>字体样式：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="296"/>
-        <source>Font:%1 not exist!</source>
-        <translation>字体：%1 不存在！</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="418"/>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="733"/>
-        <source>Tips</source>
-        <translation>提示</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="418"/>
-        <source>Invalid input!</source>
-        <translation>输入无效！</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="733"/>
-        <source>Current style has changed, save or not?</source>
-        <translation>当前样式已修改，是否保存？</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgTextStyle.cpp" line="744"/>
-        <source>Save TextStyle</source>
-        <translation>保存文字样式</translation>
-    </message>
-</context>
-<context>
     <name>UIExitDialog</name>
     <message>
         <location filename="../src/ui/forms/UIExitDialog.cpp" line="102"/>
@@ -2991,37 +2462,10 @@
     </message>
 </context>
 <context>
-    <name>UILayerDialog</name>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.cpp" line="53"/>
-        <source>Default Pen</source>
-        <translation>设置画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.ui" line="20"/>
-        <source>Layer Settings</source>
-        <translation>图层设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.ui" line="61"/>
-        <source>Layer Name:</source>
-        <translation>图层名字：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.cpp" line="38"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UILayerDialog.cpp" line="37"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
     <name>UILineTypeBox</name>
     <message>
-        <location filename="../src/ui/UILineTypeBox.cpp" line="75"/>
+        <location filename="../src/ui/UILineTypeBox.cpp" line="72"/>
+        <location filename="../src/ui/UILineTypeBox.cpp" line="84"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
@@ -3590,24 +3034,6 @@
         <location filename="../src/ui/UIWidthBox.cpp" line="70"/>
         <source>2.11mm</source>
         <translation>2.11mm</translation>
-    </message>
-</context>
-<context>
-    <name>Ui_ModifyOffsetOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UIModifyOffsetOptions.ui" line="32"/>
-        <source>Modify Offset Options</source>
-        <translation>修改偏移选项</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIModifyOffsetOptions.ui" line="56"/>
-        <source>Distance:</source>
-        <translation>距离：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIModifyOffsetOptions.ui" line="72"/>
-        <source>Offset from original entity</source>
-        <translation>从初始实体偏移</translation>
     </message>
 </context>
 <context>

@@ -32,6 +32,9 @@
 #include "GuiDocumentView.h"
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
+#include "UIDialogRunner.h"
+#include "UIDlgOptionsDrawing.h"
+#include "UIDlgOptionsGeneral.h"
 #include "UIRibbonRegistry.h"
 #include "UITabDrawWidget.h"
 
@@ -40,7 +43,15 @@ namespace
 /// @brief 系统设置：弹出对话框，再把设置里的颜色应用到全部打开的视图
 void openGeneralOptions(IExtensionContext& ctx)
 {
-    GUIDIALOGFACTORY->requestOptionsGeneralDialog();
+    UITabDrawWidget* tabs = ctx.tabDrawWidget();
+    {
+        UIDlgOptionsGeneral dlg(ctx.mainWindow());
+        if (tabs)
+        {
+            dlg.setDocuments(tabs->getDocuments());
+        }
+        UIDialogRunner::exec(dlg);
+    }
 
     DMSETTINGS->beginGroup("Colors");
     const QColor background(DMSETTINGS->readEntry("/background", Colors::BACKGROUND));
@@ -50,7 +61,6 @@ void openGeneralOptions(IExtensionContext& ctx)
     const QColor highlightColor(DMSETTINGS->readEntry("/highlight", Colors::HIGHLIGHT));
     DMSETTINGS->endGroup();
 
-    UITabDrawWidget* tabs = ctx.tabDrawWidget();
     if (!tabs)
     {
         return;
@@ -67,13 +77,17 @@ void openGeneralOptions(IExtensionContext& ctx)
 }
 
 /// @brief 图纸设置：弹出当前图纸的设置对话框，复位坐标显示
-void openDrawingOptions(const CommandContext& cmd)
+void openDrawingOptions(IExtensionContext& ctx, const CommandContext& cmd)
 {
     if (!cmd.document)
     {
         return;
     }
-    GUIDIALOGFACTORY->requestOptionsDrawingDialog(*cmd.document);
+    {
+        UIDlgOptionsDrawing dlg(ctx.mainWindow());
+        dlg.setDocument(cmd.document);
+        UIDialogRunner::exec(dlg);
+    }
     GUIDIALOGFACTORY->updateCoordinateWidget(DmVector(0.0, 0.0), DmVector(0.0, 0.0), true);
     if (cmd.view)
     {
@@ -101,7 +115,9 @@ void OptionsExtension::OnRegister(IExtensionContext& ctx)
     });
 
     const QString drawing = QCoreApplication::translate("OptionsExtension", "Draw Setting");
-    ctx.registerInstantCommand(QStringLiteral("ext.options.drawing"), openDrawingOptions, {.description = drawing});
+    ctx.registerInstantCommand(QStringLiteral("ext.options.drawing"),
+                               [context](const CommandContext& cmd) { openDrawingOptions(*context, cmd); },
+                               {.description = drawing});
     ctx.ribbon().addAction({
         .panelId = UIRibbonIds::kPanelOptionsSettings,
         .text = drawing,

@@ -14,6 +14,7 @@
 #include "LineData.h"
 #include "ModifyBevelCommand.h"
 #include "ModifyRoundCommand.h"
+#include "ModifySingleOffsetCommand.h"
 #include "PolylineData.h"
 #include "support/CommandTestFixture.h"
 
@@ -167,18 +168,19 @@ TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
     ASSERT_TRUE(start("ext.modify.single_offset"));
-    ASSERT_FALSE(ui.offsetOptions.empty());
-    EXPECT_TRUE(ui.offsetOptions.back());
-    ASSERT_NE(ui.offsetDistance, nullptr);
-    EXPECT_DOUBLE_EQ(*ui.offsetDistance, 30.0);
+    ASSERT_NE(lastOptions("ext.modify.single_offset"), nullptr);
+    EXPECT_TRUE(lastOptions("ext.modify.single_offset")->on);
+    auto* offsetCommand = active<ModifySingleOffsetCommand>();
+    ASSERT_NE(offsetCommand, nullptr);
+    EXPECT_DOUBLE_EQ(offsetCommand->distance(), 30.0);
 
     click(5, 0);
     EXPECT_TRUE(line->isHighlighted());
     move(5, 5);
     ASSERT_EQ(previewCount(), 1);
 
-    // 选项条经引用改写距离，下一次移动按新距离预览
-    *ui.offsetDistance = 2.0;
+    // 选项条（UIModifyOffsetOptions::updateDist）改写距离，下一次移动按新距离预览
+    offsetCommand->setDistance(2.0);
     move(5, 6);
     ASSERT_EQ(previewCount(), 1);
     DmEntity* offset = view.getPreviewContainer()->entityAt(0);
@@ -189,7 +191,7 @@ TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
     rightClick();
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_FALSE(line->isHighlighted());
-    EXPECT_FALSE(ui.offsetOptions.back());
+    EXPECT_FALSE(lastOptions("ext.modify.single_offset")->on);
 }
 
 TEST_F(ModifyFixture, 修剪只响应小键盘回车且不接受按键)

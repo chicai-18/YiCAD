@@ -25,6 +25,7 @@
 #include "IExtensionContext.h"
 #include "ModifyCommands.h"
 #include "UIBevelOptions.h"
+#include "UIModifyOffsetOptions.h"
 #include "UIRibbonRegistry.h"
 #include "UIRoundOptions.h"
 
@@ -77,7 +78,7 @@ void ModifyExtension::OnRegister(IExtensionContext& ctx)
         {"ext.modify.extend", kPanelDraw2dModify, QT_TRANSLATE_NOOP("ModifyExtension", "Lengthen"),
          ":/ribbon/draw2d/modify_lengthen.svg", ModifyCommands::extend()},
         {"ext.modify.single_offset", kPanelDraw2dModify, QT_TRANSLATE_NOOP("ModifyExtension", "Offset"),
-         ":/ribbon/draw2d/modify_offset.svg", ModifyCommands::singleOffset()},
+         ":/ribbon/draw2d/modify_offset.svg", ModifyCommands::singleOffset(), optionsFactory<UIModifyOffsetOptions>()},
         {"ext.modify.bevel", kPanelDraw2dModify, QT_TRANSLATE_NOOP("ModifyExtension", "Bevel"),
          ":/ribbon/draw2d/modify_bevel.svg", ModifyCommands::bevel(), optionsFactory<UIBevelOptions>()},
         {"ext.modify.round", kPanelDraw2dModify, QT_TRANSLATE_NOOP("ModifyExtension", "Fillet"),

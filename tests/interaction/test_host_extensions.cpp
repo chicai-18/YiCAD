@@ -2,7 +2,8 @@
 /// @brief 文件、图层、选项扩展（业务工具化第三步第⑤批）的单元测试
 ///
 /// 覆盖：三个扩展注册的即时命令与打断方式、原内置 ID 不再存在、按钮挂进宿主
-/// 占位的面板、没有宿主标签页或文档时命令什么也不做、Shutdown 后命令注销；图层下拉框
+/// 占位的面板、没有宿主标签页或文档时命令什么也不做、Shutdown 后命令注销；图层与设置
+/// 命令弹出各自的对话框（扩展直接构造，经 DialogRecorder 记录并视为取消）；图层下拉框
 /// 每行按钮记着图层名。命令对文档的修改要走事务，默认构造的 DmDocument 走事务会崩溃
 /// （见 CommandTestFixture.h），因此不执行修改。
 ///
@@ -11,20 +12,27 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <vector>
 
+#include <QLineEdit>
 #include <QPushButton>
 #include <QToolButton>
 #include <QWidget>
 
 #include "CommandRegistry.h"
 #include "CustomComboboxItem.h"
+#include "DmDocument.h"
+#include "DmLayer.h"
+#include "DmLayerTable.h"
 #include "ExtensionManager.h"
 #include "FileExtension.h"
 #include "LayerExtension.h"
 #include "OptionsExtension.h"
 #include "UIRibbonRegistry.h"
+#include "support/DialogRecorder.h"
 #include "support/FakeExtensionHost.h"
 
+using yicad_test::DialogRecorder;
 using yicad_test::FakeExtensionHost;
 
 namespace
@@ -110,6 +118,46 @@ TEST(HostExtensionsTest, 没有标签页或文档时命令什么也不做)
         SCOPED_TRACE(id);
         EXPECT_TRUE(registry.runInstant(QString::fromLatin1(id), CommandContext{}));
     }
+}
+
+TEST(HostExtensionsTest, 新建与修改图层弹出图层对话框取消时图层表不变)
+{
+    HostExtensions extensions;
+    DialogRecorder dialogs;
+    std::vector<QString> names; // 对话框里的图层名
+    dialogs.onShow = [&names](QDialog& dialog)
+    {
+        auto* name = dialog.findChild<QLineEdit*>(QStringLiteral("leName"));
+        names.push_back(name ? name->text() : QString());
+    };
+
+    DmDocument doc;
+    DmLayerTable* layers = doc.getLayerTable();
+    ASSERT_TRUE(layers->add_direct(new DmLayer(QStringLiteral("墙体09"))));
+    layers->activate_direct(QStringLiteral("墙体09"));
+    const unsigned layerCount = layers->count();
+
+    const CommandRegistry& registry = CommandRegistry::instance();
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.layer.add"), CommandContext{&doc}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.layer.rename"), CommandContext{&doc}));
+
+    EXPECT_EQ(dialogs.shown, (std::vector<QString>{QStringLiteral("UILayerDialog"), QStringLiteral("UILayerDialog")}));
+    // 新建时预填当前图层名末尾的数字加一（位数不变），修改时是当前图层名
+    EXPECT_EQ(names, (std::vector<QString>{QStringLiteral("墙体10"), QStringLiteral("墙体09")}));
+    EXPECT_EQ(layers->count(), layerCount);
+    EXPECT_EQ(layers->getActive()->getName(), QStringLiteral("墙体09"));
+}
+
+TEST(HostExtensionsTest, 设置命令弹出设置对话框)
+{
+    HostExtensions extensions;
+    DialogRecorder dialogs;
+    DmDocument doc;
+    const CommandRegistry& registry = CommandRegistry::instance();
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.options.general"), CommandContext{}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.options.drawing"), CommandContext{&doc}));
+    EXPECT_EQ(dialogs.shown,
+              (std::vector<QString>{QStringLiteral("UIDlgOptionsGeneral"), QStringLiteral("UIDlgOptionsDrawing")}));
 }
 
 TEST(HostExtensionsTest, Shutdown后命令注销)

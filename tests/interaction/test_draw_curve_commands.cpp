@@ -91,8 +91,9 @@ TEST_F(DrawCurveFixture, 启动后给出第一步提示并按需打开选项条�
 
 TEST_F(DrawCurveFixture, 插入图片取消选择对话框时启动失败)
 {
-    // 对话框工厂的默认实现返回空路径：原 Action 被标记为结束，现在命令启动失败
+    // 文件对话框取消时路径为空：原 Action 被标记为结束，现在命令启动失败
     EXPECT_FALSE(start("ext.draw.image"));
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("QFileDialog")});
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(lastOptions("ext.draw.image"), nullptr);
 }

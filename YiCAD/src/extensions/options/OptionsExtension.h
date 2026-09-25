@@ -19,9 +19,9 @@
 /// @brief 选项扩展（src/extensions/options/）的入口。
 ///
 /// 业务工具化第三步第⑤批（doc/COMMAND_TOOL_MIGRATION_PLAN.md 5.2 节）：系统设置、
-/// 图纸设置两条即时命令与"设置"面板里的两个按钮。两个设置对话框仍经
-/// GuiDialogFactoryInterface 弹出；系统设置改了颜色后经
-/// IExtensionContext::tabDrawWidget() 刷新全部打开的视图。
+/// 图纸设置两条即时命令与"设置"面板里的两个按钮。两个设置对话框（ui/，连同系统设置里
+/// 的"命令设置"对话框）由本扩展直接构造（doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）；
+/// 系统设置改了颜色后经 IExtensionContext::tabDrawWidget() 刷新全部打开的视图。
 
 #ifndef OPTIONSEXTENSION_H
 #define OPTIONSEXTENSION_H

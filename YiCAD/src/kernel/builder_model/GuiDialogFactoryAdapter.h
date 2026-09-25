@@ -90,20 +90,6 @@ public:
         return false;
     }
 
-    /// @brief 请求新建图层对话框
-    /// @return 始终返回 nullptr
-    DmLayer* requestNewLayerDialog(DmLayerTable*) override
-    {
-        return nullptr;
-    }
-
-    /// @brief 请求编辑图层对话框
-    /// @return 始终返回 nullptr
-    DmLayer* requestEditLayerDialog(DmLayerTable*) override
-    {
-        return nullptr;
-    }
-
     /// @brief 请求新建块对话框
     /// @return 始终返回空数据
     DmBlockData requestNewBlockDialog(DmBlockTable*) override
@@ -125,13 +111,6 @@ public:
         return false;
     }
 
-    /// @brief 请求打开图片对话框
-    /// @return 始终返回空字符串
-    QString requestImageOpenDialog() override
-    {
-        return {};
-    }
-
     /// @brief 请求操作选项（空操作）
     void requestCommandOptions(IExclusiveCommand*, bool, bool) override
     {
@@ -139,11 +118,6 @@ public:
 
     /// @brief 请求捕捉中点选项（空操作）
     void requestSnapMiddleOptions(int&, bool) override
-    {
-    }
-
-    /// @brief 请求偏移单个实体选项（空操作）
-    void requestModifySingleOffsetOptions(double&, bool, bool) override
     {
     }
 
@@ -166,16 +140,6 @@ public:
     bool requestHatchDialog(DmHatch*) override
     {
         return false;
-    }
-
-    /// @brief 请求通用选项对话框（空操作）
-    void requestOptionsGeneralDialog() override
-    {
-    }
-
-    /// @brief 请求绘图选项对话框（空操作）
-    void requestOptionsDrawingDialog(DmDocument&) override
-    {
     }
 
     /// @brief 更新坐标控件（空操作）
@@ -207,21 +171,6 @@ public:
     void setBottomWidget(UIBottomWindow*) override
     {
     }
-
-    /// @brief 请求文字样式对话框
-    /// @return 始终返回 false
-    bool requestTextStyleDialog(DmTextStyleTable* textStyleTable, DmDocument* document) override
-    {
-        return false;
-    }
-
-    /// @brief 请求线型管理对话框
-    /// @return 始终返回 false
-    bool requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document) override
-    {
-        return false;
-    }
-
 };
 
 #endif

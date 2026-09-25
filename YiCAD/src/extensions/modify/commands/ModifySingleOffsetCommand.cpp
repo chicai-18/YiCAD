@@ -19,12 +19,12 @@
  */
 
 /// @file ModifySingleOffsetCommand.cpp
-/// @brief 单个偏移命令 ext.modify.single_offset，取代原 ActionModifySingleOffset：选一个实体，
-///        再点一下偏移的一侧，按选项条上的距离偏移出一个新实体，然后结束
+/// @brief 单个偏移命令 ext.modify.single_offset 的实现
+
+#include "ModifySingleOffsetCommand.h"
 
 #include <memory>
 
-#include <QCoreApplication>
 #include <QMouseEvent>
 
 #include "BasePlaceTool.h"
@@ -35,88 +35,63 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
-#include "Modification.h"
-#include "PlaceCommand.h"
 #include "Transaction.h"
+
+void ModifySingleOffsetCommand::previewOffset(DmEntity* original, const DmVector& coord)
+{
+    preview().clear();
+    DmEntity* clone = original->clone();
+    if (clone->offset(coord, m_distance))
+    {
+        preview().entities().addEntity(clone);
+    }
+    else
+    {
+        delete clone;
+    }
+    preview().draw();
+}
+
+void ModifySingleOffsetCommand::commitOffset(DmEntity* original, const DmVector& coord)
+{
+    preview().clear();
+
+    Transaction t(tr("Offset").toStdString(), document());
+    t.start();
+
+    DmEntity* ec = original->clone();
+    ec->setLayerToActive();
+    ec->setPenToActive();
+    ec->setHighlighted(false);
+
+    if (!ec->offset(coord, m_distance))
+    {
+        delete ec;
+    }
+    else
+    {
+        document()->getEntityTable()->add(ec);
+    }
+
+    t.commit();
+
+    view()->redraw();
+    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    finish();
+}
+
+void ModifySingleOffsetCommand::showOptions()
+{
+    GUIDIALOGFACTORY->requestCommandOptions(this, true);
+}
+
+void ModifySingleOffsetCommand::hideOptions()
+{
+    GUIDIALOGFACTORY->requestCommandOptions(this, false);
+}
 
 namespace
 {
-constexpr double DEFAULT_OFFSET_DISTANCE = 30.0; ///< 默认偏移距离
-constexpr unsigned DEFAULT_OFFSET_NUMBER = 1;    ///< 默认偏移数量
-
-/// @brief 单个偏移命令：持有偏移参数（选项条经引用直接改写距离）并提交偏移
-class ModifySingleOffsetCommand : public PlaceCommand
-{
-    Q_DECLARE_TR_FUNCTIONS(ModifySingleOffsetCommand)
-
-public:
-    ModifySingleOffsetCommand()
-    {
-        m_data.distance = DEFAULT_OFFSET_DISTANCE;
-        m_data.number = DEFAULT_OFFSET_NUMBER;
-        m_data.useCurrentAttributes = true;
-        m_data.useCurrentLayer = true;
-        m_data.coord = DmVector();
-    }
-
-    /// @brief 偏移距离
-    double distance() const { return m_data.distance; }
-
-    /// @brief 预览 original 向 coord 一侧偏移的结果
-    void previewOffset(DmEntity* original, const DmVector& coord)
-    {
-        preview().clear();
-        DmEntity* clone = original->clone();
-        if (clone->offset(coord, m_data.distance))
-        {
-            preview().entities().addEntity(clone);
-        }
-        else
-        {
-            delete clone;
-        }
-        preview().draw();
-    }
-
-    /// @brief 把 original 向 coord 一侧偏移出一个新实体（放在当前图层、用当前画笔），然后结束命令
-    void commitOffset(DmEntity* original, const DmVector& coord)
-    {
-        preview().clear();
-
-        Transaction t(tr("Offset").toStdString(), document());
-        t.start();
-
-        DmEntity* ec = original->clone();
-        ec->setLayerToActive();
-        ec->setPenToActive();
-        ec->setHighlighted(false);
-
-        if (!ec->offset(coord, m_data.distance))
-        {
-            delete ec;
-        }
-        else
-        {
-            document()->getEntityTable()->add(ec);
-        }
-
-        t.commit();
-
-        view()->redraw();
-        GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
-        finish();
-    }
-
-protected:
-    std::unique_ptr<BasePlaceTool> createTool() override;
-
-    void showOptions() override { GUIDIALOGFACTORY->requestModifySingleOffsetOptions(m_data.distance, true, false); }
-    void hideOptions() override { GUIDIALOGFACTORY->requestModifySingleOffsetOptions(m_data.distance, false, false); }
-
-private:
-    OffsetData m_data; ///< 偏移参数（只用到距离）
-};
-
 /// @brief 单个偏移工具：悬停高亮、单击选中原实体，再单击偏移一侧
 class ModifySingleOffsetTool : public BasePlaceTool
 {
@@ -233,12 +208,12 @@ private:
     DmVector m_coord;                      ///< 偏移一侧的点（未选中实体时无效）
 };
 
+}  // namespace
+
 std::unique_ptr<BasePlaceTool> ModifySingleOffsetCommand::createTool()
 {
     return std::make_unique<ModifySingleOffsetTool>(*this, document(), view());
 }
-
-}  // namespace
 
 ExclusiveCommandFactory ModifyCommands::singleOffset()
 {

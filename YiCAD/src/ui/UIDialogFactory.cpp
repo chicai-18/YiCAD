@@ -22,10 +22,7 @@
 
 
 #include <QMessageBox>
-#include <QFileDialog>
-#include <QImageReader>
 #include <QString>
-#include <QRegularExpression>
 #include <QInputDialog>
 
 #include "DmPatternList.h"
@@ -53,22 +50,16 @@
 #include "UIDlgImage.h"
 #include "UIDlgInsert.h"
 #include "UIDlgLine.h"
-#include "UIDlgOptionsDrawing.h"
-#include "UIDlgOptionsGeneral.h"
 
 #include "UIDlgPoint.h"
 #include "UIDlgPolyline.h"
 #include "UIDlgSpline.h"
 #include "UIDlgText.h"
-#include "UILayerDialog.h"
-#include "UIModifyOffsetOptions.h"
 #include "UISnapMiddleOptions.h"
 #include "DmBlockTable.h"
 #include "DmVector.h"
 #include "Debug.h"
 #include "UIBottomWidget.h"
-#include "UIDlgTextStyle.h"
-#include "UIDlgLineType.h"
 #include "Transaction.h"
 
 /// @brief Constructor
@@ -156,101 +147,6 @@ bool UIDialogFactory::requestFileImport(DmDocument& document, const QString& fil
 	return FileIO::instance()->fileImport(document, file);
 }
 
-/// @brief Shows a dialog for adding a layer. Doesn't add the layer.This is up to the caller.
-/// @return a pointer to the newly created layer that should be added.
-DmLayer* UIDialogFactory::requestNewLayerDialog(DmLayerTable* layerTable)
-{
-	DmLayer* layer = nullptr;
-
-	QString layer_name;
-	QString newLayerName;
-	if (nullptr != layerTable)
-	{
-		layer_name = layerTable->getActive()->getName();
-		if (layer_name.isEmpty() || !layer_name.compare("0"))
-		{
-			layer_name = QObject::tr("Level");
-		}
-		newLayerName = layer_name;
-
-		// 从当前图层名中匹配【基本图层名+数字】，取出数字往上累加获得新图层名
-		QString sBaseLayerName(layer_name);
-		QString sNumLayerName;
-		int nlen = 1;
-		int i = 0;
-		QRegularExpression re("^(.*\\D+|)(\\d+)$");
-		QRegularExpressionMatch match(re.match(layer_name));
-		if (match.hasMatch())
-		{
-			sBaseLayerName = match.captured(1);
-			if (1 < match.lastCapturedIndex())
-			{
-				sNumLayerName = match.captured(2);
-				nlen = sNumLayerName.length();
-				i = sNumLayerName.toInt();
-			}
-		}
-
-		do
-		{
-			newLayerName = QString("%1%2").arg(sBaseLayerName).arg(++i, nlen, 10, QChar('0'));
-		} while (layerTable->find(newLayerName));
-	}
-
-	// Layer for parameter livery
-	layer = new DmLayer(newLayerName);
-    layer->setDocument(layerTable->getDocument());
-	UILayerDialog dlg(parent, "Layer Dialog");
-	dlg.setLayer(layer);
-	dlg.setLayerTable(layerTable);
-	dlg.getQLineEdit()->selectAll();
-	if (dlg.exec())
-	{
-		dlg.updateLayer();
-	}
-	else
-	{
-		delete layer;
-		layer = nullptr;
-	}
-
-	return layer;
-}
-
-/// @brief Shows a dialog for editing a layer. A new layer is created and returned. Modifying the layer is up to the caller.
-/// @return A pointer to a new layer with the changed attributes or nullptr if the dialog was cancelled.
-DmLayer* UIDialogFactory::requestEditLayerDialog(DmLayerTable* layerTable)
-{
-	DmLayer* layer = nullptr;
-
-	if (!layerTable)
-	{
-		return nullptr;
-	}
-
-	// Layer for parameter livery
-	if (layerTable->getActive())
-	{
-		layer = layerTable->getActive()->clone();
-
-		UILayerDialog dlg(parent, QMessageBox::tr("Layer Dialog"));
-		dlg.setLayer(layer);
-		dlg.setLayerTable(layerTable);
-		dlg.setEditLayer(true);
-		if (dlg.exec())
-		{
-			dlg.updateLayer();
-		}
-		else
-		{
-			delete layer;
-			layer = nullptr;
-		}
-	}
-
-	return layer;
-}
-
 /// @brief Shows a dialog for adding a block. Doesn't add the block. This is up to the caller.
 /// @return a pointer to the newly created block that should be added.
 DmBlockData UIDialogFactory::requestNewBlockDialog(DmBlockTable* blockTable)
@@ -298,72 +194,6 @@ bool UIDialogFactory::requestDefineAttributesDialog(DmAttributeDefinition* attrD
 	}
 
 	return false;
-}
-
-/// @brief Shows a dialog for choosing a file name. Opening the file is up to the caller.
-/// @return File name with path and extension to determine the file type or an empty string if the dialog was cancelled.
-QString UIDialogFactory::requestImageOpenDialog()
-{
-	QString strFileName = "";
-
-	// read default settings:
-	DMSETTINGS->beginGroup("/Paths");
-	QString defDir = DMSETTINGS->readEntry("/OpenImage", DMSYSTEM->getHomeDir());
-	QString defFilter = DMSETTINGS->readEntry("/ImageFilter", "");
-	DMSETTINGS->endGroup();
-
-	QStringList filters;
-	QString all = "";
-	bool haveJpeg = false;
-	for (const QByteArray& format : QImageReader::supportedImageFormats())
-	{
-		if (format.toUpper() == "JPG" || format.toUpper() == "JPEG")
-		{
-			if (!haveJpeg)
-			{
-				haveJpeg = true;
-				filters.append("jpeg (*.jpeg *.jpg)");
-				all += " *.jpeg *.jpg";
-			}
-		}
-		else
-		{
-			filters.append(QString("%1 (*.%1)").arg(QString(format)));
-			all += QString(" *.%1").arg(QString(format));
-		}
-	}
-	QString strAllImageFiles = QObject::tr("All Image Files (%1)").arg(all);
-	filters.append(strAllImageFiles);
-	filters.append(QObject::tr("All Files (*.*)"));
-
-	QFileDialog fileDlg(nullptr, "");
-	fileDlg.setModal(true);
-	fileDlg.setFileMode(QFileDialog::ExistingFile);
-	fileDlg.setWindowTitle(QObject::tr("Open Image"));
-	fileDlg.setDirectory(defDir);
-	fileDlg.setNameFilters(filters);
-	if (defFilter.isEmpty())
-	{
-		defFilter = strAllImageFiles;
-	}
-	fileDlg.selectNameFilter(defFilter);
-
-	if (QDialog::Accepted == fileDlg.exec())
-	{
-		QStringList strSelectedFiles = fileDlg.selectedFiles();
-		if (!strSelectedFiles.isEmpty())
-		{
-			strFileName = strSelectedFiles.first();
-		}
-
-		// store new default settings:
-		DMSETTINGS->beginGroup("/Paths");
-		DMSETTINGS->writeEntry("/OpenImage", QFileInfo(strFileName).absolutePath());
-		DMSETTINGS->writeEntry("/ImageFilter", fileDlg.selectedNameFilter());
-		DMSETTINGS->endGroup();
-	}
-
-	return strFileName;
 }
 
 // Shows a widget for block edit options.
@@ -456,35 +286,6 @@ void UIDialogFactory::requestSnapMiddleOptions(int& middlePoints, bool on)
 		optionWidget->resize(m_pSnapMiddleOptions->width(), 23);
 		optionWidget->show();
 		
-	}
-}
-
-void UIDialogFactory::requestModifySingleOffsetOptions(double& dist, bool on, bool update)
-{
-	if (!on)
-	{
-		if (m_pModifyOffsetOptions)
-		{
-			delete m_pModifyOffsetOptions;
-			m_pModifyOffsetOptions = nullptr;
-			optionWidget->hide();
-		}
-		return;
-	}
-	if (optionWidget)
-	{
-		if (!m_pModifyOffsetOptions)
-		{
-			m_pModifyOffsetOptions = new UIModifyOffsetOptions(optionWidget);
-			m_pModifyOffsetOptions->setDist(dist);
-		}
-		else
-		{
-			m_pModifyOffsetOptions->setDist(dist, false);
-		}
-		m_pModifyOffsetOptions->show();
-		optionWidget->resize(m_pModifyOffsetOptions->width(), 23);
-		optionWidget->show();
 	}
 }
 
@@ -682,20 +483,6 @@ bool UIDialogFactory::requestTextDialog(DmText* text)
 }
 
 
-bool UIDialogFactory::requestTextStyleDialog(DmTextStyleTable* textStyleTable, DmDocument* document)
-{
-	m_pTextStyle = new UIDlgTextStyle(parent, true);
-	m_pTextStyle->setStyleList(textStyleTable,document);
-	if (m_pTextStyle->exec())
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 // Shows a dialog to edit pattern / hatch attributes of the given entity.
 bool UIDialogFactory::requestHatchDialog(DmHatch* hatch)
 {
@@ -712,35 +499,6 @@ bool UIDialogFactory::requestHatchDialog(DmHatch* hatch)
 		return true;
 	}
 	return false;
-}
-
-// Shows dialog for general application options.
-void UIDialogFactory::requestOptionsGeneralDialog()
-{
-	UIDlgOptionsGeneral dlg(parent);
-	dlg.exec();
-}
-
-// Shows dialog for drawing options.
-void UIDialogFactory::requestOptionsDrawingDialog(DmDocument& document)
-{
-	UIDlgOptionsDrawing dlg(parent);
-	dlg.setDocument(&document);
-	dlg.exec();
-}
-
-bool UIDialogFactory::requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document)
-{
-	m_pLineType = new UIDlgLineType(parent,true);
-	m_pLineType->setLineTypeTable(lineTypeTable, document);
-	if (m_pLineType->exec()) 
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
 }
 
 // Called whenever the mouse position changed.

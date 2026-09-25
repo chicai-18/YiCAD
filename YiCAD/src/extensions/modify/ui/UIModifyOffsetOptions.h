@@ -24,6 +24,8 @@
 #include <memory>
 #include <QWidget>
 
+class IExclusiveCommand;
+class ModifySingleOffsetCommand;
 namespace Ui {
 	class Ui_ModifyOffsetOptions;
 }
@@ -42,17 +44,17 @@ public:
 	~UIModifyOffsetOptions();
 
 public slots:
+	/// @brief 设置关联的命令
+	/// @param c 命令；类型不符时视为没有命令
+	/// @param update true 从命令取距离，false 从配置文件取距离并交给命令
+	virtual void setCommand(IExclusiveCommand* c, bool update);
+
 	/// @brief 更新偏移距离
 	/// @param d 距离字符串
 	virtual void updateDist(const QString& d);
 
-	/// @brief 设置偏移距离
-	/// @param d 距离引用
-	/// @param initial 是否从设置初始化
-	virtual void setDist(double& d, bool initial = true);
-
 protected:
-	double* dist = nullptr; ///< 距离指针
+	ModifySingleOffsetCommand* command = nullptr; ///< 命令
 
 protected slots:
 	virtual void languageChange();

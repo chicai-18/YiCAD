@@ -26,17 +26,13 @@
 #include "GuiDialogFactoryInterface.h"
 
 class UISnapMiddleOptions;
-class UIModifyOffsetOptions;
 class QWidget;
 
 class UIBottomWindow;
 class UICommandWidget;
 class DmDocument;
 class DmVector;
-class DmTextStyleTable;
-class UIDlgTextStyle;
 class DmAttributeDefinition;
-class UIDlgLineType;
 
 #define UIDIALOGFACTORY (GuiDialogFactory::instance()->getFactoryObject())
 
@@ -60,16 +56,11 @@ public:
 	bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override;
 	bool requestFileImport(DmDocument& document, const QString& file) override;
 
-	DmLayer* requestNewLayerDialog(DmLayerTable* layerTable = nullptr) override;
-	DmLayer* requestEditLayerDialog(DmLayerTable* layerTable = nullptr) override;
-
 	DmBlockData requestNewBlockDialog(DmBlockTable* blockTable) override;
 
 	/// @brief 对于“属性块”，创建块时提示设置属性定义
 	bool requestBlockEditAttributeDialog(const QString& blkName, const std::list<DmAttributeDefinition*>& attrDefs, std::list< DmAttribute*>& attrs) override;
 	bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) override;
-
-	QString requestImageOpenDialog() override;
 
 	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
 	QString requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames) override;
@@ -90,16 +81,8 @@ public:
 
 public:
 	bool requestModifyEntityDialog(DmEntity* entity) override;
-	void requestModifySingleOffsetOptions(double& dist, bool on, bool update = false) override;
 	bool requestTextDialog(DmText* text) override;
-	bool requestTextStyleDialog(DmTextStyleTable* textStyles, DmDocument* document) override;
 	bool requestHatchDialog(DmHatch* hatch) override;
-	void requestOptionsGeneralDialog() override;
-	void requestOptionsDrawingDialog(DmDocument& document) override;
-
-	/// @brief 线型对话框
-	/// @return 确定返回true，取消返回false
-	bool requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document) override;
 
 	void updateCoordinateWidget(const DmVector& abs, const DmVector& rel, bool updateFormat=false) override;
 	/// @brief updateMouseWidget Called when an action has a mouse hint.
@@ -121,11 +104,7 @@ protected:
 private:
 	// pointers to snap option widgets
 	UISnapMiddleOptions*			m_pSnapMiddleOptions = nullptr;
-	UIModifyOffsetOptions*			m_pModifyOffsetOptions = nullptr;
 	QPointer<QWidget>				m_pRegisteredOptions;					///< requestRegisteredOptions 当前显示的选项条
-
-	UIDlgTextStyle*					m_pTextStyle = nullptr;
-	UIDlgLineType*					m_pLineType = nullptr;
 };
 
 #endif

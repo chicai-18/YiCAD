@@ -112,21 +112,162 @@
     </message>
 </context>
 <context>
+    <name>QObject</name>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="296"/>
+        <source>Tips</source>
+        <translation>提示</translation>
+    </message>
+</context>
+<context>
     <name>TextExtension</name>
     <message>
-        <location filename="../TextExtension.cpp" line="117"/>
+        <location filename="../TextExtension.cpp" line="121"/>
         <source>Single line text</source>
         <translation>单行文字</translation>
     </message>
     <message>
-        <location filename="../TextExtension.cpp" line="118"/>
+        <location filename="../TextExtension.cpp" line="122"/>
         <source>Multiline text</source>
         <translation>多行文字</translation>
     </message>
     <message>
-        <location filename="../TextExtension.cpp" line="119"/>
+        <location filename="../TextExtension.cpp" line="123"/>
         <source>Text style</source>
         <translation>文字样式</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgTextStyle</name>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="14"/>
+        <source>TextStyle</source>
+        <translation>文字样式</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="29"/>
+        <source>Current Text Style:</source>
+        <translation>当前文字样式:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="36"/>
+        <source>TextLabel</source>
+        <translation>文本标签</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="45"/>
+        <source>Text Styles:</source>
+        <translation>文字样式:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="75"/>
+        <source>Activate</source>
+        <translation>置为当前</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="91"/>
+        <source>New</source>
+        <translation>新建</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="98"/>
+        <source>Rename</source>
+        <translation>重命名</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="105"/>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="132"/>
+        <source>Font</source>
+        <translation>字体</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="146"/>
+        <source>Font Name:</source>
+        <translation>字体名:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="177"/>
+        <source>Use big font</source>
+        <translation>使用大字体</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="186"/>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="211"/>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="589"/>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="613"/>
+        <source>Big font:</source>
+        <translation>大字体:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="220"/>
+        <source>Effect and size</source>
+        <translation>效果及大小</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="234"/>
+        <source>Upsidedown</source>
+        <translation>颠倒</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="241"/>
+        <source>Reverse</source>
+        <translation>反向</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="248"/>
+        <source>Vertical</source>
+        <translation>垂直</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="265"/>
+        <source>Default Height:</source>
+        <translation>默认高度:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="282"/>
+        <source>Width Factor:</source>
+        <translation>宽度系数:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.ui" line="299"/>
+        <source>Oblique Angle:</source>
+        <translation>倾斜角度:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="233"/>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="571"/>
+        <source>Font style:</source>
+        <translation>字体样式：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="296"/>
+        <source>Font:%1 not exist!</source>
+        <translation>字体：%1 不存在！</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="418"/>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="733"/>
+        <source>Tips</source>
+        <translation>提示</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="418"/>
+        <source>Invalid input!</source>
+        <translation>输入无效！</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="733"/>
+        <source>Current style has changed, save or not?</source>
+        <translation>当前样式已修改，是否保存？</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgTextStyle.cpp" line="744"/>
+        <source>Save TextStyle</source>
+        <translation>保存文字样式</translation>
     </message>
 </context>
 <context>
