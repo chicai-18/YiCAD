@@ -333,7 +333,7 @@ ViewToolResult SelectTool::mouseMoveEvent(QMouseEvent* e)
         return ViewToolResult::NotHandled;
     }
 
-    DmVector mouse = m_docView->toGraph(e->x(), e->y());
+    DmVector mouse = m_docView->toGraph(e->pos().x(), e->pos().y());
     DmVector relMouse = mouse - m_docView->getRelativeZero();
 
     GUIDIALOGFACTORY->updateCoordinateWidget(mouse, relMouse);
@@ -467,7 +467,7 @@ ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
                 // ActionSelectMultiple 把它当作普通的框选起点。
                 return ViewToolResult::NotHandled;
             }
-            m_points.v1 = m_docView->toGraph(e->x(), e->y());
+            m_points.v1 = m_docView->toGraph(e->pos().x(), e->pos().y());
             setStatus(Dragging);
             break;
 
@@ -529,7 +529,7 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
 
     if (e->button() == Qt::LeftButton)
     {
-        m_points.v2 = m_docView->toGraph(e->x(), e->y());
+        m_points.v2 = m_docView->toGraph(e->pos().x(), e->pos().y());
         switch (m_status)
         {
         case Dragging:
@@ -558,7 +558,7 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
 
         case SetCorner2:
         {
-            m_points.v2 = m_docView->toGraph(e->x(), e->y());
+            m_points.v2 = m_docView->toGraph(e->pos().x(), e->pos().y());
 
             deletePreview();
 
@@ -592,7 +592,7 @@ ViewToolResult SelectTool::mouseDoubleClickEvent(QMouseEvent* e)
     {
         return ViewToolResult::NotHandled;
     }
-    DmVector clickPos = m_docView->toGraph(e->x(), e->y());
+    DmVector clickPos = m_docView->toGraph(e->pos().x(), e->pos().y());
 
     // 获得选择的实体，如果超过1个，不进入编辑状态
     std::list<DmEntity*> ents;

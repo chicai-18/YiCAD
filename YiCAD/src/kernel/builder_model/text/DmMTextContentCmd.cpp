@@ -504,7 +504,7 @@ MTextContentCmd* MTextContentCmdMgr::generateCmd(const QString& cmdStr, MTextCon
         else
         {
             cmdType = MTextContentCmd::CmdType::Height;
-            strFactor = cmdStr.mid(2, cmdStr.count() - 2);
+            strFactor = cmdStr.mid(2, cmdStr.size() - 2);
         }
         bool ok = false;
         double dVal = strFactor.toDouble(&ok);
@@ -625,7 +625,7 @@ MTextContentCmd* MTextContentCmdMgr::generateCmd(const QString& cmdStr, MTextCon
             case MTextContentCmd::CmdType::Oblique:
             case MTextContentCmd::CmdType::WidthFactor:
             {
-                QString subStr = cmdStr.mid(2, cmdStr.count() - 3);
+                QString subStr = cmdStr.mid(2, cmdStr.size() - 3);
                 double dVal = subStr.toDouble();
                 MTextContentCmd* cmd = new MTextContentCmd(cmdType, cmdStr);
                 cmd->setDoubleValue(dVal);

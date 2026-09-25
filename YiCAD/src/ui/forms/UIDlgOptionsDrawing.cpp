@@ -131,7 +131,7 @@ void UIDlgOptionsDrawing::validate()
         if (DmUnits::stringToUnit(cbUnit->currentText()) != DM::Inch)
         {
             QMessageBox::warning(this, tr("Options"), tr("For the length formats 'Engineering' and 'Architectural', the unit must be set to Inch."),
-                QMessageBox::Ok, Qt::NoButton);
+                QMessageBox::Ok);
             return;
         }
     }
@@ -140,7 +140,7 @@ void UIDlgOptionsDrawing::validate()
         if (DmUnits::stringToUnit(cbUnit->currentText()) != DM::Meter)
         {
             QMessageBox::warning(this, tr("Options"),
-                tr("For the length format 'Architectural (metric)', the unit must be set to Meter."), QMessageBox::Ok, Qt::NoButton);
+                tr("For the length format 'Architectural (metric)', the unit must be set to Meter."), QMessageBox::Ok);
             return;
         }
     }

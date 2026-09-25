@@ -65,10 +65,20 @@ int App_Run(int argc, char* argv[])
 {
     DEBUG->print(Debug::D_INFORMATIONAL, "YiCAD Start!");
 
+    // Qt 6 默认开启高 DPI 缩放，而绘图画布（GL 视口、拾取容差、线宽、帧缓冲）尚未按
+    // devicePixelRatio 计算，系统缩放不是 100% 时画布会错位。这里关闭缩放，界面与画布的
+    // 表现与 Qt 5 一致；高 DPI 适配归渲染专项。外部已设置该变量时以外部为准，便于调试。
+    if (!qEnvironmentVariableIsSet("QT_ENABLE_HIGHDPI_SCALING"))
+    {
+        qputenv("QT_ENABLE_HIGHDPI_SCALING", "0");
+    }
+
+    // Qt 6 的对话框默认不显示帮助按钮，不再需要 AA_DisableWindowContextHelpButton
     QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
-    QApplication::setAttribute(
-        Qt::AA_DisableWindowContextHelpButton);  // 禁用对话框的帮助按钮
     QApplication app(argc, argv);
+    // Qt 6.7 起在 Windows 11 上默认使用 windows11 样式，Ribbon 的面板标题几乎不可见、
+    // 下拉框改为深色底。沿用 Qt 5 下的 windowsvista 样式，界面与原来一致。
+    QApplication::setStyle(QStringLiteral("windowsvista"));
     QCoreApplication::setOrganizationName("YiCAD");
     QCoreApplication::setOrganizationDomain("YiCAD");
     QCoreApplication::setApplicationName("YiApp");

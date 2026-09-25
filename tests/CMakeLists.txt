@@ -82,11 +82,12 @@ function(yicad_add_test name)
 
     # yicad_test_main.cpp 无条件构造 QApplication（见其注释），与 LINK
     # 目标是否本身需要 Qt Widgets 无关，测试可执行文件都要能解析到它。
-    target_link_libraries(${target} PRIVATE Qt5::Widgets)
+    target_link_libraries(${target} PRIVATE Qt6::Widgets)
 
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-    set_target_properties(${target} PROPERTIES FOLDER "Tests")
+    # 与 YiCAD/CMakeLists.txt 中的库目标一致，不加 Qt 6 默认的 UNICODE/_UNICODE
+    set_target_properties(${target} PROPERTIES FOLDER "Tests" QT_NO_UNICODE_DEFINES TRUE)
 
     # 测试是控制台程序；YiCAD 可执行目标的 /SUBSYSTEM:WINDOWS 不适用于它们。
     if(WIN32)

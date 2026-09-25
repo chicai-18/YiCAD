@@ -28,7 +28,6 @@ XMLWriterQXmlStreamWriter::XMLWriterQXmlStreamWriter()
     : xmlWriter(new QXmlStreamWriter(&xml))
 {
 	xmlWriter->setAutoFormatting(true);
-	xmlWriter->setCodec("UTF-8");
 }
 
 XMLWriterQXmlStreamWriter::~XMLWriterQXmlStreamWriter() = default;

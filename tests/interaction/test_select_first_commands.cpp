@@ -47,7 +47,7 @@ namespace
 QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button,
                       Qt::KeyboardModifiers mods = Qt::NoModifier)
 {
-    return QMouseEvent(type, QPointF(x, y), button, button, mods);
+    return QMouseEvent(type, QPointF(x, y), QPointF(x, y), button, button, mods);
 }
 
 /// @brief 记录提示、命令行消息与选择计数的对话框工厂
@@ -566,7 +566,7 @@ TEST_F(SelectFirstFixture, 放置工具不接受Esc且把中键平移让给导�
     EXPECT_FALSE(esc->isAccepted());
 
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::MiddleButton);
-    QMouseEvent drag(QEvent::MouseMove, QPointF(40, 30), Qt::NoButton, Qt::MiddleButton, Qt::NoModifier);
+    QMouseEvent drag(QEvent::MouseMove, QPointF(40, 30), QPointF(40, 30), Qt::NoButton, Qt::MiddleButton, Qt::NoModifier);
     QMouseEvent release = makeMouse(QEvent::MouseButtonRelease, 40, 30, Qt::MiddleButton);
     dispatch([&] { return control.mousePressEvent(&press); });
     EXPECT_TRUE(panTool.isPanning());

@@ -56,7 +56,7 @@ void UIExitDialog::init()
 {
     setShowSaveAll(false);
     // set dlg icon
-    QMessageBox mb("", "", QMessageBox::Question, QMessageBox::Ok, Qt::NoButton, Qt::NoButton);
+    QMessageBox mb(QMessageBox::Question, QString(), QString(), QMessageBox::Ok);
     ui->l_icon->setPixmap(mb.iconPixmap());
 }
 

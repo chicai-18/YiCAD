@@ -170,6 +170,8 @@ void GuiPreviewWidget::paintGL()
     {
         return;
     }
+    // 与 GuiDocumentView::paintGL 相同：Qt 6 不再在 paintGL 之前清空缓冲，这里显式清空
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     m_pPainter->draw();
 }
 

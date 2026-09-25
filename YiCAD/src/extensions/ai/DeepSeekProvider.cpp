@@ -104,9 +104,7 @@ void DeepSeekProvider::sendMessage(const QString& userMessage,
                       "application/json");
     request.setRawHeader("Authorization",
                          "Bearer " + apiKey.toUtf8());
-#if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
-    request.setTransferTimeout(timeoutSecs * 1000);  // Qt 5.15+
-#endif
+    request.setTransferTimeout(timeoutSecs * 1000);
 
     // 如果传入了 systemPrompt 或 maxTokens > 0，使用完整参数覆盖的 buildRequestBody
     const bool hasParamOverride = !systemPrompt.isEmpty() || maxTokens > 0;

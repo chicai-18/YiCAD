@@ -1255,6 +1255,12 @@ void GuiDocumentView::paintGL()
     // 此前这里是每帧一次 std::cout，既污染帧耗时又用 system_clock 测时长（P11）。
     YICAD_SCOPED_TIMER(yicad::counters::paintGL());
 
+    // Qt 5 的 QOpenGLWidget 在每次 paintGL 之前清空颜色、深度、模板缓冲；Qt 6 在支持
+    // glInvalidateFramebuffer（GL 4.3 起）的驱动上改为只作废 FBO 内容，不再清零。各绘制层
+    // 开着深度测试（GL_LEQUAL）却从不清深度，未定义的深度值会随机剔除片元，画面出现
+    // 彩色噪点。这里显式清一次，恢复 Qt 5 下的行为（清除色沿用默认的全零）。
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
     // 绘制背景层 背景网格等
     drawBackgroundLayer();
 

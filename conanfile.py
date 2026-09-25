@@ -10,7 +10,7 @@ class YiCADRecipe(ConanFile):
     YiCAD Conan 2 recipe.
 
     This recipe defines the external C/C++ dependencies for YiCAD.
-    Qt 5.15 is NOT included here -- it is expected to be installed
+    Qt 6.8 is NOT included here -- it is expected to be installed
     separately by the developer and discovered via CMAKE_PREFIX_PATH.
 
     SARibbonBar is NOT managed by Conan. It is provided by the user
@@ -25,10 +25,10 @@ class YiCADRecipe(ConanFile):
     name = "yicad"
     version = "0.20.0"
     license = "GPL-3.0-only"
-    description = "YiCAD -- 2D CAD application based on Qt 5.15"
+    description = "YiCAD -- 2D CAD application based on Qt 6.8"
     url = "https://github.com/YiCAX/YiCAD"
     homepage = "https://github.com/YiCAX/YiCAD"
-    topics = ("cad", "2d", "qt5")
+    topics = ("cad", "2d", "qt6")
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"

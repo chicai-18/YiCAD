@@ -50,7 +50,7 @@ QVector<Chunk> ChunkSplitter::splitFile(const QString& filePath,
     }
 
     QTextStream in(&file);
-    in.setCodec("UTF-8");
+    in.setEncoding(QStringConverter::Utf8);
     const QString content = in.readAll();
     file.close();
 

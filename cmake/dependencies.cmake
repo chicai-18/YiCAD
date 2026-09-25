@@ -2,9 +2,9 @@
 #
 # YiCAD dependency resolution via Conan 2.
 #
-# Qt 5.15 is NOT managed by Conan -- it is expected to be installed separately
-# by the developer and discovered via the Qt5_DIR environment variable.
-# Set Qt5_DIR to the Qt installation path (e.g. C:/Qt/5.15.2/msvc2019_64).
+# Qt 6.8 is NOT managed by Conan -- it is expected to be installed separately
+# by the developer and discovered via the Qt6_DIR environment variable.
+# Set Qt6_DIR to the Qt installation path (e.g. C:/Qt/6.8.0/msvc2022_64).
 #
 # SARibbonBar is NOT managed by Conan. It is provided by the user and
 # discovered via find_package with SARIBBON_DIR.
@@ -21,27 +21,32 @@
 # CMAKE_TOOLCHAIN_FILE, SARIBBON_DIR, and CDT_DIR are set in CMakePresets.json.
 
 # ---------------------------------------------------------------------------
-# Qt 5.15 (not managed by Conan)
+# Qt 6.8 (not managed by Conan)
 # ---------------------------------------------------------------------------
-# First try default find_package. If not found, try Qt5_DIR environment variable.
-find_package(Qt5 5.15 COMPONENTS Core Widgets Gui OpenGL QUIET)
-if(NOT Qt5_FOUND AND DEFINED ENV{Qt5_DIR})
-    message(STATUS "Qt5 not found in default paths, trying Qt5_DIR environment variable: $ENV{Qt5_DIR}")
-    find_package(Qt5 5.15 COMPONENTS Core Widgets Gui OpenGL
-        HINTS $ENV{Qt5_DIR}
+# First try default find_package. If not found, try Qt6_DIR environment variable.
+# Qt6Config.cmake locates its components (Qt6Widgets, Qt6LinguistTools, ...)
+# relative to its own directory, so later find_package(Qt6 COMPONENTS ...)
+# calls work even when CMAKE_PREFIX_PATH is overridden by the Conan toolchain.
+#
+# Imported targets are directory-scoped: find every component used anywhere in
+# the tree here, at the top level, so that YiCAD/, tests/ and plugins/ all see
+# Qt6::Widgets and friends.
+set(YICAD_QT6_COMPONENTS Core Gui Widgets OpenGL OpenGLWidgets Xml Svg Network LinguistTools)
+find_package(Qt6 6.8 COMPONENTS ${YICAD_QT6_COMPONENTS} QUIET)
+if(NOT Qt6_FOUND AND DEFINED ENV{Qt6_DIR})
+    message(STATUS "Qt6 not found in default paths, trying Qt6_DIR environment variable: $ENV{Qt6_DIR}")
+    find_package(Qt6 6.8 COMPONENTS ${YICAD_QT6_COMPONENTS}
+        HINTS $ENV{Qt6_DIR}
         NO_DEFAULT_PATH
     )
 endif()
-if(Qt5_FOUND)
-    message(STATUS "Qt5: ${Qt5_VERSION} (${Qt5_DIR})")
-    # Expose Qt5 sub-module dirs so find_package(Qt5Xxx) works even when
-    # CMAKE_PREFIX_PATH has been overridden (e.g. by Conan toolchain).
-    set(Qt5LinguistTools_DIR "${Qt5_DIR}/../Qt5LinguistTools" CACHE PATH "" FORCE)
+if(Qt6_FOUND)
+    message(STATUS "Qt6: ${Qt6_VERSION} (${Qt6_DIR})")
 else()
     message(FATAL_ERROR
-        "Qt5 not found. Install Qt 5.15 and either:\n"
+        "Qt6 not found. Install Qt 6.8 and either:\n"
         "  1. Add it to CMAKE_PREFIX_PATH, or\n"
-        "  2. Set the Qt5_DIR environment variable (e.g. C:/Qt/5.15.2/msvc2019_64)")
+        "  2. Set the Qt6_DIR environment variable (e.g. C:/Qt/6.8.0/msvc2022_64)")
 endif()
 
 # ---------------------------------------------------------------------------

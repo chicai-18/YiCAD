@@ -1,9 +1,5 @@
-find_package(Qt5Core REQUIRED)
-
-# get absolute path to qmake, then use it to find windeployqt executable
-
-get_target_property(_qmake_executable Qt5::qmake IMPORTED_LOCATION)
-get_filename_component(_qt_bin_dir "${_qmake_executable}" DIRECTORY)
+# windeployqt 由 Qt6CoreTools 提供导入目标 Qt6::windeployqt
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 function(windeployqt target)
 
@@ -13,7 +9,7 @@ function(windeployqt target)
 
     set(_windeployqt_config_arg "$<$<CONFIG:Debug>:--debug>$<$<NOT:$<CONFIG:Debug>>:--release>")
     add_custom_command(TARGET ${target} POST_BUILD
-        COMMAND "${_qt_bin_dir}/windeployqt.exe"
+        COMMAND Qt6::windeployqt
                 --verbose 1
                 ${_windeployqt_config_arg}
                 "$<TARGET_FILE:${target}>"

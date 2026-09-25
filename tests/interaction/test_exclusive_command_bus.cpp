@@ -458,7 +458,7 @@ TEST_F(BusFixture, 编辑模式常驻业务栈底部且没有命令时立即恢�
     EXPECT_EQ(log.resumed, 1);
 
     // 先进入的业务工具仍在模式之上
-    QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(1, 1), QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
     control.mouseDoubleClickEvent(&dbl);
     EXPECT_EQ(above.doubleClicks, 1);
     EXPECT_EQ(log.doubleClicks, 0);

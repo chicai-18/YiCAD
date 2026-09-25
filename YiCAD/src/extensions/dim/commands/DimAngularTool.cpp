@@ -129,7 +129,7 @@ void DimAngularTool::onMouseMove(QMouseEvent* e)
     {
     case SetPos:
     {
-        edata->ptOnArc = view()->toGraph(e->x(), e->y());
+        edata->ptOnArc = view()->toGraph(e->pos().x(), e->pos().y());
 
         DmDimAngular* d =
             new DmDimAngular(m_command.preview().entities().getEntityContainer(), *data, *edata);

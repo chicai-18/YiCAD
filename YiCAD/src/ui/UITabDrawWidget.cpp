@@ -1177,7 +1177,7 @@ bool UITabDrawWidget::eventFilter(QObject* obj, QEvent* e)
 			}
 
 			m_isPress = true;
-			m_startPos = evev->globalPos();
+			m_startPos = evev->globalPosition().toPoint();
 			m_tmpPos = m_currentPos;
 		}
 	}
@@ -1191,7 +1191,7 @@ bool UITabDrawWidget::eventFilter(QObject* obj, QEvent* e)
 		QMouseEvent* evev = dynamic_cast<QMouseEvent*>(e);
 		if (true == m_isPress)
 		{
-			QPoint movePoint = evev->globalPos() - m_startPos;
+			QPoint movePoint = evev->globalPosition().toPoint() - m_startPos;
 			m_currentBtnWidget->move(m_tmpPos.x() + movePoint.x(), 0);
 			double left_right = m_currentPos.x() - m_currentBtnWidget->pos().x();
 			if (left_right < 0 && (*m_pTabDrawList).size() > m_btnIndex + 1)

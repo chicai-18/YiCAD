@@ -4,15 +4,15 @@ cmake_minimum_required (VERSION 3.21)
 PROJECT (YiCAD)
 
 # 加载Qt模块
-# Qt 5.15 is discovered from the user's installation via CMAKE_PREFIX_PATH or Qt5_DIR.
-set(YICAD_USE_QT_MODULES Widgets Gui Core Designer Svg Network)
+# Qt 6.8 is discovered from the user's installation via CMAKE_PREFIX_PATH or Qt6_DIR.
+# QOpenGLWidget 在 Qt 6 里移到了 OpenGLWidgets 模块；QDomDocument 在 Xml 模块。
+set(YICAD_USE_QT_MODULES Widgets Gui Core OpenGL OpenGLWidgets Xml Svg Network)
 
-find_package(Qt5 5.15 REQUIRED COMPONENTS ${YICAD_USE_QT_MODULES})
+find_package(Qt6 6.8 REQUIRED COMPONENTS ${YICAD_USE_QT_MODULES} LinguistTools)
 
 set(CMAKE_AUTOMOC ON)
-SET(QT_USE_QTDESIGNER ON)
 
-# Qt5 imported targets (Qt5::Core, Qt5::Widgets, etc.) carry their include
+# Qt6 imported targets (Qt6::Core, Qt6::Widgets, etc.) carry their include
 # directories transitively. No need for explicit include_directories().
 
 # Dependencies come from find_package in cmake/dependencies.cmake.
@@ -218,7 +218,7 @@ foreach(_entry IN LISTS _yicad_extension_entries)
     endif()
 endforeach()
 
-# src/ui 下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h（扩展的表单见下方
+# src/ui 下的 Qt Designer 表单，由 qt6_wrap_ui 生成对应的 ui_*.h（扩展的表单见下方
 # yicad_wrap_ui）。
 file(GLOB YICAD_UI_FORMS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.ui
@@ -275,15 +275,19 @@ install(FILES ${PLUGIN_SDK_HEADERS}
 file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/*.ts")
 
 # 将.ui转成.h（src/ui 的表单；扩展的表单由各扩展库用 yicad_wrap_ui 生成）
-QT5_WRAP_UI(ui_FILES ${YICAD_UI_FORMS})
+# Qt 6 的 uic 默认按函数指针生成表单里的信号槽连接，槽要在表单根控件的类
+# （QDialog、QWidget）上才能编译；本项目的 .ui 连接的是子类里声明的槽，
+# 所以沿用 Qt 5 的字符串连接（SIGNAL/SLOT），运行期行为与原来一致。
+set(YICAD_UIC_OPTIONS --connections string)
+qt6_wrap_ui(ui_FILES ${YICAD_UI_FORMS} OPTIONS ${YICAD_UIC_OPTIONS})
 
 # 将.qrc转成.cpp（主程序的资源；扩展的资源编进各扩展库）
-qt5_add_resources(qrc_FILES ${qrc_DIRS})
+qt6_add_resources(qrc_FILES ${qrc_DIRS})
 
 # ---------------------------------------------------------------------------
 # yicad_wrap_ui(<输出变量> <输出目录> <表单> [<表单> ...])
 #
-# 与 QT5_WRAP_UI 相同，但 ui_*.h 生成到给定目录：每个扩展的表单放在自己的目录里，
+# 与 qt6_wrap_ui 相同，但 ui_*.h 生成到给定目录：每个扩展的表单放在自己的目录里，
 # 别的扩展看不到。
 # ---------------------------------------------------------------------------
 function(yicad_wrap_ui out_var out_dir)
@@ -293,7 +297,7 @@ function(yicad_wrap_ui out_var out_dir)
         set(_header "${out_dir}/ui_${_name}.h")
         add_custom_command(OUTPUT "${_header}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}"
-            COMMAND Qt5::uic -o "${_header}" "${_form}"
+            COMMAND Qt6::uic ${YICAD_UIC_OPTIONS} -o "${_header}" "${_form}"
             MAIN_DEPENDENCY "${_form}"
             VERBATIM)
         set_source_files_properties("${_form}" PROPERTIES SKIP_AUTOMOC ON SKIP_AUTOUIC ON)
@@ -302,9 +306,6 @@ function(yicad_wrap_ui out_var out_dir)
     endforeach()
     set(${out_var} ${_headers} PARENT_SCOPE)
 endfunction()
-
-# 附加库路径(lib路径)
-find_package(Qt5LinguistTools REQUIRED)
 
 # lupdate 扫描范围：与拆分前保持一致（各分区的全部源文件，加上 Main.cpp 与 .rc）。
 # src/extensions/ 下的源码不在此列，由各扩展自己的 ts 覆盖（见下方）。
@@ -321,9 +322,9 @@ set (ALL_RSC_FILES ${YICAD_MATH_HEADERS}        ${YICAD_MATH_SOURCES}
                      )
 
 if(UPDATE_TRANSLATIONS)
-    QT5_CREATE_TRANSLATION_Exclude_SubFolder(QM_FILES ${ALL_RSC_FILES} ${TS_FILES})
+    yicad_create_translation(QM_FILES ${ALL_RSC_FILES} ${TS_FILES})
 else()
-    QT5_ADD_TRANSLATION(QM_FILES ${TS_FILES})
+    qt6_add_translation(QM_FILES ${TS_FILES})
 endif(UPDATE_TRANSLATIONS )
 
 # 扩展各自的翻译包，与主程序翻译包走同一套构建/安装路径。
@@ -334,9 +335,9 @@ foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
     endif()
     if(UPDATE_TRANSLATIONS)
         file(GLOB_RECURSE _ext_src "${_ext_dir}/*.h" "${_ext_dir}/*.cpp")
-        QT5_CREATE_TRANSLATION_Exclude_SubFolder(_ext_qm ${_ext_src} ${_ext_ts})
+        yicad_create_translation(_ext_qm ${_ext_src} ${_ext_ts})
     else()
-        QT5_ADD_TRANSLATION(_ext_qm ${_ext_ts})
+        qt6_add_translation(_ext_qm ${_ext_ts})
     endif()
     list(APPEND QM_FILES ${_ext_qm})
 endforeach()
@@ -361,7 +362,12 @@ set_target_properties(TS_YiCAD PROPERTIES FOLDER "CMakePredefinedTargets")
 
 add_library(YiCadMath STATIC
     ${YICAD_MATH_HEADERS} ${YICAD_MATH_SOURCES})
-set_target_properties(YiCadMath PROPERTIES FOLDER "YiCAD")
+# QT_NO_UNICODE_DEFINES：Qt 6 的 Qt6::Platform 在 Windows 上给每个使用方加 UNICODE 与
+# _UNICODE（Qt 5 的 CMake 目标不加）。这会把 muParser 的头文件切到 std::wstring 接口，
+# 与 Conan 按窄字符构建的 muparser 链接不上，也会把 Win32 的 TCHAR 宏切到 W 版本。
+# 本项目沿用 Qt 5 下的行为，所有链接 Qt 的目标都设置这一属性（该属性按使用方目标读取，
+# 不会沿依赖传播，扩展、可执行目标与测试目标各自再设一次）。
+set_target_properties(YiCadMath PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
 target_include_directories(YiCadMath PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/math
@@ -376,7 +382,7 @@ target_compile_definitions(YiCadMath PUBLIC
     _ENABLE_EXTENDED_ALIGNED_STORAGE
     APPDIR="YiCAD"
     # 屏蔽 Qt 6.0 及以前废弃的 API，用到即编译失败，防止旧写法回流
-    QT_DISABLE_DEPRECATED_BEFORE=0x060000)
+    QT_DISABLE_DEPRECATED_UP_TO=0x060000)
 remove_definitions(-D_HAS_STD_BYTE)
 
 # MSVC: 强制源文件和执行字符集为 UTF-8，避免中文乱码。
@@ -414,11 +420,11 @@ else()
     message(FATAL_ERROR "muparser::muparser target not found. "
         "Run 'conan install' with --build=never before configuring CMake.")
 endif()
-target_link_libraries(YiCadMath PUBLIC Qt5::Core)
+target_link_libraries(YiCadMath PUBLIC Qt6::Core)
 
 add_library(YiCadModel STATIC
     ${YICAD_MODEL_HEADERS} ${YICAD_MODEL_SOURCES})
-set_target_properties(YiCadModel PROPERTIES FOLDER "YiCAD")
+set_target_properties(YiCadModel PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
 target_include_directories(YiCadModel PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/builder_model
@@ -444,7 +450,7 @@ endif()
 if(TARGET Freetype::Freetype)
     target_link_libraries(YiCadModel PUBLIC Freetype::Freetype)
 endif()
-target_link_libraries(YiCadModel PUBLIC Qt5::Gui)
+target_link_libraries(YiCadModel PUBLIC Qt6::Gui)
 
 # DmSystem.cpp 在 Windows 上用 DirectWrite 枚举系统字体文件路径。
 if(WIN32)
@@ -453,7 +459,7 @@ endif()
 
 add_library(YiCadPersistence STATIC
     ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES})
-set_target_properties(YiCadPersistence PROPERTIES FOLDER "YiCAD")
+set_target_properties(YiCadPersistence PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
 target_include_directories(YiCadPersistence PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/persistence
@@ -490,7 +496,7 @@ add_library(YiCadCore OBJECT
     ${ui_FILES}
     ${qrc_FILES})
 
-set_target_properties(YiCadCore PROPERTIES FOLDER "YiCAD")
+set_target_properties(YiCadCore PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
 # 头文件搜索路径挂在目标上（PUBLIC），测试目标通过链接 YiCadCore 继承。
 target_include_directories(YiCadCore PUBLIC
@@ -541,7 +547,7 @@ target_link_libraries(YiCadCore PUBLIC SARibbonBar::SARibbonBar)
 
 #add QT one by one
 foreach(qtmod ${YICAD_USE_QT_MODULES})
-    target_link_libraries(YiCadCore PUBLIC Qt5::${qtmod})
+    target_link_libraries(YiCadCore PUBLIC Qt6::${qtmod})
 endforeach(qtmod)
 
 # #####################################################
@@ -576,7 +582,7 @@ foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
     yicad_wrap_ui(_ext_ui_headers "${_ext_gen_dir}" ${_ext_forms})
     set(_ext_qrc_sources "")
     if(_ext_qrcs)
-        qt5_add_resources(_ext_qrc_sources ${_ext_qrcs})
+        qt6_add_resources(_ext_qrc_sources ${_ext_qrcs})
     endif()
 
     add_library(${_ext_target} OBJECT
@@ -594,7 +600,7 @@ foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
 
     target_link_libraries(${_ext_target} PUBLIC YiCadCore)
     target_precompile_headers(${_ext_target} REUSE_FROM YiCadCore)
-    set_target_properties(${_ext_target} PROPERTIES FOLDER "YiCAD/extensions")
+    set_target_properties(${_ext_target} PROPERTIES FOLDER "YiCAD/extensions" QT_NO_UNICODE_DEFINES TRUE)
     GroupSourcesByFolder(${_ext_target})
 
     list(APPEND YICAD_EXTENSION_TARGETS ${_ext_target})
@@ -617,6 +623,7 @@ add_executable(${PROJECT_NAME} ${YICAD_MAIN_ENTRY}
 target_link_libraries(${PROJECT_NAME} PRIVATE YiCadCore ${YICAD_EXTENSION_TARGETS})
 
 target_precompile_headers(${PROJECT_NAME} REUSE_FROM YiCadCore)
+set_target_properties(${PROJECT_NAME} PROPERTIES QT_NO_UNICODE_DEFINES TRUE)
 
 # 支持linux相对路径库加载，参考：https://stackoverflow.com/questions/43330165/how-to-link-a-shared-library-with-cmake-with-relative-path/69707790#69707790
 # https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling

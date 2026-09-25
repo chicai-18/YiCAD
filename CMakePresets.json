@@ -23,7 +23,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/conan-debug/build/generators/conan_toolchain.cmake",
-                "SARIBBON_DIR": "${sourceDir}/external/SARibbonBar/install-debug",
+                "SARIBBON_DIR": "${sourceDir}/external/SARibbonBar/install-qt6-debug",
                 "CDT_DIR": "${sourceDir}/external/CDT/install-debug/cmake"
             }
         },
@@ -35,7 +35,7 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/conan-release/build/generators/conan_toolchain.cmake",
-                "SARIBBON_DIR": "${sourceDir}/external/SARibbonBar/install-release",
+                "SARIBBON_DIR": "${sourceDir}/external/SARibbonBar/install-qt6-release",
                 "CDT_DIR": "${sourceDir}/external/CDT/install-release/cmake"
             }
         }

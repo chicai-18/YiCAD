@@ -96,7 +96,7 @@ DM::EntityType DmChar::getEntityType() const
 bool DmChar::isWriteSpace() const
 {
 	static std::set<QString> whiteSpaces = {
-	QString(0x20) /*空格*/,
+	QString(QChar(0x20)) /*空格*/,
 	"\n",
 	"\t"
 	};
@@ -518,7 +518,7 @@ bool DmChar::isNewLine() const
 
 bool DmChar::isSpace() const
 {
-	return m_name == QString(0x20);
+	return m_name == QString(QChar(0x20));
 }
 
 bool DmChar::isTab() const

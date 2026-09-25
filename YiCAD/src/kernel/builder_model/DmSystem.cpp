@@ -30,7 +30,6 @@
 
 #include <QCoreApplication>
 #include <QMap>
-#include <QTextCodec>
 #include <QTranslator>
 #include <QFileInfo>
 #include <QStandardPaths>
@@ -477,7 +476,7 @@ QString DmSystem::getAppDir()
 /// @return Application data directory.
 QString DmSystem::getAppDataDir()
 {
-	QString appData = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
+	QString appData = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
 	QDir dir(appData);
 	if (!dir.exists())
 	{

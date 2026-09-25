@@ -353,7 +353,7 @@ protected:
         view()->specifyDocumentModified();
         view()->redraw();
 
-        DmVector mouse(view()->toGraphX(e->x()), view()->toGraphY(e->y()));
+        DmVector mouse(view()->toGraphX(e->pos().x()), view()->toGraphY(e->pos().y()));
         std::unique_ptr<DmLine> tangent(createTangent2(mouse, m_circle1, m_circle2));
         if (!tangent)
         {

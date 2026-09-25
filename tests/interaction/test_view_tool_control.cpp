@@ -45,7 +45,7 @@ public:
 
 QMouseEvent makePress()
 {
-    return QMouseEvent(QEvent::MouseButtonPress, QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    return QMouseEvent(QEvent::MouseButtonPress, QPointF(1, 1), QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
 }
 }  // namespace
 

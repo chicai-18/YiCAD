@@ -50,13 +50,13 @@ jobs:
         with:
           python-version: '3.11.x'
 
-      - name: Install Qt 5.15
+      - name: Install Qt 6.8
         uses: jurplel/install-qt-action@v4
         with:
-          version: '5.15.2'
+          version: '6.8.0'
           host: 'windows'
           target: 'desktop'
-          arch: 'win64_msvc2019_64'
+          arch: 'win64_msvc2022_64'
           dir: '${{ github.workspace }}/qt'
           setup-python: false
 
@@ -69,7 +69,7 @@ jobs:
         run: |
           cmake -G "Visual Studio 17 2022" -A x64 `
             -S external/SARibbonBar -B external/SARibbonBar/build-release `
-            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/5.15.2/msvc2019_64"
+            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
           cmake --build external/SARibbonBar/build-release --config Release
           cmake --install external/SARibbonBar/build-release --config Release `
             --prefix external/SARibbonBar/install
@@ -78,7 +78,7 @@ jobs:
         run: |
           cmake -G "Visual Studio 17 2022" -A x64 `
             -S external/SARibbonBar -B external/SARibbonBar/build-debug `
-            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/qt/5.15.2/msvc2019_64"
+            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
           cmake --build external/SARibbonBar/build-debug --config Debug
           cmake --install external/SARibbonBar/build-debug --config Debug `
             --prefix external/SARibbonBar/install

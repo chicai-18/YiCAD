@@ -221,7 +221,7 @@ void UIDlgOptionsGeneral::ok()
     if (restartNeeded)
     {
         QMessageBox::warning(this, tr("Preferences"), tr("Please restart the application to apply all changes."),
-                             QMessageBox::Ok, Qt::NoButton);
+                             QMessageBox::Ok);
     }
 
     accept();
@@ -235,7 +235,7 @@ void UIDlgOptionsGeneral::on_tabWidget_currentChanged(int index)
 void UIDlgOptionsGeneral::set_color(QComboBox* combo, QColor custom)
 {
     QColor current;
-    current.setNamedColor(combo->lineEdit()->text());
+    current = QColor::fromString(combo->lineEdit()->text());
 
     QColorDialog dlg;
     dlg.setCustomColor(0, custom.rgb());

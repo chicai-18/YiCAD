@@ -20,7 +20,7 @@ namespace
 {
 QMouseEvent makeEvent(QEvent::Type type, int x, int y, Qt::MouseButton button)
 {
-    return QMouseEvent(type, QPointF(x, y), button, button, Qt::NoModifier);
+    return QMouseEvent(type, QPointF(x, y), QPointF(x, y), button, button, Qt::NoModifier);
 }
 }  // namespace
 

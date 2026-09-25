@@ -937,11 +937,11 @@ void MTextEditWidget::mouseReleaseEvent(QMouseEvent* e)
 void MTextEditWidget::mousePressEvent(QMouseEvent* e)
 {
 	//当鼠标在本窗体外点击时，不响应（非模态）
-	Position pos = getPosition(e->x(), e->y());
+	Position pos = getPosition(e->pos().x(), e->pos().y());
 	if (pos == Position::Other)
 	{
 		//设置光标位置
-		setEditCursorPos(e->x(), e->y());
+		setEditCursorPos(e->pos().x(), e->pos().y());
         removeSelectCover();
 		setSelectBegin();
 		setStatus(Status::Selecting);
@@ -956,7 +956,7 @@ void MTextEditWidget::mousePressEvent(QMouseEvent* e)
 
 void MTextEditWidget::mouseMoveEvent(QMouseEvent* e)
 {
-	Position pos = getPosition(e->x(), e->y());
+	Position pos = getPosition(e->pos().x(), e->pos().y());
 	QRect oldGeometry = geometry();
 	if (getStatus() == Status::Normal)
 	{
@@ -966,12 +966,12 @@ void MTextEditWidget::mouseMoveEvent(QMouseEvent* e)
 	else if (getStatus() == Status::Resizing)
 	{
 		//resizing
-		resizing(e->x(), e->y());
+		resizing(e->pos().x(), e->pos().y());
 	}
 	else if (getStatus() == Status::Selecting)
 	{
 		//选择
-		selecting(e->x(), e->y());
+		selecting(e->pos().x(), e->pos().y());
 	}
 }
 

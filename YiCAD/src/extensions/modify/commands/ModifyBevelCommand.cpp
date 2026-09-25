@@ -328,7 +328,7 @@ DmVector ModifyBevelTool::setmousePoint(const DmVector& m_p, DmEntity* e)
 
 void ModifyBevelTool::onMouseMove(QMouseEvent* e)
 {
-    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmVector mouse = view()->toGraph(e->pos().x(), e->pos().y());
     DmEntity* se = snapper()->catchEntity(e, { DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse, DM::EntitySpline }, DM::ResolveAllButTextImage);
 
     switch (status())
@@ -435,7 +435,7 @@ void ModifyBevelTool::onMouseMove(QMouseEvent* e)
 
 void ModifyBevelTool::onMouseRelease(QMouseEvent* e)
 {
-    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmVector mouse = view()->toGraph(e->pos().x(), e->pos().y());
     DmEntity* se = snapper()->catchEntity(e, { DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse, DM::EntitySpline }, DM::ResolveAll);
 
     if (e->button() == Qt::LeftButton)

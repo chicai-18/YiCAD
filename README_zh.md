@@ -2,7 +2,7 @@
 
 # YiCAD
 
-YiCAD 是一个开源的 2D CAD 应用程序，提供主流 CAD 软件的核心功能，使用 **C++23** 和 **Qt 5.15** 开发，基于 **OpenGL** 进行高性能图形渲染。
+YiCAD 是一个开源的 2D CAD 应用程序，提供主流 CAD 软件的核心功能，使用 **C++23** 和 **Qt 6.8** 开发，基于 **OpenGL** 进行高性能图形渲染。
 
 ![YiCAD 界面](screenshot.png)
 
@@ -32,7 +32,7 @@ YiCAD 是一个开源的 2D CAD 应用程序，提供主流 CAD 软件的核心�
 以下是完整的构建步骤，**必须按顺序执行**：
 
 ```
-① 安装 Qt 5.15          ← 手动安装，设置 Qt5_DIR 环境变量
+① 安装 Qt 6.8          ← 手动安装，设置 Qt6_DIR 环境变量
 ② 克隆 external 依赖    ← git clone SARibbonBar 和 CDT 源码
 ③ 编译安装 SARibbonBar  ← cmake 编译，install 到 external/SARibbonBar/install-*/
 ④ 编译安装 CDT          ← cmake 编译，install 到 external/CDT/install-*/
@@ -51,27 +51,27 @@ YiCAD 是一个开源的 2D CAD 应用程序，提供主流 CAD 软件的核心�
 - **CMake** 3.21+
 - **Visual Studio 2022** (Windows)
 - **Conan 2** — C/C++ 包管理器，用于安装大部分第三方依赖
-- **Qt 5.15** — 需要开发者自行安装，见下方说明
+- **Qt 6.8** — 需要开发者自行安装，见下方说明
 - **SARibbonBar** — 需要单独编译安装，见下方说明
 - **CDT** — 需要单独编译安装，见下方说明
 
-### ① 安装 Qt 5.15
+### ① 安装 Qt 6.8
 
-Qt 5.15 需要开发者自行安装：
+Qt 6.8 需要开发者自行安装：
 
-1. 从 [Qt 官方](https://www.qt.io/download-qt-installer-oss) 或开源镜像安装 Qt 5.15.x，勾选 **MSVC 2019 64-bit** 组件。
-2. 设置系统环境变量 `Qt5_DIR` 指向 Qt 安装路径：
+1. 从 [Qt 官方](https://www.qt.io/download-qt-installer-oss) 或开源镜像安装 Qt 6.8.x，勾选 **MSVC 2022 64-bit** 组件。
+2. 设置系统环境变量 `Qt6_DIR` 指向 Qt 安装路径：
 
 ```powershell
 # 永久设置（需要重启终端/IDE）
-[System.Environment]::SetEnvironmentVariable("Qt5_DIR", "C:\Qt\5.15.2\msvc2019_64", "User")
+[System.Environment]::SetEnvironmentVariable("Qt6_DIR", "C:\Qt\6.8.0\msvc2022_64", "User")
 ```
 
-**Qt5 查找顺序：**
+**Qt6 查找顺序：**
 1. CMake 默认路径（`CMAKE_PREFIX_PATH`、系统 PATH 等）
-2. 系统环境变量 `Qt5_DIR`
+2. 系统环境变量 `Qt6_DIR`
 
-如果 Qt 安装在标准位置（如 `C:\Qt\5.15.2\msvc2019_64`），设置环境变量后即可自动找到。
+如果 Qt 安装在标准位置（如 `C:\Qt\6.8.0\msvc2022_64`），设置环境变量后即可自动找到。
 
 ### ② 克隆 external 依赖
 
@@ -100,22 +100,22 @@ git -C external/SARibbonBar checkout b5d3818
 
 # 2. 编译并安装（Release + Debug）
 cmake -G "Visual Studio 17 2022" -A x64 -S external/SARibbonBar -B external/SARibbonBar/build `
-  -DCMAKE_PREFIX_PATH="$env:Qt5_DIR" `
+  -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
   -DSARIBBON_INSTALL_IN_CURRENT_DIR=OFF
 cmake --build external/SARibbonBar/build --config Release
 cmake --build external/SARibbonBar/build --config Debug
-cmake --install external/SARibbonBar/build --config Release --prefix external/SARibbonBar/install-release
-cmake --install external/SARibbonBar/build --config Debug --prefix external/SARibbonBar/install-debug
+cmake --install external/SARibbonBar/build --config Release --prefix external/SARibbonBar/install-qt6-release
+cmake --install external/SARibbonBar/build --config Debug --prefix external/SARibbonBar/install-qt6-debug
 ```
 
 编译完成后，在 YiCAD 的 CMake 配置中通过 `SARIBBON_DIR` 指定安装路径：
 
 ```powershell
 # Release 构建
-"-DSARIBBON_DIR=external/SARibbonBar/install-release"
+"-DSARIBBON_DIR=external/SARibbonBar/install-qt6-release"
 
 # Debug 构建
-"-DSARIBBON_DIR=external/SARibbonBar/install-debug"
+"-DSARIBBON_DIR=external/SARibbonBar/install-qt6-debug"
 ```
 
 `SARIBBON_DIR` 应指向包含 `include`、`lib`、`bin` 等子目录的安装前缀。YiCAD 的查找逻辑支持常见头文件布局，例如 `include/SARibbon/SARibbonBar.h`、`include/SARibbonBar/SARibbonBar.h` 或 `include/SARibbonBar.h`。
@@ -190,22 +190,22 @@ Conan 2 使用 `cmake_layout()` 时，CMake toolchain 会生成在 `build/conan-
 
 构建前请确保以下依赖已就绪：
 
-1. **Qt 5.15** — 已安装，`Qt5_DIR` 环境变量已设置（见上方说明）
-2. **SARibbonBar** — 已克隆、编译并安装到 `external/SARibbonBar/install-release/` 和 `external/SARibbonBar/install-debug/`（见上方说明）
+1. **Qt 6.8** — 已安装，`Qt6_DIR` 环境变量已设置（见上方说明）
+2. **SARibbonBar** — 已克隆、编译并安装到 `external/SARibbonBar/install-qt6-release/` 和 `external/SARibbonBar/install-qt6-debug/`（见上方说明）
 3. **CDT** — 已克隆、编译并安装到 `external/CDT/install-release/` 和 `external/CDT/install-debug/`（见上方说明）
 4. **Conan 依赖** — 已通过 `conan install` 下载（见下方步骤）
 
 项目提供了 CMake 预设（`CMakePresets.json`），可简化配置流程：
 
 ```powershell
-# 0. 设置 Qt5_DIR 环境变量（如果尚未设置）
-$env:Qt5_DIR = "C:/Qt/5.15.2/msvc2019_64"
+# 0. 设置 Qt6_DIR 环境变量（如果尚未设置）
+$env:Qt6_DIR = "C:/Qt/6.8.0/msvc2022_64"
 
 # 1. 安装 Conan 依赖（以 Release 为例）
 conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
 
 # 2. 使用 CMake 预设配置（输出到 build/Release，toolchain/SARibbon/CDT 路径已内置于预设）
-cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
+cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt6_DIR"
 
 # 3. 编译并安装 Release 运行时（不安装插件开发文件）
 cmake --build --preset Release-Runtime
@@ -217,7 +217,7 @@ cmake --build --preset Release-PluginSDK
 # 安装输出: build/Release/bin/YiCAD.exe + 所有第三方 DLL
 ```
 
-上述 Release 流程已在 Windows 11、Visual Studio 2022/v143、Qt 5.15.2、
+上述 Release 流程已在 Windows 11、Visual Studio 2022/v143、Qt 6.8.0、
 CMake 3.26.3 和 Conan 2.29.1 环境中验证，依赖解析、CMake 配置、编译、
 Runtime 安装及程序启动冒烟测试均成功。
 
@@ -226,7 +226,7 @@ Runtime 安装及程序启动冒烟测试均成功。
 请在重新配置前仅刷新 CMake 生成状态：
 
 ```powershell
-cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
+cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt6_DIR"
 ```
 
 仅在切换生成器或处理生成器、平台、工具集缓存冲突时使用 `--fresh`；
@@ -299,9 +299,9 @@ C:\ProgramData\YiCAD\plugins\
 
 预设已包含 `CMAKE_TOOLCHAIN_FILE`（Conan 工具链）、`SARIBBON_DIR` 和 `CDT_DIR`，无需手动指定额外参数。
 
-**重要：** 在使用 CLion 前，请确保已设置 `Qt5_DIR` 环境变量：
+**重要：** 在使用 CLion 前，请确保已设置 `Qt6_DIR` 环境变量：
 - 打开 Windows 系统设置 → 搜索"环境变量"
-- 添加用户环境变量：`Qt5_DIR` = `C:\Qt\5.15.2\msvc2019_64`
+- 添加用户环境变量：`Qt6_DIR` = `C:\Qt\6.8.0\msvc2022_64`
 - 重启 CLion 使环境变量生效
 
 PowerShell 下请保留上面 `"-D...=..."` 参数的引号，尤其是 `conan_toolchain.cmake` 这类以 `.cmake` 结尾的路径。测试程序会构建在 build 目录中用于验证，但 `cmake --install` 不会把 `test_*` 程序安装到 `bin/`。
@@ -358,7 +358,7 @@ YiCAD 基于以下上游项目的派生代码：
 
 YiCAD 的主要修改范围包括：
 - 重构项目结构和命名空间（`RS_` → `Dm` 等前缀变更）；
-- 迁移至 Qt 5.15 + C++23 + OpenGL 渲染架构；
+- 迁移至 Qt 6.8 + C++23 + OpenGL 渲染架构；
 - 新增 Office Ribbon 风格 UI（基于 SARibbonBar）；
 - 扩展和修改数据模型、命令系统和持久化层。
 

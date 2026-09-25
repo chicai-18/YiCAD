@@ -174,7 +174,7 @@ void DrawCircleTan3Tool::onMouseMove(QMouseEvent* e)
     {
         case SetCenter:
         {
-            m_points.coord = view()->toGraph(e->x(), e->y());
+            m_points.coord = view()->toGraph(e->pos().x(), e->pos().y());
             m_command.preview().clear();
             if (preparePreview())
             {
@@ -469,7 +469,7 @@ void DrawCircleTan3Tool::onMouseRelease(QMouseEvent* e)
             }
             break;
             case SetCenter:
-                m_points.coord = view()->toGraph(e->x(), e->y());
+                m_points.coord = view()->toGraph(e->pos().x(), e->pos().y());
                 if (preparePreview())
                 {
                     commit();

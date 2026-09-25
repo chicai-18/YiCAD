@@ -61,7 +61,7 @@ protected:
                                             DrawHatchCommand::tr("Cancel"));
     }
 
-    void onMouseMove(QMouseEvent* e) override { m_command.previewAt(view()->toGraph(e->x(), e->y())); }
+    void onMouseMove(QMouseEvent* e) override { m_command.previewAt(view()->toGraph(e->pos().x(), e->pos().y())); }
 
     void onMouseRelease(QMouseEvent* e) override
     {
@@ -69,7 +69,7 @@ protected:
         {
             // 原 Action 先捕捉一次（刷新捕捉标记），区域按鼠标所在的点找
             snapper()->snapPoint(e);
-            m_command.commitAt(view()->toGraph(e->x(), e->y()));
+            m_command.commitAt(view()->toGraph(e->pos().x(), e->pos().y()));
         }
         else if (e->button() == Qt::RightButton)
         {

@@ -272,8 +272,17 @@ TEST(PluginUiAdapterTest, 装配后按钮以大按钮放进面板并按命令ID�
     ASSERT_NE(action, nullptr);
     EXPECT_EQ(action->objectName(), QStringLiteral("plugin:com.test.pua.install/x"));
     // 大按钮直接放进面板，不在按钮组里
-    ASSERT_FALSE(action->associatedWidgets().isEmpty());
-    for (QWidget* widget : action->associatedWidgets())
+    // Qt 6 的 QAction 只有 associatedObjects()，从中取控件，等价于 Qt 5 的 associatedWidgets()
+    QList<QWidget*> widgets;
+    for (QObject* object : action->associatedObjects())
+    {
+        if (QWidget* widget = qobject_cast<QWidget*>(object))
+        {
+            widgets.append(widget);
+        }
+    }
+    ASSERT_FALSE(widgets.isEmpty());
+    for (QWidget* widget : widgets)
     {
         EXPECT_EQ(qobject_cast<SARibbonButtonGroupWidget*>(widget->parentWidget()), nullptr);
     }

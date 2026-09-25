@@ -26,8 +26,15 @@
 #include "TextConsts.h"
 #include <iostream>
 #include <fstream>
+#include <QStringDecoder>
 #include <QTextStream>
-#include <QTextCodec>
+
+#if defined(_WIN32)
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# include <Windows.h>
+#endif
 
 #include <freetype/ftoutln.h>
 #include <freetype/ftsnames.h>
@@ -744,14 +751,45 @@ static bool nameComp(const FT_SfntName a, const FT_SfntName b)
     return false;
 }
 
+/// @brief 按 Windows 代码页把多字节字符串解码为 QString
+/// @param codePage Windows 代码页编号（932、54936、950 等）
+/// @param bytes 待解码的字节
+/// @return 解码结果；非 Windows 平台或解码失败时返回空串
+///
+/// Qt 6 移除了 QTextCodec，而不带 ICU 的 Qt 6（Windows 官方构建即如此）的
+/// QStringDecoder 只支持 UTF 系列与 Latin-1，东亚编码交给系统的代码页转换。
+static QString decodeCodePage(unsigned int codePage, const QByteArray& bytes)
+{
+#if defined(_WIN32)
+    const int length = MultiByteToWideChar(codePage, 0, bytes.constData(), static_cast<int>(bytes.size()), nullptr, 0);
+    if (length <= 0)
+    {
+        return QString();
+    }
+    std::wstring wide(static_cast<size_t>(length), L'\0');
+    MultiByteToWideChar(codePage, 0, bytes.constData(), static_cast<int>(bytes.size()), wide.data(), length);
+    return QString::fromStdWString(wide);
+#else
+    Q_UNUSED(codePage);
+    Q_UNUSED(bytes);
+    return QString();
+#endif
+}
+
 /// @brief 解码字体名称记录
 static QString decodeNameRecord(FT_SfntName name)
 {
-    QString string;
-    QByteArray encoding;
+    // Windows 代码页：Shift-JIS 932、GB18030 54936、Big5 950；0 表示 UTF-16BE
+    constexpr unsigned int UTF16_BE = 0;
+    constexpr unsigned int CODE_PAGE_SHIFT_JIS = 932;
+    constexpr unsigned int CODE_PAGE_GB18030 = 54936;
+    constexpr unsigned int CODE_PAGE_BIG5 = 950;
+
+    bool known = false;
+    unsigned int codePage = UTF16_BE;
     if (name.platform_id == TT_PLATFORM_APPLE_UNICODE)
     {
-        encoding = "UTF-16BE";
+        known = true;
     }
     else if (name.platform_id == TT_PLATFORM_MICROSOFT)
     {
@@ -760,30 +798,37 @@ static QString decodeNameRecord(FT_SfntName name)
         case TT_MS_ID_SYMBOL_CS:
         case TT_MS_ID_UNICODE_CS:
         case TT_MS_ID_UCS_4:
-            encoding = "UTF-16BE";
+            known = true;
             break;
         case TT_MS_ID_SJIS:
-            encoding = "Shift-JIS";
+            known = true;
+            codePage = CODE_PAGE_SHIFT_JIS;
             break;
         case TT_MS_ID_GB2312:
-            encoding = "GB18030-0";
+            known = true;
+            codePage = CODE_PAGE_GB18030;
             break;
         case TT_MS_ID_BIG_5:
-            encoding = "Big5";
+            known = true;
+            codePage = CODE_PAGE_BIG5;
             break;
         default:
             break;
         }
     }
 
-    if (!encoding.isEmpty())
+    if (!known)
     {
-        QTextCodec* codec = QTextCodec::codecForName(encoding);
-        QByteArray bytes((const char*)name.string, name.string_len);
-        string = codec->toUnicode(bytes);
+        return QString();
     }
 
-    return string;
+    const QByteArray bytes(reinterpret_cast<const char*>(name.string), static_cast<qsizetype>(name.string_len));
+    if (codePage == UTF16_BE)
+    {
+        QStringDecoder decoder(QStringConverter::Utf16BE);
+        return decoder(bytes);
+    }
+    return decodeCodePage(codePage, bytes);
 }
 
 /// @brief 获得字体族名

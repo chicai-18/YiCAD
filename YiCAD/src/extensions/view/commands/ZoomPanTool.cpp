@@ -44,8 +44,8 @@ ViewToolResult ZoomPanTool::mousePressEvent(QMouseEvent* e)
         // 中键平移属于导航层（原先 LegacyActionTool 同样让路）
         return ViewToolResult::NotHandled;
     case Qt::LeftButton:
-        m_lastX = e->x();
-        m_lastY = e->y();
+        m_lastX = e->pos().x();
+        m_lastY = e->pos().y();
         m_status = SetPanning;
         return ViewToolResult::Handled;
     default:
@@ -77,11 +77,11 @@ ViewToolResult ZoomPanTool::mouseMoveEvent(QMouseEvent* e)
         return ViewToolResult::NotHandled;
     }
     if (m_status == SetPanning
-        && (std::abs(e->x() - m_lastX) > MIN_PAN_DISTANCE || std::abs(e->y() - m_lastY) > MIN_PAN_DISTANCE))
+        && (std::abs(e->pos().x() - m_lastX) > MIN_PAN_DISTANCE || std::abs(e->pos().y() - m_lastY) > MIN_PAN_DISTANCE))
     {
-        m_view->zoomPan(e->x() - m_lastX, e->y() - m_lastY);
-        m_lastX = e->x();
-        m_lastY = e->y();
+        m_view->zoomPan(e->pos().x() - m_lastX, e->pos().y() - m_lastY);
+        m_lastX = e->pos().x();
+        m_lastY = e->pos().y();
     }
     return ViewToolResult::Handled;
 }

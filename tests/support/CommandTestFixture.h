@@ -40,7 +40,7 @@ namespace yicad_test
 inline QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button,
                              Qt::KeyboardModifiers mods = Qt::NoModifier)
 {
-    return QMouseEvent(type, QPointF(x, y), button, button, mods);
+    return QMouseEvent(type, QPointF(x, y), QPointF(x, y), button, button, mods);
 }
 
 /// @brief 选项条请求的记录
@@ -162,7 +162,7 @@ struct CommandFixture : ::testing::Test
     /// @brief 鼠标移到 (x,y)
     void move(int x, int y, Qt::KeyboardModifiers mods = Qt::NoModifier)
     {
-        QMouseEvent e(QEvent::MouseMove, QPointF(x, y), Qt::NoButton, Qt::NoButton, mods);
+        QMouseEvent e(QEvent::MouseMove, QPointF(x, y), QPointF(x, y), Qt::NoButton, Qt::NoButton, mods);
         dispatch([&] { return control.mouseMoveEvent(&e); });
     }
 

@@ -191,7 +191,7 @@ private:
         DmVector pos = snapper()->snapPoint(e);
         if (DM::RestrictOrthogonal == snapper()->getSnapMode()->restriction)
         {
-            pos = view()->toGraph(e->x(), e->y());
+            pos = view()->toGraph(e->pos().x(), e->pos().y());
         }
         return pos;
     }

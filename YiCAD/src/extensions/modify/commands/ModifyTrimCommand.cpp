@@ -141,7 +141,7 @@ void ModifyTrimTool::trigger()
 
 void ModifyTrimTool::onMouseMove(QMouseEvent* e)
 {
-    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmVector mouse = view()->toGraph(e->pos().x(), e->pos().y());
     DmEntity* se = snapper()->catchEntity(e);
 
     switch (status())
@@ -231,7 +231,7 @@ void ModifyTrimTool::onMouseRelease(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton)
     {
-        DmVector mouse = view()->toGraph(e->x(), e->y());
+        DmVector mouse = view()->toGraph(e->pos().x(), e->pos().y());
         DmEntity* se = snapper()->catchEntity(e);
 
         switch (status())

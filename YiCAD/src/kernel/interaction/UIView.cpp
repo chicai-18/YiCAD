@@ -258,7 +258,7 @@ bool UIView::processKeyEvent(QKeyEvent* e)
 
 void UIView::back()
 {
-    QMouseEvent e(QEvent::MouseButtonRelease, QPoint(0, 0), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QMouseEvent e(QEvent::MouseButtonRelease, QPointF(0, 0), QPointF(0, 0), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
     DispatchScope scope(m_pCommandBus.get());
     routeBack(&e);
 }
@@ -485,52 +485,58 @@ void UIView::mouseMoveEvent(QMouseEvent* e)
 
 void UIView::tabletEvent(QTabletEvent* e)
 {
-    if (testAttribute(Qt::WA_UnderMouse))
+    if (!testAttribute(Qt::WA_UnderMouse))
     {
-        switch (e->deviceType())
+        return;
+    }
+
+    // 橡皮擦是笔的另一端：设备类型仍是 Stylus，指针类型为 Eraser，所以先按指针类型判断。
+    // Qt 5 下原代码拿 QTabletEvent::Eraser（指针类型枚举）去比 device()（设备类型枚举），
+    // 实际命中的是数值相同的 Airbrush，真正的橡皮擦走了笔的分支；Qt 6 的枚举不能再混比。
+    if (e->pointerType() == QPointingDevice::PointerType::Eraser)
+    {
+        if (e->type() == QEvent::TabletRelease && pDocument && m_pSelectTool)
         {
-        case QTabletEvent::Eraser:
-            if (e->type() == QEvent::TabletRelease)
-            {
-                if (pDocument && m_pSelectTool)
-                {
-                    // 橡皮擦：单点拾取后删除选择集。未命中时照旧删除已有的选择集。
-                    // 删除是修改扩展的即时命令，不打断当前命令（清单 E6）；没有修改扩展时
-                    // 只拾取、不删除。
-                    m_pSelectTool->pickAt(e->pos().x(), e->pos().y());
+            // 橡皮擦：单点拾取后删除选择集。未命中时照旧删除已有的选择集。
+            // 删除是修改扩展的即时命令，不打断当前命令（清单 E6）；没有修改扩展时
+            // 只拾取、不删除。
+            const QPoint pos = e->position().toPoint();
+            m_pSelectTool->pickAt(pos.x(), pos.y());
 
-                    if (pDocument->getEntityTable()->hasSelect())
-                    {
-                        prepareInstantCommand();
-                        CommandRegistry::instance().runInstant(QStringLiteral("ext.modify.delete_no_select"),
-                                                               CommandContext{pDocument, this});
-                    }
-                }
-            }
-            break;
-
-        case QTabletEvent::Stylus:
-        case QTabletEvent::Puck:
-            if (e->type() == QEvent::TabletPress)
+            if (pDocument->getEntityTable()->hasSelect())
             {
-                QMouseEvent ev(QEvent::MouseButtonPress, e->pos(), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-                mousePressEvent(&ev);
+                prepareInstantCommand();
+                CommandRegistry::instance().runInstant(QStringLiteral("ext.modify.delete_no_select"),
+                                                       CommandContext{pDocument, this});
             }
-            else if (e->type() == QEvent::TabletRelease)
-            {
-                QMouseEvent ev(QEvent::MouseButtonRelease, e->pos(), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-                mouseReleaseEvent(&ev);
-            }
-            else if (e->type() == QEvent::TabletMove)
-            {
-                QMouseEvent ev(QEvent::MouseMove, e->pos(), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
-                mouseMoveEvent(&ev);
-            }
-            break;
-
-        default:
-            break;
         }
+        return;
+    }
+
+    const QInputDevice::DeviceType device = e->deviceType();
+    if (device != QInputDevice::DeviceType::Stylus && device != QInputDevice::DeviceType::Puck)
+    {
+        return;
+    }
+
+    // 笔与鼠标式定位器按鼠标左键处理
+    if (e->type() == QEvent::TabletPress)
+    {
+        QMouseEvent ev(QEvent::MouseButtonPress, e->position(), e->globalPosition(),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        mousePressEvent(&ev);
+    }
+    else if (e->type() == QEvent::TabletRelease)
+    {
+        QMouseEvent ev(QEvent::MouseButtonRelease, e->position(), e->globalPosition(),
+                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        mouseReleaseEvent(&ev);
+    }
+    else if (e->type() == QEvent::TabletMove)
+    {
+        QMouseEvent ev(QEvent::MouseMove, e->position(), e->globalPosition(),
+                       Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        mouseMoveEvent(&ev);
     }
 }
 
@@ -549,7 +555,7 @@ void UIView::leaveEvent(QEvent* e)
     GuiDocumentView::leaveEvent(e);
 }
 
-void UIView::enterEvent(QEvent* e)
+void UIView::enterEvent(QEnterEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
     if (m_pViewTool)

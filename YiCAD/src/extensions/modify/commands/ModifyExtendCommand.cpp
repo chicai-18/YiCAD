@@ -221,7 +221,7 @@ void ModifyExtendTool::trigger()
 void ModifyExtendTool::onMouseMove(QMouseEvent* e)
 {
     DmEntity* se = snapper()->catchEntity(e);
-    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmVector mouse = view()->toGraph(e->pos().x(), e->pos().y());
     switch (status())
     {
     case ChooseEntity:
@@ -281,7 +281,7 @@ void ModifyExtendTool::onMouseMove(QMouseEvent* e)
 /// @param [in] e 鼠标事件指针
 void ModifyExtendTool::onMouseRelease(QMouseEvent* e)
 {
-    DmVector mouse = view()->toGraph(e->x(), e->y());
+    DmVector mouse = view()->toGraph(e->pos().x(), e->pos().y());
     if (e->button() == Qt::LeftButton)
     {
         switch (status())

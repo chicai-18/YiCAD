@@ -39,7 +39,7 @@ ViewToolResult PanZoomTool::mousePressEvent(QMouseEvent* e)
     // 本类只管接受并记录起点。
     m_panning = true;
     m_panButton = e->button();
-    m_lastGuiPos = DmVector(e->x(), e->y());
+    m_lastGuiPos = DmVector(e->pos().x(), e->pos().y());
     return ViewToolResult::Handled;
 }
 
@@ -50,7 +50,7 @@ ViewToolResult PanZoomTool::mouseMoveEvent(QMouseEvent* e)
         return ViewToolResult::NotHandled;
     }
 
-    DmVector const target(e->x(), e->y());
+    DmVector const target(e->pos().x(), e->pos().y());
     DmVector const delta = target - m_lastGuiPos;
     if (delta.squared() >= kPanSquaredThreshold)
     {

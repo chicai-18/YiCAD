@@ -240,7 +240,7 @@ void UIColorBox::slotColorChanged(int index)
 		{
 			QVariant q0 = itemData(index);
 			QColor color;
-			if (q0 != QVariant::Invalid)
+			if (q0.isValid())
 			{
 				color = QColor(itemData(index).value<QColor>());
 			}

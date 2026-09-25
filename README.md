@@ -2,7 +2,7 @@ English | [中文版](README_zh.md)
 
 # YiCAD
 
-YiCAD is an open-source 2D CAD application that provides core features found in mainstream CAD software. Built with **C++23** and **Qt 5.15**, it uses **OpenGL** for high-performance graphics rendering.
+YiCAD is an open-source 2D CAD application that provides core features found in mainstream CAD software. Built with **C++23** and **Qt 6.8**, it uses **OpenGL** for high-performance graphics rendering.
 
 ![YiCAD UI](screenshot.png)
 
@@ -32,7 +32,7 @@ Current version: **v0.20.0**
 The complete build steps **must be executed in order**:
 
 ```
-① Install Qt 5.15         ← Manual install, set Qt5_DIR env variable
+① Install Qt 6.8         ← Manual install, set Qt6_DIR env variable
 ② Clone external deps     ← git clone SARibbonBar and CDT sources
 ③ Build & install SARibbonBar ← cmake build, install to external/SARibbonBar/install-*/
 ④ Build & install CDT        ← cmake build, install to external/CDT/install-*/
@@ -51,27 +51,27 @@ The complete build steps **must be executed in order**:
 - **CMake** 3.21+
 - **Visual Studio 2022** (Windows)
 - **Conan 2** — C/C++ package manager for most third-party dependencies
-- **Qt 5.15** — Must be installed by the developer (see below)
+- **Qt 6.8** — Must be installed by the developer (see below)
 - **SARibbonBar** — Must be built and installed separately (see below)
 - **CDT** — Must be built and installed separately (see below)
 
-### ① Install Qt 5.15
+### ① Install Qt 6.8
 
-Qt 5.15 must be installed by the developer:
+Qt 6.8 must be installed by the developer:
 
-1. Install Qt 5.15.x from [Qt official](https://www.qt.io/download-qt-installer-oss) or an open-source mirror. Select the **MSVC 2019 64-bit** component.
-2. Set the system environment variable `Qt5_DIR` to point to the Qt installation path:
+1. Install Qt 6.8.x from [Qt official](https://www.qt.io/download-qt-installer-oss) or an open-source mirror. Select the **MSVC 2022 64-bit** component.
+2. Set the system environment variable `Qt6_DIR` to point to the Qt installation path:
 
 ```powershell
 # Set permanently (requires terminal/IDE restart)
-[System.Environment]::SetEnvironmentVariable("Qt5_DIR", "C:\Qt\5.15.2\msvc2019_64", "User")
+[System.Environment]::SetEnvironmentVariable("Qt6_DIR", "C:\Qt\6.8.0\msvc2022_64", "User")
 ```
 
-**Qt5 lookup order:**
+**Qt6 lookup order:**
 1. CMake default paths (`CMAKE_PREFIX_PATH`, system PATH, etc.)
-2. System environment variable `Qt5_DIR`
+2. System environment variable `Qt6_DIR`
 
-If Qt is installed in a standard location (e.g. `C:\Qt\5.15.2\msvc2019_64`), setting the environment variable is sufficient.
+If Qt is installed in a standard location (e.g. `C:\Qt\6.8.0\msvc2022_64`), setting the environment variable is sufficient.
 
 ### ② Clone External Dependencies
 
@@ -98,22 +98,22 @@ git -C external/SARibbonBar checkout b5d3818
 
 # 2. Build and install (Release + Debug)
 cmake -G "Visual Studio 17 2022" -A x64 -S external/SARibbonBar -B external/SARibbonBar/build `
-  -DCMAKE_PREFIX_PATH="$env:Qt5_DIR" `
+  -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
   -DSARIBBON_INSTALL_IN_CURRENT_DIR=OFF
 cmake --build external/SARibbonBar/build --config Release
 cmake --build external/SARibbonBar/build --config Debug
-cmake --install external/SARibbonBar/build --config Release --prefix external/SARibbonBar/install-release
-cmake --install external/SARibbonBar/build --config Debug --prefix external/SARibbonBar/install-debug
+cmake --install external/SARibbonBar/build --config Release --prefix external/SARibbonBar/install-qt6-release
+cmake --install external/SARibbonBar/build --config Debug --prefix external/SARibbonBar/install-qt6-debug
 ```
 
 After building, specify the install path in YiCAD's CMake configuration via `SARIBBON_DIR`:
 
 ```powershell
 # Release build
-"-DSARIBBON_DIR=external/SARibbonBar/install-release"
+"-DSARIBBON_DIR=external/SARibbonBar/install-qt6-release"
 
 # Debug build
-"-DSARIBBON_DIR=external/SARibbonBar/install-debug"
+"-DSARIBBON_DIR=external/SARibbonBar/install-qt6-debug"
 ```
 
 `SARIBBON_DIR` should point to the install prefix containing `include`, `lib`, `bin` subdirectories. YiCAD's lookup logic supports common header layouts such as `include/SARibbon/SARibbonBar.h`, `include/SARibbonBar/SARibbonBar.h`, or `include/SARibbonBar.h`.
@@ -192,8 +192,8 @@ When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/c
 
 Before building, ensure the following dependencies are ready:
 
-1. **Qt 5.15** — Installed, `Qt5_DIR` environment variable set (see above)
-2. **SARibbonBar** — Cloned, built, and installed to `external/SARibbonBar/install-release/` and `external/SARibbonBar/install-debug/` (see above)
+1. **Qt 6.8** — Installed, `Qt6_DIR` environment variable set (see above)
+2. **SARibbonBar** — Cloned, built, and installed to `external/SARibbonBar/install-qt6-release/` and `external/SARibbonBar/install-qt6-debug/` (see above)
 3. **CDT** — Cloned, built, and installed to `external/CDT/install-release/` and `external/CDT/install-debug/` (see above)
 4. **Conan dependencies** — Downloaded via `conan install` (see below)
 
@@ -203,14 +203,14 @@ configured and built automatically when the DXF plugin is enabled.
 The project provides CMake presets (`CMakePresets.json`) to simplify configuration:
 
 ```powershell
-# 0. Set Qt5_DIR environment variable (if not already set)
-$env:Qt5_DIR = "C:/Qt/5.15.2/msvc2019_64"
+# 0. Set Qt6_DIR environment variable (if not already set)
+$env:Qt6_DIR = "C:/Qt/6.8.0/msvc2022_64"
 
 # 1. Install Conan dependencies (Release example)
 conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build=never --lockfile=conan.lock
 
 # 2. Configure with CMake preset (outputs to build/Release, toolchain/SARibbon/CDT paths are baked into the preset)
-cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
+cmake --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt6_DIR"
 
 # 3. Build and install the Release runtime (without plugin development files)
 cmake --build --preset Release-Runtime
@@ -223,7 +223,7 @@ cmake --build --preset Release-PluginSDK
 ```
 
 This Release flow has been verified with Windows 11, Visual Studio 2022/v143,
-Qt 5.15.2, CMake 3.26.3, and Conan 2.29.1. It completed dependency resolution,
+Qt 6.8.0, CMake 3.26.3, and Conan 2.29.1. It completed dependency resolution,
 CMake configuration, compilation, Runtime installation, and a launch smoke test.
 
 The project presets deliberately do not fix a CMake generator. CMake reuses the
@@ -232,7 +232,7 @@ generator, platform, and toolset recorded in the build directory. If
 generator options, refresh only the generated CMake state before configuring:
 
 ```powershell
-cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt5_DIR"
+cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt6_DIR"
 ```
 
 Use `--fresh` when switching generators or resolving a generator/platform/toolset
@@ -309,9 +309,9 @@ the public Plugin SDK. See the [Plugin SDK guide](doc/PLUGIN_SDK.md),
 
 The presets already include `CMAKE_TOOLCHAIN_FILE` (Conan toolchain), `SARIBBON_DIR`, and `CDT_DIR` — no extra arguments needed.
 
-**Important:** Before using CLion, ensure the `Qt5_DIR` environment variable is set:
+**Important:** Before using CLion, ensure the `Qt6_DIR` environment variable is set:
 - Open Windows System Settings → Search for "Environment Variables"
-- Add a user environment variable: `Qt5_DIR` = `C:\Qt\5.15.2\msvc2019_64`
+- Add a user environment variable: `Qt6_DIR` = `C:\Qt\6.8.0\msvc2022_64`
 - Restart CLion for the environment variable to take effect
 
 In PowerShell, keep the quotes around `"-D...=..."` arguments, especially for paths ending in `.cmake` like `conan_toolchain.cmake`. Test programs are built in the build directory for verification, but `cmake --install` does not install `test_*` programs to `bin/`.
@@ -369,7 +369,7 @@ YiCAD is based on derivative code from the following upstream project:
 
 Key modifications by YiCAD include:
 - Restructured project layout and namespaces (e.g. `RS_` → `Dm` prefix changes);
-- Migrated to Qt 5.15 + C++23 + OpenGL rendering architecture;
+- Migrated to Qt 6.8 + C++23 + OpenGL rendering architecture;
 - Added Office Ribbon-style UI (based on SARibbonBar);
 - Extended and modified the data model, command system, and persistence layer.
 

@@ -103,7 +103,7 @@ protected:
         {
             return;
         }
-        m_coord = view()->toGraph(e->x(), e->y());
+        m_coord = view()->toGraph(e->pos().x(), e->pos().y());
         if (prepareCircle())
         {
             CommandPreview& preview = m_command.preview();
@@ -144,7 +144,7 @@ protected:
                 break;
             }
             case SetCenter:
-                m_coord = view()->toGraph(e->x(), e->y());
+                m_coord = view()->toGraph(e->pos().x(), e->pos().y());
                 if (prepareCircle())
                 {
                     commit();

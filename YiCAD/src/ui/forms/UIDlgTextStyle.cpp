@@ -21,7 +21,6 @@
 #include "UIDlgTextStyle.h"
 
 #include <QPushButton>
-#include <QTextCodec>
 #include <QTextStream>
 #include <QFileDialog>
 #include <QAction>

@@ -24,7 +24,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmakeutil.cmake)
 
 # All third-party dependencies are resolved via Conan 2 (see cmake/dependencies.cmake).
-# Qt 5.15, SARibbonBar, and CDT are discovered via find_package from user-provided paths.
+# Qt 6.8, SARibbonBar, and CDT are discovered via find_package from user-provided paths.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deployqt.cmake)

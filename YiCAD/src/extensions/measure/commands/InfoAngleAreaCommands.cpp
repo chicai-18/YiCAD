@@ -286,7 +286,7 @@ void InfoAngleTool::onMouseRelease(QMouseEvent* e)
 {
     if (e->button() == Qt::LeftButton)
     {
-        DmVector mouse{view()->toGraphX(e->x()), view()->toGraphY(e->y())};
+        DmVector mouse{view()->toGraphX(e->pos().x()), view()->toGraphY(e->pos().y())};
 
         switch (status())
         {

@@ -70,7 +70,7 @@ void TimeInfo::setTime_t (int64_t seconds)
 
 std::string TimeInfo::currentDateTimeString()
 {
-    return QDateTime::currentDateTime().toTimeSpec(Qt::OffsetFromUTC)
+    return QDateTime::currentDateTime().toUTC()
         .toString(Qt::ISODate).toStdString();
 }
 

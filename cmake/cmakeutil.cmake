@@ -41,7 +41,9 @@ macro(add_copy_fullfolder_command _folder)
     endforeach()
 endmacro()
 
-function(QT5_CREATE_TRANSLATION_Exclude_SubFolder _qm_files)
+# 与 qt6_create_translation 相同，但把源文件逐个写进列表文件交给 lupdate，
+# 只扫描传入的文件，不递归扫描所在目录的子目录。
+function(yicad_create_translation _qm_files)
     set(options)
     set(oneValueArgs)
     set(multiValueArgs OPTIONS)
@@ -81,25 +83,14 @@ function(QT5_CREATE_TRANSLATION_Exclude_SubFolder _qm_files)
           file(WRITE ${_ts_lst_file} "${_lst_file_srcs}")
         endif()
         add_custom_command(OUTPUT ${_ts_file}
-            COMMAND ${Qt5_LUPDATE_EXECUTABLE}
+            COMMAND Qt6::lupdate
             ARGS ${_lupdate_options} "@${_ts_lst_file}" -ts ${_ts_file}
             DEPENDS ${_my_sources}
             BYPRODUCTS ${_ts_lst_file} VERBATIM)
     endforeach()
-    qt5_add_translation(${_qm_files} ${_my_tsfiles})
+    qt6_add_translation(${_qm_files} ${_my_tsfiles})
     set(${_qm_files} ${${_qm_files}} PARENT_SCOPE)
 endfunction()
-
-if(NOT QT_NO_CREATE_VERSIONLESS_FUNCTIONS)
-    function(qt_create_translation _qm_files)
-        if(QT_DEFAULT_MAJOR_VERSION EQUAL 5)
-            qt5_create_translation("${_qm_files}" ${ARGN})
-        elseif(QT_DEFAULT_MAJOR_VERSION EQUAL 6)
-            qt6_create_translation("${_qm_files}" ${ARGN})
-        endif()
-        set("${_qm_files}" "${${_qm_files}}" PARENT_SCOPE)
-    endfunction()
-endif()
 
 # 使用 visual leak detector(VLD)来探测内存泄漏
 # 需要指定USE_VISUAL_LEAK_DETECTOR为ON， 并且环境变量PATH中存在Visual Leak Detector安装路径。VLD的使用方法为在main()所在cpp #include "vld.h"，编译运行Debug，然[...]

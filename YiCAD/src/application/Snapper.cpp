@@ -225,7 +225,7 @@ DmVector Snapper::snapFree(QMouseEvent* e)
     {
         return DmVector(false);
     }
-    m_pImpData->snapSpot = docView->toGraph(e->x(), e->y());
+    m_pImpData->snapSpot = docView->toGraph(e->pos().x(), e->pos().y());
     m_pImpData->snapCoord = m_pImpData->snapSpot;
     return m_pImpData->snapCoord;
 }
@@ -246,7 +246,7 @@ DmVector Snapper::snapPoint(QMouseEvent* e)
 
     snapFree(e);
 
-    DmVector mouseCoord = docView->toGraph(e->x(), e->y());
+    DmVector mouseCoord = docView->toGraph(e->pos().x(), e->pos().y());
     double ds2Min = DM_MAXDOUBLE * DM_MAXDOUBLE;
 
     if (this->snapMode.snapEndpoint)
@@ -745,18 +745,18 @@ DmEntity* Snapper::catchEntity(const DmVector& pos, DM::EntityType enType, DM::R
 
 DmEntity* Snapper::catchEntity(QMouseEvent* e, DM::ResolveLevel level)
 {
-    return catchEntity(DmVector(docView->toGraphX(e->x()), docView->toGraphY(e->y())), level);
+    return catchEntity(DmVector(docView->toGraphX(e->pos().x()), docView->toGraphY(e->pos().y())), level);
 }
 
 DmEntity* Snapper::catchEntity(QMouseEvent* e, DM::EntityType enType, DM::ResolveLevel level)
 {
-    return catchEntity({ docView->toGraphX(e->x()), docView->toGraphY(e->y()) }, enType, level);
+    return catchEntity({ docView->toGraphX(e->pos().x()), docView->toGraphY(e->pos().y()) }, enType, level);
 }
 
 DmEntity* Snapper::catchEntity(QMouseEvent* e, const EntityTypeList& enTypeList, DM::ResolveLevel level)
 {
     DmEntity* pten = nullptr;
-    DmVector coord = DmVector(docView->toGraphX(e->x()), docView->toGraphY(e->y()));
+    DmVector coord = DmVector(docView->toGraphX(e->pos().x()), docView->toGraphY(e->pos().y()));
     switch (enTypeList.size())
     {
     case 0:

@@ -434,9 +434,6 @@ void ApplicationWindow::onActionCustomizeAndSaveTriggered(bool b)
 		QXmlStreamWriter xml(&str);
 		xml.setAutoFormatting(true);
 		xml.setAutoFormattingIndent(2);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)  // QXmlStreamWriter always encodes XML in UTF-8.
-		xml.setCodec("utf-8");
-#endif
 		xml.writeStartDocument();
 		bool isok = dlg.toXml(&xml);
 		xml.writeEndDocument();
@@ -446,9 +443,6 @@ void ApplicationWindow::onActionCustomizeAndSaveTriggered(bool b)
 			if (f.open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate))
 			{
 				QTextStream s(&f);
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)  // QTextStream always encodes XML in UTF-8.
-				s.setCodec("utf-8");
-#endif
 				s << str;
 				s.flush();
 			}
@@ -1583,7 +1577,7 @@ bool ApplicationWindow::eventFilter(QObject* obj, QEvent* e)
 		if (Qt::LeftButton == evev->button())
 		{
 			m_isPressed = true;
-			m_startMovePos = evev->globalPos();
+			m_startMovePos = evev->globalPosition().toPoint();
 			m_quadrant = countRow(evev->pos(), countLine(evev->pos(), this->width()), this->height());
 
 			//----------------------------------------------------

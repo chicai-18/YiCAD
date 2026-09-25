@@ -111,7 +111,7 @@ protected:
             {
             case SetBaseEntity:
             {
-                DmVector coord = view()->toGraph(e->x(), e->y());
+                DmVector coord = view()->toGraph(e->pos().x(), e->pos().y());
                 DmEntity* entity = snapper()->catchEntity(coord, DM::ResolveAll);
                 if (!entity)
                 {

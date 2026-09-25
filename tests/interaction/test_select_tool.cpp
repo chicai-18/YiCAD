@@ -31,7 +31,7 @@ namespace
 {
 QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button, Qt::KeyboardModifiers mods = Qt::NoModifier)
 {
-    return QMouseEvent(type, QPointF(x, y), button, button, mods);
+    return QMouseEvent(type, QPointF(x, y), QPointF(x, y), button, button, mods);
 }
 
 /// @brief 测试夹具：把 SelectTool 依赖的一整套对象串起来

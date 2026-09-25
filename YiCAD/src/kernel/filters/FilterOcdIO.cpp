@@ -25,7 +25,6 @@
 #include <filesystem>
 #include <zlib.h>
 #include <QStringList>
-#include <QTextCodec>
 #include <regex>
 
 //persistent

@@ -118,7 +118,7 @@ protected:
         {
             return;
         }
-        DmVector mouse(view()->toGraphX(e->x()), view()->toGraphY(e->y()));
+        DmVector mouse(view()->toGraphX(e->pos().x()), view()->toGraphY(e->pos().y()));
         DmEntity* en = snapper()->catchEntity(e, {DM::EntityArc, DM::EntityCircle, DM::EntityEllipse},
                                               DM::ResolveAll);
         if (!en)

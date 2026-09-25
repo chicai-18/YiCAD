@@ -117,7 +117,7 @@ protected:
 
     void onMouseMove(QMouseEvent* e) override
     {
-        DmVector mouse(view()->toGraphX(e->x()), view()->toGraphY(e->y()));
+        DmVector mouse(view()->toGraphX(e->pos().x()), view()->toGraphY(e->pos().y()));
         switch (status())
         {
         case SetPoint:
