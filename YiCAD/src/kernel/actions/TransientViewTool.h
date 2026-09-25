@@ -22,9 +22,9 @@
 /// 作为临时工具叠在业务栈顶，结束后其下的命令照常继续。对应原 Action 体系里
 /// isViewAction() 的 Action：它压在旧 Action 栈顶，挂起前一个、结束后恢复前一个。
 ///
-/// 由视图（UIView）持有：启动时挂起其下的各层（旧 Action、命令或编辑模式、选择层），
-/// 进入/离开画布只通知它，结束时恢复其下各层；启动命令、启动旧版 Action、结束全部
-/// 命令与视图关闭时结束它。经 CommandRegistry::registerViewTool() 注册。
+/// 由视图（UIView）持有：启动时挂起其下的各层（命令或编辑模式、选择层），
+/// 进入/离开画布只通知它，结束时恢复其下各层；启动命令、结束全部命令与视图关闭时
+/// 结束它。经 CommandRegistry::registerViewTool() 注册。
 
 #ifndef TRANSIENTVIEWTOOL_H
 #define TRANSIENTVIEWTOOL_H

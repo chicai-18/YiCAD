@@ -21,7 +21,7 @@
 #ifndef UIACTIONHANDLER_H
 #define UIACTIONHANDLER_H
 
-#include "ActionInterface.h"
+#include "ISnapService.h"
 #include "MDIWindow.h"
 #include "QMdiArea"
 #include "UITabDrawWidget.h"
@@ -45,17 +45,16 @@ public:
     UIActionHandler(QObject* parent);
     virtual ~UIActionHandler() = default;
 
-    ActionInterface* getCurrentAction();
-    ActionInterface* setCurrentAction(DM::ActionType id);
+    /// @brief 按 keyconfig.xml 的枚举启动命令：捕捉/约束开关与"结束全部"由本类处理，
+    ///        其余经 CommandRegistry 的枚举桥接转成命令 ID 交给 activateCommand()
+    void setCurrentAction(DM::ActionType id);
 
     /// @brief 按字符串命令 ID 启动命令（Ribbon、命令行别名、扩展共用的入口）。
-    /// @details 按注册类型分派（CommandRegistry::kind）：旧版 Action 交给视图的
-    /// Action 栈；交互命令交给视图的命令总线；即时命令直接执行。
+    /// @details 按注册类型分派（CommandRegistry::kind）：交互命令交给视图的命令总线；
+    /// 即时命令直接执行；临时视图工具叠在视图的业务栈顶。
     /// @param commandId CommandRegistry 里注册的命令 ID
     /// @param source 触发源，透传为 CommandContext::sender；为空时取 Qt 的 sender()
-    /// @return 已交给视图管理的旧版 Action；交互命令、即时命令、命令未注册、
-    /// 工厂未构造 Action，或没有打开文档时构造后立即触发并删除的，都返回 nullptr。
-    ActionInterface* activateCommand(const QString& commandId, QObject* source = nullptr);
+    void activateCommand(const QString& commandId, QObject* source = nullptr);
 
     void setSnapToolBar(UISnapWidget* toolbar);
     void setMDIWindow(MDIWindow* m);
@@ -74,7 +73,6 @@ public:
     /// @brief 设置规范外部命令的执行入口。
     /// @param executor 接收 pluginId 和 commandId 的执行器；空执行器表示禁用。
     void setExternalCommandExecutor(ExternalCommandExecutor executor);
-    QStringList getAvailableCommands();
     SnapMode getSnaps();
     DM::SnapRestriction getSnapRestriction();
     void set_view(GuiDocumentView* pDocumentView);

@@ -96,18 +96,6 @@ int MDIWindow::getId() const
     return id;
 }
 
-GuiEventHandler* MDIWindow::getEventHandler() const
-{
-    if (docView)
-    {
-        return docView->getEventHandler();
-    }
-    else
-    {
-        return nullptr;
-    }
-}
-
 void MDIWindow::setParentWindow(MDIWindow* p)
 {
     parentWindow = p;

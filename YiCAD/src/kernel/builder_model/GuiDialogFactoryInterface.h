@@ -26,7 +26,6 @@
 
 #include "Datamodel.h"
 
-class ActionInterface;
 class IBlockEditSession;
 class IExclusiveCommand;
 class AttributesData;
@@ -40,7 +39,6 @@ struct DmCircleData;
 struct DmDimLinearData;
 struct DmDimensionData;
 class DmEntity;
-class GuiEventHandler;
 class DmDocument;
 class GuiDocumentView;
 class GuiGrid;
@@ -169,12 +167,6 @@ public:
     /// @details 该方法不应实际打开文件，由调用者负责打开操作
     /// @return 文件名，用户取消则返回空字符串
     virtual QString requestImageOpenDialog() = 0;
-
-    /// @brief 显示操作的选项控件
-    /// @param action 需要选项的操作指针
-    /// @param on true 打开控件，false 关闭控件
-    /// @param update true 从操作获取数据，false 从配置文件获取数据
-    virtual void requestOptions(ActionInterface* action, bool on, bool update = false) = 0;
 
     /// @brief 显示交互命令的选项条（CommandInfo::commandOptionsFactory 注册的控件）
     /// @param command 需要选项的命令

@@ -34,7 +34,6 @@
 #include "DmPatternList.h"
 #include "DmSettings.h"
 #include "DmSystem.h"
-#include "ActionInterface.h"
 #include "IExclusiveCommand.h"
 #include "DmDocument.h"
 #include "DmHatch.h"
@@ -403,23 +402,8 @@ QString UIDialogFactory::requestImageOpenDialog()
 	return strFileName;
 }
 
-void UIDialogFactory::requestOptions(ActionInterface* action, bool on, bool update)
-{
-	if (!action)
-	{
-		return;
-	}
-
-	// 旧版 Action 的选项条只剩随命令注册在 CommandRegistry 的（CommandInfo::optionsFactory，
-	// 标注扩展）；内置命令都已迁为交互命令，见 requestCommandOptions
-	if (CommandOptionsFactory factory = CommandRegistry::instance().optionsFactory(action->getCommandId()))
-	{
-		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, action, update); }, on);
-	}
-}
-
 // Shows a widget for options for the action: "print preview"
-//void UIDialogFactory::requestPrintPreviewOptions(ActionInterface* action, bool on, bool update)
+//void UIDialogFactory::requestPrintPreviewOptions(bool on, bool update)
 //{
 //	if (!on)
 //	{

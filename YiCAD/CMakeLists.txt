@@ -125,11 +125,9 @@ yicad_collect_sources(PERSISTENCE
 # 不认识交互层的工具；装配工具的交互视图 UIView 在 INTERACTION 分区的
 # kernel/interaction/。
 #
-# 与方案不同：本分区仍依赖 INTERACTION 分区——GuiEventHandler 直接持有旧版
-# Action 栈，IDocumentView 也要求画布实现 getEventHandler()/setCurrentAction()，
-# 是阶段 1、2 已落地设计的一部分，业务工具化第四步随 GuiEventHandler 删除
-# （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。在那之前这两个分区不能拆成两个独立
-# 静态库，仍与 INTERACTION/UI/APP 一起编入 YiCadCore。详见 6.7 节。
+# 业务工具化第四步删除旧版 Action 栈 GuiEventHandler 后，本分区不再包含
+# INTERACTION 分区的头文件（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节），主计划
+# 6.7 节记录的这处双向依赖解开；目前仍与 INTERACTION/UI/APP 一起编入 YiCadCore。
 yicad_collect_sources(RENDER
     src/kernel/painters
     src/kernel/painters/opengl

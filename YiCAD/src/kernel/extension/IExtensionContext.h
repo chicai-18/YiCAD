@@ -76,12 +76,9 @@ public:
     virtual bool registerSettingsPage(const QString& id, const QString& title,
                                       const QString& iconPath, std::function<void()> open) = 0;
 
-    /// @brief 注册一条命令（见 CommandRegistry::registerCommand）。
+    /// @brief 注册一条交互命令（见 CommandRegistry::registerExclusiveCommand）。
     /// @param id 必须在本扩展的命名空间内，如 "ext.dim.linear"
     /// @return id 不在本扩展命名空间内，或 CommandRegistry 拒绝时返回 false。
-    virtual bool registerCommand(const QString& id, CommandFactory factory, CommandInfo info) = 0;
-
-    /// @brief 注册一条交互命令（见 CommandRegistry::registerExclusiveCommand），命名空间规则同上。
     virtual bool registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info) = 0;
 
     /// @brief 注册一条即时命令（见 CommandRegistry::registerInstantCommand），命名空间规则同上。

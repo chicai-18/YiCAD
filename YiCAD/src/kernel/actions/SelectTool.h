@@ -20,7 +20,7 @@
 ///
 /// 从原 `ActionDefault` 抽出（阶段2 第5.4节第3项），吸收其
 /// `Neutral`/`Dragging`/`SetCorner2`/`Moving`/`MovingRef` 五个状态，
-/// 脱离 Action 体系（`ActionInterface`/`QObject`）单独构造与单测。
+/// 不是 QObject，可以单独构造与单测。
 ///
 /// 未把 `Moving`/`MovingRef` 拆成独立的 `GripEditTool`：三者共享同一次
 /// 拖拽手势，鼠标刚按下时还不知道最终是框选还是拖动实体/夹点，要等
@@ -28,21 +28,18 @@
 /// 这次"未决"的拖拽状态。
 ///
 /// 由交互视图 `UIView`（kernel/interaction/UIView.h）持有（连同捕捉器与预览容器），注册为
-/// `ViewToolControl` 的选择层。没有旧版业务 Action 活动时，`LegacyActionTool`
-/// 整体让路，空闲态事件直接落到本类（doc/COMMAND_TOOL_MIGRATION_PLAN.md
-/// 第一步）。与导航层竞争优先级的三处让路：
+/// `ViewToolControl` 的选择层，业务工具不处理的事件落到本类
+/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步）。与导航层竞争优先级的三处让路：
 ///   - 中键按下：平移属于导航层（`PanZoomTool`）；
 ///   - `Neutral` 状态下的 Ctrl/Meta+左键：导航层的平移手势；
 ///   - 导航层平移中（`PanZoomTool::isPanning()`）的移动与释放。
 ///
 /// "之上有什么在活动"由视图经 `setOverlayQuery()` 告知，见 `Overlay`：
-///   - 旧版业务 Action：本类只收到该 Action 经 `ActionInterface::passesToSelection()`
-///     交下来的事件（多行文字属性编辑时的双击）。`getCursor()` 返回 `nullopt`、
-///     按键提示也不更新：光标与提示归那个 Action 管（它仍通过
-///     `updateMouseCursor()`/`updateMouseButtonHints()` 直接设置，见主计划 5.7 节）；
-///   - 命令（`IExclusiveCommand`）：同上，选择阶段除外（见下）；
+///   - 命令（`IExclusiveCommand`）：`getCursor()` 返回 `nullopt`、按键提示也不更新，
+///     光标与提示归命令的工具，选择阶段除外（见下）；
 ///   - 块编辑模式（`IEditMode`）：本类照常完成块内的选择并给出光标，只是不更新
-///     按键提示，提示归编辑模式。
+///     按键提示，提示归编辑模式；
+///   - 临时视图工具（平移模式）：连选择阶段的输入、提示与光标也归它。
 /// `setStatus()`/`init()` 始终直接调用 `setMouseCursor()`。
 ///
 /// 选择阶段（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 4 项）：先选后建
@@ -93,7 +90,6 @@ public:
         None,        ///< 空闲：提示与光标都由本类给出
         EditMode,    ///< 编辑模式（块编辑）：提示归编辑模式，光标仍由本类给出
         Command,     ///< 命令活动：提示与光标归命令；命令的选择阶段仍由本类给出
-        LegacyAction, ///< 旧版业务 Action 活动（叠在命令之上时也是它）：提示与光标都归它
         ViewTool     ///< 临时视图工具（平移模式）叠在最上面：提示与光标都归它
     };
 
@@ -120,11 +116,11 @@ public:
                PanZoomTool* panTool = nullptr);
 
     /// @brief 复位到 Neutral：清除预览与捕捉点，重新初始化捕捉器
-    /// @note 结束全部命令（`GuiEventHandler::killAllActions()`）时调用
+    /// @note 结束全部命令（`UIView::killAllActions()`）时调用
     void init();
 
     /// @brief 挂起：清除预览与捕捉点
-    /// @note 旧版业务 Action 从空闲态启动、或空闲态下鼠标离开画布时调用
+    /// @note 临时视图工具（平移模式）启动、或空闲态下鼠标离开画布时调用
     void suspend();
     /// @brief 恢复：刷新按键提示，重绘预览与捕捉点
     /// @note 回到空闲态、或空闲态下鼠标回到画布时调用
@@ -138,7 +134,7 @@ public:
     DmEntity* pickAt(int guiX, int guiY);
 
     /// @brief 设置"选择层之上有什么在活动"的查询，由视图装配时设置
-    /// @param query 为空时退回默认：视图的旧版 Action 栈有 Action 即 LegacyAction
+    /// @param query 为空时视为空闲（Overlay::None）
     void setOverlayQuery(OverlayQuery query);
 
     /// @brief 设置启动命令的方式：双击实体时按 CommandRegistry::entityEditor 找到的
@@ -160,9 +156,9 @@ public:
     ViewToolResult keyPressEvent(QKeyEvent* e) override;
     ViewToolResult keyReleaseEvent(QKeyEvent* e) override;
 
-    /// @brief 鼠标进入画布时恢复；有业务 Action 或命令时由它们自己恢复
+    /// @brief 鼠标进入画布时恢复；有命令或临时视图工具时由它们自己恢复
     void enterEvent() override;
-    /// @brief 鼠标离开画布时挂起；有业务 Action 或命令时由它们自己挂起
+    /// @brief 鼠标离开画布时挂起；有命令或临时视图工具时由它们自己挂起
     void leaveEvent() override;
 
     std::optional<DM::CursorType> getCursor() const override;
@@ -189,14 +185,14 @@ private:
     /// @brief 选择层之上正在活动的业务，见 setOverlayQuery()
     Overlay overlay() const;
 
-    /// @brief 处于选择阶段且没有旧版 Action 叠在命令之上：提示与光标由选择阶段给出
+    /// @brief 处于选择阶段且没有临时视图工具叠在命令之上：提示与光标由选择阶段给出
     bool phaseOwnsInput() const;
 
     /// @brief 选择完成后的通知：空闲态发 selectedChanged；选择阶段只刷新选择计数，
     ///        与原 ActionSelectMultiple 一致（发信号会启动多行文字属性编辑，顶掉当前命令）
     void notifySelectionChanged();
 
-    /// @brief 状态到光标的原始映射，不考虑是否有业务 Action 活动。
+    /// @brief 状态到光标的原始映射，不考虑选择层之上是否有命令活动。
     /// `setStatus()`/`init()` 的直接调用用这个；`getCursor()` 在此基础上
     /// 叠加让路判断，见头部说明。
     std::optional<DM::CursorType> cursorForStatus() const;
@@ -212,7 +208,7 @@ private:
     Points m_points;
     DM::SnapRestriction m_restrictionBak = DM::RestrictNothing;
 
-    OverlayQuery m_overlayQuery;                 ///< 为空时按旧版 Action 栈判断
+    OverlayQuery m_overlayQuery;                 ///< 为空时视为空闲
     CommandStarter m_commandStarter;             ///< 为空时双击不启动编辑命令
     std::optional<SelectionPhase> m_phase;       ///< 有值表示处于选择阶段
 };

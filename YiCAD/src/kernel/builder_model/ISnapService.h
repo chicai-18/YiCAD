@@ -16,14 +16,14 @@
  */
 
 /// @file ISnapService.h
-/// @brief 捕捉能力接口，供 ActionInterface 以组合（而非继承）方式持有
+/// @brief 捕捉能力接口，供放置工具与选择层以组合（而非继承）方式持有
 ///
-/// 从 Snapper 中抽出的纯虚接口。ActionInterface 曾经 `public Snapper`
-/// 继承捕捉能力，导致捕捉策略不可替换、不可脱离 Action 单测（P9）。
-/// 现在 ActionInterface 持有一个 ISnapService*，Snapper 是它当前唯一的
-/// 实现。SnapMode / SnapResultType / EntityTypeList 等类型原来定义在
-/// Snapper.h，一并迁到这里：它们是接口契约的一部分，且不依赖 DmDocument.h，
-/// 迁出后 ActionInterface.h 不再需要拖入 Snapper 的完整实现头。
+/// 从 Snapper 中抽出的纯虚接口。原 Action 基类曾经 `public Snapper`
+/// 继承捕捉能力，导致捕捉策略不可替换、不可脱离 Action 单测（P9）；阶段 2
+/// 改为组合，旧 Action 体系删除后（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第四步）
+/// 持有者是放置工具（BasePlaceTool）与选择层。Snapper 是它当前唯一的实现。
+/// SnapMode / SnapResultType / EntityTypeList 等类型原来定义在 Snapper.h，
+/// 一并迁到这里：它们是接口契约的一部分，且不依赖 DmDocument.h。
 /// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 第5.4节第5项。
 ///
 /// 阶段 3 从 kernel/actions/ 移到本目录：IDocumentView（同批移动）的

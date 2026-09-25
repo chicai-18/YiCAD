@@ -85,8 +85,6 @@ public:
 
 	QString requestImageOpenDialog() override;
 
-	// 请求类型处理
-	void requestOptions(ActionInterface* action,bool on, bool update = false) override;
 	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
 	QString requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames) override;
 	void requestBlockEditOptions(IBlockEditSession* session, bool on) override;
@@ -96,7 +94,7 @@ protected:
 	// Links factory to a widget that can host tool options.
 	void setOptionWidget(QWidget* ow);
 
-	//void requestPrintPreviewOptions(ActionInterface* action,bool on, bool update);
+	//void requestPrintPreviewOptions(bool on, bool update);
 	// 内置交互命令的选项条（按命令 ID 由 requestCommandOptions 分派）
 	void requestLineOptions(IExclusiveCommand* command, bool on, bool update);
 	void requestPolylineOptions(IExclusiveCommand* command, bool on, bool update);

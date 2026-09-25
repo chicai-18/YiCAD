@@ -22,7 +22,6 @@
 #include <iterator>
 #include <utility>
 
-#include "ActionInterface.h"
 #include "IExclusiveCommand.h"
 #include "TransientViewTool.h"
 
@@ -79,19 +78,6 @@ bool CommandRegistry::addEntry(const QString& id, Entry entry)
     }
     m_commands.emplace(id, std::move(entry));
     return true;
-}
-
-bool CommandRegistry::registerCommand(const QString& id, CommandFactory factory, CommandInfo info)
-{
-    if (!factory)
-    {
-        return false;
-    }
-    Entry entry;
-    entry.kind = CommandKind::Legacy;
-    entry.factory = std::move(factory);
-    entry.info = std::move(info);
-    return addEntry(id, std::move(entry));
 }
 
 bool CommandRegistry::registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info)
@@ -159,12 +145,6 @@ bool CommandRegistry::bindLegacyType(DM::ActionType legacyType, const QString& i
     }
     m_legacyBridge.emplace(legacyType, id);
     return true;
-}
-
-bool CommandRegistry::registerLegacyCommand(DM::ActionType legacyType, const QString& id,
-                                             CommandFactory factory)
-{
-    return addBridged(legacyType, id, [&]() { return registerCommand(id, std::move(factory)); });
 }
 
 bool CommandRegistry::addBridged(DM::ActionType legacyType, const QString& id,
@@ -277,12 +257,6 @@ QString CommandRegistry::description(const QString& id) const
     return it == m_commands.end() ? QString() : it->second.info.description;
 }
 
-CommandOptionsFactory CommandRegistry::optionsFactory(const QString& id) const
-{
-    auto it = m_commands.find(id);
-    return it == m_commands.end() ? CommandOptionsFactory() : it->second.info.optionsFactory;
-}
-
 ExclusiveCommandOptionsFactory CommandRegistry::commandOptionsFactory(const QString& id) const
 {
     auto it = m_commands.find(id);
@@ -293,31 +267,6 @@ InstantInterrupt CommandRegistry::instantInterrupt(const QString& id) const
 {
     auto it = m_commands.find(id);
     return it == m_commands.end() ? InstantInterrupt::EndUninterruptible : it->second.info.instantInterrupt;
-}
-
-ActionInterface* CommandRegistry::create(DM::ActionType legacyType, const CommandContext& ctx) const
-{
-    auto it = m_legacyBridge.find(legacyType);
-    if (it == m_legacyBridge.end())
-    {
-        return nullptr;
-    }
-    return create(it->second, ctx);
-}
-
-ActionInterface* CommandRegistry::create(const QString& id, const CommandContext& ctx) const
-{
-    auto it = m_commands.find(id);
-    if (it == m_commands.end() || it->second.kind != CommandKind::Legacy)
-    {
-        return nullptr;
-    }
-    ActionInterface* action = it->second.factory(ctx);
-    if (action)
-    {
-        action->setCommandId(id);
-    }
-    return action;
 }
 
 std::unique_ptr<IExclusiveCommand> CommandRegistry::createCommand(const QString& id, const CommandContext& ctx) const

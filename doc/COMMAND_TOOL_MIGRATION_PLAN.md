@@ -1140,3 +1140,67 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交⑨验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 257 例）；`check_layering.py` 通过；安装后程序能启动，"绘图/标注"面板
 的 8 个按钮正常显示（截图核对）。交互回归清单新增 A1–A3，尚待手工核对。
+
+### 9.4 第四步（2026-09-25）
+
+开始前确认（2026-09-25），改动第 6 节第四步的第 3、5 项：
+
+- **目录与 DS 对齐**：`src/actions/` 不改名，其中的业务命令全部拆进扩展；机制代码放
+  `src/application/`，对应 DS 的 `Application/`（命令、命令总线、注册表、放置命令与先选后建
+  的基类、视图工具框架、选择层、捕捉器）；扩展框架（原 `kernel/extension/`）放
+  `src/application/framework/`，对应 DS 的 `Application/Framework/`；交互视图 `UIView`
+  留在 `kernel/interaction/`，对应 DS 的 `View/UIView`。原第 5 项"`kernel/actions/` 并入
+  `kernel/interaction/`"作废。
+- **核心命令拆成五个扩展**：`ext.draw`（绘图）、`ext.modify`（修改）、`ext.measure`（查询）、
+  `ext.edit`（剪贴板、撤销/重做）、`ext.view`（缩放、平移模式）。
+- **命令行别名**：keyconfig.xml 仍是宿主的别名表，改以命令 ID 为键（可以写扩展命令的 ID），
+  "默认""拼音简写"两组保留。与 5.2 节"keyconfig.xml 删除对应条目"的先例不同：两组合并后
+  拼音简写组的 jx、fz、xz、sz 各对应两个命令，会冲突。读取用户目录下的旧格式文件时，已搬进
+  扩展的命令转成扩展的 ID。
+- **视图接口**：`IDocumentView` 只暴露命令总线的两个只读查询 `hasActiveCommand()`、
+  `activeCommandId()`；启动、结束命令仍经 `UIView`。
+- **注释**："原 `ActionInterface::xxx`"之类解释为什么保持某个行为的历史说明保留；描述当前
+  机制的注释改写。第 7 节"源码中没有这四个类"按类型、头文件与代码理解。
+- **节奏**：连续完成，顺序为删除旧框架、`DM::ActionType` 退出命令 ID、目录、核心命令进扩展、
+  分层检查。
+
+**提交①：删除旧框架**
+
+1. **删除旧类**：`ActionInterface`、`PreviewActionInterface`、`LegacyActionTool`、`GuiEventHandler`，
+   连同 `ILegacyStackBase`、四个优先级标志与第一步的让路钩子 `passesToSelection()`。
+2. **视图接口**：`IDocumentView` 删去 `getEventHandler`/`setCurrentAction`/`getCurrentAction`，
+   增加 `hasActiveCommand()`、`activeCommandId()`；`GuiDocumentView` 的实现是"没有交互层"，
+   `UIView` 覆写。命令行的"[说明]"前缀改读 `activeCommandId()`，不再转成 `UIView`。
+3. **`GuiEventHandler` 的另两件事**：命令行坐标输入的开关移到 `GuiDocumentView`
+   （`isCoordinateInputEnabled()`）；它经信号同步的相对零点副本删除，`UIView` 一直读视图的。
+4. **`UIView`**：业务栈只放命令的工具与编辑模式，去掉新旧并存的分支（启动命令时清旧栈、
+   启动旧版 Action、排他的旧 Action、旧 Action 的光标与捕捉标记）。挂起、恢复只剩平移模式
+   一个用途（`suspendUnderViewTool()`/`resumeUnderViewTool()`）。结束全部命令、需要结束全部的
+   即时命令与视图关闭之后复位选择层，原先由 `GuiEventHandler::killAllActions()` 经
+   `ILegacyStackBase::resetAfterKill()` 完成。选择层删去 `Overlay::LegacyAction`，没有设置
+   查询时视为空闲。
+5. **注册表与宿主**：`CommandRegistry` 删去旧版 Action 的注册类型（`CommandKind::Legacy`、
+   `registerCommand`、`registerLegacyCommand`、`create`、旧版选项条工厂）；
+   `IExtensionContext::registerCommand`、`GuiDialogFactoryInterface::requestOptions(ActionInterface*)`、
+   `MDIWindow::getEventHandler`、`UIActionHandler::getCurrentAction`/`getAvailableCommands`（后者
+   没有调用方）一并删除；`activateCommand`/`setCurrentAction` 不再返回 Action。枚举桥接留到
+   提交②。
+6. **解开渲染层对交互层的依赖**：`GuiDocumentView.h` 原先包含 `Snapper.h` 只为 `SnapMode`，改为
+   包含模型层的 `ISnapService.h`（`UIView` 自己包含 `Snapper.h`）。至此 `kernel/view/` 不再包含
+   交互层的头文件，主计划 6.7 节记录的第一处双向依赖解开。
+7. **测试**：删除 `test_legacy_action_tool`；`test_command_dispatch`、`test_command_registry`、
+   `test_extension_manager`、`test_ribbon_registry` 里的旧版工厂改为即时命令或交互命令；
+   `test_select_tool` 的"有业务 Action"用例改为设置选择层的 `Overlay` 或激活业务工具替身；
+   `test_select_first_commands` 的"旧 Action 叠在命令之上"两例改为平移模式叠在命令之上
+   （按 `UIView` 的做法挂起、恢复命令与选择层）；`FakeDocumentView` 同步。
+
+**与方案的偏差与补充**
+
+1. **删除的用例**："结束全部命令时复位选择层"原先经 `GuiEventHandler::killAllActions()` 触发，
+   现在复位在 `UIView` 里（它是 `QOpenGLWidget`，单测里不构造），没有替代用例。
+2. **插件命令不用改**：9.3 节说插件运行时经 `HostApi` 注册的命令"由第四步删除或改造"，不准确。
+   插件命令经 `PluginRegistry::executeCommand` 直接回调，从未经过 Action 栈。
+
+提交①验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 246 例）；`check_layering.py` 通过；安装后程序能启动，主窗口、Ribbon 与
+画布正常（截图核对）。

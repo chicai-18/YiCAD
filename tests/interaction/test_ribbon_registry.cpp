@@ -29,8 +29,7 @@ void registerNullCommand(const char* id)
 {
     if (!CommandRegistry::instance().hasCommand(id))
     {
-        CommandRegistry::instance().registerCommand(
-            id, [](const CommandContext&) -> ActionInterface* { return nullptr; });
+        CommandRegistry::instance().registerInstantCommand(id, [](const CommandContext&) {});
     }
 }
 }  // namespace

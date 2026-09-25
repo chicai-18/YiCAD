@@ -16,13 +16,16 @@
  */
 
 /// @file IDocumentView.h
-/// @brief Action 与 Snapper 实际依赖的文档视图能力接口
+/// @brief 命令、工具与 Snapper 实际依赖的文档视图能力接口
 ///
-/// 从具体的 GuiDocumentView（OpenGL 画布控件）中抽出 Action 体系真正
+/// 从具体的 GuiDocumentView（OpenGL 画布控件）中抽出命令与工具真正
 /// 需要的一组能力：坐标变换、重绘请求、光标设置、预览容器访问、相对零点、
-/// 视口矩形等。GuiDocumentView 实现本接口；actions/ 与 kernel/actions/
-/// 只依赖本接口，不再需要包含拖有 OpenGL/Qt 具体渲染细节的
-/// GuiDocumentView.h。见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段1。
+/// 视口矩形等。GuiDocumentView 实现本接口；命令与工具只依赖本接口，不再
+/// 需要包含拖有 OpenGL/Qt 具体渲染细节的 GuiDocumentView.h。见
+/// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段1。
+///
+/// 命令总线只经 hasActiveCommand()/activeCommandId() 两个只读查询暴露；启动、
+/// 结束命令由交互视图 UIView 负责（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第四步）。
 ///
 /// 阶段 3 从 kernel/actions/ 移到本目录：kernel/modification/（Selection、
 /// Modification）与 kernel/history/BlockEditCmd 同样持有 IDocumentView*，
@@ -32,18 +35,18 @@
 #ifndef IDOCUMENTVIEW_H
 #define IDOCUMENTVIEW_H
 
+#include <QString>
+
 #include "DmRect.h"
 #include "ISnapService.h"
 
 class QCursor;
 class QObject;
-class ActionInterface;
 class DmDocument;
 class DmEntityContainer;
-class GuiEventHandler;
 class GuiGrid;
 
-/// @brief Action / Snapper 视角下的文档视图接口
+/// @brief 命令、工具与 Snapper 视角下的文档视图接口
 class IDocumentView
 {
 public:
@@ -99,8 +102,6 @@ public:
     virtual void setOrthogonalZero(const DmVector& pos) = 0;
     virtual DmVector const& getOrthogonalZero() const = 0;
 
-    virtual GuiEventHandler* getEventHandler() const = 0;
-
     virtual bool isCleanUp() const = 0;
 
     virtual DmEntityContainer* getOverlayContainer(DM::OverlayDocument position) = 0;
@@ -120,11 +121,10 @@ public:
 
     virtual void setIsDrawCursor(const bool& isDrawCursor) = 0;
 
-    /// @brief 设置当前操作
-    virtual void setCurrentAction(ActionInterface* action) = 0;
-    /// @brief 获取当前操作
-    /// @return 栈顶业务 Action；空闲态返回 nullptr
-    virtual ActionInterface* getCurrentAction() = 0;
+    /// @brief 是否有命令在运行：交互命令、编辑模式（块编辑）或临时视图工具（平移模式）
+    virtual bool hasActiveCommand() const = 0;
+    /// @brief 活动命令的 ID：有临时视图工具时是它的，否则是命令总线上的；没有时返回空串
+    virtual QString activeCommandId() const = 0;
     /// @brief 发出选择变更信号
     virtual void emitSelectedChanged() = 0;
 

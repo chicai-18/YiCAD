@@ -84,7 +84,7 @@ public:
 
     /// @brief 工具希望显示的光标
     /// @return nullopt   — 无偏好，不改变当前光标（由 ViewToolControl 保证：
-    ///                     无偏好时不覆盖旧版 Action 体系自行设置的光标，
+    ///                     无偏好时不覆盖绕过仲裁直接设置的光标，
     ///                     见 ViewToolControl::refreshCursor）；
     ///         其它取值  — 使用该光标，并截断下层工具的偏好。
     /// @note 仲裁按事件分发优先级进行（业务工具栈后进先出 -> 选择工具 ->

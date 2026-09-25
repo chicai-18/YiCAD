@@ -5,7 +5,8 @@
 /// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝；以及业务
 /// 工具化第二步新增的交互命令、即时命令两类注册（doc/COMMAND_TOOL_MIGRATION_PLAN.md
 /// 第二步第 2 项），第三步新增的临时视图工具注册与即时命令的打断策略。
-/// makeSelectFirstFactory 随先选后建命令的迁移删除。
+/// makeSelectFirstFactory 随先选后建命令的迁移删除，旧版 Action 的注册类型随旧
+/// Action 体系在第四步删除。
 ///
 /// CommandRegistry 是进程范围的单例，同一个测试二进制内的所有用例共享同一份
 /// 注册表状态，且 gtest 不保证跨用例的严格声明顺序（如加 --gtest_shuffle）。
@@ -20,7 +21,6 @@
 #include <memory>
 #include <utility>
 
-#include "ActionInterface.h"
 #include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "DmDocument.h"
@@ -32,16 +32,6 @@
 
 namespace
 {
-/// @brief 最小的 ActionInterface 测试替身，只用来验证工厂被正确调用。
-class TestAction : public ActionInterface
-{
-public:
-    TestAction(DmDocument* doc, IDocumentView* docView)
-        : ActionInterface("TestAction", doc, docView)
-    {
-    }
-};
-
 /// @brief 最小的交互命令测试替身
 class TestCommand : public BaseExclusiveCommand
 {
@@ -66,93 +56,36 @@ ViewToolFactory testViewToolFactory()
 }
 }  // namespace
 
-TEST(CommandRegistryTest, 按字符串ID注册并创建)
+TEST(CommandRegistryTest, legacy桥接按ActionType查到字符串ID)
 {
-    DmDocument doc;
-    FakeDocumentView view;
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.cr.plain",
-        [](const CommandContext& ctx) -> ActionInterface*
-        { return new TestAction(ctx.document, ctx.view); }));
-
-    CommandContext ctx{&doc, &view, nullptr};
-    ActionInterface* a = CommandRegistry::instance().create(QStringLiteral("test.cr.plain"), ctx);
-    ASSERT_NE(a, nullptr);
-    EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
-    delete a;
-
-    // 没有关联 legacy ActionType，也没有任何东西注册到 ActionNone。
-    EXPECT_FALSE(CommandRegistry::instance().hasLegacyMapping(DM::ActionNone));
-    EXPECT_EQ(CommandRegistry::instance().create(DM::ActionNone, ctx), nullptr);
-}
-
-TEST(CommandRegistryTest, legacy桥接按ActionType和字符串ID都能创建)
-{
-    DmDocument doc;
-    FakeDocumentView view;
-    ASSERT_TRUE(CommandRegistry::instance().registerLegacyCommand(
-        DM::ActionScriptOpenIDE, "test.cr.legacy",
-        [](const CommandContext& ctx) -> ActionInterface*
-        { return new TestAction(ctx.document, ctx.view); }));
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(DM::ActionScriptOpenIDE, "test.cr.legacy",
+                                                                     testCommandFactory()));
 
     EXPECT_TRUE(CommandRegistry::instance().hasLegacyMapping(DM::ActionScriptOpenIDE));
+    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionScriptOpenIDE), QStringLiteral("test.cr.legacy"));
+    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.legacy"), CommandKind::Exclusive);
 
-    CommandContext ctx{&doc, &view, nullptr};
-    ActionInterface* a = CommandRegistry::instance().create(DM::ActionScriptOpenIDE, ctx);
-    ASSERT_NE(a, nullptr);
-    EXPECT_NE(dynamic_cast<TestAction*>(a), nullptr);
-    delete a;
-
-    ActionInterface* b = CommandRegistry::instance().create(QStringLiteral("test.cr.legacy"), ctx);
-    ASSERT_NE(b, nullptr);
-    delete b;
+    // 没有任何东西注册到 ActionNone。
+    EXPECT_FALSE(CommandRegistry::instance().hasLegacyMapping(DM::ActionNone));
+    EXPECT_TRUE(CommandRegistry::instance().commandId(DM::ActionNone).isEmpty());
 }
 
 TEST(CommandRegistryTest, 重复注册同一字符串ID被拒绝)
 {
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.cr.dup_id",
-        [](const CommandContext&) -> ActionInterface* { return nullptr; }));
-    EXPECT_FALSE(CommandRegistry::instance().registerCommand(
-        "test.cr.dup_id",
-        [](const CommandContext&) -> ActionInterface* { return nullptr; }));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand("test.cr.dup_id", [](const CommandContext&) {}));
+    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand("test.cr.dup_id", [](const CommandContext&) {}));
 }
 
 TEST(CommandRegistryTest, 重复注册同一legacyActionType被拒绝且不留半成品)
 {
-    ASSERT_TRUE(CommandRegistry::instance().registerLegacyCommand(
-        DM::ActionScriptRun, "test.cr.dup_legacy_1",
-        [](const CommandContext&) -> ActionInterface* { return nullptr; }));
-    EXPECT_FALSE(CommandRegistry::instance().registerLegacyCommand(
-        DM::ActionScriptRun, "test.cr.dup_legacy_2",
-        [](const CommandContext&) -> ActionInterface* { return nullptr; }));
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(DM::ActionScriptRun, "test.cr.dup_legacy_1",
+                                                                     testCommandFactory()));
+    EXPECT_FALSE(CommandRegistry::instance().registerExclusiveCommand(DM::ActionScriptRun, "test.cr.dup_legacy_2",
+                                                                      testCommandFactory()));
 
     // 第二次调用在校验 legacyType 冲突时就应该短路，不该把
     // "test.cr.dup_legacy_2" 也注册进字符串表。
-    DmDocument doc;
-    FakeDocumentView view;
-    CommandContext ctx{&doc, &view, nullptr};
-    EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.dup_legacy_2"), ctx), nullptr);
-}
-
-TEST(CommandRegistryTest, 按字符串ID创建的Action记录命令ID)
-{
-    DmDocument doc;
-    FakeDocumentView view;
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.cr.command_id",
-        [](const CommandContext& ctx) -> ActionInterface*
-        { return new TestAction(ctx.document, ctx.view); }));
-
-    CommandContext ctx{&doc, &view, nullptr};
-    ActionInterface* a = CommandRegistry::instance().create(QStringLiteral("test.cr.command_id"), ctx);
-    ASSERT_NE(a, nullptr);
-    EXPECT_EQ(a->getCommandId(), QStringLiteral("test.cr.command_id"));
-    delete a;
-
-    // 直接 new 出来的 Action 没有命令 ID。
-    TestAction direct(&doc, &view);
-    EXPECT_TRUE(direct.getCommandId().isEmpty());
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.dup_legacy_2"));
 }
 
 TEST(CommandRegistryTest, 别名大小写不敏感并随说明与选项条一起登记)
@@ -160,27 +93,25 @@ TEST(CommandRegistryTest, 别名大小写不敏感并随说明与选项条一起
     CommandInfo info;
     info.description = QStringLiteral("Alias test");
     info.aliases = QStringList{QStringLiteral(" CrFoo "), QStringLiteral("crbar"), QStringLiteral("crbar"), QString()};
-    info.optionsFactory = [](QWidget*, ActionInterface*, bool) -> QWidget* { return nullptr; };
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.cr.alias", [](const CommandContext&) -> ActionInterface* { return nullptr; }, info));
+    info.commandOptionsFactory = [](QWidget*, IExclusiveCommand*, bool) -> QWidget* { return nullptr; };
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand("test.cr.alias", testCommandFactory(), info));
+    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand("test.cr.no_options", testCommandFactory()));
 
     EXPECT_EQ(CommandRegistry::instance().commandForAlias("crfoo"), QStringLiteral("test.cr.alias"));
     EXPECT_EQ(CommandRegistry::instance().commandForAlias("CRBAR"), QStringLiteral("test.cr.alias"));
     EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crbaz").isEmpty());
     EXPECT_TRUE(CommandRegistry::instance().aliases().contains(QStringLiteral("crfoo")));
     EXPECT_EQ(CommandRegistry::instance().description("test.cr.alias"), QStringLiteral("Alias test"));
-    EXPECT_TRUE(static_cast<bool>(CommandRegistry::instance().optionsFactory("test.cr.alias")));
-    EXPECT_FALSE(static_cast<bool>(CommandRegistry::instance().optionsFactory("test.cr.plain")));
+    EXPECT_TRUE(static_cast<bool>(CommandRegistry::instance().commandOptionsFactory("test.cr.alias")));
+    EXPECT_FALSE(static_cast<bool>(CommandRegistry::instance().commandOptionsFactory("test.cr.no_options")));
 }
 
 TEST(CommandRegistryTest, 别名冲突时整条命令被拒绝且不留半成品)
 {
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.cr.alias_owner", [](const CommandContext&) -> ActionInterface* { return nullptr; },
-        {.aliases = {"crtaken"}}));
-    EXPECT_FALSE(CommandRegistry::instance().registerCommand(
-        "test.cr.alias_thief", [](const CommandContext&) -> ActionInterface* { return nullptr; },
-        {.aliases = {"crfree", "CRTAKEN"}}));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.cr.alias_owner", [](const CommandContext&) {}, {.aliases = {"crtaken"}}));
+    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand(
+        "test.cr.alias_thief", [](const CommandContext&) {}, {.aliases = {"crfree", "CRTAKEN"}}));
 
     EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.alias_thief"));
     EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crfree").isEmpty());
@@ -190,9 +121,8 @@ TEST(CommandRegistryTest, 别名冲突时整条命令被拒绝且不留半成品
 TEST(CommandRegistryTest, 注销清除命令别名与legacy桥接)
 {
     // ActionViewStatusBar 从未被任何内置命令注册（原 switch 里没有它的 case）。
-    ASSERT_TRUE(CommandRegistry::instance().registerLegacyCommand(
-        DM::ActionViewStatusBar, "test.cr.unregister",
-        [](const CommandContext&) -> ActionInterface* { return nullptr; }));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(DM::ActionViewStatusBar, "test.cr.unregister",
+                                                                   [](const CommandContext&) {}));
     ASSERT_EQ(CommandRegistry::instance().commandId(DM::ActionViewStatusBar), QStringLiteral("test.cr.unregister"));
 
     EXPECT_TRUE(CommandRegistry::instance().unregisterCommand("test.cr.unregister"));
@@ -201,9 +131,8 @@ TEST(CommandRegistryTest, 注销清除命令别名与legacy桥接)
     EXPECT_TRUE(CommandRegistry::instance().commandId(DM::ActionViewStatusBar).isEmpty());
     EXPECT_FALSE(CommandRegistry::instance().unregisterCommand("test.cr.unregister"));
 
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.cr.unregister_alias", [](const CommandContext&) -> ActionInterface* { return nullptr; },
-        {.aliases = {"crgone"}}));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.cr.unregister_alias", [](const CommandContext&) {}, {.aliases = {"crgone"}}));
     EXPECT_TRUE(CommandRegistry::instance().unregisterCommand("test.cr.unregister_alias"));
     EXPECT_TRUE(CommandRegistry::instance().commandForAlias("crgone").isEmpty());
 }
@@ -218,8 +147,7 @@ TEST(CommandRegistryTest, 交互命令按ID创建并记录命令ID)
     ASSERT_NE(command, nullptr);
     EXPECT_EQ(command->commandId(), QStringLiteral("test.cr.exclusive"));
 
-    // 类型不对的入口都返回空：交互命令不能当旧版 Action 创建，也不能当即时命令执行
-    EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.exclusive"), ctx), nullptr);
+    // 类型不对的入口都返回空：交互命令不能当即时命令执行
     EXPECT_FALSE(CommandRegistry::instance().runInstant("test.cr.exclusive", ctx));
 }
 
@@ -271,10 +199,6 @@ TEST(CommandRegistryTest, 为交互命令建立legacy桥接并可反查)
     EXPECT_FALSE(CommandRegistry::instance().bindLegacyType(DM::ActionViewLibrary, "test.cr.bind"));
     EXPECT_FALSE(CommandRegistry::instance().bindLegacyType(DM::ActionViewPenToolbar, "test.cr.bind_missing"));
     EXPECT_EQ(CommandRegistry::instance().legacyType("test.cr.bind_missing"), DM::ActionNone);
-
-    // 旧版入口按枚举创建时不构造交互命令
-    CommandContext ctx{};
-    EXPECT_EQ(CommandRegistry::instance().create(DM::ActionViewLibrary, ctx), nullptr);
 }
 
 TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
@@ -314,7 +238,6 @@ TEST(CommandRegistryTest, 临时视图工具按ID创建并记录命令ID)
     EXPECT_EQ(tool->commandId(), QStringLiteral("test.cr.view_tool"));
 
     // 类型不对的入口都返回空
-    EXPECT_EQ(CommandRegistry::instance().create(QStringLiteral("test.cr.view_tool"), ctx), nullptr);
     EXPECT_EQ(CommandRegistry::instance().createCommand("test.cr.view_tool", ctx), nullptr);
     EXPECT_FALSE(CommandRegistry::instance().runInstant("test.cr.view_tool", ctx));
     EXPECT_EQ(CommandRegistry::instance().createViewTool("test.cr.exclusive_missing", ctx), nullptr);

@@ -41,7 +41,6 @@
 #include "DmLine.h"
 #include "DmCachePainter.h"
 #include "DmEntityContainer.h"
-#include "GuiEventHandler.h"
 #include "DmDocument.h"
 #include "GuiGrid.h"
 #include "DmMText.h"
@@ -67,7 +66,6 @@
 GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument* doc)
     : QOpenGLWidget(parent, f)
     , pDocument(nullptr)
-    , eventHandler(new GuiEventHandler(this))
     , background(30, 30, 30, 255)
     , foreground(30, 30, 30, 255)
     , gridColor(50, 55, 72, 255)
@@ -139,11 +137,6 @@ GuiDocumentView::~GuiDocumentView()
     qDeleteAll(m_overlayEntities);
     deletePainters();
 
-    if (eventHandler)
-    {
-        delete eventHandler;
-        eventHandler = nullptr;
-    }
     if (m_pPreviewEntityContainer)
     {
         delete m_pPreviewEntityContainer;
@@ -174,51 +167,25 @@ bool GuiDocumentView::isGridOn() const
     return true;
 }
 
-/// @brief 获取当前操作
-/// @return 当前操作或 nullptr
-ActionInterface* GuiDocumentView::getCurrentAction()
-{
-    if (eventHandler)
-    {
-        return eventHandler->getCurrentAction();
-    }
-    else
-    {
-        return nullptr;
-    }
-}
-
-/// @brief 设置事件处理器的当前操作
-void GuiDocumentView::setCurrentAction(ActionInterface* action)
-{
-    if (eventHandler)
-    {
-        eventHandler->setCurrentAction(action);
-    }
-}
-
-/// @brief 终止所有操作
+/// @brief 终止所有操作；本类没有交互层
 bool GuiDocumentView::killAllActions()
 {
-    if (eventHandler)
-    {
-        eventHandler->killAllActions();
-    }
     return true;
 }
 
-/// @brief 视图关闭前终止所有操作
+/// @brief 视图关闭前终止所有操作；本类没有交互层
 void GuiDocumentView::killAllActionsOnClose()
 {
-    if (eventHandler)
-    {
-        eventHandler->killAllActions();
-    }
 }
 
-bool GuiDocumentView::hasActiveCommand()
+bool GuiDocumentView::hasActiveCommand() const
 {
-    return eventHandler && eventHandler->getCurrentActionNum() > 0;
+    return false;
+}
+
+QString GuiDocumentView::activeCommandId() const
+{
+    return QString();
 }
 
 /// @brief 发出选择变更信号
@@ -228,13 +195,9 @@ void GuiDocumentView::emitSelectedChanged()
     emit selectedChanged();
 }
 
-/// @brief 在菜单或当前操作中后退
+/// @brief 在当前命令中后退；本类没有交互层
 void GuiDocumentView::back()
 {
-    if (eventHandler && eventHandler->hasAction())
-    {
-        eventHandler->back();
-    }
 }
 
 /// @brief 前进/确认当前操作：合成一次回车按下，交给 processKeyEvent()
@@ -250,31 +213,26 @@ bool GuiDocumentView::processKeyEvent(QKeyEvent* e)
     return false;
 }
 
-/// @brief 处理命令事件（由命令行 UI 调用）
-void GuiDocumentView::commandEvent(GuiCommandEvent* e)
+/// @brief 处理命令事件（由命令行 UI 调用）；本类没有交互层，不接受事件
+void GuiDocumentView::commandEvent(GuiCommandEvent*)
 {
-    if (eventHandler)
-    {
-        eventHandler->commandEvent(e);
-    }
 }
 
 /// @brief 启用命令行坐标输入
 void GuiDocumentView::enableCoordinateInput()
 {
-    if (eventHandler)
-    {
-        eventHandler->enableCoordinateInput();
-    }
+    m_isCoordinateInputEnabled = true;
 }
 
 /// @brief 禁用命令行坐标输入
 void GuiDocumentView::disableCoordinateInput()
 {
-    if (eventHandler)
-    {
-        eventHandler->disableCoordinateInput();
-    }
+    m_isCoordinateInputEnabled = false;
+}
+
+bool GuiDocumentView::isCoordinateInputEnabled() const
+{
+    return m_isCoordinateInputEnabled;
 }
 
 int GuiDocumentView::getWidth() const
@@ -888,24 +846,16 @@ SnapMode GuiDocumentView::getDefaultSnapMode() const
     return defaultSnapMode;
 }
 
-/// @brief 设置默认捕捉模式（用于新创建的操作），同步给活动操作
+/// @brief 设置默认捕捉模式（用于新创建的命令）；UIView 另外同步给选择层与活动命令
 void GuiDocumentView::setDefaultSnapMode(SnapMode sm)
 {
     defaultSnapMode = sm;
-    if (eventHandler)
-    {
-        eventHandler->setSnapMode(sm);
-    }
 }
 
-/// @brief 设置捕捉限制（如正交），同步给活动操作
+/// @brief 设置捕捉限制（如正交）；UIView 另外同步给选择层与活动命令
 void GuiDocumentView::setSnapRestriction(DM::SnapRestriction sr)
 {
     defaultSnapRes = sr;
-    if (eventHandler)
-    {
-        eventHandler->setSnapRestriction(sr);
-    }
 }
 
 /// @brief 将实际坐标转为屏幕坐标
@@ -1077,11 +1027,6 @@ DmRect GuiDocumentView::getViewRect()
 GuiGrid* GuiDocumentView::getGrid() const
 {
     return grid.get();
-}
-
-GuiEventHandler* GuiDocumentView::getEventHandler() const
-{
-    return eventHandler;
 }
 
 SnapResultType GuiDocumentView::currentSnapResult()

@@ -29,7 +29,6 @@
 #include "DmLine.h"
 #include "DmMText.h"
 #include "GuiDialogFactory.h"
-#include "GuiEventHandler.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
@@ -49,7 +48,7 @@ constexpr double kAngleSnapStep = 15.0;
 /// @brief 选择层之上的业务是否连选择阶段的输入、提示与光标也一并接管
 bool ownsEverything(SelectTool::Overlay above)
 {
-    return above == SelectTool::Overlay::LegacyAction || above == SelectTool::Overlay::ViewTool;
+    return above == SelectTool::Overlay::ViewTool;
 }
 }  // namespace
 
@@ -186,16 +185,7 @@ DmEntity* SelectTool::pickAt(int guiX, int guiY)
 
 SelectTool::Overlay SelectTool::overlay() const
 {
-    if (m_overlayQuery)
-    {
-        return m_overlayQuery();
-    }
-    if (!m_docView)
-    {
-        return Overlay::None;
-    }
-    GuiEventHandler* handler = m_docView->getEventHandler();
-    return handler && handler->hasAction() ? Overlay::LegacyAction : Overlay::None;
+    return m_overlayQuery ? m_overlayQuery() : Overlay::None;
 }
 
 bool SelectTool::phaseOwnsInput() const
@@ -222,7 +212,7 @@ void SelectTool::updateButtonHints() const
     {
         if (!phaseOwnsInput())
         {
-            // 旧版 Action 叠在命令之上：提示归它
+            // 临时视图工具叠在命令之上：提示归它
             return;
         }
         // 选择阶段的提示取原 ActionSelectMultiple 的（原 ActionSelect 那套
@@ -280,11 +270,10 @@ std::optional<DM::CursorType> SelectTool::cursorForStatus() const
 
 std::optional<DM::CursorType> SelectTool::getCursor() const
 {
-    // 有业务 Action 正活动时，光标由它自己直接调用 setMouseCursor()
-    // 决定（105 个 Action 尚未改造，见阶段2 5.7 节），选择层在仲裁通道里
-    // 保持沉默，不能用自己的偏好覆盖它们。这次查询不影响 setStatus()/
-    // init() 的直接调用——那两处用的是不受这条限制约束的 cursorForStatus()。
-    // 选择阶段由本类负责选择，光标也由本类给出，除非旧版 Action 叠在命令之上。
+    // 有命令正活动时，光标由命令的工具经仲裁给出，选择层在仲裁通道里保持沉默，
+    // 不能用自己的偏好覆盖它们。这次查询不影响 setStatus()/init() 的直接调用——
+    // 那两处用的是不受这条限制约束的 cursorForStatus()。
+    // 选择阶段由本类负责选择，光标也由本类给出，除非临时视图工具叠在命令之上。
     if (inSelectionPhase())
     {
         return phaseOwnsInput() ? cursorForStatus() : std::nullopt;

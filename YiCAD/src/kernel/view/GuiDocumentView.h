@@ -38,18 +38,16 @@
 
 #include "DmRect.h"
 #include "IDocumentView.h"
-#include "Snapper.h"
+#include "ISnapService.h"
 
 class QMouseEvent;
 class QKeyEvent;
 class QCursor;
 class QLabel;
 class QTimer;
-class ActionInterface;
 class DmCachePainter;
 class DmDocument;
 class DmEntityContainer;
-class GuiEventHandler;
 class GuiCommandEvent;
 class GuiGrid;
 
@@ -96,25 +94,20 @@ public:
     /// @return 单位设备坐标对应的世界坐标
     DmVector getFactor() const override;
 
-    /// @brief 设置当前操作
-    void setCurrentAction(ActionInterface* action) override;
-    /// @brief 获取当前操作
-    /// @return 栈顶业务 Action；空闲态返回 nullptr
-    ActionInterface* getCurrentAction() override;
-
     /// @brief 结束全部命令（用户取消：Esc/空格未被接受、"结束全部命令"），并复位选择层
     /// @return 被否决时返回 false，什么也不改变（交互视图 UIView 按迁移计划 5.1 节
-    ///         先征求命令同意）；本类只有旧版 Action，总是返回 true
+    ///         先征求命令同意）；本类没有交互层，总是返回 true
     virtual bool killAllActions();
-    /// @brief 视图或文档关闭前结束全部命令，不能否决
+    /// @brief 视图或文档关闭前结束全部命令，不能否决；本类没有交互层，什么也不做
     virtual void killAllActionsOnClose();
-    /// @brief 是否有命令（旧版 Action 或交互命令）在运行
-    /// @details 本类只数旧版 Action 栈，含已结束、尚未清理的
-    virtual bool hasActiveCommand();
+    /// @brief 本类没有交互层，返回 false
+    bool hasActiveCommand() const override;
+    /// @brief 本类没有交互层，返回空串
+    QString activeCommandId() const override;
     /// @brief 发出选择变更信号
     void emitSelectedChanged() override;
 
-    /// @brief 后退：相当于在当前命令中右键
+    /// @brief 后退：相当于在当前命令中右键；本类没有交互层，什么也不做
     virtual void back();
     /// @brief 前进/确认：合成一次回车按下，交给 processKeyEvent()
     void enter();
@@ -124,12 +117,14 @@ public:
     /// @return 被交互层处理时返回 true；本类没有交互层，忽略事件并返回 false
     virtual bool processKeyEvent(QKeyEvent* e);
 
-    /// @brief 处理命令行事件（坐标或文本）
+    /// @brief 处理命令行事件（坐标或文本）；本类没有交互层，不接受事件
     virtual void commandEvent(GuiCommandEvent* e);
     /// @brief 启用坐标输入
     void enableCoordinateInput() override;
-    /// @brief 禁用坐标输入
+    /// @brief 禁用坐标输入：命令行输入不再按坐标解析，整段交给命令（如输入文字内容时）
     void disableCoordinateInput() override;
+    /// @brief 命令行坐标输入是否启用
+    bool isCoordinateInputEnabled() const;
 
     virtual int getWidth() const;
     virtual int getHeight() const;
@@ -223,8 +218,6 @@ public:
     void setOrthogonalZero(const DmVector& pos) override;
     DmVector const& getOrthogonalZero() const override;
 
-    GuiEventHandler* getEventHandler() const override;
-
     /// @brief 启用或禁用打印预览
     void setPrintPreview(bool pv);
     /// @return true 表示当前为打印预览视图
@@ -288,7 +281,7 @@ private:
 
 protected:
     DmDocument*                         pDocument;              ///< 文档实体容器
-    GuiEventHandler*                    eventHandler;           ///< 旧版 Action 栈，第四步删除
+    bool                                m_isCoordinateInputEnabled = true; ///< 命令行坐标输入是否启用
 
     QColor                              background;             ///< 背景色
     QColor                              foreground;             ///< 前景色

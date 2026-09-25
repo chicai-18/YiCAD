@@ -72,9 +72,9 @@ private:
     std::function<void()> m_onShutdown;
 };
 
-CommandFactory nullFactory()
+InstantCommand noopCommand()
 {
-    return [](const CommandContext&) -> ActionInterface* { return nullptr; };
+    return [](const CommandContext&) {};
 }
 }  // namespace
 
@@ -172,12 +172,12 @@ TEST(ExtensionManagerTest, 扩展注册的命令与设置页必须在自己的�
         [&results](IExtensionContext& ctx)
         {
             EXPECT_EQ(ctx.extensionId(), "ext.ns");
-            results.push_back(ctx.registerCommand("ext.ns.ok", nullFactory(), {}));
+            results.push_back(ctx.registerInstantCommand("ext.ns.ok", noopCommand(), {}));
             // 只有前缀、没有后续内容
-            results.push_back(ctx.registerCommand("ext.ns", nullFactory(), {}));
+            results.push_back(ctx.registerInstantCommand("ext.ns", noopCommand(), {}));
             // 前缀后不是 '.'：不能被 "ext.ns" 认领
-            results.push_back(ctx.registerCommand("ext.nsx.bad", nullFactory(), {}));
-            results.push_back(ctx.registerCommand("draw.ns_bad", nullFactory(), {}));
+            results.push_back(ctx.registerInstantCommand("ext.nsx.bad", noopCommand(), {}));
+            results.push_back(ctx.registerInstantCommand("draw.ns_bad", noopCommand(), {}));
             results.push_back(ctx.registerSettingsPage("ext.ns.page", "Page", QString(), [] {}));
             results.push_back(ctx.registerSettingsPage("options.ns_bad", "Page", QString(), [] {}));
         })));
@@ -238,7 +238,7 @@ TEST(ExtensionManagerTest, Shutdown在OnShutdown之后注销扩展命令且可�
             [&keptContext](IExtensionContext& ctx)
             {
                 keptContext = &ctx;
-                EXPECT_TRUE(ctx.registerCommand("ext.life.cmd", nullFactory(), {.aliases = {"lifecmd"}}));
+                EXPECT_TRUE(ctx.registerInstantCommand("ext.life.cmd", noopCommand(), {.aliases = {"lifecmd"}}));
             },
             [&keptContext, &activatedDuringShutdown]()
             {

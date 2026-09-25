@@ -110,7 +110,6 @@
 #include "DmSystem.h"
 #include "Debug.h"
 #include "GuiDialogFactory.h"
-#include "GuiEventHandler.h"
 #include "Commands.h"
 #include "DmFontList.h"
 

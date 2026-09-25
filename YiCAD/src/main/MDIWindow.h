@@ -30,7 +30,6 @@ class GuiDocumentView;
 class DmDocument;
 class DmPen;
 class QMdiArea;
-class GuiEventHandler;
 class QCloseEvent;
 
 /// @brief 文档窗体类，包含文档和视口
@@ -70,10 +69,6 @@ public:
     /// @brief 获取文档对象
     /// @return 文档对象指针
     DmDocument* getDocument() const;
-
-    /// @brief 获取当前事件处理器
-    /// @return 事件处理器指针
-    GuiEventHandler* getEventHandler() const;
 
     /// @brief 添加子窗口
     /// @param [in] w 子窗口指针

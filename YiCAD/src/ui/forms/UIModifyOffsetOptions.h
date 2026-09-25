@@ -24,7 +24,6 @@
 #include <memory>
 #include <QWidget>
 
-class ActionInterface;
 namespace Ui {
 	class Ui_ModifyOffsetOptions;
 }

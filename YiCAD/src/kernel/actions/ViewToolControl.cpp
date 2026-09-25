@@ -71,8 +71,8 @@ void ViewToolControl::activate(IViewTool* tool)
     }
     m_businessTools.push_back(tool);
     tool->onActivate();
-    // 业务栈变化后重新应用一次栈顶的光标：旧版 Action 绕过仲裁直接设置的
-    // 光标会让 m_lastAppliedCursor 过期，按它去重会漏掉这次切换。
+    // 业务栈变化后重新应用一次栈顶的光标：绕过仲裁直接设置的光标（块编辑模式、
+    // 多行文字编辑）会让 m_lastAppliedCursor 过期，按它去重会漏掉这次切换。
     m_lastAppliedCursor.reset();
     refreshCursor();
 }
@@ -210,8 +210,8 @@ void ViewToolControl::refreshCursor()
         resolved = query(m_navigationTool);
     }
 
-    // 全体无偏好：不触碰当前光标，见头文件说明——旧版 Action 体系可能
-    // 正通过 ActionInterface::updateMouseCursor 维护自己的光标。
+    // 全体无偏好：不触碰当前光标，见头文件说明——块编辑模式、多行文字编辑
+    // 可能正直接设置自己的光标。
     if (!resolved)
     {
         return;

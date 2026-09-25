@@ -11,7 +11,6 @@ yicad_add_test(interaction
         test_draw_curve_commands.cpp
         test_modify_commands.cpp
         test_select_tool.cpp
-        test_legacy_action_tool.cpp
         test_command_registry.cpp
         test_command_dispatch.cpp
         test_coordinate_input.cpp

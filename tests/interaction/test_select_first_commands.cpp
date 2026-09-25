@@ -17,7 +17,6 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 
-#include "ActionInterface.h"
 #include "BlockEditTool.h"
 #include "BlockExtension.h"
 #include "ExtensionManager.h"
@@ -31,7 +30,6 @@
 #include "ExclusiveCommandBus.h"
 #include "GuiDialogFactory.h"
 #include "GuiDialogFactoryAdapter.h"
-#include "GuiEventHandler.h"
 #include "GuiCommandEvent.h"
 #include "IExclusiveCommand.h"
 #include "ModifyCopyCommand.h"
@@ -73,29 +71,6 @@ public:
     void requestBlockEditOptions(IBlockEditSession*, bool on) override { blockEditOptions.push_back(on); }
 };
 
-/// @brief 与 UIView 相同：旧 Action 栈之下是命令与选择层
-struct LegacyStackBase : ILegacyStackBase
-{
-    ExclusiveCommandBus& bus;
-    SelectTool& selectTool;
-    LegacyStackBase(ExclusiveCommandBus& b, SelectTool& s)
-        : bus(b)
-        , selectTool(s)
-    {
-    }
-    void suspendForLegacy() override
-    {
-        bus.suspend();
-        selectTool.suspend();
-    }
-    void resumeAfterLegacy() override
-    {
-        selectTool.resume();
-        bus.resume();
-    }
-    void resetAfterKill() override { selectTool.init(); }
-};
-
 /// @brief 先选后建的 14 个命令
 const char* const kSelectFirstCommands[] = {
     "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
@@ -130,8 +105,8 @@ struct SelectFirstFixture : ::testing::Test
     PanZoomTool panTool{&view};
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    /// @brief 用例装上旧版 Action 栈时设置；声明在总线之前，总线析构时还会经选择层查询它
-    GuiEventHandler* legacyHandler = nullptr;
+    /// @brief 平移模式（临时视图工具）是否叠在命令之上，见 suspendUnderViewTool()
+    bool viewToolActive = false;
     ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
     /// @brief 创建块、编辑块在块扩展里（第三步⑥），用例期间启动它
     yicad_test::FakeExtensionHost extensionHost;
@@ -145,9 +120,9 @@ struct SelectFirstFixture : ::testing::Test
         control.setSelectionTool(&selectTool);
         selectTool.setOverlayQuery([this]()
                                    {
-                                       if (legacyHandler && legacyHandler->hasAction())
+                                       if (viewToolActive)
                                        {
-                                           return SelectTool::Overlay::LegacyAction;
+                                           return SelectTool::Overlay::ViewTool;
                                        }
                                        if (bus.hasActiveCommand())
                                        {
@@ -162,6 +137,21 @@ struct SelectFirstFixture : ::testing::Test
         // 注销扩展的命令；已构造的命令与编辑模式照旧由总线析构时结束
         ExtensionManager::instance().Shutdown();
         GuiDialogFactory::instance()->setFactoryObject(nullptr);
+    }
+
+    /// @brief 与 UIView::startViewTool() 相同：平移模式叠上来时挂起命令与选择层
+    void suspendUnderViewTool()
+    {
+        bus.suspend();
+        selectTool.suspend();
+        viewToolActive = true;
+    }
+    /// @brief 与 UIView::endViewTool() 相同：平移模式结束后恢复选择层与命令
+    void resumeUnderViewTool()
+    {
+        viewToolActive = false;
+        selectTool.resume();
+        bus.resume();
     }
 
     /// @brief 按命令 ID 构造并启动命令
@@ -423,25 +413,13 @@ TEST_F(SelectFirstFixture, 选择阶段按实体类型过滤)
     selectTool.endSelectionPhase();
 }
 
-TEST_F(SelectFirstFixture, 旧Action叠在命令之上时命令被挂起结束后恢复)
+TEST_F(SelectFirstFixture, 平移模式叠在命令之上时命令被挂起结束后恢复)
 {
-    LegacyStackBase stackBase{bus, selectTool};
-
-    GuiEventHandler handler(nullptr);
-    handler.setStackBase(&stackBase);
-    legacyHandler = &handler;
-    // 断言提前返回时也要在 handler 析构前解除引用：夹具析构总线时还会查询它
-    struct Detach
-    {
-        GuiEventHandler*& ref;
-        ~Detach() { ref = nullptr; }
-    } detach{legacyHandler};
     ASSERT_TRUE(start("info.total_length"));
 
-    auto* legacy = new ActionInterface("test-legacy-action", &doc, &view);
-    handler.setCurrentAction(legacy);
+    suspendUnderViewTool();
     EXPECT_TRUE(bus.isSuspended());
-    // 光标与提示归旧 Action，选择阶段让出
+    // 光标与提示归平移模式，选择阶段让出
     EXPECT_FALSE(selectTool.getCursor().has_value());
     const size_t hintsBefore = ui.hints.size();
     selectTool.enterEvent();
@@ -450,8 +428,7 @@ TEST_F(SelectFirstFixture, 旧Action叠在命令之上时命令被挂起结束�
     QKeyEvent* enter = nullptr;
     EXPECT_EQ(pressKey(Qt::Key_Enter, &enter), ViewToolResult::NotHandled);
 
-    legacy->finish();
-    handler.cleanUp();
+    resumeUnderViewTool();
     EXPECT_FALSE(bus.isSuspended());
     EXPECT_TRUE(bus.hasActiveCommand());
     ASSERT_TRUE(selectTool.getCursor().has_value());
@@ -677,30 +654,18 @@ TEST_F(SelectFirstFixture, 镜像工具输入YN切换复制方式)
     EXPECT_TRUE(command->copies());
 }
 
-TEST_F(SelectFirstFixture, 旧Action叠在放置工具之上时停用工具结束后恢复)
+TEST_F(SelectFirstFixture, 平移模式叠在放置工具之上时停用工具结束后恢复)
 {
-    LegacyStackBase stackBase{bus, selectTool};
-    GuiEventHandler handler(nullptr);
-    handler.setStackBase(&stackBase);
-    legacyHandler = &handler;
-    struct Detach
-    {
-        GuiEventHandler*& ref;
-        ~Detach() { ref = nullptr; }
-    } detach{legacyHandler};
-
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
     ASSERT_TRUE(start("modify.move"));
 
-    auto* legacy = new ActionInterface("test-legacy-action", &doc, &view);
-    handler.setCurrentAction(legacy);
+    suspendUnderViewTool();
     EXPECT_TRUE(bus.isSuspended());
     // 工具被停用：命令行坐标没有业务工具接收
     EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::NotHandled);
 
-    legacy->finish();
-    handler.cleanUp();
+    resumeUnderViewTool();
     EXPECT_FALSE(bus.isSuspended());
     EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
     EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::Handled);

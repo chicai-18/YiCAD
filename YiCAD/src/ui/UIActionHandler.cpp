@@ -39,7 +39,6 @@
 #include "MDIWindow.h"
 #include "QMdiArea"
 #include "GuiDocumentView.h"
-#include "GuiEventHandler.h"
 #include "UICurrentActivePen.h"
 #include "UIView.h"
 
@@ -59,23 +58,7 @@ void UIActionHandler::killAllActions()
 }
 
 
-// @return Current action or NULL.
-ActionInterface* UIActionHandler::getCurrentAction()
-{
-	if (m_pView)
-	{
-		return m_pView->getCurrentAction();
-	}
-	else
-	{
-		return nullptr;
-	}
-}
-
-
-// Sets current action.
-// @return Pointer to the created action or NULL.
-ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
+void UIActionHandler::setCurrentAction(DM::ActionType id)
 {
 	// ActionEditKillAllActions 不构造任何 Action，只做副作用；killAllActions()
 	// 只在具体类 GuiDocumentView 上，不在 IDocumentView 接口上，没法进
@@ -88,14 +71,14 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 			// 被命令否决时（迁移计划 5.1 节）命令继续，选择集也不清空
 			if (!m_pView->killAllActions())
 			{
-				return nullptr;
+				return;
 			}
 
 			Selection s(m_pDocument, m_pView);
 			s.selectAll(false);
 			GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
 		}
-		return nullptr;
+		return;
 	}
 
 	// Snap/Restrict 类型直接调用 setCurrentAction 时的兜底：commandLineActions()
@@ -103,23 +86,23 @@ ActionInterface* UIActionHandler::setCurrentAction(DM::ActionType id)
 	// setCurrentAction 自身对这批类型保持定义行为，不需要再进注册表或 switch。
 	if (commandLineActions(id))
 	{
-		return nullptr;
+		return;
 	}
 
 	// 全部 153 个原 case 已分批迁移到 CommandRegistry（阶段4第一至八部分，
 	// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。未命中注册表的类型
 	// （枚举里从未进入过这个 switch 的保留值，如 ActionFileExport/Print/
 	// Quit、ActionView* 系列，以及已搬进扩展、不再有枚举桥接的命令）维持
-	// 原 default 行为：不构造任何 Action。
+	// 原 default 行为：什么也不做。
 	const QString commandId = CommandRegistry::instance().commandId(id);
 	if (commandId.isEmpty())
 	{
-		return nullptr;
+		return;
 	}
-	return activateCommand(commandId, sender());
+	activateCommand(commandId, sender());
 }
 
-ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObject* source)
+void UIActionHandler::activateCommand(const QString& commandId, QObject* source)
 {
 	CommandRegistry& registry = CommandRegistry::instance();
 	const CommandContext ctx{m_pDocument, m_pView, source ? source : sender()};
@@ -135,7 +118,7 @@ ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObj
 				view->startCommand(std::move(command));
 			}
 		}
-		return nullptr;
+		return;
 
 	case CommandKind::Instant:
 		// 即时命令不占命令总线，没有打开图纸时也执行（document/view 为空）
@@ -143,11 +126,11 @@ ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObj
 		{
 			if (!view->prepareInstantCommand(registry.instantInterrupt(commandId)))
 			{
-				return nullptr;
+				return;
 			}
 		}
 		registry.runInstant(commandId, ctx);
-		return nullptr;
+		return;
 
 	case CommandKind::ViewTool:
 		// 临时视图工具（平移模式）不占命令总线，叠在视图的业务栈顶；没有打开图纸时不启动
@@ -158,51 +141,10 @@ ActionInterface* UIActionHandler::activateCommand(const QString& commandId, QObj
 				view->startViewTool(std::move(tool));
 			}
 		}
-		return nullptr;
-
-	case CommandKind::Legacy:
-		break;
+		return;
 
 	case CommandKind::None:
-		return nullptr;
-	}
-
-	ActionInterface* a = registry.create(commandId, ctx);
-
-	if (a)
-	{
-		if (m_pView)
-		{
-			m_pView->setCurrentAction(a);
-		}
-		//在没有打开文档的情况，Action无法被管理，但是需要触发一下（例如：ActionFileNew）
-		else
-		{
-			a->trigger();
-			delete a;
-			a = nullptr;
-		}
-	}
-
-	return a;
-}
-
-
-// @return Available commands of the application or the current action.
-QStringList UIActionHandler::getAvailableCommands()
-{
-	ActionInterface* currentAction = getCurrentAction();
-
-	if (currentAction)
-	{
-		return currentAction->getAvailableCommands();
-	}
-	else
-	{
-		QStringList cmd;
-		cmd += "line";
-		cmd += "rectangle";
-		return cmd;
+		return;
 	}
 }
 

@@ -1,28 +1,25 @@
 /// @file test_select_tool.cpp
 /// @brief SelectTool 的单测
 ///
-/// SelectTool 从 ActionDefault 抽出（阶段2第5.4节第3项），不再依赖
-/// QObject/ActionInterface，因此可以直接用一个空的 DmDocument + 真实
+/// SelectTool 从 ActionDefault 抽出（阶段2第5.4节第3项），不是 QObject，
+/// 因此可以直接用一个空的 DmDocument + 真实
 /// Snapper + FakeDocumentView 构造，脱离 GuiDocumentView 单独验证其
 /// 点选/框选状态机。覆盖的是没有实体的边界情况——完整的实体拾取/
 /// 几何相交语义已由其它子系统的测试覆盖，这里只锁住 SelectTool 自己
 /// 负责的状态转换和视图侧调用（overlay、redraw、cursor）。
 ///
-/// 后半部分按 UIView 的装配（业务层 LegacyActionTool、选择层、
-/// 导航层 PanZoomTool）经 ViewToolControl 分发，锁住第一步
-/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）之后空闲态事件直接落到选择层的路径。
+/// 后半部分按 UIView 的装配（业务层、选择层、导航层 PanZoomTool）经
+/// ViewToolControl 分发，锁住空闲态事件直接落到选择层的路径
+/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md 第一步）。
 
 #include <gtest/gtest.h>
 
 #include <QMouseEvent>
 #include <QPointF>
 
-#include "ActionInterface.h"
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
 #include "GuiDialogFactoryAdapter.h"
-#include "GuiEventHandler.h"
-#include "LegacyActionTool.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
@@ -189,18 +186,12 @@ TEST_F(SelectToolFixture, 导航层平移中时移动和释放主动让路)
     EXPECT_EQ(tool.mouseReleaseEvent(&release), ViewToolResult::NotHandled);
 }
 
-TEST_F(SelectToolFixture, 有其它业务Action活动时getCursor保持沉默)
+TEST_F(SelectToolFixture, 有命令活动时getCursor保持沉默)
 {
-    // SelectTool 注册为选择层后，若有其它业务 Action（画线、修改等）正在
-    // 活动，它们仍然通过 updateMouseCursor() 直接调用 setMouseCursor()
-    // （105 个未改造），选择层不能用自己在 Neutral 下的 Arrow 偏好覆盖
-    // 它们，否则每次仲裁都会把光标错误地重置成箭头。
-    GuiEventHandler handler(nullptr);
-    view.eventHandler = &handler;
-
-    // GuiEventHandler 的业务栈拥有并负责删除压入的 Action。
-    handler.setCurrentAction(new ActionInterface("test-business-action", &doc, &view));
-    ASSERT_TRUE(handler.hasAction());
+    // SelectTool 注册为选择层后，若有命令（画线、修改等）正在活动，光标由
+    // 命令的工具经仲裁给出，选择层不能用自己在 Neutral 下的 Arrow 偏好覆盖
+    // 它们，否则工具没有偏好时会把光标错误地重置成箭头。
+    tool.setOverlayQuery([] { return SelectTool::Overlay::Command; });
 
     EXPECT_EQ(tool.getStatus(), SelectTool::Neutral);
     EXPECT_FALSE(tool.getCursor().has_value());
@@ -237,10 +228,10 @@ struct HintRecorderScope
 };
 }  // namespace
 
-TEST_F(SelectToolFixture, 有业务Action活动时不更新按键提示)
+TEST_F(SelectToolFixture, 块编辑模式下不更新按键提示)
 {
-    // 块编辑时选择层经 passesToSelection 收到事件，提示归块编辑 Action 管；
-    // 选择层若照常更新，会把"Edit block entities"提示清空。
+    // 块编辑时选择层照常完成块内的选择，提示归编辑模式管；选择层若照常更新，
+    // 会把"Edit block entities"提示清空。
     HintRecorderScope hints;
 
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton);
@@ -248,9 +239,7 @@ TEST_F(SelectToolFixture, 有业务Action活动时不更新按键提示)
     EXPECT_EQ(hints.recorder.hintUpdates, 1);  // 空闲态：Neutral -> Dragging 更新一次
     tool.init();
 
-    GuiEventHandler handler(nullptr);
-    view.eventHandler = &handler;
-    handler.setCurrentAction(new ActionInterface("test-business-action", &doc, &view));
+    tool.setOverlayQuery([] { return SelectTool::Overlay::EditMode; });
     hints.recorder.hintUpdates = 0;
 
     tool.mousePressEvent(&press);
@@ -265,13 +254,11 @@ TEST_F(SelectToolFixture, 进入离开画布只在空闲态挂起与恢复)
     tool.enterEvent();
     EXPECT_GT(view.redrawCount, before);
 
-    // 有业务 Action 时由它自己挂起/恢复（经 LegacyActionTool），选择层不动
-    GuiEventHandler handler(nullptr);
-    view.eventHandler = &handler;
-    handler.setCurrentAction(new ActionInterface("test-business-action", &doc, &view));
-    const int withAction = view.redrawCount;
+    // 有命令时由命令的工具自己挂起/恢复，选择层不动
+    tool.setOverlayQuery([] { return SelectTool::Overlay::Command; });
+    const int withCommand = view.redrawCount;
     tool.enterEvent();
-    EXPECT_EQ(view.redrawCount, withAction);
+    EXPECT_EQ(view.redrawCount, withCommand);
 }
 
 namespace
@@ -289,21 +276,17 @@ public:
     void onDeactivate() override {}
 };
 
-/// @brief 与 UIView 相同：旧 Action 栈之下是选择层（没有命令时）
-struct SelectToolStackBase : ILegacyStackBase
+/// @brief 业务层的替身：与放置工具一样接住左、右键，中键让给导航层
+class BusinessToolStub : public IViewTool
 {
-    explicit SelectToolStackBase(SelectTool& tool)
-        : tool(tool)
+public:
+    ViewToolResult mousePressEvent(QMouseEvent* e) override
     {
+        return e->button() == Qt::MiddleButton ? ViewToolResult::NotHandled : ViewToolResult::Handled;
     }
-    void suspendForLegacy() override { tool.suspend(); }
-    void resumeAfterLegacy() override { tool.resume(); }
-    void resetAfterKill() override { tool.init(); }
-
-    SelectTool& tool;
 };
 
-/// @brief 与 UIView 相同的三层装配
+/// @brief 与 UIView 相同的三层装配；业务层在用例里按需激活
 struct IdleDispatchFixture : ::testing::Test
 {
     DmDocument doc;
@@ -312,26 +295,17 @@ struct IdleDispatchFixture : ::testing::Test
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     DispatchSelectTool tool{&doc, &view, &snapper, &preview, &panTool};
-    SelectToolStackBase stackBase{tool};
-    GuiEventHandler handler{nullptr};
-    LegacyActionTool legacyTool{&handler, &panTool};
+    BusinessToolStub businessTool;
     ViewToolControl control{&view};
 
     IdleDispatchFixture()
     {
-        view.eventHandler = &handler;
-        handler.setStackBase(&stackBase);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&tool);
-        control.activate(&legacyTool);
     }
 
-    /// @brief 压入一个不结束的业务 Action（GuiEventHandler 拥有并删除它）
-    void startBusinessAction()
-    {
-        handler.setCurrentAction(new ActionInterface("test-business-action", &doc, &view));
-        ASSERT_TRUE(handler.hasAction());
-    }
+    /// @brief 激活业务层，相当于启动了一个命令
+    void startBusinessTool() { control.activate(&businessTool); }
 };
 }  // namespace
 
@@ -344,8 +318,8 @@ TEST_F(IdleDispatchFixture, 空闲态左键经ViewToolControl落到选择层)
 
 TEST_F(IdleDispatchFixture, 空闲态中键由导航层平移)
 {
-    // 回归：选择层曾对中键返回 Handled，把 LegacyActionTool 让出的中键吞掉，
-    // 导航层收不到按下，中键平移失效。
+    // 回归：选择层曾对中键返回 Handled，把业务层让出的中键吞掉，导航层收不到
+    // 按下，中键平移失效。
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::MiddleButton);
     EXPECT_EQ(control.mousePressEvent(&press), ViewToolResult::Handled);
     EXPECT_TRUE(panTool.isPanning());
@@ -356,9 +330,9 @@ TEST_F(IdleDispatchFixture, 空闲态中键由导航层平移)
     EXPECT_FALSE(panTool.isPanning());
 }
 
-TEST_F(IdleDispatchFixture, 有业务Action时中键仍由导航层平移)
+TEST_F(IdleDispatchFixture, 有业务工具时中键仍由导航层平移)
 {
-    startBusinessAction();
+    startBusinessTool();
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::MiddleButton);
     EXPECT_EQ(control.mousePressEvent(&press), ViewToolResult::Handled);
     EXPECT_TRUE(panTool.isPanning());
@@ -393,20 +367,10 @@ TEST_F(IdleDispatchFixture, 空闲态空格无人接受)
     EXPECT_FALSE(space.isAccepted());
 }
 
-TEST_F(IdleDispatchFixture, 有业务Action时鼠标事件不落到选择层)
+TEST_F(IdleDispatchFixture, 有业务工具时鼠标事件不落到选择层)
 {
-    startBusinessAction();
+    startBusinessTool();
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton);
     EXPECT_EQ(control.mousePressEvent(&press), ViewToolResult::Handled);
-    EXPECT_EQ(tool.getStatus(), SelectTool::Neutral);
-}
-
-TEST_F(IdleDispatchFixture, 结束全部命令时复位选择层)
-{
-    QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton);
-    control.mousePressEvent(&press);
-    ASSERT_EQ(tool.getStatus(), SelectTool::Dragging);
-
-    handler.killAllActions();
     EXPECT_EQ(tool.getStatus(), SelectTool::Neutral);
 }

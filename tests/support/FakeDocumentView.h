@@ -76,12 +76,6 @@ public:
     void setOrthogonalZero(const DmVector& pos) override { m_orthogonalZero = pos; }
     DmVector const& getOrthogonalZero() const override { return m_orthogonalZero; }
 
-    // 默认空实现（大多数测试不需要）；`eventHandler` 供测试按需注入一个
-    // 真实的 GuiEventHandler，用于验证依赖 hasAction() 的让路/仲裁逻辑
-    // （比如 SelectTool::getCursor()）。
-    GuiEventHandler* eventHandler = nullptr;
-    GuiEventHandler* getEventHandler() const override { return eventHandler; }
-
     bool isCleanUp() const override { return false; }
 
     // Snapper::deleteSnapper() 等无条件解引用返回值；同一个容器复用于
@@ -97,8 +91,8 @@ public:
 
     void setIsDrawCursor(const bool&) override {}
 
-    void setCurrentAction(ActionInterface*) override {}
-    ActionInterface* getCurrentAction() override { return nullptr; }
+    bool hasActiveCommand() const override { return false; }
+    QString activeCommandId() const override { return QString(); }
     void emitSelectedChanged() override { ++selectedChangedCount; }
 
     void enableCoordinateInput() override {}

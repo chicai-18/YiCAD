@@ -35,7 +35,6 @@
 #include "DmDocument.h"
 #include "DmPen.h"
 #include "Debug.h"
-#include "ActionInterface.h"
 #include "Information.h"
 
 // 禁用所有捕捉模式

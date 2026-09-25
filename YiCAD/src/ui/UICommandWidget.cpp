@@ -32,8 +32,6 @@
 #include "QAbstractItemView"
 #include <QPushButton>
 #include "GuiDocumentView.h"
-#include "GuiEventHandler.h"
-#include "UIView.h"
 
 
 UICommandWidget::UICommandWidget(QWidget* parent, UITabDrawWidget* tabDrawWidget)
@@ -143,22 +141,11 @@ void UICommandWidget::appCmdTempText(const QString text)
 	{
 		MDIWindow* mdiWindow = m_pTabDrawWidget->getCurrentMdiWindow();
 		GuiDocumentView* gv = mdiWindow->getDocumentView();
-		GuiEventHandler* handle = gv->getEventHandler();
 		const bool hasCommand = gv->hasActiveCommand();
 
-		// 当前命令：旧版 Action 优先（它叠在命令之上时命令被挂起），其次是交互命令
-		DM::ActionType actionType = DM::ActionNone;
-		QString commandId;
-		if (ActionInterface* action = handle->getCurrentAction())
-		{
-			actionType = action->getEntityType();
-			commandId = action->getCommandId();
-		}
-		else if (UIView* view = qobject_cast<UIView*>(gv))
-		{
-			commandId = view->activeCommandId();
-			actionType = CommandRegistry::instance().legacyType(commandId);
-		}
+		// 当前命令：临时视图工具或命令总线上的命令
+		const QString commandId = gv->activeCommandId();
+		const DM::ActionType actionType = CommandRegistry::instance().legacyType(commandId);
 
 		QString displayText = text;
 		if (actionType != DM::ActionNone || !commandId.isEmpty())

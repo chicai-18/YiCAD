@@ -86,7 +86,7 @@ bool ExclusiveCommandBus::start(std::unique_ptr<IExclusiveCommand> command)
     m_suspended = false;
     m_finishPending = false;
     ++m_generation;
-    // 与旧 Action 从空闲态启动时一致：先挂起选择层（清除它的预览与捕捉标记）
+    // 先挂起选择层（清除它的预览与捕捉标记），与原先 Action 从空闲态启动时一致
     if (m_selectTool)
     {
         m_selectTool->suspend();
@@ -329,7 +329,7 @@ void ExclusiveCommandBus::finishActive()
         {
             m_selectTool->endSelectionPhase();
         }
-        // 与旧 Action 栈清空时一致：恢复选择层（刷新提示，重绘预览与捕捉标记）
+        // 恢复选择层（刷新提示，重绘预览与捕捉标记），与原先 Action 栈清空时一致
         m_selectTool->resume();
     }
     // 回到编辑模式

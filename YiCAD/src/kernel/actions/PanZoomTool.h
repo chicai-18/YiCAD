@@ -27,8 +27,7 @@
 /// 本类只负责平移的**机制**：给定一次"开始/移动/结束"手势就执行
 /// docView->zoomPan(...)。"这次按下算不算平移手势"的**策略**——中键总是算，
 /// Ctrl+左键只在空闲态（选择层处于 Neutral）才算——由上层工具让路来表达：
-/// 业务层 LegacyActionTool 与选择层 SelectTool 不处理的按下才落到本类。
-/// 本类不依赖 GuiEventHandler，保持导航层与旧版 Action 体系解耦。
+/// 业务层（命令的工具）与选择层 SelectTool 不处理的按下才落到本类。
 ///
 /// 显式的"平移"命令（Ribbon 的 Pan 按钮，原 `ActionZoomPan`，现为临时视图工具
 /// `ZoomPanTool`）不由本类承担：那是用户主动进入、需要退出的模式，与这里

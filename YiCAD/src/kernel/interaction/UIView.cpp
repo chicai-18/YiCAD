@@ -25,7 +25,6 @@
 #include <QTabletEvent>
 #include <QWheelEvent>
 
-#include "ActionInterface.h"
 #include "DmDocument.h"
 #include "DmSettings.h"
 #include "EntityTable.h"
@@ -33,12 +32,11 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateInput.h"
 #include "GuiDialogFactory.h"
-#include "GuiEventHandler.h"
 #include "IEditMode.h"
-#include "LegacyActionTool.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
+#include "Snapper.h"
 #include "TransientViewTool.h"
 #include "ViewToolControl.h"
 
@@ -48,10 +46,8 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
     : GuiDocumentView(parent, fl, doc)
 {
     m_pPanZoomTool = std::make_unique<PanZoomTool>(this);
-    m_pLegacyActionTool = std::make_unique<LegacyActionTool>(getEventHandler(), m_pPanZoomTool.get());
     m_pViewToolControl = std::make_unique<ViewToolControl>(this);
     m_pViewToolControl->setNavigationTool(m_pPanZoomTool.get());
-    m_pViewToolControl->activate(m_pLegacyActionTool.get());
 
     if (doc)
     {
@@ -64,16 +60,12 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
 
         m_pCommandBus = std::make_unique<ExclusiveCommandBus>(doc, this, m_pViewToolControl.get(),
                                                               m_pSelectTool.get());
-        // 选择层之上有旧 Action 或命令时，提示与光标归它们（命令的选择阶段除外）
+        // 选择层之上有命令或平移模式时，提示与光标归它们（命令的选择阶段除外）
         m_pSelectTool->setOverlayQuery([this]()
         {
             if (m_pViewTool)
             {
                 return SelectTool::Overlay::ViewTool;
-            }
-            if (getEventHandler()->hasAction())
-            {
-                return SelectTool::Overlay::LegacyAction;
             }
             // 析构时总线先于选择层释放，释放过程中也会查询
             if (m_pCommandBus && m_pCommandBus->hasActiveCommand())
@@ -93,7 +85,6 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
                 commandId, CommandContext{getDocument(), this, nullptr, entity, point});
             return command && startCommand(std::move(command));
         });
-        getEventHandler()->setStackBase(this);
     }
 }
 
@@ -107,8 +98,6 @@ UIView::~UIView()
     }
     // 再结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
-    // GuiEventHandler 归基类，比本类的成员活得久，先解除它对本类的引用。
-    getEventHandler()->setStackBase(nullptr);
 }
 
 bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
@@ -126,14 +115,6 @@ bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
     m_pCommandBus->end();
     // 启动命令结束平移模式（原先它被挂起、命令结束后恢复，迁移计划 9.3 节）
     endViewTool();
-
-    // 过渡期：启动命令时结束全部旧 Action，不再恢复（迁移计划 9.2 节）
-    GuiEventHandler* handler = getEventHandler();
-    if (handler->getCurrentActionNum() > 0)
-    {
-        handler->killAllActions();
-        handler->cleanUp();
-    }
     return m_pCommandBus->start(std::move(command));
 }
 
@@ -147,7 +128,7 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
     case InstantInterrupt::EndAll:
         if (m_pCommandBus)
         {
-            // 与排他的旧 Action 相同：先请命令与编辑模式让位，被否决时不执行
+            // 原排他 Action 的做法：先请命令与编辑模式让位，被否决时不执行
             if (m_pCommandBus->isInCallback() || !m_pCommandBus->approveEndAll(CommandEndReason::Replaced))
             {
                 return false;
@@ -155,8 +136,7 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
             m_pCommandBus->endAll();
         }
         endViewTool();
-        getEventHandler()->killAllActions();
-        getEventHandler()->cleanUp();
+        resetSelectTool();
         return true;
 
     case InstantInterrupt::EndUninterruptible:
@@ -173,7 +153,6 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
         }
         break;
     }
-    getEventHandler()->interruptForInstantCommand();
     return true;
 }
 
@@ -217,27 +196,48 @@ void UIView::endViewTool()
 
 void UIView::suspendUnderViewTool()
 {
-    if (ActionInterface* action = getCurrentAction())
+    if (m_pCommandBus)
     {
-        action->suspend();
-        action->hideOptions();
+        if (m_pCommandBus->hasActiveCommand())
+        {
+            m_pCommandBus->suspend();
+        }
+        else if (IEditMode* mode = m_pCommandBus->editMode())
+        {
+            // 命令活动时模式已被它挂起
+            mode->suspendMode();
+        }
     }
-    else
+    if (m_pSelectTool)
     {
-        suspendForLegacy();
+        m_pSelectTool->suspend();
     }
 }
 
 void UIView::resumeUnderViewTool()
 {
-    if (ActionInterface* action = getCurrentAction())
+    if (m_pSelectTool)
     {
-        action->resume();
-        action->showOptions();
+        m_pSelectTool->resume();
     }
-    else
+    if (m_pCommandBus)
     {
-        resumeAfterLegacy();
+        if (m_pCommandBus->hasActiveCommand())
+        {
+            m_pCommandBus->resume();
+        }
+        else if (IEditMode* mode = m_pCommandBus->editMode())
+        {
+            mode->resumeMode();
+        }
+    }
+}
+
+void UIView::resetSelectTool()
+{
+    if (m_pSelectTool)
+    {
+        m_pSelectTool->init();
     }
 }
 
@@ -270,10 +270,6 @@ void UIView::routeBack(QMouseEvent* e)
         // 平移模式在业务栈顶，右键退出它
         m_pViewToolControl->mouseReleaseEvent(e);
     }
-    else if (getEventHandler()->hasAction())
-    {
-        GuiDocumentView::back();
-    }
     else if (hasBusinessOnBus())
     {
         // 右键释放不走 ViewToolControl（主计划 5.7 节）；命令的工具、编辑模式在这里收到它
@@ -284,19 +280,19 @@ void UIView::routeBack(QMouseEvent* e)
 
 void UIView::commandEvent(GuiCommandEvent* e)
 {
-    // 平移模式在业务栈顶，与命令一样经 ViewToolControl 交给它（它丢弃坐标、不接受文本）
-    if (!m_pViewTool && (getEventHandler()->hasAction() || !hasBusinessOnBus()))
+    // 平移模式在业务栈顶，与命令一样经 ViewToolControl 交给它（它丢弃坐标、不接受文本）；
+    // 空闲态不接受，由 UIActionHandler 当作新命令解析
+    if (!m_pViewTool && !hasBusinessOnBus())
     {
-        GuiDocumentView::commandEvent(e);
         return;
     }
-    if (!getEventHandler()->isCoordinateInputEnabled() || e->isAccepted())
+    if (!isCoordinateInputEnabled() || e->isAccepted())
     {
         return;
     }
 
-    // 与旧 Action 同一套解析：坐标一律接受（工具用不用都算已处理），其余文本
-    // 交给工具，没有工具接受时由 UIActionHandler 当作新命令解析。
+    // 坐标一律接受（工具用不用都算已处理），其余文本交给工具，没有工具接受时由
+    // UIActionHandler 当作新命令解析。
     DispatchScope scope(m_pCommandBus.get());
     const GuiCoordinateInput input = GuiCoordinateInput::parse(e->getCommand(), getRelativeZero());
     switch (input.status)
@@ -327,7 +323,8 @@ bool UIView::killAllActions()
         m_pCommandBus->endAll();
     }
     endViewTool();
-    return GuiDocumentView::killAllActions();
+    resetSelectTool();
+    return true;
 }
 
 void UIView::killAllActionsOnClose()
@@ -339,49 +336,17 @@ void UIView::killAllActionsOnClose()
         m_pCommandBus->endAll();
     }
     endViewTool();
-    GuiDocumentView::killAllActionsOnClose();
+    resetSelectTool();
 }
 
-bool UIView::hasActiveCommand()
+bool UIView::hasActiveCommand() const
 {
-    return GuiDocumentView::hasActiveCommand() || hasBusinessOnBus() || m_pViewTool;
+    return hasBusinessOnBus() || m_pViewTool;
 }
 
 bool UIView::hasBusinessOnBus() const
 {
     return m_pCommandBus && (m_pCommandBus->hasActiveCommand() || m_pCommandBus->editMode());
-}
-
-void UIView::setCurrentAction(ActionInterface* action)
-{
-    if (!action)
-    {
-        return;
-    }
-    if (m_pCommandBus)
-    {
-        if (m_pCommandBus->isInCallback())
-        {
-            // 5.1 节：回调期间的启动请求一律忽略
-            delete action;
-            return;
-        }
-        if (action->isExclusive())
-        {
-            // 排他的旧 Action 要结束全部，先请命令与编辑模式让位；被否决时不启动它
-            if (!m_pCommandBus->approveEndAll(CommandEndReason::Replaced))
-            {
-                delete action;
-                return;
-            }
-            m_pCommandBus->endAll();
-        }
-    }
-    // 过渡期：启动旧版 Action 结束平移模式（原先它被挂起、旧 Action 结束后恢复）
-    endViewTool();
-    // 其余旧 Action 叠在命令之上：GuiEventHandler 从空栈启动它时经
-    // suspendForLegacy() 挂起命令，栈清空时经 resumeAfterLegacy() 恢复
-    GuiDocumentView::setCurrentAction(action);
 }
 
 void UIView::setDefaultSnapMode(SnapMode sm)
@@ -410,53 +375,6 @@ void UIView::setSnapRestriction(DM::SnapRestriction sr)
     }
 }
 
-void UIView::suspendForLegacy()
-{
-    if (m_pCommandBus)
-    {
-        if (m_pCommandBus->hasActiveCommand())
-        {
-            m_pCommandBus->suspend();
-        }
-        else if (IEditMode* mode = m_pCommandBus->editMode())
-        {
-            // 命令活动时模式已被它挂起
-            mode->suspendMode();
-        }
-    }
-    if (m_pSelectTool)
-    {
-        m_pSelectTool->suspend();
-    }
-}
-
-void UIView::resumeAfterLegacy()
-{
-    if (m_pSelectTool)
-    {
-        m_pSelectTool->resume();
-    }
-    if (m_pCommandBus)
-    {
-        if (m_pCommandBus->hasActiveCommand())
-        {
-            m_pCommandBus->resume();
-        }
-        else if (IEditMode* mode = m_pCommandBus->editMode())
-        {
-            mode->resumeMode();
-        }
-    }
-}
-
-void UIView::resetAfterKill()
-{
-    if (m_pSelectTool)
-    {
-        m_pSelectTool->init();
-    }
-}
-
 ISnapService* UIView::commandSnapService() const
 {
     if (!m_pCommandBus || !m_pCommandBus->hasActiveCommand() || m_pCommandBus->isSuspended())
@@ -477,10 +395,6 @@ SnapResultType UIView::currentSnapResult()
         // 平移模式不捕捉，其下各层已挂起
         return SnapResultType::SnapNone;
     }
-    if (ActionInterface* action = getCurrentAction())
-    {
-        return action->getSnapResult();
-    }
     if (ISnapService* snapper = commandSnapService())
     {
         return snapper->getSnapResult();
@@ -494,10 +408,6 @@ DmVector UIView::currentSnapSpot()
     {
         return DmVector(false);
     }
-    if (ActionInterface* action = getCurrentAction())
-    {
-        return action->getSnapSpot();
-    }
     if (ISnapService* snapper = commandSnapService())
     {
         return snapper->getSnapSpot();
@@ -507,9 +417,9 @@ DmVector UIView::currentSnapSpot()
 
 void UIView::mousePressEvent(QMouseEvent* e)
 {
-    // 统一交给 ViewToolControl 分发：业务层（LegacyActionTool）在有业务
-    // Action 时优先，空闲态整体让路给选择层（SelectTool）；中键与 Neutral
-    // 状态下的 Ctrl/Meta+左键再由选择层让给导航层（PanZoomTool）。
+    // 统一交给 ViewToolControl 分发：业务层（命令的工具）优先，不处理的事件
+    // 落到选择层（SelectTool）；中键与 Neutral 状态下的 Ctrl/Meta+左键再由
+    // 选择层让给导航层（PanZoomTool）。
     e->accept();
     DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->mousePressEvent(e);
@@ -549,25 +459,10 @@ void UIView::mouseReleaseEvent(QMouseEvent* e)
         break;
 
     default:
-    {
-        // ViewToolControl 统一分发：有业务 Action 时业务层（LegacyActionTool）
-        // 优先，空闲态落到选择层；平移中的释放业务层与选择层都主动让路，
-        // 由导航层 PanZoomTool 处理并结束这次平移。
-        if (m_pViewToolControl->mouseReleaseEvent(e) == ViewToolResult::Handled)
-        {
-            // 无论是平移刚结束还是普通业务释放，都让当前 Action 重新声明
-            // 一次光标：平移结束时避免 ClosedHandCursor 残留在画布上（见
-            // ViewToolControl::refreshCursor"无偏好则不动"的策略）；
-            // 普通释放时这只是一次无害的重复刷新。平移模式下旧 Action 已挂起，
-            // 光标归平移模式。
-            ActionInterface* action = m_pViewTool ? nullptr : getCurrentAction();
-            if (action)
-            {
-                action->updateMouseCursor();
-            }
-        }
+        // ViewToolControl 统一分发：业务层优先，不处理的落到选择层；平移中的释放
+        // 业务层与选择层都主动让路，由导航层 PanZoomTool 处理并结束这次平移。
+        m_pViewToolControl->mouseReleaseEvent(e);
         break;
-    }
     }
 }
 
@@ -576,9 +471,8 @@ void UIView::mouseMoveEvent(QMouseEvent* e)
     GuiDocumentView::mouseMoveEvent(e);
     DispatchScope scope(m_pCommandBus.get());
 
-    // ViewToolControl 统一分发：不在平移中时，有业务 Action 则由业务层
-    // （LegacyActionTool）转给它，空闲态落到选择层；平移中两层都主动让路，
-    // 交给导航层 PanZoomTool 处理。
+    // ViewToolControl 统一分发：不在平移中时，业务层不处理的移动落到选择层；
+    // 平移中两层都主动让路，交给导航层 PanZoomTool 处理。
     m_pViewToolControl->mouseMoveEvent(e);
 
     if (m_pPanZoomTool->isPanning())
@@ -642,7 +536,7 @@ void UIView::tabletEvent(QTabletEvent* e)
 void UIView::leaveEvent(QEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    // 平移模式下其下各层已挂起，进入/离开画布只通知它（原先只通知旧 Action 栈顶）
+    // 平移模式下其下各层已挂起，进入/离开画布只通知它
     if (m_pViewTool)
     {
         m_pViewTool->leaveEvent();

@@ -30,7 +30,7 @@
 ///   - 总线就是命令的宿主：命令经它拿到文档、视图、工具控制器与选择层
 ///     （命令不能认识 UIView，见 IExclusiveCommand.h），并由它保证命令结束时
 ///     清除选择阶段的约束；
-///   - 过渡期旧 Action 叠在命令之上时，经 suspend()/resume() 挂起、恢复命令；
+///   - 临时视图工具（平移模式）叠在命令之上时，经 suspend()/resume() 挂起、恢复命令；
 ///   - 持有编辑模式（块编辑，见 IEditMode.h）：模式的工具常驻在业务栈底部，
 ///     命令叠在它上面；启动命令不影响模式，结束全部命令与视图关闭时先问命令、
 ///     再问模式（approveEndAll()）。
@@ -133,7 +133,8 @@ public:
     bool isInCallback() const { return m_inCallback; }
 
     /// @brief 结束全部前征求同意：先问活动命令，再问编辑模式（5.1 节），不改变任何状态
-    /// @param reason Cancelled（结束全部命令）、Replaced（排他的旧 Action）或 ViewClosing
+    /// @param reason Cancelled（结束全部命令）、Replaced（需要结束全部的即时命令，如新建、打开图纸）
+    ///        或 ViewClosing
     /// @return 都同意时返回 true；ViewClosing 忽略否决；回调期间的重入请求返回 false
     bool approveEndAll(CommandEndReason reason);
     /// @brief 结束活动命令并退出编辑模式，不再征求同意（调用方已经 approveEndAll()）
@@ -154,11 +155,11 @@ public:
     /// @note 不能在模式自己的调用栈里调用，模式请求退出自己用 requestExitEditMode()
     void exitEditMode();
 
-    // ---- 过渡期：旧 Action 叠在命令之上 ----
+    // ---- 临时视图工具（平移模式）叠在命令之上 ----
 
-    /// @brief 挂起活动命令（旧 Action 从空栈启动）
+    /// @brief 挂起活动命令（平移模式启动）
     void suspend();
-    /// @brief 恢复活动命令（旧 Action 栈清空）
+    /// @brief 恢复活动命令（平移模式结束）
     void resume();
     /// @brief 活动命令是否被挂起
     bool isSuspended() const { return m_suspended; }

@@ -22,8 +22,8 @@
 /// 业务工具栈（后进先出，最高优先级）、选择工具（次优先）、导航工具
 /// （栈底，兜底）。事件按此顺序分发，直到某层返回 Handled/Cancel。
 ///
-/// 交互视图 UIView（kernel/interaction/UIView.h）持有本类并挂载三层：业务层 LegacyActionTool
-/// （包装旧版 Action 栈）、选择层 SelectTool、导航层 PanZoomTool。画布的鼠标、
+/// 交互视图 UIView（kernel/interaction/UIView.h）持有本类并挂载三层：业务层（命令的工具、
+/// 编辑模式与临时视图工具）、选择层 SelectTool、导航层 PanZoomTool。画布的鼠标、
 /// 双击、滚轮后的补发移动与进入/离开事件都经本类分发；键盘事件由主窗口经
 /// GuiDocumentView::processKeyEvent() 转交（doc/COMMAND_TOOL_MIGRATION_PLAN.md
 /// 第一步）。右键释放与 XButton1 仍由 UIView 直接处理（主计划 5.7 节）。
@@ -59,7 +59,7 @@ public:
     /// 若已在栈中，不重复添加
     void activate(IViewTool* tool);
     /// @brief 在业务栈底部常驻一个工具：优先级低于栈里已有的全部业务工具
-    /// @details 用于编辑模式（块编辑）：模式里启动的命令与旧版 Action 叠在它上面。
+    /// @details 用于编辑模式（块编辑）：模式里启动的命令叠在它上面。
     ///          若已在栈中，不重复添加。
     void activateAtBottom(IViewTool* tool);
     /// @brief 停用一个业务工具：从栈中移除（无论位置）
@@ -98,8 +98,8 @@ private:
     /// @brief 按与 dispatch 相同的栈序拉取首个有偏好的光标并应用
     /// 全体无偏好时不触碰当前光标——见 IViewTool::getCursor 的说明，
     /// 这是与 DS 参考实现（无偏好即恢复默认箭头）刻意不同之处：
-    /// 旧版 Action 体系仍在通过 ActionInterface::updateMouseCursor 直接
-    /// 调用 IDocumentView::setMouseCursor，本类不应在它们之上重置默认光标。
+    /// 块编辑模式、多行文字编辑等仍直接调用 IDocumentView::setMouseCursor/
+    /// setCursor，本类不应在它们之上重置默认光标。
     void refreshCursor();
 
     IDocumentView* m_docView = nullptr;

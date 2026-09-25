@@ -84,9 +84,9 @@ public:
     void enterEvent() override;
     /// @brief 离开画布：挂起捕捉，清除预览（原 suspend()）
     void leaveEvent() override;
-    /// @brief 被激活（命令开始或旧 Action 结束后恢复）：同 enterEvent()
+    /// @brief 被激活（命令开始或平移模式结束后恢复）：同 enterEvent()
     void onActivate() override;
-    /// @brief 被停用（命令结束或旧 Action 叠上来）：同 leaveEvent()
+    /// @brief 被停用（命令结束或平移模式叠上来）：同 leaveEvent()
     void onDeactivate() override;
 
     /// @brief 默认十字光标

@@ -144,10 +144,6 @@ public:
     {
     }
 
-    void requestOptions(ActionInterface*, bool, bool) override
-    {
-    }
-
     /// @brief 请求捕捉距离选项（空操作）
     void requestSnapDistOptions(double&, bool) override
     {

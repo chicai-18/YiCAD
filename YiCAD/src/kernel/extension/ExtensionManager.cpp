@@ -60,12 +60,6 @@ public:
         return m_host.registerSettingsPage(id, title, iconPath, std::move(open));
     }
 
-    bool registerCommand(const QString& id, CommandFactory factory, CommandInfo info) override
-    {
-        return registerChecked(id, [&]()
-                               { return CommandRegistry::instance().registerCommand(id, std::move(factory), std::move(info)); });
-    }
-
     bool registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info) override
     {
         return registerChecked(id, [&]()

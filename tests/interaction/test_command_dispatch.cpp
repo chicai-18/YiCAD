@@ -2,98 +2,73 @@
 /// @brief UIActionHandler 按命令 ID / 别名 / legacy 枚举启动命令的单测
 ///
 /// 覆盖阶段4 字符串命令 ID 的入口（doc/ARCHITECTURE_EVOLUTION_PLAN.md
-/// 7.10 节）：activateCommand 按 ID 构造并触发 Action、触发源透传为
+/// 7.10 节）：activateCommand 按 ID 启动命令、触发源透传为
 /// CommandContext::sender；keycode() 在 keyconfig.xml 查不到时按注册表别名
 /// 启动；setCurrentAction(DM::ActionType) 经 legacy 桥接走同一条路径。
 ///
-/// 没有打开文档（UIActionHandler 没有视图）时，activateCommand 构造出的
-/// Action 会被立即 trigger() 再删除——测试据此观察命令是否真的被启动。
+/// 没有打开文档（UIActionHandler 没有视图）时即时命令照常执行——测试用即时
+/// 命令观察命令是否真的被启动。
 
 #include <gtest/gtest.h>
 
 #include <QObject>
 
-#include "ActionInterface.h"
 #include <memory>
 
 #include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "UIActionHandler.h"
 
-namespace
+TEST(CommandDispatchTest, activateCommand按ID执行并透传触发源)
 {
-/// @brief 被触发时记录自己的命令 ID 的测试替身。
-class RecordingAction : public ActionInterface
-{
-public:
-    RecordingAction(QString* triggeredCommandId)
-        : ActionInterface("RecordingAction", nullptr, nullptr), m_triggeredCommandId(triggeredCommandId)
-    {
-    }
-
-    void trigger() override { *m_triggeredCommandId = getCommandId(); }
-
-private:
-    QString* m_triggeredCommandId;
-};
-}  // namespace
-
-TEST(CommandDispatchTest, activateCommand按ID构造触发并透传触发源)
-{
-    static QString triggered;
+    static int runs = 0;
     static QObject* receivedSender = nullptr;
-    triggered.clear();
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
+    runs = 0;
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
         "test.dispatch.activate",
-        [](const CommandContext& ctx) -> ActionInterface*
+        [](const CommandContext& ctx)
         {
+            ++runs;
             receivedSender = ctx.sender;
-            return new RecordingAction(&triggered);
         }));
 
     UIActionHandler handler(nullptr);
     QObject source;
-    // 没有视图：构造后立即 trigger() 并删除，返回 nullptr。
-    EXPECT_EQ(handler.activateCommand("test.dispatch.activate", &source), nullptr);
-    EXPECT_EQ(triggered, QStringLiteral("test.dispatch.activate"));
+    handler.activateCommand("test.dispatch.activate", &source);
+    EXPECT_EQ(runs, 1);
     EXPECT_EQ(receivedSender, &source);
 
     // 未注册的命令什么也不做。
-    triggered.clear();
-    EXPECT_EQ(handler.activateCommand("test.dispatch.missing"), nullptr);
-    EXPECT_TRUE(triggered.isEmpty());
+    handler.activateCommand("test.dispatch.missing");
+    EXPECT_EQ(runs, 1);
 }
 
 TEST(CommandDispatchTest, keycode在keyconfig之外按注册表别名启动)
 {
-    static QString triggered;
-    triggered.clear();
-    ASSERT_TRUE(CommandRegistry::instance().registerCommand(
-        "test.dispatch.alias",
-        [](const CommandContext&) -> ActionInterface* { return new RecordingAction(&triggered); },
-        {.aliases = {"tdalias"}}));
+    static int runs = 0;
+    runs = 0;
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.dispatch.alias", [](const CommandContext&) { ++runs; }, {.aliases = {"tdalias"}}));
 
     UIActionHandler handler(nullptr);
     EXPECT_TRUE(handler.keycode("TDALIAS"));
-    EXPECT_EQ(triggered, QStringLiteral("test.dispatch.alias"));
+    EXPECT_EQ(runs, 1);
 
-    triggered.clear();
     EXPECT_FALSE(handler.keycode("tdunknown"));
-    EXPECT_TRUE(triggered.isEmpty());
+    EXPECT_EQ(runs, 1);
 }
 
 TEST(CommandDispatchTest, setCurrentAction经legacy桥接走同一条路径)
 {
-    static QString triggered;
-    triggered.clear();
+    static int runs = 0;
+    runs = 0;
     // ActionViewLayerTable 从未被任何内置命令注册（原 switch 里没有它的 case）。
-    ASSERT_TRUE(CommandRegistry::instance().registerLegacyCommand(
-        DM::ActionViewLayerTable, "test.dispatch.legacy",
-        [](const CommandContext&) -> ActionInterface* { return new RecordingAction(&triggered); }));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        DM::ActionViewLayerTable, "test.dispatch.legacy", [](const CommandContext&) { ++runs; }));
 
     UIActionHandler handler(nullptr);
-    EXPECT_EQ(handler.setCurrentAction(DM::ActionViewLayerTable), nullptr);
-    EXPECT_EQ(triggered, QStringLiteral("test.dispatch.legacy"));
+    handler.setCurrentAction(DM::ActionViewLayerTable);
+    EXPECT_EQ(runs, 1);
 }
 
 TEST(CommandDispatchTest, 没有视图时即时命令照常执行交互命令不启动)
@@ -121,11 +96,11 @@ TEST(CommandDispatchTest, 没有视图时即时命令照常执行交互命令不
 
     UIActionHandler handler(nullptr);
     QObject source;
-    EXPECT_EQ(handler.activateCommand("test.dispatch.instant", &source), nullptr);
+    handler.activateCommand("test.dispatch.instant", &source);
     EXPECT_EQ(instantRuns, 1);
     EXPECT_EQ(receivedSender, &source);
 
     // 交互命令由视图的命令总线运行：没有视图时连命令对象都不构造
-    EXPECT_EQ(handler.activateCommand("test.dispatch.exclusive"), nullptr);
+    handler.activateCommand("test.dispatch.exclusive");
     EXPECT_EQ(factoryCalls, 0);
 }

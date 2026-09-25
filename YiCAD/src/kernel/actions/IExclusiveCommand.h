@@ -28,7 +28,7 @@
 ///     文档、视图、工具控制器与选择层；
 ///   - 总线持有命令（CommandRegistry 每次启动都新建实例）；
 ///   - 增加 onEndRequested()：命令被外部结束前的回调（5.1 节）；
-///   - 增加 suspend()/resume()：过渡期旧 Action 叠在命令之上时挂起命令。
+///   - 增加 suspend()/resume()：临时视图工具（平移模式）叠在命令之上时挂起命令。
 
 #ifndef IEXCLUSIVECOMMAND_H
 #define IEXCLUSIVECOMMAND_H
@@ -81,10 +81,9 @@ public:
         return true;
     }
 
-    /// @brief 过渡期旧 Action 叠在命令之上时挂起：停用自己的工具，清除预览
-    /// @note 第四步随旧 Action 体系删除
+    /// @brief 临时视图工具（平移模式）叠在命令之上时挂起：停用自己的工具，清除预览
     virtual void suspend() {}
-    /// @brief 叠在上面的旧 Action 全部结束后恢复
+    /// @brief 叠在上面的临时视图工具结束后恢复
     virtual void resume() {}
 
     /// @brief 命令当前使用的捕捉器，画布的捕捉标记与捕捉提示读它
