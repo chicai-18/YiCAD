@@ -25,7 +25,7 @@
 #include <QHBoxLayout>
 #include <QMessageBox>
 
-#include "IBlockEditSession.h"
+#include "BlockEditTool.h"
 
 UIBlockEditOptions::UIBlockEditOptions(QWidget* parent, Qt::WindowFlags fl)
     : QWidget(parent, fl)
@@ -51,7 +51,7 @@ UIBlockEditOptions::UIBlockEditOptions(QWidget* parent, Qt::WindowFlags fl)
 
 UIBlockEditOptions::~UIBlockEditOptions() = default;
 
-void UIBlockEditOptions::setSession(IBlockEditSession* session)
+void UIBlockEditOptions::setSession(BlockEditTool* session)
 {
     m_session = session;
     if (m_session)

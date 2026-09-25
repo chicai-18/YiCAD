@@ -37,10 +37,6 @@
 #include "Fileio.h"
 
 
-#include "UIBlockDialog.h"
-#include "UIBlockEditOptions.h"
-#include "UINestedBlockSelectDialog.h"
-#include "UIDlgEditAttributes.h"
 #include "UICommandWidget.h"
 #include "UIDlgArc.h"
 #include "UIDlgCircle.h"
@@ -116,16 +112,6 @@ DialogAnswer UIDialogFactory::requestYesNoCancelDialog(const QString& title, con
 	}
 }
 
-QString UIDialogFactory::requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames)
-{
-	UINestedBlockSelectDialog dlg(document, blockNames, nullptr);
-	if (dlg.exec() != QDialog::Accepted)
-	{
-		return {};
-	}
-	return dlg.selectedBlockName();
-}
-
 DmDocument* UIDialogFactory::requestActiveDocument()
 {
 	return ApplicationWindow::getAppWindow()->getDocument();
@@ -147,37 +133,6 @@ bool UIDialogFactory::requestFileImport(DmDocument& document, const QString& fil
 	return FileIO::instance()->fileImport(document, file);
 }
 
-/// @brief Shows a dialog for adding a block. Doesn't add the block. This is up to the caller.
-/// @return a pointer to the newly created block that should be added.
-DmBlockData UIDialogFactory::requestNewBlockDialog(DmBlockTable* blockTable)
-{
-	DmBlockData ret;
-	ret = DmBlockData("", DmVector(false), false);
-
-	if (!blockTable)
-	{
-		return ret;
-	}
-
-	UIBlockDialog dlg(parent);
-	dlg.setBlockList(blockTable);
-	if (dlg.exec())
-	{
-		ret = dlg.getBlockData();
-	}
-
-	return ret;
-}
-
-bool UIDialogFactory::requestBlockEditAttributeDialog(const QString& blkName, const std::list<DmAttributeDefinition*>& attrDefs, std::list< DmAttribute*>& attrs)
-{
-	UIDlgEditAttributes dlg(parent);
-	dlg.setData(blkName,attrDefs);
-	bool ret = dlg.exec();
-	attrs = dlg.getAttributes();
-	return ret;
-}
-
 bool UIDialogFactory::requestDefineAttributesDialog(DmAttributeDefinition* attrDef)
 {
 	if (!attrDef)
@@ -196,29 +151,6 @@ bool UIDialogFactory::requestDefineAttributesDialog(DmAttributeDefinition* attrD
 	return false;
 }
 
-// Shows a widget for block edit options.
-void UIDialogFactory::requestBlockEditOptions(IBlockEditSession* session, bool on)
-{
-	if (optionWidget)
-	{
-		static UIBlockEditOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIBlockEditOptions(optionWidget);
-			toolWidget->setSession(session);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
 void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (!command)
@@ -230,29 +162,35 @@ void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on,
 	const CommandRegistry& registry = CommandRegistry::instance();
 	if (ExclusiveCommandOptionsFactory factory = registry.commandOptionsFactory(command->commandId()))
 	{
-		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, command, update); }, on,
-		                         registry.commandOptionsHeight(command->commandId()));
+		showOptions(m_pRegisteredOptions, [&](QWidget* parent) { return factory(parent, command, update); }, on,
+		            registry.commandOptionsHeight(command->commandId()));
 	}
 }
 
-void UIDialogFactory::requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on, int height)
+void UIDialogFactory::requestEditModeOptions(const std::function<QWidget*(QWidget*)>& build, bool on)
+{
+	showOptions(m_pEditModeOptions, build, on);
+}
+
+void UIDialogFactory::showOptions(QPointer<QWidget>& slot, const std::function<QWidget*(QWidget*)>& build, bool on,
+                                  int height)
 {
 	if (!optionWidget)
 	{
 		return;
 	}
-	if (m_pRegisteredOptions)
+	if (slot)
 	{
-		delete m_pRegisteredOptions;
+		delete slot;
 		optionWidget->hide();
 	}
-	if (on)
+	if (on && build)
 	{
-		m_pRegisteredOptions = build(optionWidget);
-		if (m_pRegisteredOptions)
+		slot = build(optionWidget);
+		if (slot)
 		{
-			m_pRegisteredOptions->show();
-			optionWidget->resize(m_pRegisteredOptions->width(), height);
+			slot->show();
+			optionWidget->resize(slot->width(), height);
 			optionWidget->show();
 		}
 	}

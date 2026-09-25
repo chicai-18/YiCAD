@@ -42,7 +42,7 @@
 <context>
     <name>QMessageBox</name>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="97"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="93"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
@@ -713,127 +713,127 @@
         <translation>无法备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="402"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="340"/>
         <source>Modify dimension text</source>
         <translation>修改标注文本</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="402"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="340"/>
         <source>New dimension text:</source>
         <translation>新标注文本：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="547"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="485"/>
         <source>Windows Bitmap</source>
         <translation>BMP</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="563"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="501"/>
         <source>Portable Bit Map</source>
         <translation>PBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="567"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="505"/>
         <source>Portable Grey Map</source>
         <translation>PGM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="575"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="513"/>
         <source>Portable Pixel Map</source>
         <translation>PPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="579"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="517"/>
         <source>X Bitmap Format</source>
         <translation>XBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="583"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="521"/>
         <source>X Pixel Map</source>
         <translation>XPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="405"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="343"/>
         <source>Modify dimension</source>
         <translation>修改标注</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="551"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="489"/>
         <source>Joint Photo document Experts Group</source>
         <translation>JPEG 图像格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="555"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="493"/>
         <source>Documents Interchange Format</source>
         <translation>文档交换格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="559"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="497"/>
         <source>Multiple-image Network Documents</source>
         <translation>多图像网络文档</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="571"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="509"/>
         <source>Portable Network Document</source>
         <translation>便携式网络图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="587"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="525"/>
         <source>Scalable Vector Documents</source>
         <translation>可缩放矢量图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="591"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="529"/>
         <source>SGI Black &amp; White</source>
         <translation>BW</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="595"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="533"/>
         <source>Encapsulated PostScript</source>
         <translation>EPS</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="599"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="537"/>
         <source>Encapsulated PostScript Format</source>
         <translation>EPSF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="603"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="541"/>
         <source>Encapsulated PostScript Interchange</source>
         <translation>EPSI</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="607"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="545"/>
         <source>Windows Icon</source>
         <translation>ICO</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="611"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="549"/>
         <source>JPEG 2000</source>
         <translation>JPEG 2000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="615"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="553"/>
         <source>ZSoft Paintbrush</source>
         <translation>PCX</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="619"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="557"/>
         <source>PC Paint</source>
         <translation>PIC</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="623"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="561"/>
         <source>SGI-Bilddatei</source>
         <translation>SGI-Bilddatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="627"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="565"/>
         <source>Targa Image File</source>
         <translation>TGA</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="631"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="569"/>
         <source>Tagged Image File Format</source>
         <translation>TIF/TIFF</translation>
     </message>
@@ -1143,169 +1143,6 @@
         <location filename="../src/ui/UIArrowBox.cpp" line="62"/>
         <source>Integral</source>
         <translation>积分</translation>
-    </message>
-</context>
-<context>
-    <name>UIBlockDelete</name>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.ui" line="20"/>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="176"/>
-        <source>Delete Block</source>
-        <translation>删除块</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.ui" line="33"/>
-        <source>Block List:</source>
-        <translation>块列表：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.ui" line="57"/>
-        <source>Preview:</source>
-        <translation>预览：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.ui" line="86"/>
-        <source>Delete</source>
-        <translation>删除</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.ui" line="93"/>
-        <source>Close</source>
-        <translation>关闭</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="148"/>
-        <source>Tips</source>
-        <translation>提示</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="148"/>
-        <source>Please select a block to delete.</source>
-        <translation>请选择要删除的块。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="162"/>
-        <source>Warning</source>
-        <translation>警告</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="163"/>
-        <source>Block &quot;%1&quot; has references in the drawing and cannot be deleted.</source>
-        <translation>块&quot;%1&quot;在图形中有参照，无法删除。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="168"/>
-        <source>Confirm Delete</source>
-        <translation>确认删除</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDelete.cpp" line="169"/>
-        <source>Are you sure you want to delete block &quot;%1&quot;?</source>
-        <translation>确定要删除块&quot;%1&quot;吗？</translation>
-    </message>
-</context>
-<context>
-    <name>UIBlockDialog</name>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDialog.cpp" line="76"/>
-        <source>Renaming Block</source>
-        <translation>重命名块</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDialog.cpp" line="76"/>
-        <source>Could not name block. A block named &quot;%1&quot; already exists.</source>
-        <translation>无法命名块。 名为“%1”的块已存在。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDialog.ui" line="20"/>
-        <source>Block Settings</source>
-        <translation>图块设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDialog.ui" line="52"/>
-        <source>Block Name:</source>
-        <translation>块名：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDialog.cpp" line="37"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockDialog.cpp" line="36"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>UIBlockEditOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="39"/>
-        <source>Editing Block:</source>
-        <translation>正在编辑块：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="41"/>
-        <source>Complete</source>
-        <translation>完成</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="42"/>
-        <source>Complete block editing</source>
-        <translation>完成块编辑</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="59"/>
-        <source>Editing Block: &quot;%1&quot;</source>
-        <translation>正在编辑块：&quot;%1&quot;</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="72"/>
-        <source>Block Edit</source>
-        <translation>块编辑</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockEditOptions.cpp" line="73"/>
-        <source>Save changes to block?</source>
-        <translation>是否保存对块的修改？</translation>
-    </message>
-</context>
-<context>
-    <name>UIBlockSaveAs</name>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.cpp" line="60"/>
-        <source>Save As</source>
-        <translation>另存为</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.cpp" line="59"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.ui" line="122"/>
-        <source>Preview:</source>
-        <translation>预览:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.ui" line="68"/>
-        <source>Current Block:</source>
-        <translation>块名:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.ui" line="91"/>
-        <source>Origin Point:</source>
-        <translation>基点:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.ui" line="98"/>
-        <source>0.0,0.0</source>
-        <translation>0.0,0.0</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIBlockSaveAs.ui" line="26"/>
-        <source>Block Save</source>
-        <translation>块保存</translation>
     </message>
 </context>
 <context>
@@ -1689,39 +1526,6 @@
         <location filename="../src/ui/forms/UIDlgDefineAttribute.cpp" line="192"/>
         <source>Tag can not be empty!</source>
         <translation>标记不能为空！</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgEditAttributes</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEditAttributes.ui" line="14"/>
-        <source>Edit attributes</source>
-        <translation>编辑属性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEditAttributes.ui" line="22"/>
-        <source>Block name:</source>
-        <translation>块名：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEditAttributes.ui" line="29"/>
-        <source>TextLabel</source>
-        <translation>TextLabel</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEditAttributes.ui" line="38"/>
-        <source>GroupBox</source>
-        <translation>属性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEditAttributes.cpp" line="45"/>
-        <source>Attributes</source>
-        <translation>属性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEditAttributes.cpp" line="45"/>
-        <source>Values</source>
-        <translation>值</translation>
     </message>
 </context>
 <context>
@@ -2468,24 +2272,6 @@
         <location filename="../src/ui/UILineTypeBox.cpp" line="84"/>
         <source>Custom</source>
         <translation>自定义</translation>
-    </message>
-</context>
-<context>
-    <name>UINestedBlockSelectDialog</name>
-    <message>
-        <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="61"/>
-        <source>Select Block to Edit</source>
-        <translation>选择要编辑的块</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="70"/>
-        <source>Block Levels:</source>
-        <translation>块层级：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UINestedBlockSelectDialog.cpp" line="83"/>
-        <source>Preview:</source>
-        <translation>预览:</translation>
     </message>
 </context>
 <context>

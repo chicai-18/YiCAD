@@ -45,6 +45,15 @@ public:
     /// @return 属性列表
     std::list<DmAttribute*> getAttributes() const;
 
+    /// @brief 插入或创建"属性块"时弹出本对话框填写属性值（经 UIDialogRunner 运行）
+    /// @param [in] parent 父窗口
+    /// @param [in] blockName 块名称
+    /// @param [in] attrDefs 块的属性定义
+    /// @param [out] attrs 用户填写的属性；取消时为空
+    /// @return 用户确认返回 true
+    static bool editAttributes(QWidget* parent, const QString& blockName,
+                               const std::list<DmAttributeDefinition*>& attrDefs, std::list<DmAttribute*>& attrs);
+
 private slots:
     void slotOk();
     void slotCancel();

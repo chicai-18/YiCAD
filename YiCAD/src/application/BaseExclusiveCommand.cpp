@@ -20,8 +20,11 @@
 
 #include "BaseExclusiveCommand.h"
 
+#include <QWidget>
+
 #include "CommandRegistry.h"
 #include "ExclusiveCommandBus.h"
+#include "IDocumentView.h"
 #include "SelectTool.h"
 
 bool BaseExclusiveCommand::activate(ExclusiveCommandBus& bus)
@@ -87,6 +90,12 @@ IDocumentView* BaseExclusiveCommand::view() const
 ViewToolControl* BaseExclusiveCommand::viewToolControl() const
 {
     return m_bus ? m_bus->viewToolControl() : nullptr;
+}
+
+QWidget* BaseExclusiveCommand::dialogParentOf(IDocumentView* view)
+{
+    QWidget* canvas = view ? qobject_cast<QWidget*>(view->asQObject()) : nullptr;
+    return canvas ? canvas->window() : nullptr;
 }
 
 void BaseExclusiveCommand::enterSelectionPhase(const EntityTypeList& entityTypes)

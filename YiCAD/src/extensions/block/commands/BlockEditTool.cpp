@@ -38,6 +38,9 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "Transaction.h"
+#include "UIBlockEditOptions.h"
+#include "UIDialogRunner.h"
+#include "UINestedBlockSelectDialog.h"
 
 BlockEditTool::BlockEditTool(ExclusiveCommandBus& bus)
     : m_bus(bus)
@@ -72,8 +75,13 @@ bool BlockEditTool::prepare(DmBlockReference* blockRef)
 
     if (nestedNames.size() > 1)
     {
-        // 弹出嵌套块选择对话框
-        const QString selectedName = GUIDIALOGFACTORY->requestNestedBlockSelectDialog(m_document, nestedNames);
+        // 弹出嵌套块选择对话框（无父窗口，与原先一致）
+        UINestedBlockSelectDialog dlg(m_document, nestedNames, nullptr);
+        if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
+        {
+            return false;
+        }
+        const QString selectedName = dlg.selectedBlockName();
         if (selectedName.isEmpty())
         {
             return false;
@@ -168,7 +176,7 @@ void BlockEditTool::onExit()
         t.commit();
     }
 
-    GUIDIALOGFACTORY->requestBlockEditOptions(this, false);
+    showOptions(false);
     if (m_exitDecision != ExitDecision::LeaveAsIs)
     {
         m_view->setMouseCursor(DM::CadCursor);
@@ -179,14 +187,26 @@ void BlockEditTool::onExit()
 void BlockEditTool::suspendMode()
 {
     m_suspended = true;
-    GUIDIALOGFACTORY->requestBlockEditOptions(this, false);
+    showOptions(false);
 }
 
 void BlockEditTool::resumeMode()
 {
     m_suspended = false;
     updateHints();
-    GUIDIALOGFACTORY->requestBlockEditOptions(this, true);
+    showOptions(true);
+}
+
+void BlockEditTool::showOptions(bool on)
+{
+    GUIDIALOGFACTORY->requestEditModeOptions(
+        [this](QWidget* parent) -> QWidget*
+        {
+            auto* options = new UIBlockEditOptions(parent);
+            options->setSession(this);
+            return options;
+        },
+        on);
 }
 
 ViewToolResult BlockEditTool::mousePressEvent(QMouseEvent*)

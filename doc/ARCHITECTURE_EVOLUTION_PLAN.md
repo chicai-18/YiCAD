@@ -1750,6 +1750,34 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
 安装后程序能启动。搬走的对话框没有在界面上逐个点开核对：向主窗口投递的鼠标消息 Qt 不响应，
 改用真实光标或全局按键会落到别的窗口，没有做。
 
+**提交③：块**
+
+1. **表单搬进 `extensions/block/ui/`**：`UIBlockDialog`（新建块）、`UINestedBlockSelectDialog`
+   （嵌套块选择）、`UIDlgEditAttributes`（插入属性块时填属性值）、`UIBlockEditOptions`（块编辑
+   选项条），以及原本就由块扩展直接构造的 `UIBlockDelete`、`UIBlockListWidget`、`UIBlockSaveAs`。
+   块参照与属性定义的属性对话框（`UIDlgInsert`、`UIDlgDefineAttribute`）同时是属性对话框，随④。
+2. **命令直接构造**：创建块的 `UIBlockDialog`、嵌套块选择在 `BlockEditTool::prepare()` 里构造；
+   填属性值是创建块与插入块共用的，放在 `UIDlgEditAttributes::editAttributes()`（与
+   `UIDlgDimensionStyle::editStyle()` 同样的静态辅助）。父窗口与工厂相同：命令用新增的
+   `BaseExclusiveCommand::dialogParent()`（视图所在的顶层窗口，即主窗口；测试的假视图没有窗口
+   时为空），嵌套块选择仍不设父窗口。
+3. **块编辑选项条**：块编辑是编辑模式，不是命令，选项条不能随命令注册。接口里的
+   `requestBlockEditOptions(IBlockEditSession*, bool)` 换成通用的
+   `requestEditModeOptions(build, on)`：控件由调用方构造，宿主只负责摆放，与命令的选项条各占
+   一个位置（原先块编辑选项条也是单独的一个静态指针），互不删除。选项条搬进扩展后直接认识
+   `BlockEditTool`，只为让选项条与工厂接口不认识交互层类型而设的 `IBlockEditSession`
+   （`kernel/builder_model/`）删除。
+4. **删除的工厂方法**：`requestNewBlockDialog`、`requestNestedBlockSelectDialog`、
+   `requestBlockEditAttributeDialog`、`requestBlockEditOptions`；`UIDialogFactory` 显示选项条的
+   `requestRegisteredOptions()` 改为按位置摆放的 `showOptions(slot, …)`，命令与编辑模式各一个位置。
+5. **译文**：39 条从 `YiCAD_zh_cn.ts` 迁到 `block_zh_cn.ts`，上下文都没有变。
+
+新增用例：创建块指定基点后弹出 `UIBlockDialog`，取消时块表不变、命令结束。块编辑选项条的
+打开、收起改为记录 `requestEditModeOptions`。
+
+提交③验证：Release 构建通过；`ctest` 4 个测试程序通过（`test_interaction` 270 例，1 例跳过）；
+`check_layering.py` 通过；各 `.ts` 没有未完成与失效条目；安装后程序能启动。
+
 ---
 
 ## 10. 回退策略

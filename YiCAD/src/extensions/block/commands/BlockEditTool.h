@@ -39,7 +39,6 @@
 #include <QCoreApplication>
 #include <QString>
 
-#include "IBlockEditSession.h"
 #include "IEditMode.h"
 
 class DmBlock;
@@ -49,7 +48,7 @@ class ExclusiveCommandBus;
 class IDocumentView;
 
 /// @brief 块编辑模式
-class BlockEditTool : public IEditMode, public IBlockEditSession
+class BlockEditTool : public IEditMode
 {
     Q_DECLARE_TR_FUNCTIONS(BlockEditTool)
 
@@ -69,12 +68,14 @@ public:
     /// @brief 撤销/重做后重新进入：文档已处于块编辑，只恢复界面
     void reenter(DmBlock* block);
 
-    // ---- IBlockEditSession（块编辑选项条）----
+    // ---- 块编辑选项条（UIBlockEditOptions）----
 
-    QString blockName() const override { return m_blockName; }
-    bool hasModifications() const override;
+    /// @brief 正在编辑的块名
+    QString blockName() const { return m_blockName; }
+    /// @brief 自进入编辑以来是否有修改
+    bool hasModifications() const;
     /// @brief 记下保存或放弃，请求退出模式（在事件处理或选项条的按钮里调用都安全）
-    void completeEditing(bool save) override;
+    void completeEditing(bool save);
 
     // ---- IEditMode ----
 
@@ -115,6 +116,8 @@ private:
     /// @return 用户取消时返回 false
     bool askSaveAndExit();
     void updateHints() const;
+    /// @brief 在宿主的选项条区域显示或收起块编辑选项条（UIBlockEditOptions）
+    void showOptions(bool on);
 
     ExclusiveCommandBus& m_bus;
     DmDocument* m_document = nullptr;

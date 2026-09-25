@@ -50,6 +50,7 @@
 #include "Preview.h"
 #include "Transaction.h"
 #include "UIBlockListWidget.h"
+#include "UIDlgEditAttributes.h"
 
 namespace
 {
@@ -574,7 +575,7 @@ void BlockInsertCommand::commitInsert(const DmVector& pos)
     if (m_block->hasAttributeDefinitions())
     {
         std::list<DmAttributeDefinition*> attrDefs = m_block->getAttributeDefinitions();
-        GUIDIALOGFACTORY->requestBlockEditAttributeDialog(m_block->getName(), attrDefs, attrs);
+        UIDlgEditAttributes::editAttributes(dialogParent(), m_block->getName(), attrDefs, attrs);
     }
     for (DmAttribute* attr : attrs)
     {

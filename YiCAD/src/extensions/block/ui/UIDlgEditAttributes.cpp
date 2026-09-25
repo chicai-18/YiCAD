@@ -21,6 +21,7 @@
 #include "UIDlgEditAttributes.h"
 #include "DmAttributeDefinition.h"
 #include "DmAttribute.h"
+#include "UIDialogRunner.h"
 
 UIDlgEditAttributes::UIDlgEditAttributes(QWidget* parent, Qt::WindowFlags fl)
     : QDialog(parent, fl)
@@ -103,4 +104,15 @@ void UIDlgEditAttributes::slotOk()
         m_attrs.emplace_back(attr);
     }
     QDialog::accept();
+}
+
+bool UIDlgEditAttributes::editAttributes(QWidget* parent, const QString& blockName,
+                                         const std::list<DmAttributeDefinition*>& attrDefs,
+                                         std::list<DmAttribute*>& attrs)
+{
+    UIDlgEditAttributes dlg(parent);
+    dlg.setData(blockName, attrDefs);
+    const bool accepted = UIDialogRunner::exec(dlg) == QDialog::Accepted;
+    attrs = dlg.getAttributes();
+    return accepted;
 }

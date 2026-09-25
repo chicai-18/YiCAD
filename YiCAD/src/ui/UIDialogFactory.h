@@ -56,25 +56,21 @@ public:
 	bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override;
 	bool requestFileImport(DmDocument& document, const QString& file) override;
 
-	DmBlockData requestNewBlockDialog(DmBlockTable* blockTable) override;
-
-	/// @brief 对于“属性块”，创建块时提示设置属性定义
-	bool requestBlockEditAttributeDialog(const QString& blkName, const std::list<DmAttributeDefinition*>& attrDefs, std::list< DmAttribute*>& attrs) override;
 	bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) override;
 
 	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
-	QString requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames) override;
-	void requestBlockEditOptions(IBlockEditSession* session, bool on) override;
 	void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) override;
+	void requestEditModeOptions(const std::function<QWidget*(QWidget*)>& build, bool on) override;
 
 protected:
 	// Links factory to a widget that can host tool options.
 	void setOptionWidget(QWidget* ow);
 
-	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（CommandInfo::commandOptionsFactory）。
+	/// @brief 在选项条容器里显示/隐藏一个选项条（命令的或编辑模式的）
+	/// @param slot 这类选项条当前显示的控件；先删除它，打开时换成新构造的
 	/// @param build 在给定的选项条容器里构造控件
 	/// @param height 选项条容器的高度（CommandInfo::commandOptionsHeight）
-	void requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on, int height = 23);
+	void showOptions(QPointer<QWidget>& slot, const std::function<QWidget*(QWidget*)>& build, bool on, int height = 23);
 
 public:
 	void requestSnapMiddleOptions(int& middlePoints, bool on) override;
@@ -104,7 +100,8 @@ protected:
 private:
 	// pointers to snap option widgets
 	UISnapMiddleOptions*			m_pSnapMiddleOptions = nullptr;
-	QPointer<QWidget>				m_pRegisteredOptions;					///< requestRegisteredOptions 当前显示的选项条
+	QPointer<QWidget>				m_pRegisteredOptions;					///< 当前显示的命令选项条
+	QPointer<QWidget>				m_pEditModeOptions;						///< 当前显示的编辑模式选项条
 };
 
 #endif

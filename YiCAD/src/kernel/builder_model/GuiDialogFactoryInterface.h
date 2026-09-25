@@ -21,13 +21,15 @@
 #ifndef GUIDIALOGFACTORYINTERFACE_H
 #define GUIDIALOGFACTORYINTERFACE_H
 
+#include <functional>
+
 #include <QString>
 #include <QStringList>
 
 #include "Datamodel.h"
 
-class IBlockEditSession;
 class IExclusiveCommand;
+class QWidget;
 class AttributesData;
 class BevelData;
 class DmBlock;
@@ -98,17 +100,6 @@ public:
     /// @return 用户的回答；关闭对话框视为取消
     virtual DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) = 0;
 
-    /// @brief 块里嵌套了别的块时，让用户选择要编辑的块
-    /// @param document 文档
-    /// @param blockNames 候选块名（第一个是被选中的块参照对应的块）
-    /// @return 选中的块名；取消时返回空串
-    virtual QString requestNestedBlockSelectDialog(DmDocument* document, const QStringList& blockNames) = 0;
-
-    /// @brief 显示或关闭块编辑选项条（块名与"完成"按钮）
-    /// @param session 块编辑会话
-    /// @param on true 打开，false 关闭
-    virtual void requestBlockEditOptions(IBlockEditSession* session, bool on) = 0;
-
     /// @brief 获取当前活动文档
     /// @details Model 层部分实体（如标注）在缺少自身文档上下文时，需要落回
     /// 应用当前活动文档；该概念由 App/UI 层维护，此处仅做接口注入。
@@ -134,19 +125,6 @@ public:
     /// @return 导入是否成功
     virtual bool requestFileImport(DmDocument& document, const QString& file) = 0;
 
-    /// @brief 请求新建块对话框
-    /// @details 该方法应创建新块但不将其添加到块列表中，由调用者负责添加
-    /// @param blockTable 块表
-    /// @return 新创建的块数据，用户取消则返回空数据
-    virtual DmBlockData requestNewBlockDialog(DmBlockTable* blockTable) = 0;
-
-    /// @brief 对于"属性块"，创建块时提示设置属性定义
-    /// @param blkName 块名称
-    /// @param attrDefs 属性定义列表
-    /// @param[out] attrs 属性列表
-    /// @return true 表示用户确认，false 表示取消
-    virtual bool requestBlockEditAttributeDialog(const QString& blkName, const std::list<DmAttributeDefinition*>& attrDefs, std::list< DmAttribute*>& attrs) = 0;
-
     /// @brief 属性定义对话框
     /// @param attrDef 属性定义
     /// @return true 表示用户确认，false 表示取消
@@ -157,6 +135,13 @@ public:
     /// @param on true 打开控件，false 关闭控件
     /// @param update true 从命令获取数据，false 从配置文件获取数据
     virtual void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) = 0;
+
+    /// @brief 在选项条区域显示或收起编辑模式的选项条（如块编辑模式的块名与"完成"按钮）
+    /// @details 编辑模式不是命令，选项条不随命令注册；控件由调用方构造，宿主只负责摆放。
+    ///          与命令的选项条各占一个位置，互不删除
+    /// @param build 在给定的选项条容器里构造控件；on 为 false 时不调用
+    /// @param on true 打开，false 收起
+    virtual void requestEditModeOptions(const std::function<QWidget*(QWidget*)>& build, bool on) = 0;
 
     /// @brief 显示捕捉中点选项控件
     /// @param[out] middlePoints 中点数量

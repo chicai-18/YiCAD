@@ -17,7 +17,8 @@
 
 /// @file UIBlockEditOptions.h
 /// @brief 块在位编辑选项栏
-/// 显示正在编辑的块名称和"完成"按钮
+/// 显示正在编辑的块名称和"完成"按钮；块编辑模式（BlockEditTool）经
+/// GuiDialogFactoryInterface::requestEditModeOptions 把它放进宿主的选项条区域
 
 #ifndef UIBLOCKEDITOPTIONS_H
 #define UIBLOCKEDITOPTIONS_H
@@ -26,7 +27,7 @@
 
 class QLabel;
 class QPushButton;
-class IBlockEditSession;
+class BlockEditTool;
 
 /// @class UIBlockEditOptions
 /// @brief 块在位编辑选项栏
@@ -45,16 +46,16 @@ public:
     ~UIBlockEditOptions() override;
 
 public slots:
-    /// @brief 设置块编辑会话（块编辑模式）
-    /// @param [in] session 块编辑会话，可为空
-    void setSession(IBlockEditSession* session);
+    /// @brief 设置块编辑模式
+    /// @param [in] session 块编辑模式，可为空
+    void setSession(BlockEditTool* session);
 
 private slots:
     /// @brief 完成按钮点击槽
     void onCompleteClicked();
 
 private:
-    IBlockEditSession* m_session;        ///< 块编辑会话
+    BlockEditTool* m_session;            ///< 块编辑模式
     QLabel* m_label;                     ///< 当前编辑块名称标签
     QPushButton* m_completeButton;       ///< 完成按钮
 };

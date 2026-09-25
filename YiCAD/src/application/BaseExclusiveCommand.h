@@ -32,6 +32,7 @@
 class DmDocument;
 class DmEntity;
 class IDocumentView;
+class QWidget;
 class ViewToolControl;
 
 /// @brief 命令的通用基类
@@ -67,6 +68,10 @@ public:
     ///        多行文字属性面板双击转到文字编辑（见 CommandContext）
     void replaceWith(const QString& commandId, DmEntity* entity, const DmVector& point = DmVector(false));
 
+    /// @brief 弹出对话框时的父窗口：视图所在的顶层窗口（主窗口）
+    /// @return 视图不是控件（测试用的假视图）时为空
+    static QWidget* dialogParentOf(IDocumentView* view);
+
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等
     /// @return false 表示启动失败；此时 onDeactivate() 不会被调用，需自行清理
@@ -82,6 +87,8 @@ protected:
     IDocumentView* view() const;
     /// @brief 视图的工具控制器
     ViewToolControl* viewToolControl() const;
+    /// @brief 弹出对话框时的父窗口，见 dialogParentOf()
+    QWidget* dialogParent() const { return dialogParentOf(view()); }
 
     /// @brief 进入选择阶段：选择层按先选后建的约束完成点选与框选
     /// @param entityTypes 可选的实体类型；为空表示不限

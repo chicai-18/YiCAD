@@ -3,8 +3,9 @@
 ///
 /// 覆盖：注册的命令类型与打断方式、原内置 ID 不再存在、按钮挂进宿主占位的
 /// "绘图/块"面板；插入块的两个阶段（选块、放置）、选项条只在放置阶段出现、命令行改选项、
-/// 右键回到选块、选块阶段单击画布结束；定义属性取消对话框时启动失败。创建块、编辑块与
-/// 块编辑模式见 test_select_first_commands。不执行提交（见 CommandTestFixture.h）。
+/// 右键回到选块、选块阶段单击画布结束；定义属性取消对话框时启动失败；创建块指定基点后
+/// 弹出块对话框、取消时不建块。创建块的选择阶段、编辑块与块编辑模式见
+/// test_select_first_commands。不执行提交（见 CommandTestFixture.h）。
 
 #include <gtest/gtest.h>
 
@@ -14,6 +15,8 @@
 #include "BlockInsertCommand.h"
 #include "DmBlock.h"
 #include "DmBlockTable.h"
+#include "DmLine.h"
+#include "EntityTable.h"
 #include "ExtensionManager.h"
 #include "Math2d.h"
 #include "UIRibbonRegistry.h"
@@ -156,6 +159,23 @@ TEST_F(BlockFixture, 定义属性取消对话框时启动失败)
 {
     // 对话框工厂的默认实现返回"取消"
     EXPECT_FALSE(start("ext.block.define_attributes"));
+    EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(BlockFixture, 创建块指定基点后弹出块对话框取消时不建块)
+{
+    auto* line = new DmLine(DmVector(0, 0), DmVector(10, 0));
+    line->calculateBorders();
+    ASSERT_TRUE(doc.getEntityTable()->add_direct(line));
+    line->setSelected(true);
+    const unsigned blocks = doc.getBlockTable()->count();
+
+    ASSERT_TRUE(start("ext.block.create"));
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify reference point"));
+    typeCoordinate(5, 5);
+
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIBlockDialog")});
+    EXPECT_EQ(doc.getBlockTable()->count(), blocks);
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 

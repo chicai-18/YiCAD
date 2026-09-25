@@ -50,18 +50,6 @@ public:
         return DialogAnswer::Cancel;
     }
 
-    /// @brief 嵌套块选择对话框
-    /// @return 始终返回空串（视为取消）
-    QString requestNestedBlockSelectDialog(DmDocument*, const QStringList&) override
-    {
-        return {};
-    }
-
-    /// @brief 块编辑选项条（空操作）
-    void requestBlockEditOptions(IBlockEditSession*, bool) override
-    {
-    }
-
     /// @brief 获取当前活动文档
     /// @return 始终返回 nullptr
     DmDocument* requestActiveDocument() override
@@ -90,20 +78,6 @@ public:
         return false;
     }
 
-    /// @brief 请求新建块对话框
-    /// @return 始终返回空数据
-    DmBlockData requestNewBlockDialog(DmBlockTable*) override
-    {
-        return {};
-    }
-
-    /// @brief 请求编辑块属性对话框
-    /// @return 始终返回 false
-    bool requestBlockEditAttributeDialog(const QString& blkName, const std::list<DmAttributeDefinition*>& attrDefs, std::list< DmAttribute*>& attrs) override
-    {
-        return false;
-    }
-
     /// @brief 请求定义属性对话框
     /// @return 始终返回 false
     bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) override
@@ -113,6 +87,11 @@ public:
 
     /// @brief 请求操作选项（空操作）
     void requestCommandOptions(IExclusiveCommand*, bool, bool) override
+    {
+    }
+
+    /// @brief 编辑模式的选项条（空操作）
+    void requestEditModeOptions(const std::function<QWidget*(QWidget*)>&, bool) override
     {
     }
 

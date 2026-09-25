@@ -69,7 +69,10 @@ public:
         ++questions;
         return answer;
     }
-    void requestBlockEditOptions(IBlockEditSession*, bool on) override { blockEditOptions.push_back(on); }
+    void requestEditModeOptions(const std::function<QWidget*(QWidget*)>&, bool on) override
+    {
+        blockEditOptions.push_back(on);
+    }
 };
 
 /// @brief 先选后建的 14 个命令

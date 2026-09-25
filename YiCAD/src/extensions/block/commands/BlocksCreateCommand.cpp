@@ -34,6 +34,9 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Transaction.h"
+#include "UIBlockDialog.h"
+#include "UIDialogRunner.h"
+#include "UIDlgEditAttributes.h"
 
 namespace
 {
@@ -114,7 +117,16 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
         return false;
     }
 
-    DmBlockData blockData = GUIDIALOGFACTORY->requestNewBlockDialog(blockTable);
+    // 对话框只给出块数据，块由这里创建并加进块表
+    DmBlockData blockData("", DmVector(false), false);
+    {
+        UIBlockDialog dlg(dialogParent());
+        dlg.setBlockList(blockTable);
+        if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
+        {
+            blockData = dlg.getBlockData();
+        }
+    }
     if (blockData.name.isEmpty())
     {
         view()->redraw();
@@ -150,8 +162,7 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
     {
         std::list<DmAttributeDefinition*> attrDefs =
             block->getAttributeDefinitions();
-        GUIDIALOGFACTORY->requestBlockEditAttributeDialog(
-            block->getName(), attrDefs, attrs);
+        UIDlgEditAttributes::editAttributes(dialogParent(), block->getName(), attrDefs, attrs);
     }
     for (auto attr : attrs)
     {
