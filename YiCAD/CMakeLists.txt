@@ -203,7 +203,7 @@ yicad_collect_sources(APP
 #   <扩展>/**/*.qrc        Qt 资源
 #   <扩展>/**/*.ui         Qt Designer 表单，uic 生成的 ui_*.h 放在该扩展自己的目录里
 #   <扩展>/ts/<扩展>_<语言>.ts
-#                          扩展自己的翻译，lupdate 只扫本扩展源码，编译成
+#                          扩展自己的翻译，lupdate 只扫本扩展的源码与表单，编译成
 #                          qm 与主程序翻译包装在一起，运行期由扩展调用
 #                          DmSystem::loadExtensionTranslation("<扩展>") 加载
 #   <扩展>/support/        运行期文件，安装到 bin/<扩展>/
@@ -272,7 +272,12 @@ install(FILES ${PLUGIN_SDK_HEADERS}
         COMPONENT PluginSDK)
 
 # #####################################################
-file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/*.ts")
+# 翻译文件
+#   ts/YiCAD_<语言>.ts   主程序的翻译，lupdate 按下方 YICAD_LUPDATE_SOURCES 更新
+#   ts/qtbase_<语言>.ts  Qt 自带对话框的翻译，项目自己维护（Qt 只随附繁体的 qtbase_zh_TW），
+#                        只编译不扫描：它的词条来自 Qt 源码，拿本项目源码跑 lupdate 会全部作废
+file(GLOB YICAD_TS_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ts/YiCAD_*.ts")
+file(GLOB YICAD_QT_TS_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ts/qtbase_*.ts")
 
 # 将.ui转成.h（src/ui 的表单；扩展的表单由各扩展库用 yicad_wrap_ui 生成）
 # Qt 6 的 uic 默认按函数指针生成表单里的信号槽连接，槽要在表单根控件的类
@@ -307,40 +312,67 @@ function(yicad_wrap_ui out_var out_dir)
     set(${out_var} ${_headers} PARENT_SCOPE)
 endfunction()
 
-# lupdate 扫描范围：与拆分前保持一致（各分区的全部源文件，加上 Main.cpp 与 .rc）。
-# src/extensions/ 下的源码不在此列，由各扩展自己的 ts 覆盖（见下方）。
-set (ALL_RSC_FILES ${YICAD_MATH_HEADERS}        ${YICAD_MATH_SOURCES}
-                   ${YICAD_MODEL_HEADERS}       ${YICAD_MODEL_SOURCES}
-                   ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES}
-                   ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
-                   ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
-                   ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
-                   ${YICAD_UI_SOURCES}
-                   ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
-                   ${YICAD_MAIN_ENTRY}
-                   ${MAIN_RES}
-                     )
+# 翻译的构建与更新
+#
+# 构建只把 .ts 编译成 .qm（安装时拷到 bin/resources/qm/），从不改写源码树里的 .ts。
+# 源码里的字符串有增删时，手动构建 update_translations 目标更新全部 .ts，再用 Qt Linguist
+# 填写译文：
+#   cmake --build --preset Release --target update_translations
+# 源码里已不存在的字符串，lupdate 标为 vanished 并保留译文：字符串挪进别的 .ts（例如从主程序
+# 挪进扩展）时，可以从这里找回译文；确认无用后在 Linguist 里删除。
+#
+# update_translations 是一个目标，里面对主程序与每个扩展各跑一次 lupdate（每份 .ts 只扫
+# 自己的源码）。不用 Qt 的 qt_add_lupdate：它每调用一次建一个目标，每个扩展都会多出一个
+# 项目。
 
-if(UPDATE_TRANSLATIONS)
-    yicad_create_translation(QM_FILES ${ALL_RSC_FILES} ${TS_FILES})
-else()
-    qt6_add_translation(QM_FILES ${TS_FILES})
-endif(UPDATE_TRANSLATIONS )
+# yicad_add_lupdate_job(<名字> TS_FILES <ts>... SOURCES <源文件>...)
+#
+# 把一次 lupdate 调用追加到 YICAD_LUPDATE_COMMANDS。源文件清单写进构建目录里的列表文件，
+# 免得命令行过长。
+function(yicad_add_lupdate_job name)
+    cmake_parse_arguments(PARSE_ARGV 1 arg "" "" "TS_FILES;SOURCES")
+    set(_lst "${CMAKE_CURRENT_BINARY_DIR}/lupdate/${name}.lst")
+    list(JOIN arg_SOURCES "\n" _content)
+    file(WRITE "${_lst}" "${_content}\n")
+    set(YICAD_LUPDATE_COMMANDS ${YICAD_LUPDATE_COMMANDS}
+        COMMAND "$<TARGET_FILE:Qt6::lupdate>" "@${_lst}" -ts ${arg_TS_FILES}
+        PARENT_SCOPE)
+endfunction()
 
-# 扩展各自的翻译包，与主程序翻译包走同一套构建/安装路径。
+set(YICAD_LUPDATE_COMMANDS "")
+
+# 主程序的扫描范围：各分区的全部源文件、src/ui 的表单，加上 Main.cpp。src/extensions/ 下
+# 的源码不在此列，由各扩展自己的 ts 覆盖（见下方）。
+set(YICAD_LUPDATE_SOURCES
+    ${YICAD_MATH_HEADERS}        ${YICAD_MATH_SOURCES}
+    ${YICAD_MODEL_HEADERS}       ${YICAD_MODEL_SOURCES}
+    ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES}
+    ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
+    ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
+    ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
+    ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}          ${YICAD_UI_FORMS}
+    ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
+    ${YICAD_MAIN_ENTRY})
+
+yicad_add_lupdate_job(YiCAD TS_FILES ${YICAD_TS_FILES} SOURCES ${YICAD_LUPDATE_SOURCES})
+qt6_add_translation(QM_FILES ${YICAD_TS_FILES} ${YICAD_QT_TS_FILES})
+
+# 扩展各自的翻译包：lupdate 只扫本扩展的源码与表单，编译与安装和主程序的翻译包相同。
 foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
     file(GLOB _ext_ts CONFIGURE_DEPENDS "${_ext_dir}/ts/*.ts")
     if(NOT _ext_ts)
         continue()
     endif()
-    if(UPDATE_TRANSLATIONS)
-        file(GLOB_RECURSE _ext_src "${_ext_dir}/*.h" "${_ext_dir}/*.cpp")
-        yicad_create_translation(_ext_qm ${_ext_src} ${_ext_ts})
-    else()
-        qt6_add_translation(_ext_qm ${_ext_ts})
-    endif()
+    get_filename_component(_ext_name "${_ext_dir}" NAME)
+    file(GLOB_RECURSE _ext_lupdate_src CONFIGURE_DEPENDS
+        "${_ext_dir}/*.h" "${_ext_dir}/*.cpp" "${_ext_dir}/*.ui")
+    yicad_add_lupdate_job(${_ext_name} TS_FILES ${_ext_ts} SOURCES ${_ext_lupdate_src})
+    qt6_add_translation(_ext_qm ${_ext_ts})
     list(APPEND QM_FILES ${_ext_qm})
 endforeach()
+
+# 不属于默认构建，只在显式构建时运行
+add_custom_target(update_translations ${YICAD_LUPDATE_COMMANDS} VERBATIM)
 
 SET(QM_FILES ${QM_FILES} PARENT_SCOPE)
 ADD_CUSTOM_TARGET (TS_YiCAD ALL DEPENDS ${QM_FILES})

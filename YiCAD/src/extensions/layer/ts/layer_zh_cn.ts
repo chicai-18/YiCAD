@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
@@ -36,6 +36,7 @@
     </message>
     <message>
         <location filename="../LayerExtension.cpp" line="172"/>
+        <location filename="../LayerExtension.cpp" line="224"/>
         <source>Freeze Layer</source>
         <translation>隐藏图层</translation>
     </message>
@@ -58,6 +59,14 @@
         <location filename="../LayerExtension.cpp" line="109"/>
         <source>Rename Layer</source>
         <translation>重命名图层</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="../LayerExtension.cpp" line="155"/>
+        <source>Tips</source>
+        <translation>提示</translation>
     </message>
 </context>
 </TS>

@@ -1,15 +1,17 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
     <name>DrawMTextCommand</name>
     <message>
         <location filename="../commands/DrawMTextCommand.cpp" line="282"/>
+        <location filename="../commands/DrawMTextCommand.cpp" line="362"/>
         <source>Create MText</source>
         <translation>多行文字</translation>
     </message>
     <message>
         <location filename="../commands/DrawMTextCommand.cpp" line="272"/>
+        <location filename="../commands/DrawMTextCommand.cpp" line="373"/>
         <source>Modify MText</source>
         <translation>修改多行文字</translation>
     </message>
@@ -30,6 +32,7 @@
     </message>
     <message>
         <location filename="../commands/DrawMTextCommand.cpp" line="102"/>
+        <location filename="../commands/DrawMTextCommand.cpp" line="107"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -63,6 +66,7 @@
     </message>
     <message>
         <location filename="../commands/DrawTextCommand.cpp" line="74"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="78"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -85,12 +89,12 @@
 <context>
     <name>MTextEditWidget</name>
     <message>
-        <location filename="../editor/MTextEditWidget.cpp" line="1468"/>
+        <location filename="../editor/MTextEditWidget.cpp" line="1467"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
     <message>
-        <location filename="../editor/MTextEditWidget.cpp" line="1468"/>
+        <location filename="../editor/MTextEditWidget.cpp" line="1467"/>
         <source>Save the changes?</source>
         <translation>是否保存改变？</translation>
     </message>
@@ -99,6 +103,10 @@
     <name>ModifyMTextCommand</name>
     <message>
         <location filename="../commands/ModifyMTextCommand.cpp" line="149"/>
+        <location filename="../commands/ModifyMTextCommand.cpp" line="168"/>
+        <location filename="../commands/ModifyMTextCommand.cpp" line="187"/>
+        <location filename="../commands/ModifyMTextCommand.cpp" line="206"/>
+        <location filename="../commands/ModifyMTextCommand.cpp" line="225"/>
         <source>Modify MText</source>
         <translation>修改多行文字</translation>
     </message>
@@ -125,76 +133,108 @@
     <name>UIMTextOptions</name>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="115"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="504"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="507"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="566"/>
         <source>TopLeft</source>
         <translation>左上</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="115"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="511"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="570"/>
         <source>TopCenter</source>
         <translation>中上</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="115"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="515"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="574"/>
         <source>TopRight</source>
         <translation>右上</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="116"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="519"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="578"/>
         <source>MiddleLeft</source>
         <translation>左中</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="116"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="523"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="582"/>
         <source>MiddleCenter</source>
         <translation>正中</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="116"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="527"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="586"/>
         <source>MiddleRight</source>
         <translation>右中</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="117"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="531"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="590"/>
         <source>BottomLeft</source>
         <translation>左下</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="117"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="535"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="594"/>
         <source>BottomCenter</source>
         <translation>中下</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="117"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="539"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="598"/>
         <source>BottomRight</source>
         <translation>右下</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="123"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="611"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="614"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="646"/>
         <source>Default</source>
         <translation>默认</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="123"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="618"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="650"/>
         <source>Left</source>
         <translation>左对齐</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="123"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="622"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="654"/>
         <source>Mid</source>
         <translation>居中</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="123"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="626"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="658"/>
         <source>Right</source>
         <translation>右对齐</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="123"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="630"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="662"/>
         <source>Justify</source>
         <translation>对正</translation>
     </message>
     <message>
         <location filename="../ui/UIMTextOptions.cpp" line="123"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="634"/>
+        <location filename="../ui/UIMTextOptions.cpp" line="666"/>
         <source>Distribute</source>
         <translation>分散对齐</translation>
     </message>

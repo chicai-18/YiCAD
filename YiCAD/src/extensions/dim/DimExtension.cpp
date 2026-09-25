@@ -91,7 +91,7 @@ void DimExtension::OnRegister(IExtensionContext& ctx)
     }
 
     // 标注样式管理（原 ActionDimStyle）：即时命令，对话框挂在主窗口上
-    const QString styleText = QCoreApplication::translate("DimExtension", QT_TRANSLATE_NOOP("DimExtension", "Dimension style"));
+    const QString styleText = QCoreApplication::translate("DimExtension", "Dimension style");
     IExtensionContext* context = &ctx;
     ctx.registerInstantCommand(
         QStringLiteral("ext.dim.style"),

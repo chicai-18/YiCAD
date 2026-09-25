@@ -71,8 +71,6 @@ if(MSVC)
      add_compile_options(/MP /W3 /wd4819 /Zc:inline)
 endif()
 
-OPTION(UPDATE_TRANSLATIONS "Update translations on compile" OFF)
-MESSAGE(STATUS "UPDATE TRANSLATIONS: ${UPDATE_TRANSLATIONS}")
 option(USE_VISUAL_LEAK_DETECTOR "Use visual leak detector to detect memory leakage" OFF)
 
 # 自动化测试（方案阶段 0）。默认开启；CI 之外若不想构建测试可用

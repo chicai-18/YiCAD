@@ -30,6 +30,7 @@
 #include <cmath>
 #include <vector>
 
+#include <QCoreApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
 
@@ -107,7 +108,8 @@ protected:
         {
             return;
         }
-        m_command.commitCloudLine(polyline, Command::tr("Add cloud line"));
+        // 上下文写明：lupdate 解析不了模板参数 Command::tr，会把它记在不存在的 "Command" 下
+        m_command.commitCloudLine(polyline, QCoreApplication::translate("CloudLineCommand", "Add cloud line"));
         snapper()->deleteSnapper();
         view()->moveRelativeZero(polyline->getEndpoint());
         snapper()->drawSnapper();

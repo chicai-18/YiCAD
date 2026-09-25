@@ -1,29 +1,6 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
-<context>
-    <name>MeasureExtension</name>
-    <message>
-        <location filename="../MeasureExtension.cpp" line="48"/>
-        <source>Distance Point to Point</source>
-        <translation>点到点距离</translation>
-    </message>
-    <message>
-        <location filename="../MeasureExtension.cpp" line="50"/>
-        <source>Angle between two lines</source>
-        <translation>两直线夹角</translation>
-    </message>
-    <message>
-        <location filename="../MeasureExtension.cpp" line="52"/>
-        <source>Total length of selected entities</source>
-        <translation>选中实体总长</translation>
-    </message>
-    <message>
-        <location filename="../MeasureExtension.cpp" line="54"/>
-        <source>Polygonal Area</source>
-        <translation>多边形面积</translation>
-    </message>
-</context>
 <context>
     <name>InfoAngleCommand</name>
     <message>
@@ -85,7 +62,8 @@
         <translation>指定多边形上的第一个点</translation>
     </message>
     <message>
-        <location filename="../commands/InfoAngleAreaCommands.cpp" line="330"/>
+        <location filename="../commands/InfoAngleAreaCommands.cpp" line="429"/>
+        <location filename="../commands/InfoAngleAreaCommands.cpp" line="432"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -182,6 +160,29 @@
         <location filename="../commands/InfoTotalLengthCommand.cpp" line="49"/>
         <source>At least one of the selected entities cannot be measured.</source>
         <translation>至少有一个选定的实体无法测量。</translation>
+    </message>
+</context>
+<context>
+    <name>MeasureExtension</name>
+    <message>
+        <location filename="../MeasureExtension.cpp" line="48"/>
+        <source>Distance Point to Point</source>
+        <translation>点到点距离</translation>
+    </message>
+    <message>
+        <location filename="../MeasureExtension.cpp" line="50"/>
+        <source>Angle between two lines</source>
+        <translation>两直线夹角</translation>
+    </message>
+    <message>
+        <location filename="../MeasureExtension.cpp" line="52"/>
+        <source>Total length of selected entities</source>
+        <translation>选中实体总长</translation>
+    </message>
+    <message>
+        <location filename="../MeasureExtension.cpp" line="54"/>
+        <source>Polygonal Area</source>
+        <translation>多边形面积</translation>
     </message>
 </context>
 </TS>

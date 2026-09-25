@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
@@ -25,6 +25,7 @@
     </message>
     <message>
         <location filename="../commands/DimAlignedTool.cpp" line="298"/>
+        <location filename="../commands/DimAlignedTool.cpp" line="303"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -53,6 +54,8 @@
     </message>
     <message>
         <location filename="../commands/DimAngularTool.cpp" line="280"/>
+        <location filename="../commands/DimAngularTool.cpp" line="285"/>
+        <location filename="../commands/DimAngularTool.cpp" line="290"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -85,17 +88,18 @@
         <translation>未发现实体。</translation>
     </message>
     <message>
-        <location filename="../commands/DimBaselineTool.cpp" line="243"/>
+        <location filename="../commands/DimBaselineTool.cpp" line="242"/>
         <source>Specify origin dimension</source>
         <translation>指定原始标注</translation>
     </message>
     <message>
-        <location filename="../commands/DimBaselineTool.cpp" line="243"/>
+        <location filename="../commands/DimBaselineTool.cpp" line="242"/>
+        <location filename="../commands/DimBaselineTool.cpp" line="247"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DimBaselineTool.cpp" line="248"/>
+        <location filename="../commands/DimBaselineTool.cpp" line="247"/>
         <source>Specify the point to define dimension</source>
         <translation>指定一个点来定义标注</translation>
     </message>
@@ -129,6 +133,7 @@
     </message>
     <message>
         <location filename="../commands/DimDiametricTool.cpp" line="345"/>
+        <location filename="../commands/DimDiametricTool.cpp" line="350"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -253,6 +258,7 @@
     </message>
     <message>
         <location filename="../commands/DimLinearTool.cpp" line="350"/>
+        <location filename="../commands/DimLinearTool.cpp" line="353"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -296,6 +302,7 @@
     </message>
     <message>
         <location filename="../commands/DimRadialTool.cpp" line="310"/>
+        <location filename="../commands/DimRadialTool.cpp" line="313"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -313,59 +320,59 @@
 <context>
     <name>UIDimStyleListBox</name>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="155"/>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="158"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="156"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="159"/>
         <source>Remove dimension style</source>
         <translation>删除标注样式</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="155"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="156"/>
         <source>Can not remove dimension style:%1, because it&apos;s in using.</source>
         <translation>无法删除标注样式：%1，因为正在被使用。</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="158"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="159"/>
         <source>Do you really want to delete dimension style:%1?</source>
         <translation>确定删除标注样式：%1？</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="161"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="162"/>
         <source>Delete dimension style</source>
         <translation>删除标注样式</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="175"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="176"/>
         <source>Activate dimension style</source>
         <translation>激活标注样式</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="185"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="186"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="186"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="187"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="187"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="188"/>
         <source>Rename dimension style:</source>
         <translation>重命名标注样式：</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="199"/>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="203"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="200"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="204"/>
         <source>Rename dimension style</source>
         <translation>重命名标注样式</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="188"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="189"/>
         <source>New name of dimension style:</source>
         <translation>新标注样式名：</translation>
     </message>
     <message>
-        <location filename="../ui/UIDimStyleListBox.cpp" line="199"/>
+        <location filename="../ui/UIDimStyleListBox.cpp" line="200"/>
         <source>%0 is already exist !</source>
         <translation>%0已存在！</translation>
     </message>
@@ -618,163 +625,163 @@
         <translation>角度标注</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="40"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="41"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="41"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="42"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="50"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="51"/>
         <source>Dimension style: %1</source>
         <translation>标注样式：%1</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="72"/>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="78"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="73"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="79"/>
         <source>Mid</source>
         <translation>居中</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="73"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="74"/>
         <source>Up</source>
         <translation>上</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="74"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="75"/>
         <source>Extern</source>
         <translation>外部</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="75"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="76"/>
         <source>JIS</source>
         <translation>JIS</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="76"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="77"/>
         <source>Down</source>
         <translation>下</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="79"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="80"/>
         <source>First boundary line</source>
         <translation>第一条尺寸界线</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="80"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="81"/>
         <source>Second boundary line</source>
         <translation>第二条尺寸界线</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="81"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="82"/>
         <source>Above first boundary line</source>
         <translation>第一条尺寸界线上方</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="82"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="83"/>
         <source>Above second boundary line</source>
         <translation>第二条尺寸界线上方</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="84"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="85"/>
         <source>Left to right</source>
         <translation>从左到右</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="85"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="86"/>
         <source>Right to left</source>
         <translation>从右到左</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="87"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="88"/>
         <source>Science</source>
         <translation>科学</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="88"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="89"/>
         <source>Decimal</source>
         <translation>小数</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="89"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="90"/>
         <source>Engineer</source>
         <translation>工程</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="90"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="91"/>
         <source>Architectural</source>
         <translation>建筑</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="91"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="92"/>
         <source>Fraction</source>
         <translation>分数</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="92"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="93"/>
         <source>Windows</source>
         <translation>Windows桌面</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="96"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="97"/>
         <source>Horizontal</source>
         <translation>水平</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="96"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="97"/>
         <source>Diagonal</source>
         <translation>对角</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="96"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="97"/>
         <source>NoStack</source>
         <translation>非堆叠</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="97"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
         <source>Dot</source>
         <translation>“.”（句点）</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="97"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
         <source>Comma</source>
         <translation>“,”（逗点）</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="97"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
         <source>Space</source>
         <translation>“ ”（空格）</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="99"/>
         <source>Decimal degree</source>
         <translation>十进制度数</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="99"/>
         <source>DMS</source>
         <translation>度/分/秒</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="99"/>
         <source>Gradians</source>
         <translation>百分度</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="98"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="99"/>
         <source>Radians</source>
         <translation>弧度</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="297"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="307"/>
         <source>Modify dimension style</source>
         <translation>修改标注样式</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyle.cpp" line="307"/>
+        <location filename="../ui/UIDlgDimensionStyle.cpp" line="317"/>
         <source>Add dimension style</source>
         <translation>添加标注样式</translation>
     </message>
@@ -833,7 +840,7 @@
         <translation>预览：</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyleMgr.cpp" line="31"/>
+        <location filename="../ui/UIDlgDimensionStyleMgr.cpp" line="32"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
@@ -842,8 +849,8 @@
     <name>UIDlgDimensionStyleNew</name>
     <message>
         <location filename="../ui/UIDlgDimensionStyleNew.ui" line="14"/>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="61"/>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="66"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="62"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="67"/>
         <source>New dimension style</source>
         <translation>创建标注样式</translation>
     </message>
@@ -858,27 +865,27 @@
         <translation>基础样式：</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="38"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="39"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="39"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="40"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="50"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="51"/>
         <source>copy</source>
         <translation>副本</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="61"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="62"/>
         <source>Please input valid dimension style name!</source>
         <translation>请输入有效的标注样式名！</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="66"/>
+        <location filename="../ui/UIDlgDimensionStyleNew.cpp" line="67"/>
         <source>%0 is already exist !</source>
         <translation>%0已存在！</translation>
     </message>

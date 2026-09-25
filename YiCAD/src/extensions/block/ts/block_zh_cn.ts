@@ -1,15 +1,17 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
     <name>BlockEditTool</name>
     <message>
         <location filename="../commands/BlockEditTool.cpp" line="64"/>
+        <location filename="../commands/BlockEditTool.cpp" line="86"/>
         <source>Block definition not found: %1</source>
         <translation>未找到块定义：%1</translation>
     </message>
     <message>
         <location filename="../commands/BlockEditTool.cpp" line="110"/>
+        <location filename="../commands/BlockEditTool.cpp" line="117"/>
         <source>Editing block: %1</source>
         <translation>正在编辑块：%1</translation>
     </message>
@@ -38,36 +40,43 @@
     <name>BlockExtension</name>
     <message>
         <location filename="../BlockExtension.cpp" line="85"/>
+        <location filename="../BlockExtension.cpp" line="161"/>
         <source>Create Block</source>
         <translation>创建图块</translation>
     </message>
     <message>
         <location filename="../BlockExtension.cpp" line="99"/>
+        <location filename="../BlockExtension.cpp" line="162"/>
         <source>Insert the active block</source>
         <translation>插入图块</translation>
     </message>
     <message>
         <location filename="../BlockExtension.cpp" line="133"/>
+        <location filename="../BlockExtension.cpp" line="164"/>
         <source>save the block to a file</source>
         <translation>图块保存</translation>
     </message>
     <message>
         <location filename="../BlockExtension.cpp" line="110"/>
+        <location filename="../BlockExtension.cpp" line="166"/>
         <source>Define attributes</source>
         <translation>定义属性</translation>
     </message>
     <message>
         <location filename="../BlockExtension.cpp" line="107"/>
+        <location filename="../BlockExtension.cpp" line="169"/>
         <source>Edit Block</source>
-        <translation type="unfinished"></translation>
+        <translation>编辑块</translation>
     </message>
     <message>
         <location filename="../BlockExtension.cpp" line="154"/>
+        <location filename="../BlockExtension.cpp" line="170"/>
         <source>Import Block</source>
         <translation>导入块</translation>
     </message>
     <message>
         <location filename="../BlockExtension.cpp" line="122"/>
+        <location filename="../BlockExtension.cpp" line="168"/>
         <source>Delete Block</source>
         <translation>删除块</translation>
     </message>
@@ -76,6 +85,7 @@
     <name>BlockFileCommands</name>
     <message>
         <location filename="../commands/BlockFileCommands.cpp" line="210"/>
+        <location filename="../commands/BlockFileCommands.cpp" line="221"/>
         <source>Import Block</source>
         <translation>导入块</translation>
     </message>
@@ -111,6 +121,11 @@ This block cannot be inserted.</source>
     </message>
     <message>
         <location filename="../commands/BlockInsertCommand.cpp" line="270"/>
+        <location filename="../commands/BlockInsertCommand.cpp" line="285"/>
+        <location filename="../commands/BlockInsertCommand.cpp" line="300"/>
+        <location filename="../commands/BlockInsertCommand.cpp" line="315"/>
+        <location filename="../commands/BlockInsertCommand.cpp" line="330"/>
+        <location filename="../commands/BlockInsertCommand.cpp" line="345"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
     </message>
@@ -200,6 +215,7 @@ This block cannot be inserted.</source>
     </message>
     <message>
         <location filename="../commands/DefineAttributesCommand.cpp" line="73"/>
+        <location filename="../commands/DefineAttributesCommand.cpp" line="77"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -207,6 +223,14 @@ This block cannot be inserted.</source>
         <location filename="../commands/DefineAttributesCommand.cpp" line="76"/>
         <source>Specify second point</source>
         <translation>指定第二个点</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="../commands/BlockInsertCommand.cpp" line="457"/>
+        <source>Block List</source>
+        <translation>插入块</translation>
     </message>
 </context>
 <context>

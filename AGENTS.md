@@ -17,6 +17,8 @@ cmake --install build/Release --config Release
 
 Use the matching `Debug` preset and `profiles/windows-msvc-debug` for debug builds. The installed runnable binary is `build/<config>/bin/YiCAD.exe`.
 
+Translations: the build compiles `.ts` into `.qm` and `cmake --install` copies them; neither ever rewrites a `.ts`. After adding or changing user-visible strings, run `cmake --build --preset Release --target update_translations` to refresh `YiCAD/ts/YiCAD_zh_cn.ts` and every `src/extensions/<name>/ts/*.ts`, then fill in the new entries. `YiCAD/ts/qtbase_zh_CN.ts` is maintained by hand and is not scanned. lupdate must be able to see the context: a class calling `tr()` needs `Q_OBJECT` or `Q_DECLARE_TR_FUNCTIONS`, and a template must not call `tr()` through a template parameter (use `QCoreApplication::translate("Context", "text")` instead).
+
 ## Coding Style & Naming Conventions
 
 Follow the existing C++ style: 4-space indentation, braces on their own lines for namespaces/classes/functions, Qt idioms, and concise comments only where they clarify non-obvious behavior. Write new or updated comments in Chinese and use Doxygen-style documentation comments, for example `/// @brief 功能说明`; add tags such as `@param` and `@return` when they provide useful interface information. Keep source files encoded as UTF-8; the build passes `/utf-8` on MSVC.

@@ -41,57 +41,6 @@ macro(add_copy_fullfolder_command _folder)
     endforeach()
 endmacro()
 
-# 与 qt6_create_translation 相同，但把源文件逐个写进列表文件交给 lupdate，
-# 只扫描传入的文件，不递归扫描所在目录的子目录。
-function(yicad_create_translation _qm_files)
-    set(options)
-    set(oneValueArgs)
-    set(multiValueArgs OPTIONS)
-
-    cmake_parse_arguments(_LUPDATE "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-    set(_lupdate_files ${_LUPDATE_UNPARSED_ARGUMENTS})
-    set(_lupdate_options ${_LUPDATE_OPTIONS})
-
-    set(_my_sources)
-    set(_my_tsfiles)
-    foreach(_file ${_lupdate_files})
-        get_filename_component(_ext ${_file} EXT)
-        get_filename_component(_abs_FILE ${_file} ABSOLUTE)
-        if(_ext MATCHES "ts")
-            list(APPEND _my_tsfiles ${_abs_FILE})
-        else()
-            list(APPEND _my_sources ${_abs_FILE})
-        endif()
-    endforeach()
-    foreach(_ts_file ${_my_tsfiles})
-        if(_my_sources)
-          # make a list file to call lupdate on, so we don't make our commands too
-          # long for some systems
-          get_filename_component(_ts_name ${_ts_file} NAME)
-          set(_ts_lst_file "${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${_ts_name}_lst_file")
-          set(_lst_file_srcs)
-          foreach(_lst_file_src ${_my_sources})
-              set(_lst_file_srcs "${_lst_file_src}\n${_lst_file_srcs}")
-          endforeach()
-
-         # get_directory_property(_inc_DIRS INCLUDE_DIRECTORIES)
-         # foreach(_pro_include ${_inc_DIRS})
-         #     get_filename_component(_abs_include "${_pro_include}" ABSOLUTE)
-         #     set(_lst_file_srcs "-I${_pro_include}\n${_lst_file_srcs}")
-         # endforeach()
-
-          file(WRITE ${_ts_lst_file} "${_lst_file_srcs}")
-        endif()
-        add_custom_command(OUTPUT ${_ts_file}
-            COMMAND Qt6::lupdate
-            ARGS ${_lupdate_options} "@${_ts_lst_file}" -ts ${_ts_file}
-            DEPENDS ${_my_sources}
-            BYPRODUCTS ${_ts_lst_file} VERBATIM)
-    endforeach()
-    qt6_add_translation(${_qm_files} ${_my_tsfiles})
-    set(${_qm_files} ${${_qm_files}} PARENT_SCOPE)
-endfunction()
-
 # 使用 visual leak detector(VLD)来探测内存泄漏
 # 需要指定USE_VISUAL_LEAK_DETECTOR为ON， 并且环境变量PATH中存在Visual Leak Detector安装路径。VLD的使用方法为在main()所在cpp #include "vld.h"，编译运行Debug，然[...]
 # 如果需要将记录输出到文件，在VLD安装路径编辑vld.ini，编辑"ReportTo = both"，默认输出文件为memory_leak_report.txt。

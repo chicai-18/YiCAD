@@ -99,7 +99,7 @@ flowchart TB
 
 **进度**（2026-09-25）：阶段 0–5 全部完成（阶段 4 的收尾见 7.11 节：打印取消、插件入口接入注册表、
 每个扩展独立成库；阶段 5 见 8.6 节：迁到 Qt 6.8，不保留 Qt 5 构建）；业务工具化方案四步完成。
-翻译重新生成与 Debug 增量构建的 LNK1103 两个遗留问题见 8.6 节末尾。
+8.6 节末尾的两个遗留问题：翻译流程已修复并重新生成（8.7 节）；Debug 增量构建的 LNK1103 仍在。
 
 第 9 节的独立小项不依赖任何阶段，可随时穿插执行。
 
@@ -1470,7 +1470,75 @@ Ribbon 与改动前一致（截图核对）。**插件按钮的界面效果没�
    覆盖扩展的 PDB，没重编的扩展对象丢失类型信息。7.11 节提交③引入，Release 与 CI 不受影响；全量
    构建可规避。
 2. 翻译重新生成：先把 `.ui` 表单加进 lupdate 的源文件清单、把 `qtbase_zh_CN.ts` 排除在 lupdate
-   之外、把挪进扩展的字符串的译文迁到扩展的 `.ts`，再用 Qt 6 的 lupdate 生成。
+   之外、把挪进扩展的字符串的译文迁到扩展的 `.ts`，再用 Qt 6 的 lupdate 生成。（已解决，见 8.7 节。）
+
+### 8.7 执行结果（8.6 节遗留问题 2：翻译流程）
+
+2026-09-25。
+
+**原因**
+
+在临时副本上按原流程跑 lupdate，复现了 8.6 节的数字：主程序 237 条、各扩展合计 169 条已完成译文
+被标为 vanished，`qtbase_zh_CN.ts` 的 1119 条全部作废。原因有三：
+
+- 扫描清单不含 `.ui` 表单（主程序与扩展都是），也不含 `src/ui` 的头文件。补上后，vanished 降到
+  主程序 22 条、扩展 20 条，逐条核对见下文"译文"。
+- `qtbase_zh_CN.ts` 在 `ts/*.ts` 的匹配范围里，被当成主程序的 ts 拿本项目源码扫描。
+- 两处写法 lupdate 抽不到字符串：`DimExtension.cpp` 在 `QCoreApplication::translate` 里又套了一层
+  `QT_TRANSLATE_NOOP`；`DrawCloudLineCommand.cpp` 在模板里写 `Command::tr`（模板参数），lupdate 把它
+  记在不存在的上下文 `Command` 下。这两处运行期现在有译文，照原样重新生成反而会丢。
+
+另外，`UPDATE_TRANSLATIONS` 打开后 lupdate 挂在普通构建上，源码树里的 `.ts` 被声明为自定义命令的
+输出：改了源码的每次构建都会改写 `.ts`（行号变化也算），清理构建时 `.ts` 会被当作生成物删除。
+
+**做法**
+
+- 构建：去掉 `UPDATE_TRANSLATIONS` 开关与自写的 `yicad_create_translation`，改为一个不属于默认构建的
+  目标 `update_translations`，里面对主程序与每个扩展各跑一次 lupdate，每份 `.ts` 只扫自己的源码。
+  没有用 Qt 的 `qt_add_lupdate`：它每调用一次建一个目标，VS 解决方案里每个扩展会多出一个
+  `*_lupdate` 项目。扫描清单显式给出：主程序是各分区的全部 `.h`/`.cpp`、`src/ui` 的表单与
+  `Main.cpp`（原先清单里的 `.rc` 去掉，lupdate 不认）；扩展是本扩展目录下的 `.h`/`.cpp`/`.ui`。
+  `qtbase_*.ts` 只编译不扫描。`.qm` 的编译与安装不变。
+- 源码：上面两处改为 lupdate 能识别的写法；三个云线命令的事务名合并到上下文 `CloudLineCommand`。
+- 顺带修复：`UIFileDialog` 缺 `Q_OBJECT`，运行期 `tr()` 取的是基类 `QFileDialog` 的上下文，
+  "打开 %1"与"将 %1 另存为"两条译文从未生效（lupdate 对此给出警告）。加上 `Q_OBJECT`。
+
+**译文**
+
+- 迁移 4 条：`Block List` 从主程序迁到 block 扩展；云线事务名迁到 `CloudLineCommand`；
+  `ContextResolver` 的一条随源码改用 `QObject::tr` 迁到 `QObject` 上下文；`DirectEntityExecutor`
+  不支持意图的提示随源码加上 `draw_arc`。
+- 补译 56 条：AI 扩展 54 条从未进过 `.ts` 的字符串（流程提示、报错，DeepSeek 与 RAG 的错误信息），
+  block 的 `Edit Block`（编辑块），layer 的 `Tips`（提示）。用词沿用已有译文（"API 密钥""链路"
+  "绘图失败：%1"等）。
+- 删除 41 条源码里已不存在的条目，逐条 grep 确认后用 `lupdate -no-obsolete` 删除：主程序 22 条（旧的
+  `QObject` 标注词条，现由 dim 扩展的 `DimExtension` 上下文提供；约束求解器的 `Solver *` 与
+  `Geometry`；`UIActionHandler` 的两条块编辑提示，现由 block 扩展的 `BlocksEditCommand` 提供）；
+  AI 16 条（旧版对话框与意图路由的提示）；draw 3 条（云线的三个旧上下文）。
+
+| 文件 | 已完成译文 | 变化 |
+|------|-----------:|------|
+| `YiCAD_zh_cn.ts` | 696 → 674 | 删 22 |
+| `ai_zh_cn.ts` | 99 → 139 | 删 16，增 56 |
+| `block_zh_cn.ts` | 47 → 49 | 增 2 |
+| `draw_zh_cn.ts` | 266 → 264 | 删 3，增 1 |
+| `layer_zh_cn.ts` | 10 → 11 | 增 1 |
+| 其余 9 份（含 `qtbase_zh_CN.ts`） | 不变 | — |
+
+与改动前逐条比对：除上表的删除外，没有已完成译文丢失或被改动；除 `qtbase_zh_CN.ts` 原有的 329 条
+未译以外，没有 unfinished 条目，lrelease 的统计全部是"0 unfinished"。
+
+**验证**
+
+- Debug、Release 构建通过。Debug 增量构建又遇到 LNK1103（遗留问题 1），删掉扩展库与可执行目标的
+  `.obj`/`.pdb` 后通过。
+- Debug、Release 的 `ctest` 4 个测试程序全部通过；`check_layering.py` 通过。
+- 安装后程序能启动，Ribbon 页签、面板标题与状态栏为中文（截图核对）。把安装的 `.qm` 用 lconvert
+  反编译，核对了迁移、补译与修复的条目都在。补译的 AI 提示与文件对话框标题没有在界面上逐条触发核对。
+
+**用法**：源码里的字符串有增删时，运行 `cmake --build --preset Release --target update_translations`
+更新全部 `.ts`，再用 Qt Linguist 填写译文。源码里已不存在的字符串标为 vanished 保留，字符串在 `.ts`
+之间挪动时可以从中找回译文，确认无用后再删除。
 
 ---
 

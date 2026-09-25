@@ -1,10 +1,500 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
+<context>
+    <name>CloudLineCommand</name>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="112"/>
+        <source>Add cloud line</source>
+        <translation>云线</translation>
+    </message>
+</context>
+<context>
+    <name>DrawArc3PCommand</name>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="396"/>
+        <source>Create Arc</source>
+        <translation>3点圆弧</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="570"/>
+        <source>Invalid arc data.</source>
+        <translation>无效的圆弧数据。</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="435"/>
+        <source>Specify startpoint or [center]</source>
+        <translation>指定初始点或中点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="436"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="439"/>
+        <source>Specify second point</source>
+        <translation>指定第二个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="440"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="444"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="443"/>
+        <source>Specify endpoint</source>
+        <translation>指定终点</translation>
+    </message>
+</context>
+<context>
+    <name>DrawArcCommand</name>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="213"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="236"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="252"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="344"/>
+        <source>Create Arc</source>
+        <translation>圆弧</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
+        <source>Specify center</source>
+        <translation>指定中点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
+        <source>Specify radius</source>
+        <translation>指定半径</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="98"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="101"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="97"/>
+        <source>Specify start angle:</source>
+        <translation>指定初始角度：</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcCommand.cpp" line="101"/>
+        <source>Specify arc angle</source>
+        <translation>指定圆弧角度</translation>
+    </message>
+</context>
+<context>
+    <name>DrawArcTangentialCommand</name>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="262"/>
+        <source>Invalid input!</source>
+        <translation>输入无效！</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="331"/>
+        <source>Create ArcTangential</source>
+        <translation>切线圆弧</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="135"/>
+        <source>This type does not support tangent arcs!</source>
+        <translation>该类型不支持切线弧！</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="84"/>
+        <source>Specify base entity</source>
+        <translation>指定基础实体</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="85"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="89"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawArcTangentialCommand.cpp" line="88"/>
+        <source>Specify end point</source>
+        <translation>指定终点</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCircle2PCommand</name>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="443"/>
+        <source>Create Circle2p</source>
+        <translation>2点圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="449"/>
+        <source>Invalid Circle data.</source>
+        <translation>无效的圆数据。</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="308"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="309"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="312"/>
+        <source>Specify second point</source>
+        <translation>指定第二个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="313"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCircle3PCommand</name>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="597"/>
+        <source>Create Circle3p</source>
+        <translation>3点圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="604"/>
+        <source>Invalid circle data.</source>
+        <translation>无效的圆数据。</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="484"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="485"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="488"/>
+        <source>Specify second point</source>
+        <translation>指定第二个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="489"/>
+        <location filename="../commands/DrawCircleCommands.cpp" line="493"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="492"/>
+        <source>Specify third point</source>
+        <translation>指定第三个点</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCircleCommand</name>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="275"/>
+        <source>Create Circle</source>
+        <translation>圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="255"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="163"/>
+        <source>Specify center</source>
+        <translation>指定中点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="164"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="167"/>
+        <source>Specify point on circle</source>
+        <translation>指定圆上的点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleCommands.cpp" line="168"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCircleTan2Command</name>
+    <message>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="295"/>
+        <source>Create CircleTan2</source>
+        <translation>相切两圆,半径</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="83"/>
+        <source>Specify the first line/arc/circle</source>
+        <translation>指定第一条线/弧/圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="84"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="87"/>
+        <source>Specify the second line/arc/circle</source>
+        <translation>指定第二条线/弧/圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="88"/>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="92"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan2Command.cpp" line="91"/>
+        <source>Select the center of the tangent circle</source>
+        <translation>选择相切圆的圆心</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCircleTan3Command</name>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="63"/>
+        <source>Create Circletan3</source>
+        <translation>相切,三圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="502"/>
+        <source>Specify the first line/arc/circle</source>
+        <translation>指定第一条线/弧/圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="502"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="506"/>
+        <source>Specify the second line/arc/circle</source>
+        <translation>指定第二条线/弧/圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="506"/>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="509"/>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="513"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="509"/>
+        <source>Specify the third line/arc/circle</source>
+        <translation>指定第三条线/弧/圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCircleTan3Command.cpp" line="513"/>
+        <source>Select the center of the tangent circle</source>
+        <translation>选择相切圆的圆心</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCloudLineFreeCommand</name>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="938"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="938"/>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="943"/>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="947"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="943"/>
+        <source>Cloud line done!</source>
+        <translation>修订云线创建完成!</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="947"/>
+        <source>Move cursor to get cloud line path...</source>
+        <translation>移动光标以生成云线路径...</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCloudLinePolygonCommand</name>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="733"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="733"/>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="738"/>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="742"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="738"/>
+        <source>Can not create cloud line, please select again</source>
+        <translation>无法生成修订云线，请重新选择</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="742"/>
+        <source>Specify next point</source>
+        <translation>指定下一个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="760"/>
+        <source>Cannot undo: Not enough entities defined yet.</source>
+        <translation>无法撤销：无法定义实体。</translation>
+    </message>
+</context>
+<context>
+    <name>DrawCloudLineRectangleCommand</name>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="462"/>
+        <source>Specify first point</source>
+        <translation>指定第一个点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="462"/>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="467"/>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="471"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="467"/>
+        <source>Can not create cloud line, please select again</source>
+        <translation>无法创建修订云线，请重新选择</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawCloudLineCommand.cpp" line="471"/>
+        <source>Specify next point</source>
+        <translation>指定下一个点</translation>
+    </message>
+</context>
+<context>
+    <name>DrawEllipseAxisCommand</name>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="81"/>
+        <source>Add ellipse</source>
+        <translation>椭圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="421"/>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="438"/>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="455"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="470"/>
+        <source>Specify ellipse center</source>
+        <translation>指定椭圆心</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="470"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="474"/>
+        <source>Specify endpoint of major axis</source>
+        <translation>指定主轴终点</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="474"/>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="478"/>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="482"/>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="486"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="478"/>
+        <source>Specify endpoint or length of minor axis:</source>
+        <translation>指定短轴的端点或长度：</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="482"/>
+        <source>Specify start angle</source>
+        <translation>指定初始角度</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="486"/>
+        <source>Specify end angle</source>
+        <translation>指定最终角度</translation>
+    </message>
+</context>
+<context>
+    <name>DrawEllipseInscribeCommand</name>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="59"/>
+        <source>Add ellipse</source>
+        <translation>椭圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="213"/>
+        <source>Can not determine uniquely an ellipse</source>
+        <translation>不能确定唯一椭圆</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="288"/>
+        <source>Specify the first line</source>
+        <translation>指定第一条线</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="288"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="292"/>
+        <source>Specify the second line</source>
+        <translation>指定第二条线</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="292"/>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="296"/>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="300"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="296"/>
+        <source>Specify the third line</source>
+        <translation>指定第三条线</translation>
+    </message>
+    <message>
+        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="300"/>
+        <source>Specify the fourth line</source>
+        <translation>指定第四条线</translation>
+    </message>
+</context>
 <context>
     <name>DrawExtension</name>
     <message>
         <location filename="../DrawExtension.cpp" line="85"/>
+        <location filename="../DrawExtension.cpp" line="137"/>
         <source>2 Points</source>
         <translation>两点</translation>
     </message>
@@ -60,6 +550,7 @@
     </message>
     <message>
         <location filename="../DrawExtension.cpp" line="110"/>
+        <location filename="../DrawExtension.cpp" line="139"/>
         <source>3 Points</source>
         <translation>三点</translation>
     </message>
@@ -135,480 +626,6 @@
     </message>
 </context>
 <context>
-    <name>DrawArc3PCommand</name>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="344"/>
-        <source>Create Arc</source>
-        <translation>3点圆弧</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="570"/>
-        <source>Invalid arc data.</source>
-        <translation>无效的圆弧数据。</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="435"/>
-        <source>Specify startpoint or [center]</source>
-        <translation>指定初始点或中点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="439"/>
-        <source>Specify second point</source>
-        <translation>指定第二个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="443"/>
-        <source>Specify endpoint</source>
-        <translation>指定终点</translation>
-    </message>
-</context>
-<context>
-    <name>DrawArcCommand</name>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="213"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="344"/>
-        <source>Create Arc</source>
-        <translation>圆弧</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
-        <source>Specify center</source>
-        <translation>指定中点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
-        <source>Specify radius</source>
-        <translation>指定半径</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="97"/>
-        <source>Specify start angle:</source>
-        <translation>指定初始角度：</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="101"/>
-        <source>Specify arc angle</source>
-        <translation>指定圆弧角度</translation>
-    </message>
-</context>
-<context>
-    <name>DrawArcTangentialCommand</name>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="263"/>
-        <source>Invalid input!</source>
-        <translation>输入无效！</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="324"/>
-        <source>Create ArcTangential</source>
-        <translation>切线圆弧</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="135"/>
-        <source>This type does not support tangent arcs!</source>
-        <translation>该类型不支持切线弧！</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="84"/>
-        <source>Specify base entity</source>
-        <translation>指定基础实体</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="85"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="89"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawArcTangentialCommand.cpp" line="88"/>
-        <source>Specify end point</source>
-        <translation>指定终点</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCircle2PCommand</name>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="443"/>
-        <source>Create Circle2p</source>
-        <translation>2点圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="449"/>
-        <source>Invalid Circle data.</source>
-        <translation>无效的圆数据。</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="308"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="164"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="312"/>
-        <source>Specify second point</source>
-        <translation>指定第二个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="168"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCircle3PCommand</name>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="597"/>
-        <source>Create Circle3p</source>
-        <translation>3点圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="604"/>
-        <source>Invalid circle data.</source>
-        <translation>无效的圆数据。</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="308"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="164"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="312"/>
-        <source>Specify second point</source>
-        <translation>指定第二个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="168"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="492"/>
-        <source>Specify third point</source>
-        <translation>指定第三个点</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCircleCommand</name>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="275"/>
-        <source>Create Circle</source>
-        <translation>圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="255"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="163"/>
-        <source>Specify center</source>
-        <translation>指定中点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="164"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="167"/>
-        <source>Specify point on circle</source>
-        <translation>指定圆上的点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleCommands.cpp" line="168"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCircleTan2Command</name>
-    <message>
-        <location filename="../commands/DrawCircleTan2Command.cpp" line="295"/>
-        <source>Create CircleTan2</source>
-        <translation>相切两圆,半径</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan2Command.cpp" line="83"/>
-        <source>Specify the first line/arc/circle</source>
-        <translation>指定第一条线/弧/圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan2Command.cpp" line="84"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan2Command.cpp" line="87"/>
-        <source>Specify the second line/arc/circle</source>
-        <translation>指定第二条线/弧/圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan2Command.cpp" line="88"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan2Command.cpp" line="91"/>
-        <source>Select the center of the tangent circle</source>
-        <translation>选择相切圆的圆心</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCircleTan3Command</name>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="63"/>
-        <source>Create Circletan3</source>
-        <translation>相切,三圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="502"/>
-        <source>Specify the first line/arc/circle</source>
-        <translation>指定第一条线/弧/圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="502"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="506"/>
-        <source>Specify the second line/arc/circle</source>
-        <translation>指定第二条线/弧/圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="506"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="509"/>
-        <source>Specify the third line/arc/circle</source>
-        <translation>指定第三条线/弧/圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCircleTan3Command.cpp" line="513"/>
-        <source>Select the center of the tangent circle</source>
-        <translation>选择相切圆的圆心</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCloudLineFreeCommand</name>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="110"/>
-        <source>Add cloud line</source>
-        <translation>云线</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="460"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="460"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="941"/>
-        <source>Cloud line done!</source>
-        <translation>修订云线创建完成!</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="945"/>
-        <source>Move cursor to get cloud line path...</source>
-        <translation>移动光标以生成云线路径...</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCloudLinePolygonCommand</name>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="110"/>
-        <source>Add cloud line</source>
-        <translation>云线</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="460"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="460"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="465"/>
-        <source>Can not create cloud line, please select again</source>
-        <translation>无法生成修订云线，请重新选择</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="469"/>
-        <source>Specify next point</source>
-        <translation>指定下一个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="758"/>
-        <source>Cannot undo: Not enough entities defined yet.</source>
-        <translation>无法撤销：无法定义实体。</translation>
-    </message>
-</context>
-<context>
-    <name>DrawCloudLineRectangleCommand</name>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="110"/>
-        <source>Add cloud line</source>
-        <translation>云线</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="460"/>
-        <source>Specify first point</source>
-        <translation>指定第一个点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="460"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="465"/>
-        <source>Can not create cloud line, please select again</source>
-        <translation>无法创建修订云线，请重新选择</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawCloudLineCommand.cpp" line="469"/>
-        <source>Specify next point</source>
-        <translation>指定下一个点</translation>
-    </message>
-</context>
-<context>
-    <name>DrawEllipseAxisCommand</name>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="81"/>
-        <source>Add ellipse</source>
-        <translation>椭圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="421"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="470"/>
-        <source>Specify ellipse center</source>
-        <translation>指定椭圆心</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="470"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="474"/>
-        <source>Specify endpoint of major axis</source>
-        <translation>指定主轴终点</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="474"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="478"/>
-        <source>Specify endpoint or length of minor axis:</source>
-        <translation>指定短轴的端点或长度：</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="482"/>
-        <source>Specify start angle</source>
-        <translation>指定初始角度</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseAxisCommand.cpp" line="486"/>
-        <source>Specify end angle</source>
-        <translation>指定最终角度</translation>
-    </message>
-</context>
-<context>
-    <name>DrawEllipseInscribeCommand</name>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="59"/>
-        <source>Add ellipse</source>
-        <translation>椭圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="213"/>
-        <source>Can not determine uniquely an ellipse</source>
-        <translation>不能确定唯一椭圆</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="288"/>
-        <source>Specify the first line</source>
-        <translation>指定第一条线</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="288"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="292"/>
-        <source>Specify the second line</source>
-        <translation>指定第二条线</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="292"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="296"/>
-        <source>Specify the third line</source>
-        <translation>指定第三条线</translation>
-    </message>
-    <message>
-        <location filename="../commands/DrawEllipseInscribeCommand.cpp" line="300"/>
-        <source>Specify the fourth line</source>
-        <translation>指定第四条线</translation>
-    </message>
-</context>
-<context>
     <name>DrawImageCommand</name>
     <message>
         <location filename="../commands/DrawImageCommand.cpp" line="304"/>
@@ -649,12 +666,13 @@
 <context>
     <name>DrawLineBisectorCommand</name>
     <message>
-        <location filename="../commands/DrawLineBisectorCommand.cpp" line="423"/>
+        <location filename="../commands/DrawLineBisectorCommand.cpp" line="424"/>
         <source>Add cloud line</source>
         <translation>云线</translation>
     </message>
     <message>
         <location filename="../commands/DrawLineBisectorCommand.cpp" line="299"/>
+        <location filename="../commands/DrawLineBisectorCommand.cpp" line="327"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
     </message>
@@ -681,6 +699,8 @@
     </message>
     <message>
         <location filename="../commands/DrawLineBisectorCommand.cpp" line="126"/>
+        <location filename="../commands/DrawLineBisectorCommand.cpp" line="130"/>
+        <location filename="../commands/DrawLineBisectorCommand.cpp" line="134"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -698,47 +718,48 @@
 <context>
     <name>DrawLineCommand</name>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="496"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="517"/>
         <source>Create Line</source>
         <translation>直线</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="186"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="207"/>
         <source>Specify first point</source>
         <translation>指定第一个点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="187"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="208"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="215"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="236"/>
         <source>Specify next point or [%1]</source>
         <translation>指定下一个点或者[%1]</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="216"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="237"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="242"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="220"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="241"/>
         <source>Specify next point</source>
         <translation>指定下一个点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="91"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="111"/>
         <source>Cannot close sequence of lines: Not enough entities defined yet, or already closed.</source>
         <translation>无法关闭行序列：尚未定义足够多的实体，或已关闭。</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="135"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="156"/>
         <source>Cannot undo: Begin of history reached</source>
         <translation>无法撤消：已到达初始状态</translation>
     </message>
     <message>
-        <location filename="../commands/DrawLineCommand.cpp" line="176"/>
+        <location filename="../commands/DrawLineCommand.cpp" line="197"/>
         <source>Cannot redo: End of history reached</source>
         <translation>无法重做：处于最终状态</translation>
     </message>
@@ -930,7 +951,7 @@
 <context>
     <name>DrawPolylineCommand</name>
     <message>
-        <location filename="../commands/DrawPolylineCommand.cpp" line="570"/>
+        <location filename="../commands/DrawPolylineCommand.cpp" line="571"/>
         <source>Add cloud line</source>
         <translation>云线</translation>
     </message>
@@ -951,6 +972,7 @@
     </message>
     <message>
         <location filename="../commands/DrawPolylineCommand.cpp" line="165"/>
+        <location filename="../commands/DrawPolylineCommand.cpp" line="170"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -1022,6 +1044,7 @@
     </message>
     <message>
         <location filename="../commands/DrawSplineCommand.cpp" line="175"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="180"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -1044,32 +1067,34 @@
         <translation>拟合点样条</translation>
     </message>
     <message>
-        <location filename="../commands/DrawSplineCommand.cpp" line="160"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="384"/>
         <source>Specify first control point</source>
         <translation>指定第一个控制点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawSplineCommand.cpp" line="161"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="385"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawSplineCommand.cpp" line="174"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="399"/>
         <source>Specify next control point or [%1]</source>
         <translation>指定下一个控制点或者[%1]</translation>
     </message>
     <message>
-        <location filename="../commands/DrawSplineCommand.cpp" line="175"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="400"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="405"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
     <message>
-        <location filename="../commands/DrawSplineCommand.cpp" line="179"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="404"/>
         <source>Specify next control point</source>
         <translation>指定下一个控制点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawSplineCommand.cpp" line="127"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="344"/>
+        <location filename="../commands/DrawSplineCommand.cpp" line="362"/>
         <source>Cannot undo: Not enough entities defined yet.</source>
         <translation>无法撤销：尚未定义实体。</translation>
     </message>
@@ -1082,22 +1107,22 @@
         <translation>绘制构造线</translation>
     </message>
     <message>
-        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="206"/>
+        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="222"/>
         <source>Specify first point</source>
         <translation>指定第一个点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="208"/>
+        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="224"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="207"/>
+        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="223"/>
         <source>Specify direction</source>
         <translation>指定方向</translation>
     </message>
     <message>
-        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="209"/>
+        <location filename="../commands/DrawInfiniteLineCommands.cpp" line="225"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -1123,18 +1148,18 @@
 <context>
     <name>UIArcTangentialOptions</name>
     <message>
-        <location filename="../ui/UIArcTangentialOptions.cpp" line="135"/>
-        <location filename="../ui/UIArcTangentialOptions.cpp" line="161"/>
+        <location filename="../ui/UIArcTangentialOptions.cpp" line="152"/>
+        <location filename="../ui/UIArcTangentialOptions.cpp" line="178"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
     <message>
-        <location filename="../ui/UIArcTangentialOptions.cpp" line="135"/>
+        <location filename="../ui/UIArcTangentialOptions.cpp" line="152"/>
         <source>Make sure lock angle is between 0 and 360</source>
         <translation>确保锁定角度在0与360之间</translation>
     </message>
     <message>
-        <location filename="../ui/UIArcTangentialOptions.cpp" line="161"/>
+        <location filename="../ui/UIArcTangentialOptions.cpp" line="178"/>
         <source>Make sure lock radius more than 0</source>
         <translation>确保锁定半径大于0</translation>
     </message>

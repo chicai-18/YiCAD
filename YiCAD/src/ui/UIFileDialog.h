@@ -27,6 +27,8 @@
 /// @brief 文件 打开/保存 对话框
 class UIFileDialog : public QFileDialog
 {
+    Q_OBJECT
+
 public:
     enum FileType
     {

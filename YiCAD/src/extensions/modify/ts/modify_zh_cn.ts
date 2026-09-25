@@ -1,6 +1,249 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
+<context>
+    <name>CopyToLayerCommand</name>
+    <message>
+        <location filename="../commands/CopyToLayerCommand.cpp" line="72"/>
+        <source>Select the object on the target layer</source>
+        <translation>选择目标图层上的对象</translation>
+    </message>
+    <message>
+        <location filename="../commands/CopyToLayerCommand.cpp" line="75"/>
+        <source>Set base point</source>
+        <translation>指定基点</translation>
+    </message>
+    <message>
+        <location filename="../commands/CopyToLayerCommand.cpp" line="78"/>
+        <source>Set end point</source>
+        <translation>指定终点</translation>
+    </message>
+    <message>
+        <location filename="../commands/CopyToLayerCommand.cpp" line="142"/>
+        <source>Finish</source>
+        <translation>结束</translation>
+    </message>
+    <message>
+        <location filename="../commands/CopyToLayerCommand.cpp" line="227"/>
+        <source>Copy Entities To Layer</source>
+        <translation>将实体复制到图层</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyBevelCommand</name>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="526"/>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="544"/>
+        <source>Not a valid expression</source>
+        <translation>不是有效表达</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="569"/>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="573"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="242"/>
+        <source>Bevel</source>
+        <translation>倒角</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="561"/>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="565"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="561"/>
+        <source>Specify first entity</source>
+        <translation>指定第一个实体</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="565"/>
+        <source>Specify second entity</source>
+        <translation>指定第二个实体</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="569"/>
+        <source>Enter length 1:</source>
+        <translation>输入长度1：</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyBevelCommand.cpp" line="573"/>
+        <source>Enter length 2:</source>
+        <translation>输入长度2：</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyCopyCommand</name>
+    <message>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="76"/>
+        <source>Specify reference point or input copy number, default copy number is %1</source>
+        <translation>指定基点或输入复制数量，默认复制数量为%1</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="78"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="82"/>
+        <source>Specify target point or input copy number, default copy number is %1</source>
+        <translation>指定目标点或输入复制数量，默认复制数量为%1</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="84"/>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="163"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="163"/>
+        <source>Input invalid</source>
+        <translation>输入无效</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCopyCommand.cpp" line="259"/>
+        <source>Copy</source>
+        <translation>复制</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyCut2PCommand</name>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="371"/>
+        <location filename="../commands/ModifyCutCommands.cpp" line="392"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="382"/>
+        <source>Entity must be a line, arc, circle, ellipse or polyline.</source>
+        <translation>实体必须是直线、圆弧、圆、椭圆或多段线。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="396"/>
+        <source>Cutting point is invalid.</source>
+        <translation>切割点是无效的。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="400"/>
+        <source>Cutting point is not on entity.</source>
+        <translation>切割点不在实体上。</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyCutCommand</name>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="252"/>
+        <location filename="../commands/ModifyCutCommands.cpp" line="270"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="262"/>
+        <source>Entity must be a line, arc, ellipse or polyline.</source>
+        <translation>实体必须是直线、圆弧、椭圆弧或多段线。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="275"/>
+        <source>Cutting point is invalid.</source>
+        <translation>切割点是无效的。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="280"/>
+        <source>Cutting point is not on entity.</source>
+        <translation>切割点不在实体上。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="310"/>
+        <source>Specify entity to cut</source>
+        <translation>指定要剪切的实体</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="310"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="313"/>
+        <source>Specify cutting point</source>
+        <translation>指定切割点</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyCutCommands.cpp" line="313"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyEntityCommand</name>
+    <message>
+        <location filename="../commands/ModifyEntityCommand.cpp" line="79"/>
+        <source>Click on entity to modify</source>
+        <translation>点击需修改的实体</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyEntityCommand.cpp" line="80"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyExplodeCommand</name>
+    <message>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="80"/>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="166"/>
+        <source>No entity explode.</source>
+        <translation>没有可分解的实体。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="80"/>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="166"/>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="185"/>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="84"/>
+        <source>Explode</source>
+        <translation>分解</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExplodeCommand.cpp" line="185"/>
+        <source>Explode success, %1 entities exploded.</source>
+        <translation>分解成功，已分解 %1 个实体。</translation>
+    </message>
+</context>
+<context>
+    <name>ModifyExtendCommand</name>
+    <message>
+        <location filename="../commands/ModifyExtendCommand.cpp" line="201"/>
+        <source>extend entity</source>
+        <translation>延伸</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExtendCommand.cpp" line="209"/>
+        <source>Extend success.</source>
+        <translation>延伸成功。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExtendCommand.cpp" line="214"/>
+        <source>Entity extend failure.</source>
+        <translation>延伸失败。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExtendCommand.cpp" line="294"/>
+        <source>No Entity found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../commands/ModifyExtendCommand.cpp" line="301"/>
+        <source>Entity is not extendable.</source>
+        <translation>实体不可延伸。</translation>
+    </message>
+</context>
 <context>
     <name>ModifyExtension</name>
     <message>
@@ -87,244 +330,6 @@
         <location filename="../ModifyExtension.cpp" line="99"/>
         <source>Delete node</source>
         <translation>删除顶点</translation>
-    </message>
-</context>
-<context>
-    <name>CopyToLayerCommand</name>
-    <message>
-        <location filename="../commands/CopyToLayerCommand.cpp" line="72"/>
-        <source>Select the object on the target layer</source>
-        <translation>选择目标图层上的对象</translation>
-    </message>
-    <message>
-        <location filename="../commands/CopyToLayerCommand.cpp" line="75"/>
-        <source>Set base point</source>
-        <translation>指定基点</translation>
-    </message>
-    <message>
-        <location filename="../commands/CopyToLayerCommand.cpp" line="78"/>
-        <source>Set end point</source>
-        <translation>指定终点</translation>
-    </message>
-    <message>
-        <location filename="../commands/CopyToLayerCommand.cpp" line="142"/>
-        <source>Finish</source>
-        <translation>结束</translation>
-    </message>
-    <message>
-        <location filename="../commands/CopyToLayerCommand.cpp" line="227"/>
-        <source>Copy Entities To Layer</source>
-        <translation>将实体复制到图层</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyBevelCommand</name>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="526"/>
-        <source>Not a valid expression</source>
-        <translation>不是有效表达</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="569"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="242"/>
-        <source>Bevel</source>
-        <translation>倒角</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="561"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="561"/>
-        <source>Specify first entity</source>
-        <translation>指定第一个实体</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="565"/>
-        <source>Specify second entity</source>
-        <translation>指定第二个实体</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="569"/>
-        <source>Enter length 1:</source>
-        <translation>输入长度1：</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyBevelCommand.cpp" line="573"/>
-        <source>Enter length 2:</source>
-        <translation>输入长度2：</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyCopyCommand</name>
-    <message>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="76"/>
-        <source>Specify reference point or input copy number, default copy number is %1</source>
-        <translation>指定基点或输入复制数量，默认复制数量为%1</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="78"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="82"/>
-        <source>Specify target point or input copy number, default copy number is %1</source>
-        <translation>指定目标点或输入复制数量，默认复制数量为%1</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="84"/>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="163"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="163"/>
-        <source>Input invalid</source>
-        <translation>输入无效</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCopyCommand.cpp" line="259"/>
-        <source>Copy</source>
-        <translation>复制</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyCut2PCommand</name>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="252"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="382"/>
-        <source>Entity must be a line, arc, circle, ellipse or polyline.</source>
-        <translation>实体必须是直线、圆弧、圆、椭圆或多段线。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="275"/>
-        <source>Cutting point is invalid.</source>
-        <translation>切割点是无效的。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="280"/>
-        <source>Cutting point is not on entity.</source>
-        <translation>切割点不在实体上。</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyCutCommand</name>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="252"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="262"/>
-        <source>Entity must be a line, arc, ellipse or polyline.</source>
-        <translation>实体必须是直线、圆弧、椭圆弧或多段线。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="275"/>
-        <source>Cutting point is invalid.</source>
-        <translation>切割点是无效的。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="280"/>
-        <source>Cutting point is not on entity.</source>
-        <translation>切割点不在实体上。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="310"/>
-        <source>Specify entity to cut</source>
-        <translation>指定要剪切的实体</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="310"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="313"/>
-        <source>Specify cutting point</source>
-        <translation>指定切割点</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyCutCommands.cpp" line="313"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyEntityCommand</name>
-    <message>
-        <location filename="../commands/ModifyEntityCommand.cpp" line="81"/>
-        <source>Click on entity to modify</source>
-        <translation>点击需修改的实体</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyEntityCommand.cpp" line="82"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyExplodeCommand</name>
-    <message>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="80"/>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="166"/>
-        <source>No entity explode.</source>
-        <translation>没有可分解的实体。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="80"/>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="166"/>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="185"/>
-        <source>Back</source>
-        <translation>返回</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="84"/>
-        <source>Explode</source>
-        <translation>分解</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExplodeCommand.cpp" line="185"/>
-        <source>Explode success, %1 entities exploded.</source>
-        <translation>分解成功，已分解 %1 个实体。</translation>
-    </message>
-</context>
-<context>
-    <name>ModifyExtendCommand</name>
-    <message>
-        <location filename="../commands/ModifyExtendCommand.cpp" line="201"/>
-        <source>extend entity</source>
-        <translation>延伸</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExtendCommand.cpp" line="209"/>
-        <source>Extend success.</source>
-        <translation>延伸成功。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExtendCommand.cpp" line="214"/>
-        <source>Entity extend failure.</source>
-        <translation>延伸失败。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExtendCommand.cpp" line="294"/>
-        <source>No Entity found.</source>
-        <translation>未发现实体。</translation>
-    </message>
-    <message>
-        <location filename="../commands/ModifyExtendCommand.cpp" line="301"/>
-        <source>Entity is not extendable.</source>
-        <translation>实体不可延伸。</translation>
     </message>
 </context>
 <context>
@@ -461,6 +466,7 @@
     </message>
     <message>
         <location filename="../commands/ModifyRoundCommand.cpp" line="525"/>
+        <location filename="../commands/ModifyRoundCommand.cpp" line="528"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -531,6 +537,7 @@
     <name>ModifyTrimCommand</name>
     <message>
         <location filename="../commands/ModifyTrimCommand.cpp" line="286"/>
+        <location filename="../commands/ModifyTrimCommand.cpp" line="290"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -554,6 +561,7 @@
     </message>
     <message>
         <location filename="../commands/PolylineEditCommands.cpp" line="364"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="385"/>
         <source>No Entity found.</source>
         <translation>未发现实体。</translation>
     </message>
@@ -569,6 +577,7 @@
     </message>
     <message>
         <location filename="../commands/PolylineEditCommands.cpp" line="395"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="417"/>
         <source>Adding point is not on entity.</source>
         <translation>添加的点不在实体上。</translation>
     </message>
@@ -601,12 +610,12 @@
         <translation>多段线追加顶点</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="364"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="497"/>
         <source>No Entity found.</source>
         <translation>未发现实体。</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="368"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="502"/>
         <source>Entity must be a polyline.</source>
         <translation>实体必须是多段线。</translation>
     </message>
@@ -621,12 +630,12 @@
         <translation>在起点或终点附近的某处指定多段线</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="456"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="642"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="460"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="647"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -639,17 +648,18 @@
 <context>
     <name>PolylineDelCommand</name>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="473"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="665"/>
         <source>Append polyline point</source>
         <translation>多段线追加顶点</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="364"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="729"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="754"/>
         <source>No Entity found.</source>
         <translation>未发现实体。</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="368"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="733"/>
         <source>Entity must be a polyline.</source>
         <translation>实体必须是多段线。</translation>
     </message>
@@ -669,7 +679,7 @@
         <translation>指定多段线以删除节点</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="456"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="796"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -679,7 +689,7 @@
         <translation>指定删除节点的点</translation>
     </message>
     <message>
-        <location filename="../commands/PolylineEditCommands.cpp" line="460"/>
+        <location filename="../commands/PolylineEditCommands.cpp" line="800"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
