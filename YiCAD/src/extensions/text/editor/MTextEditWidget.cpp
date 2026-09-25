@@ -43,7 +43,6 @@
 #include "DmCharTemplate.h"
 #include "DrawMTextCommand.h"
 #include "MTextEditContext.h"
-#include "ApplicationWindow.h"
 #include "MTextEditCmd.h"
 
 

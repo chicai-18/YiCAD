@@ -40,7 +40,7 @@ Note that a plain build does not produce a runnable tree: shaders, `keyconfig.xm
 A static check also runs in CI and should be run locally before pushing:
 
 ```bash
-python tools/check_layering.py               # src/kernel/ 是否反向依赖 UI 层
+python tools/check_layering.py               # 内核与命令机制不依赖 ui/、main/ 与扩展，扩展不依赖 main/ 与别的扩展
 ```
 
 ## Source File Collection

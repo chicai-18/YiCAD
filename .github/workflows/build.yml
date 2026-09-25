@@ -10,7 +10,9 @@
 # becomes a cache hit. All other packages still come prebuilt.
 #
 # Pre-build static check:
-#   - src/kernel/ does not include UI headers (tools/check_layering.py)
+#   - src/kernel/ and src/application/ do not include ui/, main/ or extension
+#     headers, src/application/ does not include the interactive view, and
+#     extensions do not include main/ or each other (tools/check_layering.py)
 #
 # Unit tests run via ctest after the build.
 #

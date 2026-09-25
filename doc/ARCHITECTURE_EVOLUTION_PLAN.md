@@ -660,6 +660,14 @@ Debug/Release 全量构建与 `ctest` 验证。
 | PCH-per-library 与 UNITY_BUILD（6.4.4） | 每个新库单独配置 PCH，大库启用 UNITY_BUILD | 均未实施，`YiCadCore` 的 PCH 保持原样，三个新静态库不加 PCH | 直接复用现有 `YiCadPch.h` 会把 `<QWidget>` 等重量级头带回 `YiCadMath`/`YiCadModel`，抵消拆库意义；另起炉灶配小型 PCH 需要新一轮"每个头是否安全"的分析，且 `YiCadModel` 达 200 余文件，盲开 `UNITY_BUILD` 有暴露匿名命名空间/静态变量重名等隐藏问题的真实风险。二者都不是"拆库"本身要求的，优先级低于把库边界立对，作为独立事项留给未来 |
 | `tools/check_layering.py` | 白名单三处违规修完后一并删除 | 白名单清空（`WHITELIST = {}`），脚本本体与扫描范围（整个 `src/kernel/`）保留 | 脚本检查的是"内核不得包含 `UI*` 头文件"，对 `YiCadMath`/`YiCadModel`/`YiCadPersistence` 这三层，CMake 的 `target_include_directories` 现在物理保证了这件事（想违规都编不过），脚本对它们而言是多余的；但 `kernel/actions`、`kernel/gui` 仍与 UI 合编（见第一条），这两个目录理论上仍可能新增对 `UI*` 头的直接包含，脚本继续作为比"重新配置+编译"更快的 CI 早期预警保留 |
 
+> 2026-09-25：上表第一行记录的两处双向依赖已由业务工具化第四步解开
+> （`COMMAND_TOOL_MIGRATION_PLAN.md` 9.4 节）：(1) 旧版 Action 栈 `GuiEventHandler` 删除，
+> `GuiDocumentView`（RENDER）不再包含交互层的头文件，工具栈与命令总线由交互视图 `UIView`
+> 装配；(2) `src/actions/` 的命令拆进扩展，命令机制（新的 APPLICATION 分区，`src/application/`）
+> 不包含 `ui/`、`main/` 的头文件，扩展不包含 `main/` 的头文件，由 `check_layering.py` 检查。
+> UI 组件直接调用 `ApplicationWindow`/`MDIWindow` 的既有设计仍在，RENDER 以上的分区仍合编进
+> `YiCadCore`。
+
 **执行中发现但未修复的问题**
 
 | 位置 | 问题 | 说明 |

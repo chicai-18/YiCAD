@@ -1334,3 +1334,39 @@ keyconfig.xml 被改写并备份。
 提交④验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 255 例）；`check_layering.py` 通过；安装后程序能启动，"绘图"类目各面板的按钮
 由扩展注册、顺序如上（截图核对）。
+
+**提交⑤：分层检查**
+
+1. **`check_layering.py` 改为按目录判断**：头文件归它所在的目录（`YiCAD/src` 下没有重名的头文件，
+   重名时脚本报错），不再看 `UI` 前缀。规则：
+   - `src/kernel/` 不得包含 `ui/`、`main/` 与任何扩展的头文件；
+   - `src/application/`（含扩展框架）同上，另外不得包含交互视图 `kernel/interaction/` 的头文件；
+   - `src/extensions/<X>/` 不得包含 `main/` 与别的扩展的头文件（可以包含 `ui/` 的）。
+
+   原先白名单里唯一的一条（`UIView.cpp` 包含自身头文件）是 `UI` 前缀规则的误报，按目录判断后不再
+   需要，白名单清空；登记了却不再命中的条目照旧报错。
+2. **修复唯一的违规**：`ext.text` 的 `MTextEditWidget.cpp` 包含了 `ApplicationWindow.h` 但没有用到，
+   删除。
+3. CI 配置与 `AGENTS.md` 里对这个检查的说明同步；主计划 6.7 节补记两处双向依赖已解开。
+
+**与方案的偏差与补充**
+
+1. 第 6 节第四步第 4 项原写"命令与工具不得包含 `ui/`、`main/` 头文件"。第四步之后命令都在扩展里，
+   按 5.2 节扩展可以包含 `ui/` 的，所以落到目录上是：机制代码（`src/application/`）不含 `ui/`、
+   `main/`，扩展不含 `main/`。另加了两条方案没写的：内核与机制代码不得包含扩展的头文件，扩展之间
+   不得互相包含（`AGENTS.md` 要求每个扩展自包含），现有代码都满足。
+
+提交⑤验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 255 例）；`check_layering.py` 通过（白名单为空）；安装后程序能启动。
+
+**第四步的结果**：对照第 7 节的验收标准——
+- 源码中没有 `ActionInterface`、`PreviewActionInterface`、`GuiEventHandler`、`LegacyActionTool` 与
+  `Action*` 类，也没有 `updateMouseCursor()` 与四个优先级标志；只剩注释里解释"与原先一致"的历史说明。
+- `DM::ActionType` 删除；keyconfig.xml 以命令 ID 为键，用户目录下的旧格式文件能读入并改写一次。
+- 全部业务命令都在扩展里：`src/actions/` 删除，内置命令拆成 `ext.draw`、`ext.modify`、`ext.measure`、
+  `ext.edit`、`ext.view`；机制代码在 `src/application/`（DS 的 `Application/`），扩展框架在
+  `src/application/framework/`，交互视图 `UIView` 在 `kernel/interaction/`。
+- 命令与工具不包含 `main/` 的头文件，机制代码不包含 `ui/`、`main/` 与交互视图的头文件，由
+  `check_layering.py` 检查；主计划 6.7 节的两处双向依赖解开，是阶段 4"每个扩展独立成库"的前提。
+- 尚待手工核对：交互回归清单（先选后建、块编辑、多行文字、橡皮擦与第三步各批新增的条目，以及本步
+  新增的 F1–F4）。这台机器上注入的鼠标点击到不了程序，只做了启动与 Ribbon 截图核对。
