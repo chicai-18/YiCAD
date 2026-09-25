@@ -34,7 +34,6 @@ class QWidget;
 
 class QToolBar;
 class UIBottomWindow;
-class UIPrintPreviewOptions;
 class UICommandWidget;		
 class DmDocument;
 class UILineAngleOptions;
@@ -93,8 +92,6 @@ protected:
 	// Links factory to a widget that can host tool options.
 	void setOptionWidget(QWidget* ow);
 
-	//void requestPrintPreviewOptions(bool on, bool update);
-
 	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（CommandInfo::commandOptionsFactory）。
 	/// @param build 在给定的选项条容器里构造控件
 	/// @param height 选项条容器的高度（CommandInfo::commandOptionsHeight）
@@ -143,7 +140,6 @@ private:
 	UISnapMiddleOptions*			m_pSnapMiddleOptions = nullptr;
 	UISnapDistOptions*				m_pSnapDistOptions = nullptr;
 	UIModifyOffsetOptions*			m_pModifyOffsetOptions = nullptr;
-	UIPrintPreviewOptions*			m_pPrintPreviewOptions = nullptr;
 	UILineAngleOptions*				m_pLineAngleOptions = nullptr;
 	QPointer<QWidget>				m_pRegisteredOptions;					///< requestRegisteredOptions 当前显示的选项条
 

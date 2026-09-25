@@ -1176,6 +1176,50 @@ YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
 5.2 节。2026-09-25 该方案第三步完成，六个扩展与 `ext.dim` 的命令都已改为命令 + 放置工具
 （该文件 9.3 节）。
 
+**2026-09-25**：该方案第四步完成（该文件 9.4 节）：`DM::ActionType` 整个删除，keyconfig.xml
+与"命令设置"对话框以命令 ID 为键，扩展命令的别名可以由用户修改；上面第三条遗留随之了结。
+内置命令拆成 `ext.draw`、`ext.modify`、`ext.measure`、`ext.edit`、`ext.view`，第一条里
+"每个扩展独立成库"的前提（6.7 节的两处双向依赖）已解开。其余遗留见 7.11 节。
+
+### 7.11 执行结果（阶段 4 收尾：打印、插件入口、扩展独立成库）
+
+2026-09-25 开始前确认：
+
+- **打印不做成扩展**：代码里没有能用的打印。`UITabDrawWidget::slotFilePrint` 选好 PDF 文件名后
+  什么也不写（真正导出的一行注释着），`MDIWindow::slotFilePrint` 打出一张白纸，打印预览只是
+  白底的子窗口，三者都没有调用方，也没有 Ribbon 或命令行入口。渲染只有 OpenGL 一条路，像样的
+  打印（矢量、比例、纸张、线宽）要新写 `QPainter` 之类的绘制后端，属于渲染专项，不在本方案排期
+  内。任务⑤的打印因此取消，桩代码删除。
+- **扩展库类型**：OBJECT 库，与 `YiCadCore` 一致（见提交③）。
+- **插件自建面板的按钮**：保持现在的大按钮（`addLargeAction`）；挂进已有面板的按钮跟随该面板。
+- **插件命令执行前**：与其它即时命令一致，先结束不可打断的命令（多行文字编辑，会弹保存提示）；
+  原先插件回调直接执行，什么也不结束。
+
+**提交①：删除打印桩代码**
+
+1. **删除**：`UITabDrawWidget` 的 `slotFilePrint`、`slotFilePrintPDF`、`slotFilePrintPreview` 与
+   选项卡数据的 `isPreviewPrint`；`MDIWindow` 的 `slotFilePrint`、`getPrintPreview`，
+   `slotZoomAuto` 里打印预览的空分支；`GuiDocumentView` 的 `setPrintPreview`/`isPrintPreview`、
+   `setPrinting`/`isPrinting` 两个标志（后者从来没人读写），背景绘制里打印预览的空分支；
+   `UIDialogFactory` 里注释掉的打印预览选项条与它的成员；`kernel/printing/`（只有一个没有调用方的
+   纸张格式转换 `Printing::rsToQtPaperFormat`）。`DM::PaperFormat` 与 `DmUnits` 的纸张换算仍被
+   文档设置使用，保留。
+2. **Qt 模块**：删除后没有代码再用 `QtPrintSupport`，`YICAD_USE_QT_MODULES` 去掉 `PrintSupport`，
+   安装包里随之少了 `Qt5PrintSupport.dll`。SARibbonBar 只依赖 Core/Gui/Widgets，不受影响。
+3. **翻译**：`YiCAD_zh_cn.ts` 删去只被这些代码使用的三条（"Print Preview"、"Export as PDF"、
+   "Print preview for %1"）。
+
+提交①验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过；
+`check_layering.py` 通过；安装后程序能启动，Ribbon、画布与栅格正常（截图核对）。
+
+**执行中发现、未处理**
+
+- `MDIWindow` 的父子窗口（`addChildWindow` 等）只剩删除前的打印预览一个调用方，现在没有人建子
+  窗口；关闭窗口时遍历子窗口的代码照常运行（列表恒为空），与打印无关，未删。
+- AI 助手的知识库（`src/extensions/ai/support/`）描述了打印、打印预览、PDF 导出与 `Ctrl+P`，
+  这些功能从未实现；知识库里还有其它从未实现的条目（如 `ActionFileClose`、`ActionFileQuit`）
+  与旧的 Action 名，需要整体核对，未在本次处理。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移

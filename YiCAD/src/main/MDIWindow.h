@@ -58,7 +58,6 @@ public slots:
     /// @return true 如果保存成功
     bool slotFileSaveAs(bool& cancelled);
 
-    void slotFilePrint();
     void slotZoomAuto();
 
 public:
@@ -81,10 +80,6 @@ public:
     /// @brief 获取子窗口列表
     /// @return 子窗口列表引用
     QList<MDIWindow*>& getChildWindows();
-
-    /// @brief 获取打印预览窗口
-    /// @return 打印预览窗口指针
-    MDIWindow* getPrintPreview();
 
     /// @brief 设置父窗口（当本窗口关闭时需要通知的窗口）
     /// @param [in] p 父窗口指针

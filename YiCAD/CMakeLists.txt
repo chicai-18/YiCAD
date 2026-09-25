@@ -5,7 +5,7 @@ PROJECT (YiCAD)
 
 # 加载Qt模块
 # Qt 5.15 is discovered from the user's installation via CMAKE_PREFIX_PATH or Qt5_DIR.
-set(YICAD_USE_QT_MODULES Widgets Gui Core PrintSupport Designer Svg Network)
+set(YICAD_USE_QT_MODULES Widgets Gui Core Designer Svg Network)
 
 find_package(Qt5 5.15 REQUIRED COMPONENTS ${YICAD_USE_QT_MODULES})
 
@@ -118,9 +118,11 @@ yicad_collect_sources(PERSISTENCE
     src/kernel/persistence/Meta
     src/kernel/filters)
 
-# 对应阶段 3 的 YiCadRender。计划图未列出 kernel/printing/，按依赖方向归此。
+# 对应阶段 3 的 YiCadRender。
 #
 # 本分区内部实现不在本方案排期内（渲染专项另行规划），此处仅作层次边界。
+# 原先的 kernel/printing/ 只有一个没有调用方的纸张格式转换，随没有入口的打印桩代码
+# 一并删除；打印要有 QPainter 之类的绘制后端，归渲染专项（主计划 7.11 节）。
 #
 # kernel/view/（原 kernel/gui/）是画布 GuiDocumentView 及其事件、网格等，
 # 不认识交互层的工具；装配工具的交互视图 UIView 在 INTERACTION 分区的
@@ -132,8 +134,7 @@ yicad_collect_sources(PERSISTENCE
 yicad_collect_sources(RENDER
     src/kernel/painters
     src/kernel/painters/opengl
-    src/kernel/view
-    src/kernel/printing)
+    src/kernel/view)
 
 # 对应 DS 的 Application/：扩展赖以运行的机制，业务工具化第四步从 kernel/actions/
 # 与 kernel/extension/ 移来（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节）。
@@ -483,7 +484,6 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/fileio
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/interaction
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/view
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/printing
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters/opengl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main

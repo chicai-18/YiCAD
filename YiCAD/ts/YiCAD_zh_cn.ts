@@ -706,11 +706,6 @@
         <translation>图块</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1010"/>
-        <source>Print Preview</source>
-        <translation>打印预览</translation>
-    </message>
-    <message>
         <location filename="../src/main/ApplicationWindow.cpp" line="233"/>
         <location filename="../src/main/ApplicationWindow.cpp" line="1226"/>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="66"/>
@@ -3388,16 +3383,6 @@ p, li { white-space: pre-wrap; }
         <location filename="../src/ui/UITabDrawWidget.cpp" line="1079"/>
         <source> , please check the filename and permissions.</source>
         <translation>，请检查文件名和权限。</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="945"/>
-        <source>Export as PDF</source>
-        <translation>导出PDF</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1001"/>
-        <source>Print preview for %1</source>
-        <translation>打印预览的 %1</translation>
     </message>
 </context>
 <context>

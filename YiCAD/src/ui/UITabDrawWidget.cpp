@@ -26,8 +26,6 @@
 #include <QTabWidget>
 #include <QTabBar>
 #include <QSvgGenerator>
-#include <QPrinter>
-#include <QPrintDialog>
 #include <QHBoxLayout>
 #include <QMdiSubWindow>
 
@@ -45,7 +43,6 @@
 #include "UIFileDialog.h"
 #include "DmSystem.h"
 #include "UIDialogFactory.h"
-#include "Printing.h"
 #include "GuiDialogFactory.h"
 #include <QSettings>
 #include <QApplication>
@@ -674,11 +671,6 @@ void UITabDrawWidget::slotFileExportImage()
 	}
 }
 
-void UITabDrawWidget::slotFilePrintPDF()
-{
-	slotFilePrint();
-}
-
 void UITabDrawWidget::slotFileSave()
 {
 	if (slotFileSave(m_currentMdiWindow))
@@ -985,103 +977,6 @@ bool UITabDrawWidget::slotFileSave(MDIWindow* w, bool forceSaveAs)
 		}
 	}
 	return true;
-}
-
-void UITabDrawWidget::slotFilePrint()
-{
-	MDIWindow* w = m_currentMdiWindow;
-	if (w == nullptr)
-	{
-		return;
-	}
-
-	DmDocument* document = w->getDocument();
-	if (document == nullptr)
-	{
-		return;
-	}
-
-	QString strDefaultFile("");
-	DMSETTINGS->beginGroup("/Print");
-	strDefaultFile = DMSETTINGS->readEntry("/FileName", "");
-	DMSETTINGS->endGroup();
-
-	QFileInfo infDefaultFile(strDefaultFile);
-	QFileDialog fileDlg(this, tr("Export as PDF"));
-	QString defFilter("PDF files (*.pdf)");
-	QStringList filters;
-
-	filters << defFilter << "Any files (*)";
-
-	fileDlg.setNameFilters(filters);
-	fileDlg.setFileMode(QFileDialog::AnyFile);
-	fileDlg.selectNameFilter(defFilter);
-	fileDlg.setAcceptMode(QFileDialog::AcceptSave);
-	fileDlg.setDefaultSuffix("pdf");
-	fileDlg.setDirectory(infDefaultFile.dir().path());
-
-	if (QDialog::Accepted == fileDlg.exec())
-	{
-		QStringList files = fileDlg.selectedFiles();
-		if (!files.isEmpty())
-		{
-			if (!files[0].endsWith(R"(.pdf)", Qt::CaseInsensitive))
-			{
-				files[0] = files[0] + ".pdf";
-			}
-
-			auto gvPreview = new GuiDocumentView();
-			gvPreview->setDocument(w->getDocument());
-			gvPreview->zoomAuto();
-			gvPreview->show();
-			//gvPreview->exportView(files[0].toStdString().c_str());
-			gvPreview->hide();
-
-			delete gvPreview;
-			gvPreview = nullptr;
-		}
-	}
-
-	// statusBar()->showMessage(tr("Printing complete"), 2000);
-}
-
-void UITabDrawWidget::slotFilePrintPreview()
-{
-	auto currentTab = getCurrentTabDrawData();
-
-	// 获取预览mdi
-	if (!m_currentMdiWindow)
-	{
-		return;
-	}
-	if (!m_currentMdiWindow->getDocumentView()->isPrintPreview())
-	{
-		QSettings settings;
-		//generate a new print preview
-
-		MDIWindow* w = new MDIWindow(m_currentMdiWindow->getDocument(), m_pDrawBackWidget, Qt::WindowFlags());
-		m_pDrawBackWidget->addSubWindow(w);
-		m_currentMdiWindow->addChildWindow(w);
-
-		w->setWindowTitle(tr("Print preview for %1").arg(m_currentMdiWindow->windowTitle()));
-		GuiDocumentView* docView = w->getDocumentView();
-		docView->setStrDevice(settings.value("Hardware/Device", "Mouse").toString());
-		docView->setPrintPreview(true);
-		docView->setBackground(QColor(255, 255, 255));
-		
-		// 创建一个预览mdiwindow
-		SingleTabDrawDataRibbon* addSingleTabDraw = new SingleTabDrawDataRibbon();
-		addSingleTabDraw->tabBack = m_pBackTabDrawWidget;
-		addSingleTabDraw->name = currentTab->name + QObject::tr("Print Preview");
-		addSingleTabDraw->number = m_pTabDrawList->size();
-		addSingleTabDraw->mdiWindow = w;
-		addSingleTabDraw->isCurrent = true;
-		addSingleTabDraw->isPreviewPrint = true;
-		m_currentMdiWindow = addSingleTabDraw->mdiWindow;
-		m_currentMdiWindow->show();
-
-		newTabDraw(addSingleTabDraw);
-	}
 }
 
 bool UITabDrawWidget::slotFileClosing(MDIWindow* pMdiWin)

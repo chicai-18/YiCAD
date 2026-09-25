@@ -48,7 +48,6 @@ struct SingleTabDrawDataRibbon
 	QPushButton*	textBtn = nullptr;		///< 图纸名
 	QPushButton*	closeDraw = nullptr;	///< 关闭按钮
 	MDIWindow*		mdiWindow = nullptr;	///< 绘图画布
-	bool			isPreviewPrint = false;	///< 是否为打印预览
 };
 
 /// @class UITabDrawWidget
@@ -129,9 +128,6 @@ public:
 	/// @brief 导出图片
 	void slotFileExportImage();
 
-	/// @brief 文件打印为PDF
-	void slotFilePrintPDF();
-
 	/// @brief 保存当前图纸
 	void slotFileSave();
 
@@ -140,11 +136,6 @@ public:
 
 	/// @brief 保存所有图纸
 	void slotFileSaveAll();
-
-	/// @brief 打印图纸
-	void slotFilePrint();
-	/// @brief 打印预览
-	void slotFilePrintPreview();
 
 	/// @brief 关闭所有图纸
 	void slotFileCloseAll();

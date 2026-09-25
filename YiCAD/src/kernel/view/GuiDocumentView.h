@@ -218,16 +218,6 @@ public:
     void setOrthogonalZero(const DmVector& pos) override;
     DmVector const& getOrthogonalZero() const override;
 
-    /// @brief 启用或禁用打印预览
-    void setPrintPreview(bool pv);
-    /// @return true 表示当前为打印预览视图
-    bool isPrintPreview() const;
-
-    /// @brief 启用或禁用打印
-    void setPrinting(bool p);
-    /// @return true 表示当前为打印视图
-    bool isPrinting() const;
-
     /// @return true 表示草稿模式（线宽为 1 像素，无样式缩放）
     bool isDraftMode() const;
     void setDraftMode(bool dm);
@@ -303,8 +293,6 @@ private:
     DmVector                            relativeZero;           ///< 鼠标上一次捕捉的坐标
     DmVector                            orthogonalZero;         ///< 正交零点
     bool                                relativeZeroLocked;     ///< 相对零点是否锁定
-    bool                                printPreview;           ///< 打印预览标志
-    bool                                printing;               ///< 仅在打印时激活
 
     QMap<int, DmEntityContainer*>       m_overlayEntities;      ///< 交互时的前景实体集（TODO 删除）
 

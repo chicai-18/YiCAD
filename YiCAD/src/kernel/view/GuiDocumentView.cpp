@@ -79,8 +79,6 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     , relativeZero(DmVector(false))
     , orthogonalZero(DmVector(false))
     , relativeZeroLocked(false)
-    , printPreview(false)
-    , printing(false)
     , m_overlayEntities(QMap<int, DmEntityContainer*>())
     , m_pPreviewEntityContainer(new DmEntityContainer())
     , m_bIsCleanUp(false)
@@ -387,17 +385,8 @@ void GuiDocumentView::drawBackgroundLayer()
     m_pBackgroundPainter->setFill(true);
     m_pBackgroundPainter->stroke();
 
-    // 打印预览
-    if (isPrintPreview())
-    {
-        // drawPaper(m_pBackgroundPainter); // TODO : 打印功能暂时未实现
-    }
-
-    if (!isPrintPreview())
-    {
-        // 背景栅格
-        drawGridLine();
-    }
+    // 背景栅格
+    drawGridLine();
 }
 
 void GuiDocumentView::drawDocumentLayer()
@@ -1220,26 +1209,6 @@ bool GuiDocumentView::isRelativeZeroLocked() const
 DmVector const& GuiDocumentView::getRelativeZero() const
 {
     return relativeZero;
-}
-
-void GuiDocumentView::setPrintPreview(bool pv)
-{
-    printPreview = pv;
-}
-
-bool GuiDocumentView::isPrintPreview() const
-{
-    return printPreview;
-}
-
-void GuiDocumentView::setPrinting(bool p)
-{
-    printing = p;
-}
-
-bool GuiDocumentView::isPrinting() const
-{
-    return printing;
 }
 
 bool GuiDocumentView::isDraftMode() const

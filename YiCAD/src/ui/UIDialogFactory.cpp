@@ -92,7 +92,6 @@ UIDialogFactory::UIDialogFactory(QWidget* parent, QWidget* ow)
 	m_pSnapMiddleOptions = nullptr;
 	m_pSnapDistOptions = nullptr;
 	m_pModifyOffsetOptions = nullptr;
-	m_pPrintPreviewOptions = nullptr;
 	m_pTextStyle = nullptr;
 	m_pActionHandler = nullptr;
 	m_pTableStyle = nullptr;
@@ -388,36 +387,6 @@ QString UIDialogFactory::requestImageOpenDialog()
 
 	return strFileName;
 }
-
-// Shows a widget for options for the action: "print preview"
-//void UIDialogFactory::requestPrintPreviewOptions(bool on, bool update)
-//{
-//	if (!on)
-//	{
-//		if (m_pPrintPreviewOptions)
-//		{
-//			delete m_pPrintPreviewOptions;
-//			m_pPrintPreviewOptions = nullptr;
-//			optionWidget->hide();
-//		}
-//		return;
-//	}
-//	if (optionWidget)
-//	{
-//		if (!m_pPrintPreviewOptions)
-//		{
-//			m_pPrintPreviewOptions = new UIPrintPreviewOptions(optionWidget);
-//			m_pPrintPreviewOptions->setAction(action, false);		}
-//		if (update)
-//		{
-//			m_pPrintPreviewOptions->setAction(action, update);
-//		}
-//		m_pPrintPreviewOptions->show();
-//		optionWidget->resize(m_pPrintPreviewOptions->width(), 23);
-//		optionWidget->show();
-//	}
-//
-//}
 
 // Shows a widget for block edit options.
 void UIDialogFactory::requestBlockEditOptions(IBlockEditSession* session, bool on)

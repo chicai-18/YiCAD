@@ -21,8 +21,6 @@
 #include<iostream>
 #include "MDIWindow.h"
 
-#include <QtPrintSupport/QPrinter>
-#include <QtPrintSupport/QPrintDialog>
 #include <QApplication>
 #include <QCloseEvent>
 #include <QCursor>
@@ -137,20 +135,6 @@ QList<MDIWindow*>& MDIWindow::getChildWindows()
     return childWindows;
 }
 
-/// @brief 获取打印预览窗口
-/// @return 打印预览窗口指针，若无则返回nullptr
-MDIWindow* MDIWindow::getPrintPreview()
-{
-    for (auto w : childWindows)
-    {
-        if (w->getDocumentView()->isPrintPreview())
-        {
-            return w;
-        }
-    }
-    return nullptr;
-}
-
 /// @brief 关闭事件处理（由Qt在用户关闭此MDI窗口时调用）
 /// @param [in] ce 关闭事件
 void MDIWindow::closeEvent(QCloseEvent* ce)
@@ -183,14 +167,7 @@ void MDIWindow::slotZoomAuto()
 {
     if (docView)
     {
-        if (docView->isPrintPreview())
-        {
-            // docView->zoomPage(); // TODO: 打印功能暂未实现
-        }
-        else
-        {
-            docView->zoomAuto();
-        }
+        docView->zoomAuto();
     }
 }
 
@@ -258,18 +235,6 @@ bool MDIWindow::slotFileSaveAs(bool& cancelled)
     }
 
     return ret;
-}
-
-void MDIWindow::slotFilePrint()
-{
-    QPrinter printer;
-    QPrintDialog dialog(&printer, this);
-    if (dialog.exec())
-    {
-        QPainter painter;
-        painter.begin(&printer);
-        painter.end();
-    }
 }
 
 /// @brief 流输出操作符，将MDI窗口信息输出到流
