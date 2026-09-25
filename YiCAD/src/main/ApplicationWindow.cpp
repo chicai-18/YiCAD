@@ -346,19 +346,20 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	PRINT_COST("add quick access bar");
 
 	// Ribbon：内置类目先注册，扩展在 OnRegister 里接着注册（类目按注册顺序
-	// 排列，扩展的设置页排在内置设置按钮之后），全部注册完再冻结并装配。
+	// 排列，扩展的设置页排在内置设置按钮之后），插件最后，全部注册完再冻结并装配。
 	m_ribbonRegistry = std::make_unique<UIRibbonRegistry>();
 	registerBuiltinRibbon(*m_ribbonRegistry);
 	registerExtensions();
+	loadPlugins();
 	m_ribbonRegistry->finalize();
 	m_ribbonManager = std::make_unique<UIRibbonManager>(
 		*m_pRibbon, *m_ribbonRegistry,
 		[this](const QString& commandId, QObject* source) { m_pActionHandler->activateCommand(commandId, source); },
 		[this]() { return UIRibbonContext{getDocument()}; });
 	m_ribbonManager->install();
-	// 扩展命令的别名在 registerExtensions() 里才注册，补全列表要重建一次。
+	// 扩展与插件命令的别名在上面才注册，补全列表要重建一次。
 	m_cmdWin->refreshCompleter();
-	PRINT_COST("register ribbon and extensions");
+	PRINT_COST("register ribbon, extensions and plugins");
 
 	// 主窗体最小尺寸
 	this->setMinimumSize(900, 700);
@@ -369,8 +370,15 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	{
 		ribbonBar()->setCurrentIndex(ribbonBar()->categoryIndex(categoryDraw2d));
 	}
+}
 
-    /// @brief Ribbon、命令窗口和首个文档就绪后，接入唯一的新插件加载路径。
+/// @brief 创建插件运行时并加载插件，把插件的命令与 Ribbon 按钮登记进宿主的注册表。
+///
+/// 在扩展注册之后、Ribbon 注册表冻结之前调用：插件按钮与内置类目、扩展一起装配，
+/// 插件命令进 CommandRegistry（主计划 7.11 节）。此时命令窗口与首个文档已经就绪，
+/// 插件初始化期间能用的宿主能力与原先在 Ribbon 装配之后加载时相同。
+void ApplicationWindow::loadPlugins()
+{
     m_pluginHostContext =
         std::make_unique<ApplicationPluginHostContext>(*this);
     m_pluginRegistry = std::make_unique<PluginRegistry>();
@@ -390,9 +398,8 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
     FileIO::instance()->setPluginRuntime(
         *m_pluginRegistry, *m_pluginManager, *m_pluginHostApi);
 
-    m_pluginUiAdapter = std::make_unique<PluginUiAdapter>(
-        *m_pRibbon, *m_pluginRegistry, *m_pActionHandler, *m_cmdWin);
-    m_pluginUiAdapter->materialize();
+    m_pluginUiAdapter = std::make_unique<PluginUiAdapter>(*m_pluginRegistry);
+    m_pluginUiAdapter->registerAll(*m_ribbonRegistry);
 }
 
 /// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段，
@@ -1080,13 +1087,14 @@ ApplicationWindow::~ApplicationWindow()
     ExtensionManager::instance().Shutdown();
 
     /// @brief 必须在任何窗口、文档和全局宿主服务销毁前关闭并卸载插件。
+    /// 插件命令先从命令注册表注销：回调只在插件 shutdown 前有效。
+    m_pluginUiAdapter.reset();
     FileIO::instance()->clearPluginRuntime();
     if (m_pluginManager)
     {
         m_pluginManager->shutdownAll();
     }
     m_pluginManager.reset();
-    m_pluginUiAdapter.reset();
     m_pluginHostApi.reset();
     m_pluginRegistry.reset();
     m_pluginHostContext.reset();

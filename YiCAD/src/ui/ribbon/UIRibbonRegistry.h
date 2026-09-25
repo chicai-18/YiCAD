@@ -94,7 +94,7 @@ struct UIRibbonCategoryDef
     UIRibbonEnableFn enableFn;
 };
 
-/// @brief 面板。面板里的按钮排进一个 SARibbonButtonGroupWidget。
+/// @brief 面板。面板里的按钮排进一个 SARibbonButtonGroupWidget（largeButtons 时除外）。
 struct UIRibbonPanelDef
 {
     QString id;               ///< 全局唯一，如 "draw2d.line"
@@ -102,6 +102,9 @@ struct UIRibbonPanelDef
     QString title;
     int rows = 2;             ///< 按钮组的行数
     bool iconOnly = false;    ///< true：按钮只显示图标（文件、设置类目的独立按钮样式）
+    /// @brief true：按钮不进按钮组，逐个以大按钮放进面板（插件自建的面板，与接入注册表前一致）；
+    ///        此时 rows、iconOnly 不起作用
+    bool largeButtons = false;
     UIRibbonEnableFn enableFn;
 };
 

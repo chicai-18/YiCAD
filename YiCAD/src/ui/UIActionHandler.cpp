@@ -267,7 +267,9 @@ bool UIActionHandler::command(const QString& cmd)
 	if (!e.isAccepted()) 
 	{
 		// 解析顺序：keyconfig.xml 里有实现的命令 > 注册表登记的别名
-		// （扩展命令）> keyconfig.xml 认领但没有实现的条目 > 插件命令。
+		// （扩展命令，以及插件命令的 "pluginId/commandId"）> keyconfig.xml 认领但
+		// 没有实现的条目。插件命令原先经外部命令执行器排在最后，接入注册表后
+		// 与扩展命令同级（主计划 7.11 节）。
 		const QString configured = COMMANDS->cmdToCommand(cmd);
 		if (runKeyconfigCommand(configured, true))
 		{
@@ -281,43 +283,13 @@ bool UIActionHandler::command(const QString& cmd)
 			return true;
 		}
 
-		if (!configured.isEmpty())
-		{
-			return true;
-		}
-
-		// 外部命令最后解析，保持活动 Action 和内置命令的既有优先级。
-		return executeExternalCommand(cmd);
+		return !configured.isEmpty();
 	}
-	else 
+	else
 	{
 		return true;
 	}
 	return false;
-}
-
-void UIActionHandler::setExternalCommandExecutor(
-	ExternalCommandExecutor executor)
-{
-	m_externalCommandExecutor = std::move(executor);
-}
-
-bool UIActionHandler::executeExternalCommand(const QString& command)
-{
-	if (!m_externalCommandExecutor)
-	{
-		return false;
-	}
-
-	const int separator = command.indexOf(QLatin1Char('/'));
-	if (separator <= 0 || separator == command.size() - 1)
-	{
-		return false;
-	}
-
-	return m_externalCommandExecutor(
-		command.left(separator),
-		command.mid(separator + 1));
 }
 
 void UIActionHandler::slotEditUndo() 

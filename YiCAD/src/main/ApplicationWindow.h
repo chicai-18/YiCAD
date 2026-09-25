@@ -203,6 +203,9 @@ private:
     /// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段）。
     void registerExtensions();
 
+    /// @brief 创建插件运行时、加载插件，并把插件命令与 Ribbon 按钮登记进宿主的注册表。
+    void loadPlugins();
+
     /// @brief 注册内置 Ribbon 类目（文件、绘图、设置）。
     /// 以下四个方法实现在 ApplicationWindowRibbon.cpp。
     void registerBuiltinRibbon(UIRibbonRegistrar& r);
@@ -336,12 +339,13 @@ private:
     // 进程内扩展的宿主服务（阶段4）；引用 m_ribbonRegistry，声明在其后以先于它析构。
     std::unique_ptr<ApplicationWindowExtensionHost> m_extensionHost;
 
-    /// @brief 新插件运行时；声明顺序保证 Manager 最先析构，宿主上下文最后析构。
+    /// @brief 新插件运行时；声明顺序保证插件命令最先注销、Manager 随后析构，宿主上下文
+    /// 最后析构（析构函数里另按同样的顺序显式释放）。
     std::unique_ptr<ApplicationPluginHostContext> m_pluginHostContext;
     std::unique_ptr<PluginRegistry>                m_pluginRegistry;
     std::unique_ptr<HostApi>                       m_pluginHostApi;
-    std::unique_ptr<PluginUiAdapter>               m_pluginUiAdapter;
     std::unique_ptr<PluginManager>                 m_pluginManager;
+    std::unique_ptr<PluginUiAdapter>               m_pluginUiAdapter;
 };
 
 #endif  // APPLICATIONWINDOW_H

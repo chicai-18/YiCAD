@@ -161,6 +161,11 @@ void UIRibbonManager::install()
             {
                 if (const auto* actionDef = std::get_if<UIRibbonActionDef>(entry))
                 {
+                    if (panelDef->largeButtons)
+                    {
+                        panel->addLargeAction(createAction(*actionDef));
+                        continue;
+                    }
                     if (!group)
                     {
                         group = createButtonGroup(panel, panelDef->rows);

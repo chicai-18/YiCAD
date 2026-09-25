@@ -296,12 +296,6 @@ void UICommandWidget::setCompleterStrings(const QStringList& strs)
 	updateCompleterModel();
 }
 
-void UICommandWidget::setExternalCommandStrings(const QStringList& commands)
-{
-	m_externalCommandStrings = commands;
-	updateCompleterModel();
-}
-
 void UICommandWidget::refreshCompleter()
 {
 	updateCompleterModel();
@@ -322,7 +316,6 @@ void UICommandWidget::updateCompleterModel()
 
 	QStringList commands = m_completerStrings;
 	commands.append(CommandRegistry::instance().aliases());
-	commands.append(m_externalCommandStrings);
 	commands.removeDuplicates();
 	model->setStringList(commands);
 }
@@ -345,7 +338,6 @@ QWidget* UICommandWidget::createTempEdit()
 	m_pCompleter = new QCompleter();
 	QStringList commands = m_completerStrings;
 	commands.append(CommandRegistry::instance().aliases());
-	commands.append(m_externalCommandStrings);
 	commands.removeDuplicates();
 	QStringListModel* model = new QStringListModel(commands,m_pCompleter);
 	m_pCompleter->setModel(model);

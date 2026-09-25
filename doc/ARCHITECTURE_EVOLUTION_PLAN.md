@@ -1220,6 +1220,49 @@ YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
   这些功能从未实现；知识库里还有其它从未实现的条目（如 `ActionFileClose`、`ActionFileQuit`）
   与旧的 Action 名，需要整体核对，未在本次处理。
 
+**提交②：插件入口接入 `CommandRegistry` 与 Ribbon 注册表**
+
+1. **加载时机**：插件运行时的创建与 `loadAll()` 从构造函数末尾（Ribbon 装配之后）移到
+   `ApplicationWindow::loadPlugins()`，在 `registerExtensions()` 之后、Ribbon 注册表 `finalize()`
+   之前调用。命令窗口与首个文档在此之前已经建好，`HostApi` 不碰 Ribbon，插件初始化期间能用的
+   宿主能力不变。
+2. **`PluginUiAdapter` 改写**：不再持有 `SARibbonBar`、`UIActionHandler`、`UICommandWidget`，
+   只接 `PluginRegistry`，`registerAll(UIRibbonRegistry&)` 把已提交的记录登记进宿主的注册表：
+   - 命令：以 `pluginId/commandId` 为 ID 注册成即时命令，说明取显示名，执行时经
+     `PluginRegistry::executeCommand` 回调插件；同一字符串登记为命令行别名。别名不区分大小写，
+     两个插件的命令只差大小写时别名冲突，后注册的命令照常注册、不带别名（qWarning）。
+   - 按钮：插件声明的页签、分组按显示名匹配已注册的类目与面板（与原先的 `categoryByName`/
+     `pannelByName` 一致），匹配不到时新建类目 `plugin:<页签>`、面板 `plugin:<页签>/<分组>`；
+     按钮 ID 与 `objectName` 为 `plugin:<pluginId>/<commandId>`（与原先的 `QAction` 名一致），
+     同一命令的第二个按钮起 ID 加 `#2`、`#3`；图标的解析方式不变（相对路径相对插件 DLL 目录，
+     文件不存在时不设图标）。
+   - 析构时注销命令；`ApplicationWindow` 析构时最先释放它，再关闭插件。
+3. **大按钮面板**：`UIRibbonPanelDef` 增加 `largeButtons`，为 true 时按钮不进按钮组，逐个
+   `addLargeAction`。插件自建的面板用它，保持原先的大按钮；挂进已有面板的按钮跟随该面板。
+4. **删除旁路**：`UIActionHandler` 的 `setExternalCommandExecutor`/`executeExternalCommand`、
+   `UICommandWidget` 的 `setExternalCommandStrings`。命令行输入 `pluginId/commandId` 改由注册表
+   别名解析，自动补全改由注册表别名提供。
+
+**行为变化**
+
+| 项 | 原先 | 现在 |
+|----|------|------|
+| 插件命令执行前 | 回调直接执行，什么也不结束 | 与其它即时命令一致，先结束不可打断的命令（多行文字编辑，会弹保存提示）；开始前确认 |
+| 命令行输入 | 区分大小写；排在"keyconfig.xml 认领但没有实现的条目"之后 | 不区分大小写；与扩展命令的别名同级。keyconfig.xml 的别名不会写成 `pluginId/commandId` 的形式，实际没有冲突 |
+| keyconfig.xml | 不能给插件命令配别名 | 可以：以 `pluginId/commandId` 为命令 ID |
+| 挂进内置面板的插件按钮 | 在面板末尾另加一个大按钮 | 进该面板的按钮组，与内置按钮同样式；开始前确认 |
+| 插件类目 | 按钮装配时由适配器临时建出 | 由 `UIRibbonManager` 与其它类目一起装配，排在最后（位置与原先相同） |
+
+新增测试 `tests/interaction/test_plugin_ui_adapter.cpp`（7 例）：命令注册为即时命令并回调插件、
+别名不区分大小写、只能登记一次；析构时注销；按标题挂进已有面板；新建类目与大按钮面板并被后来的
+插件复用、同一命令的第二个按钮加序号；图标解析；别名只差大小写；装配后大按钮不在按钮组里、点击按
+命令 ID 启动。
+
+提交②验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过；
+`check_layering.py` 通过；安装后程序能启动，本机插件目录里唯一的清单是只注册文件过滤器的 dxf 插件，
+Ribbon 与改动前一致（截图核对）。**插件按钮的界面效果没有在程序里核对**：本机没有部署注册命令与按钮
+的插件（示例插件的清单需要放进 `C:\ProgramData\YiCAD\plugins`），由上面的单测覆盖。
+
 ---
 
 ## 8. 阶段 5：Qt 5.15 到 Qt 6 迁移

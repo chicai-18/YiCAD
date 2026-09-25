@@ -27,8 +27,6 @@
 #include "UITabDrawWidget.h"
 #include "UISnapWidget.h"
 
-#include <functional>
-
 class UISnapWidget;
 class DmLayer;
 
@@ -39,9 +37,6 @@ class UIActionHandler : public QObject
     Q_OBJECT
 
 public:
-    using ExternalCommandExecutor =
-        std::function<bool(const QString&, const QString&)>;
-
     UIActionHandler(QObject* parent);
     virtual ~UIActionHandler() = default;
 
@@ -63,9 +58,6 @@ public:
     bool keycode(const QString& code);
     bool command(const QString& cmd);
 
-    /// @brief 设置规范外部命令的执行入口。
-    /// @param executor 接收 pluginId 和 commandId 的执行器；空执行器表示禁用。
-    void setExternalCommandExecutor(ExternalCommandExecutor executor);
     SnapMode getSnaps();
     DM::SnapRestriction getSnapRestriction();
     void set_view(GuiDocumentView* pDocumentView);
@@ -103,9 +95,6 @@ public slots:
     void slotCmdStateChanged();
 
 private:
-    /// @brief 解析并执行 pluginId/commandId 形式的外部命令。
-    bool executeExternalCommand(const QString& command);
-
     /// @brief 宿主自己处理的内置命令：结束全部命令（edit.kill_all）与捕捉/约束开关
     ///        （snap.*、restrict.*），keyconfig.xml 可以给它们配别名
     /// @param fromCommandLine 来自命令行（command()）还是按键编码（keycode()）
@@ -121,7 +110,6 @@ private:
     MDIWindow*          m_pMdiWin = nullptr;
     QMdiArea*           m_pDrawingArea = nullptr;
     UITabDrawWidget*    m_pTabDrawWidget = nullptr;
-    ExternalCommandExecutor m_externalCommandExecutor;
 };
 
 #endif

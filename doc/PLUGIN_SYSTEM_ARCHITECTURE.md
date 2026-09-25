@@ -19,7 +19,7 @@ flowchart TB
     subgraph App[YiCAD 应用层]
         AW[ApplicationWindow]
         AHC[ApplicationPluginHostContext]
-        UI[UIActionHandler / Ribbon / UICommandWidget]
+        UI[CommandRegistry / UIRibbonRegistry<br/>UIActionHandler / UICommandWidget]
         FIO[FileIO]
         DOC[DmDocument / GuiDocumentView]
     end
@@ -30,7 +30,7 @@ flowchart TB
         NL[NativePluginLoader<br/>加载 DLL 和解析入口]
         REG[PluginRegistry<br/>原子注册中心]
         HA[HostApi<br/>C ABI 宿主能力适配]
-        PUA[PluginUiAdapter<br/>UI 接入]
+        PUA[PluginUiAdapter<br/>命令与 Ribbon 注册表接入]
         PFA[PluginFileIOAdapter<br/>文件接口接入]
     end
 
@@ -80,11 +80,11 @@ flowchart TB
 
 | 类 | 作用 |
 | --- | --- |
-| `ApplicationWindow` | 插件系统的组合根。按依赖关系创建上下文、注册中心、宿主 API、管理器和 UI 适配器；启动时加载插件，退出时按安全顺序关闭插件。 |
+| `ApplicationWindow` | 插件系统的组合根。按依赖关系创建上下文、注册中心、宿主 API、管理器和 UI 适配器；启动时在扩展注册之后、Ribbon 注册表冻结之前加载插件（`loadPlugins()`），退出时先注销插件命令，再按安全顺序关闭插件。 |
 | `PluginHostContext` | 宿主内部能力的最小抽象接口，只暴露消息显示、当前文档、文档有效性和文档视图查询，避免 `HostApi` 直接依赖整个主窗口。 |
 | `ApplicationPluginHostContext` | `PluginHostContext` 在主窗口中的具体实现，把请求转交给 `ApplicationWindow` 的文档和消息功能。 |
 
-对象声明和析构顺序经过专门安排：`PluginManager` 必须先于 `HostApi`、`PluginRegistry` 和宿主上下文析构，确保 DLL 中的回调地址不再使用后才能卸载依赖对象。
+对象声明和析构顺序经过专门安排：`PluginUiAdapter` 最先析构，从 `CommandRegistry` 注销插件命令，之后不会再有入口调用插件回调；`PluginManager` 必须先于 `HostApi`、`PluginRegistry` 和宿主上下文析构，确保 DLL 中的回调地址不再使用后才能卸载依赖对象。
 
 ### 3.2 发现、加载与生命周期
 
@@ -136,7 +136,7 @@ void yicad_plugin_shutdown();
 | `PluginRibbonButtonRecord` | 描述按钮所在的 Ribbon 页、分组、关联命令和图标路径。 |
 | `PluginImportFilterRecord` | 描述导入格式、扩展名、回调和上下文。 |
 | `PluginExportFilterRecord` | 描述导出格式、扩展名、回调和上下文。 |
-| `PluginUiAdapter` | 把注册记录物化为 `QAction` 和 Ribbon 页面/分组，并把 `pluginId/commandId` 注入命令窗口自动补全和执行器。 |
+| `PluginUiAdapter` | 把已提交的注册记录接入宿主的注册表：命令以 `pluginId/commandId` 为 ID 注册成 `CommandRegistry` 的即时命令，同一字符串兼作命令行别名；Ribbon 按钮登记进 `UIRibbonRegistry`，与内置类目、扩展一起由 `UIRibbonManager` 装配。析构时注销命令。 |
 | `PluginFileIOAdapter` | 继承现有 `FilterInterface`，把 YiCAD 的导入/导出调用转换成插件 C 回调；调用前验证插件仍为活动状态、路径可安全转为 UTF-8、文档句柄有效。 |
 
 注册中心将“插件声明能力”和“应用创建界面对象”分开。插件 DLL 不直接创建或持有 Qt 控件，因此插件不需要链接 YiCAD 或 Qt 内部库，宿主也能统一管理 UI 对象的所有权。
@@ -187,7 +187,7 @@ sequenceDiagram
 
 详细流程如下：
 
-1. `ApplicationWindow` 在 Ribbon、命令窗口和首个文档可用后创建插件运行时。
+1. `ApplicationWindow` 在命令窗口和首个文档可用、扩展注册完成后创建插件运行时；此时 Ribbon 注册表尚未冻结，插件按钮稍后与内置类目、扩展一起装配。
 2. `PluginManifestReader` 扫描生产目录中的 XML 清单并逐个严格校验。
 3. `NativePluginLoader` 加载 DLL，要求三个入口全部存在。
 4. `PluginManager` 调用版本入口，当前必须精确等于 ABI v3。
@@ -200,18 +200,22 @@ sequenceDiagram
 
 ## 5. 命令调用原理
 
-插件在 `init` 中注册命令回调，并可为命令声明 Ribbon 按钮。加载结束后，`PluginUiAdapter::materialize()` 读取已提交记录：
+插件在 `init` 中注册命令回调，并可为命令声明 Ribbon 按钮。加载结束后，`PluginUiAdapter::registerAll()` 读取已提交记录，登记进宿主的命令注册表与 Ribbon 注册表：
 
 ```text
-用户点击 Ribbon 按钮
-    → QAction::triggered
+用户点击 Ribbon 按钮，或在命令行输入 pluginId/commandId
+    → UIActionHandler::activateCommand("pluginId/commandId")
+    → 先结束不可打断的命令（多行文字编辑，与其它即时命令一致）
+    → CommandRegistry::runInstant
     → PluginRegistry::executeCommand(pluginId, commandId)
     → YiCadCommandCallback(userData)
     → 插件业务逻辑
     → 通过 YiCadHostApi 操作文档或显示消息
 ```
 
-命令窗口使用同一条执行链。外部命令的规范形式为 `pluginId/commandId`，因此不同插件可以使用相同的局部命令 ID 而不会冲突。
+插件命令在宿主里的 ID 是 `pluginId/commandId`，因此不同插件可以使用相同的局部命令 ID 而不会冲突；内置与扩展的命令 ID 不含 `/`，也不会与插件命令重名。这个字符串同时是命令行别名（不区分大小写，出现在自动补全里）；keyconfig.xml 也可以用它作为命令 ID，给插件命令配更短的别名。
+
+Ribbon 按钮按插件声明的页签、分组的**显示名**匹配已注册的类目与面板：匹配到时按钮挂进该面板，跟随该面板的样式；匹配不到时新建类目（ID `plugin:<页签>`）或面板（ID `plugin:<页签>/<分组>`），插件自建的面板里按钮以大按钮排列。插件的类目排在内置类目与扩展之后。
 
 ## 6. 文件导入与导出原理
 
@@ -252,12 +256,14 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A[FileIO 断开插件运行时] --> B[PluginManager 逆序 shutdown]
+    Z[UI 适配器注销插件命令] --> A[FileIO 断开插件运行时]
+    A --> B[PluginManager 逆序 shutdown]
     B --> C[HostApi 回滚遗留导入会话]
     C --> D[NativePluginLoader 卸载 DLL]
-    D --> E[销毁 UI 适配器]
-    E --> F[销毁 HostApi / Registry / Context]
+    D --> F[销毁 HostApi / Registry / Context]
 ```
+
+插件按钮的 `QAction` 归 Ribbon 所有、随主窗口销毁；命令注销后再点击它们，`CommandRegistry` 查不到命令，什么也不做。
 
 关键安全规则包括：
 

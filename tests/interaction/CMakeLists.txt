@@ -1,5 +1,6 @@
 # tests/interaction —— 交互层：命令与视图工具的机制（src/application/，含扩展框架
-# src/application/framework/）、keyconfig.xml（src/cmd/）、内置命令与各扩展的命令。
+# src/application/framework/）、keyconfig.xml（src/cmd/）、内置命令与各扩展的命令，
+# 以及插件命令与按钮接入宿主注册表（src/plugin_runtime/PluginUiAdapter）。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
 yicad_add_test(interaction
@@ -25,6 +26,7 @@ yicad_add_test(interaction
         test_dim_extension.cpp
         test_command_extensions.cpp
         test_ribbon_registry.cpp
+        test_plugin_ui_adapter.cpp
     LABELS "interaction;unit")
 
 # test_keyconfig 读源码树里的默认 keyconfig.xml（程序目录下的那份由 cmake --install 复制）

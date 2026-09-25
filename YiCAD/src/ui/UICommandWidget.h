@@ -47,11 +47,8 @@ public:
 
     void setCompleterStrings(const QStringList& strs);
 
-    /// @brief 设置外部规范命令，并与内置命令共同用于自动补全。
-    void setExternalCommandStrings(const QStringList& commands);
-
-    /// @brief 重建自动补全列表；CommandRegistry 里的命令别名（扩展命令）
-    /// 注册完成后由宿主调用一次。
+    /// @brief 重建自动补全列表；CommandRegistry 里的命令别名（扩展命令，以及插件命令的
+    /// "pluginId/commandId"）注册完成后由宿主调用一次。
     void refreshCompleter();
     QWidget* createTempEdit();
     QWidget* getCommandWidget();
@@ -98,6 +95,5 @@ private:
     UITabDrawWidget*                m_pTabDrawWidget = nullptr;
     std::unique_ptr<QPropertyAnimation> m_pAnimation;
     QStringList                     m_completerStrings;
-    QStringList                     m_externalCommandStrings;
 };
 #endif // UICOMMANDWIDGETNEW
