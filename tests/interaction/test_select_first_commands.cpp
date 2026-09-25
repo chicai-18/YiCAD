@@ -20,6 +20,7 @@
 #include "BlockEditTool.h"
 #include "BlockExtension.h"
 #include "ExtensionManager.h"
+#include "support/CommandExtensions.h"
 #include "support/FakeExtensionHost.h"
 #include "CircleData.h"
 #include "CommandRegistry.h"
@@ -73,9 +74,9 @@ public:
 
 /// @brief 先选后建的 14 个命令
 const char* const kSelectFirstCommands[] = {
-    "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
-    "modify.explode", "modify.reverse", "modify.delete", "edit.copy",    "edit.cut",
-    "modify.copy_to_layer", "ext.block.create", "ext.block.edit", "info.total_length"};
+    "ext.modify.move",    "ext.modify.copy",    "ext.modify.rotate", "ext.modify.scale", "ext.modify.mirror",
+    "ext.modify.explode", "ext.modify.reverse", "ext.modify.delete", "ext.edit.copy",    "ext.edit.cut",
+    "ext.modify.copy_to_layer", "ext.block.create", "ext.block.edit", "ext.measure.total_length"};
 
 /// @brief 有放置工具、提示写在按键提示栏的命令，及其第一步提示的开头
 struct FirstStep
@@ -84,13 +85,13 @@ struct FirstStep
     const char* hint;
 };
 const FirstStep kPlaceToolCommands[] = {
-    {"modify.move", "Specify reference point"},
-    {"modify.copy", "Specify reference point or input copy number"},
-    {"modify.rotate", "Specify rotation center"},
-    {"modify.scale", "Specify reference point"},
-    {"modify.mirror", "Specify first point of mirror line"},
-    {"edit.copy", "Specify reference point"},
-    {"edit.cut", "Specify reference point"},
+    {"ext.modify.move", "Specify reference point"},
+    {"ext.modify.copy", "Specify reference point or input copy number"},
+    {"ext.modify.rotate", "Specify rotation center"},
+    {"ext.modify.scale", "Specify reference point"},
+    {"ext.modify.mirror", "Specify first point of mirror line"},
+    {"ext.edit.copy", "Specify reference point"},
+    {"ext.edit.cut", "Specify reference point"},
     {"ext.block.create", "Specify reference point"},
 };
 
@@ -108,11 +109,13 @@ struct SelectFirstFixture : ::testing::Test
     /// @brief 平移模式（临时视图工具）是否叠在命令之上，见 suspendUnderViewTool()
     bool viewToolActive = false;
     ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
-    /// @brief 创建块、编辑块在块扩展里（第三步⑥），用例期间启动它
+    /// @brief 创建块、编辑块在块扩展里（第三步⑥），其余先选后建命令在修改、编辑、查询扩展里
+    ///        （第四步），用例期间启动它们
     yicad_test::FakeExtensionHost extensionHost;
 
     SelectFirstFixture()
     {
+        yicad_test::registerCommandExtensions();
         ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
         ExtensionManager::instance().BootAll(extensionHost);
         GuiDialogFactory::instance()->setFactoryObject(&ui);
@@ -250,7 +253,7 @@ private:
 
 TEST_F(SelectFirstFixture, P1没有选择集时进入选择阶段并给出原ActionSelectMultiple的提示)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     EXPECT_TRUE(bus.hasActiveCommand());
     EXPECT_TRUE(selectTool.inSelectionPhase());
@@ -265,7 +268,7 @@ TEST_F(SelectFirstFixture, P1没有选择集时进入选择阶段并给出原Act
 TEST_F(SelectFirstFixture, P2P3框选后回车开始真正的命令)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     boxSelect(0, 0, 100, 100);
     EXPECT_TRUE(line->isSelected());
@@ -283,7 +286,7 @@ TEST_F(SelectFirstFixture, P2P3框选后回车开始真正的命令)
 
 TEST_F(SelectFirstFixture, P4没有选择集时回车无反应)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     EXPECT_EQ(pressKey(Qt::Key_Enter), ViewToolResult::Handled);
     EXPECT_TRUE(bus.hasActiveCommand());
@@ -293,7 +296,7 @@ TEST_F(SelectFirstFixture, P4没有选择集时回车无反应)
 
 TEST_F(SelectFirstFixture, P5右键结束整个命令)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     // 进行中的框选也一并取消
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 0, 0, Qt::LeftButton);
@@ -311,7 +314,7 @@ TEST_F(SelectFirstFixture, P5右键结束整个命令)
 
 TEST_F(SelectFirstFixture, P6Esc不接受由主窗口结束全部命令)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     QKeyEvent* esc = nullptr;
     EXPECT_EQ(pressKey(Qt::Key_Escape, &esc), ViewToolResult::Cancel);
@@ -324,7 +327,7 @@ TEST_F(SelectFirstFixture, P6空格被选择阶段接受命令继续)
 {
     // 与清单原先写的不同：原 ActionSelectMultiple 不忽略空格，事件保持接受，
     // 主窗口因此不结束命令（迁移计划 9.2 节）。
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     QKeyEvent* space = nullptr;
     EXPECT_EQ(pressKey(Qt::Key_Space, &space), ViewToolResult::Handled);
@@ -337,7 +340,7 @@ TEST_F(SelectFirstFixture, P7已有选择集时跳过选择阶段)
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(30.0, 40.0));
     line->setSelected(true);
 
-    EXPECT_TRUE(start("info.total_length"));
+    EXPECT_TRUE(start("ext.measure.total_length"));
     EXPECT_FALSE(selectTool.inSelectionPhase());
     ASSERT_EQ(ui.messages.size(), 1u);
     EXPECT_TRUE(ui.messages.front().startsWith(QStringLiteral("Total Length of selected entities")));
@@ -350,7 +353,7 @@ TEST_F(SelectFirstFixture, P8已有选择集时删除仍先进入选择阶段)
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(30.0, 40.0));
     line->setSelected(true);
 
-    ASSERT_TRUE(start("modify.delete"));
+    ASSERT_TRUE(start("ext.modify.delete"));
     EXPECT_TRUE(bus.hasActiveCommand());
     EXPECT_TRUE(selectTool.inSelectionPhase());
     EXPECT_TRUE(line->isSelected());
@@ -359,7 +362,7 @@ TEST_F(SelectFirstFixture, P8已有选择集时删除仍先进入选择阶段)
 TEST_F(SelectFirstFixture, 选择阶段双击无反应)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     QMouseEvent dbl = makeMouse(QEvent::MouseButtonDblClick, 30, 10, Qt::LeftButton);
     EXPECT_EQ(dispatch([&] { return control.mouseDoubleClickEvent(&dbl); }), ViewToolResult::Handled);
@@ -371,7 +374,7 @@ TEST_F(SelectFirstFixture, 选择阶段拖动不拖夹点也不拖实体)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.delete"));
+    ASSERT_TRUE(start("ext.modify.delete"));
 
     // 在端点上按下并拖动超过阈值：空闲态会进入 MovingRef，选择阶段直接框选
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton);
@@ -383,7 +386,7 @@ TEST_F(SelectFirstFixture, 选择阶段拖动不拖夹点也不拖实体)
 
 TEST_F(SelectFirstFixture, 选择阶段Ctrl左键不让给平移)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton, Qt::ControlModifier);
     dispatch([&] { return control.mousePressEvent(&press); });
@@ -393,7 +396,7 @@ TEST_F(SelectFirstFixture, 选择阶段Ctrl左键不让给平移)
 
 TEST_F(SelectFirstFixture, 选择阶段中键仍由导航层平移)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::MiddleButton);
     dispatch([&] { return control.mousePressEvent(&press); });
@@ -415,7 +418,7 @@ TEST_F(SelectFirstFixture, 选择阶段按实体类型过滤)
 
 TEST_F(SelectFirstFixture, 平移模式叠在命令之上时命令被挂起结束后恢复)
 {
-    ASSERT_TRUE(start("info.total_length"));
+    ASSERT_TRUE(start("ext.measure.total_length"));
 
     suspendUnderViewTool();
     EXPECT_TRUE(bus.isSuspended());
@@ -499,7 +502,7 @@ TEST_F(SelectFirstFixture, 复制到图层的提示写在命令行且右键在�
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.copy_to_layer"));
+    ASSERT_TRUE(start("ext.modify.copy_to_layer"));
     ASSERT_FALSE(ui.messages.empty());
     EXPECT_EQ(ui.messages.back(), QStringLiteral("Select the object on the target layer"));
 
@@ -515,7 +518,7 @@ TEST_F(SelectFirstFixture, 移动工具右键退回上一步第一步时结束�
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.move"));
+    ASSERT_TRUE(start("ext.modify.move"));
 
     click(0, 0);
     ASSERT_FALSE(ui.hints.empty());
@@ -539,7 +542,7 @@ TEST_F(SelectFirstFixture, 放置工具接收命令行坐标但不接受文本)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.move"));
+    ASSERT_TRUE(start("ext.modify.move"));
 
     EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(5.0, 6.0)); }), ViewToolResult::Handled);
     EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify target point"));
@@ -556,7 +559,7 @@ TEST_F(SelectFirstFixture, 放置工具不接受Esc且把中键平移让给导�
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.move"));
+    ASSERT_TRUE(start("ext.modify.move"));
 
     QKeyEvent* esc = nullptr;
     EXPECT_EQ(pressKey(Qt::Key_Escape, &esc), ViewToolResult::Handled);
@@ -578,7 +581,7 @@ TEST_F(SelectFirstFixture, 旋转工具设置中心时不接受文本设置角�
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.rotate"));
+    ASSERT_TRUE(start("ext.modify.rotate"));
 
     GuiCommandEvent early("30");
     EXPECT_EQ(typeText(early), ViewToolResult::NotHandled);
@@ -598,7 +601,7 @@ TEST_F(SelectFirstFixture, 缩放工具设置基点时文本被接受但不起�
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.scale"));
+    ASSERT_TRUE(start("ext.modify.scale"));
 
     GuiCommandEvent text("2");
     EXPECT_EQ(typeText(text), ViewToolResult::Handled);
@@ -611,7 +614,7 @@ TEST_F(SelectFirstFixture, 复制工具随时可输入复制数量)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.copy"));
+    ASSERT_TRUE(start("ext.modify.copy"));
     auto* command = dynamic_cast<ModifyCopyCommand*>(bus.activeCommand());
     ASSERT_NE(command, nullptr);
 
@@ -633,7 +636,7 @@ TEST_F(SelectFirstFixture, 镜像工具输入YN切换复制方式)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.mirror"));
+    ASSERT_TRUE(start("ext.modify.mirror"));
     auto* command = dynamic_cast<ModifyMirrorCommand*>(bus.activeCommand());
     ASSERT_NE(command, nullptr);
 
@@ -658,7 +661,7 @@ TEST_F(SelectFirstFixture, 平移模式叠在放置工具之上时停用工具�
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
-    ASSERT_TRUE(start("modify.move"));
+    ASSERT_TRUE(start("ext.modify.move"));
 
     suspendUnderViewTool();
     EXPECT_TRUE(bus.isSuspended());
@@ -732,7 +735,7 @@ TEST_F(SelectFirstFixture, B6块编辑中启动的命令结束后回到块编辑
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     line->setSelected(true);
 
-    ASSERT_TRUE(start("modify.move"));
+    ASSERT_TRUE(start("ext.modify.move"));
     // 命令叠在模式之上：选项条收起，提示归命令
     EXPECT_FALSE(ui.blockEditOptions.back());
     EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));

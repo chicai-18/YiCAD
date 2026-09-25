@@ -24,6 +24,7 @@
 #include "EntityTable.h"
 #include "TransientViewTool.h"
 #include "UIActionHandler.h"
+#include "support/CommandExtensions.h"
 #include "support/FakeDocumentView.h"
 
 namespace
@@ -155,23 +156,25 @@ TEST(CommandRegistryTest, 三类命令共用ID与别名空间)
 
 TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
 {
+    // 第四步起这些命令在修改、编辑、查询扩展里
+    yicad_test::CommandExtensionsScope extensions;
     const char* const migrated[] = {
-        "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
-        "modify.explode", "modify.reverse", "modify.delete", "edit.copy",    "edit.cut",
-        "modify.copy_to_layer", "info.total_length",
+        "ext.modify.move",    "ext.modify.copy",    "ext.modify.rotate", "ext.modify.scale", "ext.modify.mirror",
+        "ext.modify.explode", "ext.modify.reverse", "ext.modify.delete", "ext.edit.copy",    "ext.edit.cut",
+        "ext.modify.copy_to_layer", "ext.measure.total_length",
     };
     for (const char* id : migrated)
     {
         SCOPED_TRACE(id);
         EXPECT_EQ(CommandRegistry::instance().kind(id), CommandKind::Exclusive);
         // 原先只供 ActionSelect 选择完成后使用的 _no_select 入口随之删除（删除的除外，见下）
-        if (QLatin1String(id) != QLatin1String("modify.delete"))
+        if (QLatin1String(id) != QLatin1String("ext.modify.delete"))
         {
             EXPECT_FALSE(CommandRegistry::instance().hasCommand(QString::fromLatin1(id) + "_no_select"));
         }
     }
     // Delete 键与手写板橡皮擦用的直接删除保留为即时命令
-    EXPECT_EQ(CommandRegistry::instance().kind("modify.delete_no_select"), CommandKind::Instant);
+    EXPECT_EQ(CommandRegistry::instance().kind("ext.modify.delete_no_select"), CommandKind::Instant);
 }
 
 TEST(CommandRegistryTest, 临时视图工具按ID创建并记录命令ID)
@@ -206,18 +209,20 @@ TEST(CommandRegistryTest, 即时命令的打断策略随注册登记)
 
 TEST(CommandRegistryTest, 第三步迁移的视图与即时命令注册为新类型)
 {
+    // 第四步起这些命令在视图、编辑、查询扩展里
+    yicad_test::CommandExtensionsScope extensions;
     // 平移模式是临时视图工具，不占命令总线
-    EXPECT_EQ(CommandRegistry::instance().kind("zoom.pan"), CommandKind::ViewTool);
+    EXPECT_EQ(CommandRegistry::instance().kind("ext.view.pan"), CommandKind::ViewTool);
 
-    for (const char* id : {"zoom.in", "zoom.out", "edit.undo", "edit.redo", "info.selected"})
+    for (const char* id : {"ext.view.zoom_in", "ext.view.zoom_out", "ext.edit.undo", "ext.edit.redo", "ext.measure.selected"})
     {
         SCOPED_TRACE(id);
         EXPECT_EQ(CommandRegistry::instance().kind(id), CommandKind::Instant);
     }
     // 原视图 Action 不打断任何命令（多行文字编辑中缩放不结束它）；撤销等照旧结束不可打断的
-    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("zoom.in"), InstantInterrupt::KeepAll);
-    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("zoom.out"), InstantInterrupt::KeepAll);
-    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("edit.undo"), InstantInterrupt::EndUninterruptible);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("ext.view.zoom_in"), InstantInterrupt::KeepAll);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("ext.view.zoom_out"), InstantInterrupt::KeepAll);
+    EXPECT_EQ(CommandRegistry::instance().instantInterrupt("ext.edit.undo"), InstantInterrupt::EndUninterruptible);
 }
 
 TEST(CommandRegistryTest, 实体双击编辑命令只接受交互命令且一类实体只登记一个)

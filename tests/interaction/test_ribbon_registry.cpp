@@ -118,7 +118,7 @@ TEST(RibbonRegistryTest, 扩展入口只接受自己命名空间内的ID)
     EXPECT_TRUE(ext.addPanel({.id = "ext.demo.p", .categoryId = "category.draw2d"}));
     EXPECT_FALSE(ext.addPanel({.id = "ext.demox.p", .categoryId = "category.draw2d"}));
     EXPECT_TRUE(ext.addAction({.panelId = "draw2d.dimension", .commandId = "ext.demo.cmd"}));
-    EXPECT_FALSE(ext.addAction({.panelId = "draw2d.dimension", .commandId = "draw.line"}));
+    EXPECT_FALSE(ext.addAction({.panelId = "draw2d.dimension", .commandId = "ext.draw.line"}));
     EXPECT_TRUE(ext.addWidget({.id = "ext.demo.w", .panelId = "ext.demo.p", .factory = [](QWidget*) { return nullptr; }}));
     EXPECT_FALSE(ext.addWidget({.id = "w", .panelId = "ext.demo.p", .factory = [](QWidget*) { return nullptr; }}));
 }

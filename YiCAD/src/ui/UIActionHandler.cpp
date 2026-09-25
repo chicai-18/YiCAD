@@ -320,21 +320,6 @@ bool UIActionHandler::executeExternalCommand(const QString& command)
 		command.mid(separator + 1));
 }
 
-void UIActionHandler::slotZoomIn() 
-{
-	activateCommand(QStringLiteral("zoom.in"));
-}
-
-void UIActionHandler::slotZoomOut() 
-{
-	activateCommand(QStringLiteral("zoom.out"));
-}
-
-void UIActionHandler::slotZoomPan() 
-{
-	activateCommand(QStringLiteral("zoom.pan"));
-}
-
 void UIActionHandler::slotEditUndo() 
 {
 	//to avoid operation on deleted entities, Undo action invalid all suspended
@@ -344,17 +329,7 @@ void UIActionHandler::slotEditUndo()
 	{
 		return;
 	}
-	activateCommand(QStringLiteral("edit.undo"));
-}
-
-void UIActionHandler::slotDrawPoint() 
-{
-	activateCommand(QStringLiteral("draw.point"));
-}
-
-void UIActionHandler::slotModifyDelete() 
-{
-	activateCommand(QStringLiteral("modify.delete"));
+	activateCommand(QStringLiteral("ext.edit.undo"));
 }
 
 void UIActionHandler::slotSetSnaps(SnapMode const& s) 
@@ -466,11 +441,6 @@ void UIActionHandler::disableRestrictions()
 	SnapMode s = getSnaps();
 	s.restriction = DM::RestrictNothing;
 	slotSetSnaps(s);
-}
-
-void UIActionHandler::slotIndoSelected()
-{
-    activateCommand(QStringLiteral("info.selected"));
 }
 
 void UIActionHandler::slotSecectedChanged()

@@ -84,6 +84,9 @@ public:
     /// @brief 注册一条即时命令（见 CommandRegistry::registerInstantCommand），命名空间规则同上。
     virtual bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info) = 0;
 
+    /// @brief 注册一个临时视图工具（见 CommandRegistry::registerViewTool，如平移模式），命名空间规则同上。
+    virtual bool registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info) = 0;
+
     /// @brief 登记某类实体的双击编辑命令（见 CommandRegistry::registerEntityEditor）。
     /// @param commandId 必须在本扩展的命名空间内，且已注册为交互命令；命令注销时登记随之删除
     /// @return 命名空间不符、命令未注册或这类实体已有编辑命令时返回 false。

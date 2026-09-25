@@ -32,6 +32,7 @@
 #include "SelectTool.h"
 #include "Snapper.h"
 #include "ViewToolControl.h"
+#include "support/CommandExtensions.h"
 #include "support/FakeDocumentView.h"
 
 namespace yicad_test
@@ -206,6 +207,13 @@ struct CommandFixture : ::testing::Test
         }
         return nullptr;
     }
+};
+
+/// @brief CommandFixture 加上原内置命令所在的五个扩展（绘图、修改、查询、编辑、视图），
+///        测这些命令的用例用它（迁移计划 9.4 节）
+struct BuiltinCommandFixture : CommandFixture
+{
+    CommandExtensionsScope extensions;
 };
 }  // namespace yicad_test
 

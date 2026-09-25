@@ -30,24 +30,24 @@ struct FirstStep
 };
 
 const FirstStep kCommands[] = {
-    {"draw.line", "Specify first point", "Cancel"},
-    {"draw.polyline", "Specify first point", "Cancel"},
-    {"draw.line_rectangle", "Specify first corner", "Cancel"},
-    {"draw.line_polygon_cen_cor", "Specify center", ""},
-    {"draw.line_polygon_cen_tan", "Specify center", ""},
-    {"draw.line_bisector", "Select first line", "Cancel"},
-    {"draw.line_tangent1", "Specify point", "Cancel"},
-    {"draw.line_tangent2", "Select first circle or ellipse", "Cancel"},
-    {"draw.line_orth_tan", "Select a line", "Cancel"},
-    {"draw.line_free", "Click and drag to draw a line", "Cancel"},
-    {"draw.ray", "Specify first point", "Cancel"},
-    {"draw.xline", "Specify first point", "Cancel"},
-    {"draw.point", "Specify location", "Cancel"},
+    {"ext.draw.line", "Specify first point", "Cancel"},
+    {"ext.draw.polyline", "Specify first point", "Cancel"},
+    {"ext.draw.line_rectangle", "Specify first corner", "Cancel"},
+    {"ext.draw.line_polygon_cen_cor", "Specify center", ""},
+    {"ext.draw.line_polygon_cen_tan", "Specify center", ""},
+    {"ext.draw.line_bisector", "Select first line", "Cancel"},
+    {"ext.draw.line_tangent1", "Specify point", "Cancel"},
+    {"ext.draw.line_tangent2", "Select first circle or ellipse", "Cancel"},
+    {"ext.draw.line_orth_tan", "Select a line", "Cancel"},
+    {"ext.draw.line_free", "Click and drag to draw a line", "Cancel"},
+    {"ext.draw.ray", "Specify first point", "Cancel"},
+    {"ext.draw.xline", "Specify first point", "Cancel"},
+    {"ext.draw.point", "Specify location", "Cancel"},
 };
 
 /// @brief 有选项条的命令
-const char* const kWithOptions[] = {"draw.line", "draw.polyline", "draw.line_polygon_cen_cor",
-                                    "draw.line_polygon_cen_tan", "draw.line_bisector"};
+const char* const kWithOptions[] = {"ext.draw.line", "ext.draw.polyline", "ext.draw.line_polygon_cen_cor",
+                                    "ext.draw.line_polygon_cen_tan", "ext.draw.line_bisector"};
 
 bool hasOptions(const char* id)
 {
@@ -61,7 +61,7 @@ bool hasOptions(const char* id)
     return false;
 }
 
-struct DrawLineFixture : CommandFixture
+struct DrawLineFixture : BuiltinCommandFixture
 {
     template <typename Command>
     Command* active() const
@@ -127,11 +127,11 @@ TEST_F(DrawLineFixture, 右键在第一步结束命令)
 TEST_F(DrawLineFixture, 放置工具光标选线类为选择光标其余为十字)
 {
     const std::pair<const char*, DM::CursorType> cursors[] = {
-        {"draw.line", DM::CadCursor},
-        {"draw.line_bisector", DM::SelectCursor},
-        {"draw.line_orth_tan", DM::SelectCursor},
-        {"draw.line_tangent2", DM::SelectCursor},
-        {"draw.line_tangent1", DM::CadCursor},
+        {"ext.draw.line", DM::CadCursor},
+        {"ext.draw.line_bisector", DM::SelectCursor},
+        {"ext.draw.line_orth_tan", DM::SelectCursor},
+        {"ext.draw.line_tangent2", DM::SelectCursor},
+        {"ext.draw.line_tangent1", DM::CadCursor},
     };
     for (const auto& [id, expected] : cursors)
     {
@@ -145,7 +145,7 @@ TEST_F(DrawLineFixture, 放置工具光标选线类为选择光标其余为十�
 
 TEST_F(DrawLineFixture, 画直线指定起点后预览并右键开始新线段组)
 {
-    ASSERT_TRUE(start("draw.line"));
+    ASSERT_TRUE(start("ext.draw.line"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify next point"));
     EXPECT_EQ(ui.lastRightHint(), QStringLiteral("Back"));
@@ -166,7 +166,7 @@ TEST_F(DrawLineFixture, 画直线命令行文本都被当作redo接受)
     // 与原 ActionDrawLine 一致（既有缺陷，照原样保留）：Commands::checkCommand 对
     // help/close/undo 以外的关键字一律返回 true（cmd/Commands.cpp 的 checkCommand），
     // 所以任何文本都匹配 "redo"：被接受、执行重做，不会被当作新命令
-    ASSERT_TRUE(start("draw.line"));
+    ASSERT_TRUE(start("ext.draw.line"));
     EXPECT_TRUE(typeText(QStringLiteral("help")));
     EXPECT_FALSE(ui.messages.empty());
     EXPECT_TRUE(typeText(QStringLiteral("circle")));
@@ -175,7 +175,7 @@ TEST_F(DrawLineFixture, 画直线命令行文本都被当作redo接受)
 
 TEST_F(DrawLineFixture, 画直线没有线段时闭合与撤销给出提示)
 {
-    ASSERT_TRUE(start("draw.line"));
+    ASSERT_TRUE(start("ext.draw.line"));
     auto* command = active<DrawLineCommand>();
     ASSERT_NE(command, nullptr);
 
@@ -193,7 +193,7 @@ TEST_F(DrawLineFixture, 画直线没有线段时闭合与撤销给出提示)
 
 TEST_F(DrawLineFixture, 画多段线指定起点后闭合给出提示)
 {
-    ASSERT_TRUE(start("draw.polyline"));
+    ASSERT_TRUE(start("ext.draw.polyline"));
     auto* command = active<DrawPolylineCommand>();
     ASSERT_NE(command, nullptr);
 
@@ -211,7 +211,7 @@ TEST_F(DrawLineFixture, 画多段线指定起点后闭合给出提示)
 
 TEST_F(DrawLineFixture, 画多段线有线宽时预览为填充四边形)
 {
-    ASSERT_TRUE(start("draw.polyline"));
+    ASSERT_TRUE(start("ext.draw.polyline"));
     auto* command = active<DrawPolylineCommand>();
     ASSERT_NE(command, nullptr);
     command->setStartWeight(2.0);
@@ -225,7 +225,7 @@ TEST_F(DrawLineFixture, 画多段线有线宽时预览为填充四边形)
 
 TEST_F(DrawLineFixture, 画多段线右键退回时丢弃起点)
 {
-    ASSERT_TRUE(start("draw.polyline"));
+    ASSERT_TRUE(start("ext.draw.polyline"));
     typeCoordinate(0, 0);
     rightClick();
     EXPECT_TRUE(bus.hasActiveCommand());
@@ -237,7 +237,7 @@ TEST_F(DrawLineFixture, 画多段线右键退回时丢弃起点)
 
 TEST_F(DrawLineFixture, 矩形指定第一个角点后预览右键退回)
 {
-    ASSERT_TRUE(start("draw.line_rectangle"));
+    ASSERT_TRUE(start("ext.draw.line_rectangle"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify second corner"));
     EXPECT_EQ(ui.lastRightHint(), QStringLiteral("Back"));
@@ -252,7 +252,7 @@ TEST_F(DrawLineFixture, 矩形指定第一个角点后预览右键退回)
 
 TEST_F(DrawLineFixture, 多边形命令行number进入输入边数且不接受这段文本)
 {
-    for (const char* id : {"draw.line_polygon_cen_cor", "draw.line_polygon_cen_tan"})
+    for (const char* id : {"ext.draw.line_polygon_cen_cor", "ext.draw.line_polygon_cen_tan"})
     {
         SCOPED_TRACE(id);
         ASSERT_TRUE(start(id));
@@ -278,14 +278,14 @@ TEST_F(DrawLineFixture, 多边形命令行number进入输入边数且不接受�
 
 TEST_F(DrawLineFixture, 多边形边数超出范围给出提示)
 {
-    ASSERT_TRUE(start("draw.line_polygon_cen_cor"));
+    ASSERT_TRUE(start("ext.draw.line_polygon_cen_cor"));
     typeText(QStringLiteral("number"));
     EXPECT_TRUE(typeText(QStringLiteral("10000")));
     EXPECT_EQ(ui.messages.back(), QStringLiteral("Not a valid number. Try 1..9999"));
     EXPECT_EQ(active<LinePolygonCommand>()->getNumber(), 3);
     endCommand();
 
-    ASSERT_TRUE(start("draw.line_polygon_cen_tan"));
+    ASSERT_TRUE(start("ext.draw.line_polygon_cen_tan"));
     typeText(QStringLiteral("number"));
     // 中心+切点的上限含 9999
     EXPECT_TRUE(typeText(QStringLiteral("9999")));
@@ -294,7 +294,7 @@ TEST_F(DrawLineFixture, 多边形边数超出范围给出提示)
 
 TEST_F(DrawLineFixture, 多边形指定中心后按边数预览)
 {
-    ASSERT_TRUE(start("draw.line_polygon_cen_cor"));
+    ASSERT_TRUE(start("ext.draw.line_polygon_cen_cor"));
     active<LinePolygonCommand>()->setNumber(5);
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify a corner"));
@@ -304,7 +304,7 @@ TEST_F(DrawLineFixture, 多边形指定中心后按边数预览)
 
 TEST_F(DrawLineFixture, 角平分线命令行设置长度与数量)
 {
-    ASSERT_TRUE(start("draw.line_bisector"));
+    ASSERT_TRUE(start("ext.draw.line_bisector"));
     auto* command = active<DrawLineBisectorCommand>();
     ASSERT_NE(command, nullptr);
 
@@ -325,7 +325,7 @@ TEST_F(DrawLineFixture, 角平分线命令行设置长度与数量)
 
 TEST_F(DrawLineFixture, 射线在方向一步右键只退回状态)
 {
-    for (const char* id : {"draw.ray", "draw.xline"})
+    for (const char* id : {"ext.draw.ray", "ext.draw.xline"})
     {
         SCOPED_TRACE(id);
         ASSERT_TRUE(start(id));
@@ -344,7 +344,7 @@ TEST_F(DrawLineFixture, 射线在方向一步右键只退回状态)
 
 TEST_F(DrawLineFixture, 过点切线指定点后改为选择光标)
 {
-    ASSERT_TRUE(start("draw.line_tangent1"));
+    ASSERT_TRUE(start("ext.draw.line_tangent1"));
     typeCoordinate(1, 2);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Select circle, arc or ellipse"));
     EXPECT_EQ(view.getRelativeZero(), DmVector(1, 2));
@@ -360,7 +360,7 @@ TEST_F(DrawLineFixture, 两圆公切线第二步结束命令不崩溃)
     circle->calculateBorders();
     ASSERT_TRUE(doc.getEntityTable()->add_direct(circle));
 
-    ASSERT_TRUE(start("draw.line_tangent2"));
+    ASSERT_TRUE(start("ext.draw.line_tangent2"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Select second circle or ellipse"));
     EXPECT_TRUE(circle->isHighlighted());
@@ -371,7 +371,7 @@ TEST_F(DrawLineFixture, 两圆公切线第二步结束命令不崩溃)
 
 TEST_F(DrawLineFixture, 徒手线按下进入拖动释放回到第一步)
 {
-    ASSERT_TRUE(start("draw.line_free"));
+    ASSERT_TRUE(start("ext.draw.line_free"));
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 0, 0, Qt::LeftButton);
     dispatch([&] { return control.mousePressEvent(&press); });
     // 只有一个点：释放时不提交
@@ -387,7 +387,7 @@ TEST_F(DrawLineFixture, 徒手线按下进入拖动释放回到第一步)
 TEST_F(DrawLineFixture, 徒手线结束后预览容器恢复持有实体)
 {
     ASSERT_TRUE(view.getPreviewContainer()->isOwner());
-    ASSERT_TRUE(start("draw.line_free"));
+    ASSERT_TRUE(start("ext.draw.line_free"));
     EXPECT_FALSE(view.getPreviewContainer()->isOwner());
     endCommand();
     EXPECT_TRUE(view.getPreviewContainer()->isOwner());
@@ -395,26 +395,26 @@ TEST_F(DrawLineFixture, 徒手线结束后预览容器恢复持有实体)
 
 TEST_F(DrawLineFixture, 旧Action叠上来时收起选项条结束后重新显示)
 {
-    ASSERT_TRUE(start("draw.line"));
+    ASSERT_TRUE(start("ext.draw.line"));
     ui.options.clear();
     bus.suspend();
-    ASSERT_NE(lastOptions("draw.line"), nullptr);
-    EXPECT_FALSE(lastOptions("draw.line")->on);
+    ASSERT_NE(lastOptions("ext.draw.line"), nullptr);
+    EXPECT_FALSE(lastOptions("ext.draw.line")->on);
 
     bus.resume();
-    ASSERT_NE(lastOptions("draw.line"), nullptr);
-    EXPECT_TRUE(lastOptions("draw.line")->on);
+    ASSERT_NE(lastOptions("ext.draw.line"), nullptr);
+    EXPECT_TRUE(lastOptions("ext.draw.line")->on);
 
     // 挂起期间被结束：不再重复收起选项条
     bus.suspend();
     ui.options.clear();
     endCommand();
-    EXPECT_EQ(lastOptions("draw.line"), nullptr);
+    EXPECT_EQ(lastOptions("ext.draw.line"), nullptr);
 }
 
 TEST_F(DrawLineFixture, 放置工具不接受Esc且中键让给导航层)
 {
-    ASSERT_TRUE(start("draw.polyline"));
+    ASSERT_TRUE(start("ext.draw.polyline"));
     EXPECT_FALSE(pressKey(Qt::Key_Escape));
     EXPECT_TRUE(bus.hasActiveCommand());
 

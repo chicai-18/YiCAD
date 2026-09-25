@@ -193,6 +193,12 @@ ExclusiveCommandOptionsFactory CommandRegistry::commandOptionsFactory(const QStr
     return it == m_commands.end() ? ExclusiveCommandOptionsFactory() : it->second.info.commandOptionsFactory;
 }
 
+int CommandRegistry::commandOptionsHeight(const QString& id) const
+{
+    auto it = m_commands.find(id);
+    return it == m_commands.end() ? CommandInfo{}.commandOptionsHeight : it->second.info.commandOptionsHeight;
+}
+
 InstantInterrupt CommandRegistry::instantInterrupt(const QString& id) const
 {
     auto it = m_commands.find(id);

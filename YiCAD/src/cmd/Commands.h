@@ -20,7 +20,7 @@
 ///
 /// 别名来自 keyconfig.xml（程序目录下的默认配置与用户目录下的覆盖），以
 /// CommandRegistry 的字符串命令 ID 为键，例如
-/// `<item command="draw.line" description="两点直线" keys="line,li,l"/>`。
+/// `<item command="ext.draw.line" description="两点直线" keys="line,li,l"/>`。
 /// 原先以 DM::ActionType 的枚举名为键（`action="ActionDrawLine"`），业务工具化
 /// 第四步改为命令 ID（doc/COMMAND_TOOL_MIGRATION_PLAN.md）；读取旧格式时按原映射表
 /// 转换，用户目录下的旧格式文件在加载时改写一次，并保留备份。

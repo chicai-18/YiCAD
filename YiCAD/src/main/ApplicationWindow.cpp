@@ -91,11 +91,16 @@
 #include "AIExtension.h"
 #include "BlockExtension.h"
 #include "DimExtension.h"
+#include "DrawExtension.h"
+#include "EditExtension.h"
 #include "FileExtension.h"
 #include "HatchExtension.h"
 #include "LayerExtension.h"
+#include "MeasureExtension.h"
+#include "ModifyExtension.h"
 #include "OptionsExtension.h"
 #include "TextExtension.h"
+#include "ViewExtension.h"
 
 #include "MDIWindow.h"
 #include "GuiDocumentView.h"
@@ -401,6 +406,13 @@ void ApplicationWindow::registerExtensions()
 	ExtensionManager::instance().Register(std::make_unique<FileExtension>());
 	ExtensionManager::instance().Register(std::make_unique<LayerExtension>());
 	ExtensionManager::instance().Register(std::make_unique<OptionsExtension>());
+	// 原内置命令（迁移计划 9.4 节）：绘图排在修改之前（多段线面板里节点按钮在云线之后），
+	// 也排在填充之前（其他面板里插入图片在填充之前）
+	ExtensionManager::instance().Register(std::make_unique<DrawExtension>());
+	ExtensionManager::instance().Register(std::make_unique<ModifyExtension>());
+	ExtensionManager::instance().Register(std::make_unique<MeasureExtension>());
+	ExtensionManager::instance().Register(std::make_unique<EditExtension>());
+	ExtensionManager::instance().Register(std::make_unique<ViewExtension>());
 	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
 	ExtensionManager::instance().Register(std::make_unique<DimExtension>());
 	ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
@@ -541,15 +553,15 @@ void ApplicationWindow::keyPressEvent(QKeyEvent* e)
 {
 	if (e->matches(QKeySequence::Cut))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("edit.cut"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.edit.cut"));
 	}
 	else if (e->matches(QKeySequence::Copy))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("edit.copy"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.edit.copy"));
 	}
 	else if (e->matches(QKeySequence::Paste))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("edit.paste"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.edit.paste"));
 	}
 	else if (e->matches(QKeySequence::New))
 	{
@@ -569,7 +581,7 @@ void ApplicationWindow::keyPressEvent(QKeyEvent* e)
 	}
 	else if (e->matches(QKeySequence::Redo))
 	{
-		m_pActionHandler->activateCommand(QStringLiteral("edit.redo"));
+		m_pActionHandler->activateCommand(QStringLiteral("ext.edit.redo"));
 	}
 	else
 	{
@@ -729,7 +741,7 @@ void ApplicationWindow::slotEnter()
 
 void ApplicationWindow::slotDelete()
 {
-	m_pActionHandler->activateCommand(QStringLiteral("modify.delete_no_select"));
+	m_pActionHandler->activateCommand(QStringLiteral("ext.modify.delete_no_select"));
 }
 
 void ApplicationWindow::resizeEvent(QResizeEvent* event)
@@ -1200,7 +1212,7 @@ void ApplicationWindow::createQuickAccessBar(SARibbonQuickAccessBar* quickAccess
 
 	// 重做
 	m_pActRedo = createAction(QObject::tr("Redo"), ":/ribbon/redo.svg");
-	connect(m_pActRedo, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("edit.redo"), m_pActRedo); });
+	connect(m_pActRedo, &QAction::triggered, this, [this]() { m_pActionHandler->activateCommand(QStringLiteral("ext.edit.redo"), m_pActRedo); });
     m_pActRedo->setEnabled(false);
 	quickAccessBar->addAction(m_pActRedo);																	// 重做
 	quickAccessBar->addSeparator();                                                                         // 分割条
@@ -1272,7 +1284,7 @@ QWidget* ApplicationWindow::createLayerTable(QWidget* parent)
 
 	//复制实体到图层
 	QAction* actCopyLayer = createAction(QObject::tr("copy to layer"), ":/ribbon/layer/copy_entity_to_layer.svg");
-	connect(actCopyLayer, &QAction::triggered, this, [this, actCopyLayer]() { m_pActionHandler->activateCommand(QStringLiteral("modify.copy_to_layer"), actCopyLayer); });
+	connect(actCopyLayer, &QAction::triggered, this, [this, actCopyLayer]() { m_pActionHandler->activateCommand(QStringLiteral("ext.modify.copy_to_layer"), actCopyLayer); });
 
 	// 修改图层
 	QAction* actRenameLayer = createAction(QObject::tr("rename layer"), ":/ribbon/layer/rename_layer.svg");

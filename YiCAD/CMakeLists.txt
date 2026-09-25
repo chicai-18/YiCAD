@@ -156,12 +156,11 @@ yicad_collect_sources(APPLICATION
 
 # 对应阶段 3 的 YiCadInteraction：交互视图 UIView（kernel/interaction/，对应 DS 的
 # View/UIView），继承 RENDER 分区的画布 GuiDocumentView，装配 APPLICATION 分区的
-# ViewToolControl、各层工具与命令总线。
-#
-# src/actions/ 是尚未拆进扩展的内置命令，业务工具化第四步随后拆进 src/extensions/。
+# ViewToolControl、各层工具与命令总线。原先本分区的 src/actions/（内置命令）在业务
+# 工具化第四步拆进了 src/extensions/（ext.draw、ext.modify、ext.measure、ext.edit、
+# ext.view）。
 yicad_collect_sources(INTERACTION
-    src/kernel/interaction
-    src/actions)
+    src/kernel/interaction)
 
 # 对应阶段 3 的 YiCadUi。
 #
@@ -478,7 +477,6 @@ set_target_properties(YiCadCore PROPERTIES FOLDER "YiCAD")
 target_include_directories(YiCadCore PUBLIC
     # uic 生成的 ui_*.h 落在构建目录
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/actions
     ${CMAKE_CURRENT_SOURCE_DIR}/src/application
     ${CMAKE_CURRENT_SOURCE_DIR}/src/application/framework
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cmd

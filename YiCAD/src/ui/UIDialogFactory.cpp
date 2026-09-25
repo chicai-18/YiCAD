@@ -20,7 +20,6 @@
 
 #include "UIDialogFactory.h"
 
-#include <map>
 
 #include <QMessageBox>
 #include <QFileDialog>
@@ -43,15 +42,10 @@
 #include "Fileio.h"
 
 
-#include "UIArcOptions.h"
-#include "UIArcTangentialOptions.h"
-#include "UIBevelOptions.h"
 #include "UIBlockDialog.h"
 #include "UIBlockEditOptions.h"
 #include "UINestedBlockSelectDialog.h"
 #include "UIDlgEditAttributes.h"
-#include "UICircleTan2Options.h"
-#include "UICloudLineOptions.h"
 #include "UICommandWidget.h"
 #include "UIDlgArc.h"
 #include "UIDlgCircle.h"
@@ -68,17 +62,10 @@
 #include "UIDlgPolyline.h"
 #include "UIDlgSpline.h"
 #include "UIDlgText.h"
-#include "UIImageOptions.h"
 #include "UILayerDialog.h"
-#include "UILineBisectorOptions.h"
-#include "UILineOptions.h"
-#include "UILinePolygonOptions.h"
 #include "UIModifyOffsetOptions.h"
-#include "UIRoundOptions.h"
 #include "UISnapDistOptions.h"
 #include "UISnapMiddleOptions.h"
-#include "UISplineOptions.h"
-#include "UIPolylineOptions.h"
 #include "DmBlockTable.h"
 #include "UISnapMiddleOptions.h"
 #include "UISnapDistOptions.h"
@@ -432,231 +419,6 @@ QString UIDialogFactory::requestImageOpenDialog()
 //
 //}
 
-// Shows a widget for options for the action: "draw line"
-void UIDialogFactory::requestLineOptions(IExclusiveCommand* command, bool on, bool /*update*/)
-{
-	if (optionWidget)
-	{
-		static UILineOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UILineOptions(optionWidget);
-			toolWidget->setCommand(command);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for options for the action: "draw polyline"
-void UIDialogFactory::requestPolylineOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIPolylineOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIPolylineOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for options for the action: "line angle"
-void UIDialogFactory::requestLineBisectorOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UILineBisectorOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UILineBisectorOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for options for the action: "draw polygon"
-void UIDialogFactory::requestLinePolygonOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UILinePolygonOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UILinePolygonOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-void UIDialogFactory::requestCloudLineOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UICloudLineOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UICloudLineOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for arc options.
-void UIDialogFactory::requestArcOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIArcOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIArcOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for tangential arc options.
-void UIDialogFactory::requestArcTangentialOptions(IExclusiveCommand* command, bool on, bool /*update*/)
-{
-	if (optionWidget)
-	{
-		static UIArcTangentialOptions* toolWidget = nullptr;
-		if (toolWidget && !on)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			bool useUpdate = toolWidget;
-			if (!toolWidget)
-			{
-				toolWidget = new UIArcTangentialOptions(optionWidget);
-			}
-			toolWidget->setCommand(command, useUpdate);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-		arcTangentialOptions = toolWidget;
-	}
-}
-
-void UIDialogFactory::updateArcTangentialOptions(const double& radius, const bool& lockRadius, const double& angle, const bool& lockAngle)
-{
-	if (!arcTangentialOptions) return;
-
-	if (!lockRadius)
-	{
-		arcTangentialOptions->updateRadius(QString::number(radius, 'g', 5));
-	}
-	if (!lockAngle)
-	{
-		arcTangentialOptions->updateAngle(QString::number(angle, 'g', 5));
-	}
-}
-
-// Shows a widget for arc options.
-void UIDialogFactory::requestCircleTan2Options(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UICircleTan2Options* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UICircleTan2Options(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for spline options.
-void UIDialogFactory::requestSplineOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UISplineOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UISplineOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 26);
-			optionWidget->show();
-		}
-	}
-}
-
 // Shows a widget for block edit options.
 void UIDialogFactory::requestBlockEditOptions(IBlockEditSession* session, bool on)
 {
@@ -680,69 +442,23 @@ void UIDialogFactory::requestBlockEditOptions(IBlockEditSession* session, bool o
 	}
 }
 
-// Shows a widget for image options.
-void UIDialogFactory::requestImageOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIImageOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIImageOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
 void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on, bool update)
 {
 	if (!command)
 	{
 		return;
 	}
-	if (ExclusiveCommandOptionsFactory factory = CommandRegistry::instance().commandOptionsFactory(command->commandId()))
+	// 选项条都随命令注册在 CommandRegistry（CommandInfo::commandOptionsFactory）；原先内置命令
+	// 按命令 ID 分派到这里的 request*Options，随内置命令拆进扩展删除（迁移计划 9.4 节）
+	const CommandRegistry& registry = CommandRegistry::instance();
+	if (ExclusiveCommandOptionsFactory factory = registry.commandOptionsFactory(command->commandId()))
 	{
-		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, command, update); }, on);
-		return;
-	}
-
-	// 内置命令的选项条按命令 ID 分派（原先按 Action 类型，见 requestOptions）
-	using BuiltinOptions = void (UIDialogFactory::*)(IExclusiveCommand*, bool, bool);
-	static const std::map<QString, BuiltinOptions> builtins = {
-		{QStringLiteral("draw.line"), &UIDialogFactory::requestLineOptions},
-		{QStringLiteral("draw.polyline"), &UIDialogFactory::requestPolylineOptions},
-		{QStringLiteral("draw.line_bisector"), &UIDialogFactory::requestLineBisectorOptions},
-		{QStringLiteral("draw.line_polygon_cen_cor"), &UIDialogFactory::requestLinePolygonOptions},
-		{QStringLiteral("draw.line_polygon_cen_tan"), &UIDialogFactory::requestLinePolygonOptions},
-		{QStringLiteral("draw.arc"), &UIDialogFactory::requestArcOptions},
-		{QStringLiteral("draw.arc_tangential"), &UIDialogFactory::requestArcTangentialOptions},
-		{QStringLiteral("draw.circle_tan2"), &UIDialogFactory::requestCircleTan2Options},
-		{QStringLiteral("draw.spline"), &UIDialogFactory::requestSplineOptions},
-		{QStringLiteral("draw.spline_points"), &UIDialogFactory::requestSplineOptions},
-		{QStringLiteral("draw.cloud_line_rectangle"), &UIDialogFactory::requestCloudLineOptions},
-		{QStringLiteral("draw.cloud_line_polygon"), &UIDialogFactory::requestCloudLineOptions},
-		{QStringLiteral("draw.cloud_line_free"), &UIDialogFactory::requestCloudLineOptions},
-		{QStringLiteral("draw.image"), &UIDialogFactory::requestImageOptions},
-		{QStringLiteral("modify.bevel"), &UIDialogFactory::requestBevelOptions},
-		{QStringLiteral("modify.round"), &UIDialogFactory::requestRoundOptions},
-	};
-	auto it = builtins.find(command->commandId());
-	if (it != builtins.end())
-	{
-		(this->*(it->second))(command, on, update);
+		requestRegisteredOptions([&](QWidget* parent) { return factory(parent, command, update); }, on,
+		                         registry.commandOptionsHeight(command->commandId()));
 	}
 }
 
-void UIDialogFactory::requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on)
+void UIDialogFactory::requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on, int height)
 {
 	if (!optionWidget)
 	{
@@ -759,7 +475,7 @@ void UIDialogFactory::requestRegisteredOptions(const std::function<QWidget*(QWid
 		if (m_pRegisteredOptions)
 		{
 			m_pRegisteredOptions->show();
-			optionWidget->resize(m_pRegisteredOptions->width(), 23);
+			optionWidget->resize(m_pRegisteredOptions->width(), height);
 			optionWidget->show();
 		}
 	}
@@ -823,52 +539,6 @@ void UIDialogFactory::requestSnapDistOptions(double& dist, bool on)
 		m_pSnapDistOptions->show();
 		optionWidget->resize(m_pSnapDistOptions->width(), 23);
 		optionWidget->show();
-	}
-}
-
-// Shows a widget for beveling options.
-void UIDialogFactory::requestBevelOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIBevelOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIBevelOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
-	}
-}
-
-// Shows a widget for rounding options.
-void UIDialogFactory::requestRoundOptions(IExclusiveCommand* command, bool on, bool update)
-{
-	if (optionWidget)
-	{
-		static UIRoundOptions* toolWidget = nullptr;
-		if (toolWidget)
-		{
-			delete toolWidget;
-			toolWidget = nullptr;
-			optionWidget->hide();
-		}
-		if (on)
-		{
-			toolWidget = new UIRoundOptions(optionWidget);
-			toolWidget->setCommand(command, update);
-			toolWidget->show();
-			optionWidget->resize(toolWidget->width(), 23);
-			optionWidget->show();
-		}
 	}
 }
 

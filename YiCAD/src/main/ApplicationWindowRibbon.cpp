@@ -18,31 +18,16 @@
 /// @file ApplicationWindowRibbon.cpp
 /// @brief 内置 Ribbon 类目的注册（文件、绘图、设置）。
 ///
-/// 按钮只声明外观、位置、可用条件与命令 ID，由 UIRibbonManager 统一装配，
-/// 点击后经 UIActionHandler::activateCommand 按 ID 启动 CommandRegistry 里
-/// 的命令。写成 ApplicationWindow 的成员函数，是为了让 tr() 的翻译上下文
-/// 与迁移前的 createCategory*() 保持一致（ApplicationWindow / QObject），
-/// 已有译文不受影响。
+/// 宿主只注册类目与面板（占位），按钮全部由扩展注册（IExtensionContext::ribbon），
+/// 点击后经 UIActionHandler::activateCommand 按 ID 启动 CommandRegistry 里的命令。
+/// 原先宿主自己注册的绘图、修改、测量按钮随内置命令拆进扩展（ext.draw、ext.modify、
+/// ext.measure，doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节）。写成 ApplicationWindow 的
+/// 成员函数，是为了让 tr() 的翻译上下文与迁移前的 createCategory*() 保持一致
+/// （ApplicationWindow / QObject），已有译文不受影响。
 
 #include "ApplicationWindow.h"
 
 #include "UIRibbonRegistry.h"
-
-namespace
-{
-/// @brief 注册一个启动命令的按钮。
-void addCommand(UIRibbonRegistrar& r, const char* panelId, const QString& text, const char* iconPath,
-                const char* commandId, UIRibbonEnableFn enableFn = {})
-{
-    r.addAction(UIRibbonActionDef{
-        .panelId = panelId,
-        .text = text,
-        .iconPath = iconPath,
-        .commandId = commandId,
-        .enableFn = std::move(enableFn),
-    });
-}
-}  // namespace
 
 void ApplicationWindow::registerBuiltinRibbon(UIRibbonRegistrar& r)
 {
@@ -72,72 +57,13 @@ void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
     r.addCategory({.id = kCategoryDraw2d, .title = QObject::tr("Draw2d"), .objectName = "categoryDraw2d",
                    .enableFn = UIRibbonCondition::requireAll(UIRibbonRequires::DocumentOpen)});
 
-    // 画线
+    // 画线、曲线、多段线、圆、椭圆：只占位，按钮由绘图扩展（src/extensions/draw/）注册，
+    // 多段线面板里的添加/追加/删除节点由修改扩展（src/extensions/modify/）注册
     r.addPanel({.id = kPanelDraw2dLine, .categoryId = kCategoryDraw2d, .title = QObject::tr("Line")});
-    addCommand(r, kPanelDraw2dLine, tr("2 Points"), ":/ribbon/draw2d/line_2p.svg", "draw.line");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Rectangle"), ":/ribbon/draw2d/line_square.svg",
-               "draw.line_rectangle");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Bisector"), ":/ribbon/draw2d/line_bi_angle.svg",
-               "draw.line_bisector");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Tangent (P,C)"), ":/ribbon/draw2d/line_tangent_pt_circle.svg",
-               "draw.line_tangent1");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Tangent (C,C)"), ":/ribbon/draw2d/line_tangent_c_c.svg",
-               "draw.line_tangent2");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Tangent Orthogonal"), ":/ribbon/draw2d/line_tan_orthognal.svg",
-               "draw.line_orth_tan");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Polygon (Cen,Cor)"), ":/ribbon/draw2d/line_polygon_cen_cor.svg",
-               "draw.line_polygon_cen_cor");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Polygon (Cen,Tan)"), ":/ribbon/draw2d/line_polygon_cen_tan.svg",
-               "draw.line_polygon_cen_tan");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Ray"), ":/ribbon/draw2d/line_ray.svg", "draw.ray");
-    addCommand(r, kPanelDraw2dLine, QObject::tr("Xline"), ":/ribbon/draw2d/line_xline.svg", "draw.xline");
-
-    // 曲线
     r.addPanel({.id = kPanelDraw2dCurve, .categoryId = kCategoryDraw2d, .title = QObject::tr("Curve")});
-    addCommand(r, kPanelDraw2dCurve, QObject::tr("Center, Point, Angles"),
-               ":/ribbon/draw2d/curve_arc_center_angle.svg", "draw.arc");
-    addCommand(r, kPanelDraw2dCurve, QObject::tr("3 Points"), ":/ribbon/draw2d/curve_arc_3p.svg", "draw.arc_3p");
-    addCommand(r, kPanelDraw2dCurve, QObject::tr("Arc Tangential"), ":/ribbon/draw2d/curve_arc_tang.svg",
-               "draw.arc_tangential");
-    addCommand(r, kPanelDraw2dCurve, QObject::tr("Spline"), ":/ribbon/draw2d/curve_spline.svg", "draw.spline");
-    addCommand(r, kPanelDraw2dCurve, QObject::tr("Spline through points"), ":/ribbon/draw2d/curve_spline_ft_pt.svg",
-               "draw.spline_points");
-    addCommand(r, kPanelDraw2dCurve, QObject::tr("Freehand Line"), ":/ribbon/draw2d/curve_freehand_line.svg",
-               "draw.line_free");
-
-    // 多段线
     r.addPanel({.id = kPanelDraw2dPolyline, .categoryId = kCategoryDraw2d, .title = QObject::tr("Polyline")});
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Polyline"), ":/ribbon/draw2d/polyline.svg", "draw.polyline");
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Add node"), ":/ribbon/draw2d/polyline_add_node.svg",
-               "polyline.add");
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Append node"), ":/ribbon/draw2d/polyline_append_node.svg",
-               "polyline.append");
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Delete node"), ":/ribbon/draw2d/polyline_delete_node.svg",
-               "polyline.del");
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Create cloud line by rectangle"),
-               ":/ribbon/draw2d/cloudline_rectangle.svg", "draw.cloud_line_rectangle");
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Create cloud line by polygon"),
-               ":/ribbon/draw2d/cloudline_polygon.svg", "draw.cloud_line_polygon");
-    addCommand(r, kPanelDraw2dPolyline, QObject::tr("Create cloud line by free"),
-               ":/ribbon/draw2d/cloudline_free.svg", "draw.cloud_line_free");
-
-    // 画圆
     r.addPanel({.id = kPanelDraw2dCircle, .categoryId = kCategoryDraw2d, .title = QObject::tr("Circle")});
-    addCommand(r, kPanelDraw2dCircle, QObject::tr("Center, Point"), ":/ribbon/draw2d/circle_center_pt.svg",
-               "draw.circle");
-    addCommand(r, kPanelDraw2dCircle, QObject::tr("2 Points"), ":/ribbon/draw2d/circle_2p.svg", "draw.circle_2p");
-    addCommand(r, kPanelDraw2dCircle, QObject::tr("3 Points"), ":/ribbon/draw2d/circle_3p.svg", "draw.circle_3p");
-    addCommand(r, kPanelDraw2dCircle, QObject::tr("Tangential 2 Circles, Radius"),
-               ":/ribbon/draw2d/circle_tan_radius.svg", "draw.circle_tan2");
-    addCommand(r, kPanelDraw2dCircle, QObject::tr("Tangential 3 Circles"), ":/ribbon/draw2d/circle_tan_3c.svg",
-               "draw.circle_tan3");
-
-    // 椭圆
     r.addPanel({.id = kPanelDraw2dEllipse, .categoryId = kCategoryDraw2d, .title = QObject::tr("Ellipse")});
-    addCommand(r, kPanelDraw2dEllipse, QObject::tr("Ellipse(Axis)"), ":/ribbon/draw2d/ellipe_2seg.svg",
-               "draw.ellipse_axis");
-    addCommand(r, kPanelDraw2dEllipse, QObject::tr("Ellipse Inscribed"), ":/ribbon/draw2d/ellipse_incrib.svg",
-               "draw.ellipse_inscribe");
 
     // 标注：只占位，按钮由标注扩展（src/extensions/dim/）注册。
     r.addPanel({.id = kPanelDraw2dDimension, .categoryId = kCategoryDraw2d, .title = QObject::tr("Dimension")});
@@ -145,43 +71,14 @@ void ApplicationWindow::registerRibbonDraw2d(UIRibbonRegistrar& r)
     // 文字：只占位，按钮由文字扩展（src/extensions/text/）注册。
     r.addPanel({.id = kPanelDraw2dText, .categoryId = kCategoryDraw2d, .title = QObject::tr("Text")});
 
-    // 其他
+    // 其他：只占位，插入图片由绘图扩展注册，填充由填充扩展（src/extensions/hatch/）注册
     r.addPanel({.id = kPanelDraw2dOther, .categoryId = kCategoryDraw2d, .title = QObject::tr("Other")});
-    // 填充按钮由填充扩展（src/extensions/hatch/）注册，排在插入图片之后
-    addCommand(r, kPanelDraw2dOther, QObject::tr("Insert Image"), ":/ribbon/draw2d/insert_image.svg", "draw.image");
 
-    // 修改
+    // 修改：只占位，按钮由修改扩展（src/extensions/modify/）注册。
     r.addPanel({.id = kPanelDraw2dModify, .categoryId = kCategoryDraw2d, .title = QObject::tr("Modify")});
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Copy"), ":/ribbon/draw2d/modify_copy.svg", "modify.copy");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Move"), ":/ribbon/draw2d/modify_move.svg", "modify.move");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Rotate"), ":/ribbon/draw2d/modify_rotate.svg", "modify.rotate");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Scale"), ":/ribbon/draw2d/modify_zoom.svg", "modify.scale");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Mirror"), ":/ribbon/draw2d/modify_mirror.svg", "modify.mirror");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Trim"), ":/ribbon/draw2d/modify_trim.svg", "modify.trim");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Lengthen"), ":/ribbon/draw2d/modify_lengthen.svg",
-               "modify.extend");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Offset"), ":/ribbon/draw2d/modify_offset.svg",
-               "modify.single_offset");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Bevel"), ":/ribbon/draw2d/modify_bevel.svg", "modify.bevel");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Fillet"), ":/ribbon/draw2d/modify_fillet.svg", "modify.round");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Divide"), ":/ribbon/draw2d/modify_divide.svg", "modify.cut");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Divide_2P"), ":/ribbon/draw2d/modify_twopoints_break.svg",
-               "modify.cut_2p");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Properties"), ":/ribbon/draw2d/modify_attributes.svg",
-               "modify.entity");
-    addCommand(r, kPanelDraw2dModify, QObject::tr("Explode"), ":/ribbon/draw2d/modify_explode.svg",
-               "modify.explode");
 
-    // 测量
+    // 测量：只占位，按钮由查询扩展（src/extensions/measure/）注册。
     r.addPanel({.id = kPanelDraw2dMeasure, .categoryId = kCategoryDraw2d, .title = QObject::tr("Measure")});
-    addCommand(r, kPanelDraw2dMeasure, QObject::tr("Distance Point to Point"), ":/ribbon/draw2d/info_dist_pt_pt.svg",
-               "info.dist");
-    addCommand(r, kPanelDraw2dMeasure, QObject::tr("Angle between two lines"),
-               ":/ribbon/draw2d/info_angle_2lines.svg", "info.angle");
-    addCommand(r, kPanelDraw2dMeasure, QObject::tr("Total length of selected entities"),
-               ":/ribbon/draw2d/info_length_entity.svg", "info.total_length");
-    addCommand(r, kPanelDraw2dMeasure, QObject::tr("Polygonal Area"), ":/ribbon/draw2d/info_area_polygon.svg",
-               "info.area");
 
     // 图层：图层下拉框与图层操作按钮是宿主自己的控件（依赖图层列表的刷新逻辑）。
     r.addPanel({.id = kPanelDraw2dLayer, .categoryId = kCategoryDraw2d, .title = QObject::tr("Layer")});

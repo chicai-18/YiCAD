@@ -213,11 +213,6 @@ public:
     {
     }
 
-    /// @brief 更新圆弧切线选项（空操作）
-    void updateArcTangentialOptions(const double& radius, const bool& lockRadius, const double& angle, const bool& lockAngle) override
-    {
-    }
-
     /// @brief 显示命令消息（空操作）
     void commandMessage(const QString&) override
     {

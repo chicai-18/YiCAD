@@ -19,16 +19,14 @@
 /// @brief 命令注册表：以字符串 ID 为键的命令工厂表，替代
 /// UIActionHandler.cpp 里原先的 153-case switch。
 ///
-/// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4 第7.4节任务①②。内置命令
-/// 在自己的 .cpp 里用文件作用域静态对象自注册，加命令等于加一个文件，不需要
-/// 再回来改 UIActionHandler.cpp。这个自注册模式能可靠工作，依赖阶段0把 YiCadCore
-/// 选成 OBJECT 库而非 STATIC 库的决定——OBJECT 库不会因为"没人引用"而把
-/// 整个翻译单元的目标文件从链接里剔除，STATIC 库的归档器则会。
+/// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4 第7.4节任务①②。命令都由扩展在
+/// IExtension::OnRegister 里经 IExtensionContext 注册（业务工具化第四步把原先在
+/// src/actions/ 里自注册的内置命令拆进了 ext.draw/ext.modify/ext.measure/ext.edit/
+/// ext.view，doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节），扩展卸载时注销。
 ///
-/// 命令只以字符串 ID 标识（内置命令形如 "draw.line"，扩展命令形如
-/// "ext.dim.linear"），由 `UIActionHandler::activateCommand` 按 ID 启动。原先供
-/// keyconfig.xml 使用的 `DM::ActionType` 桥接在业务工具化第四步删除
-/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
+/// 命令只以字符串 ID 标识（形如 "ext.draw.line"，扩展 ID 加一段），由
+/// `UIActionHandler::activateCommand` 按 ID 启动。原先供 keyconfig.xml 使用的
+/// `DM::ActionType` 桥接在业务工具化第四步删除。
 ///
 /// 命令行别名有两个来源：keyconfig.xml（`Commands`，以命令 ID 为键，分组可选，
 /// "命令设置"对话框可改）与随 `CommandInfo` 注册在这里的别名；两者重名时
@@ -130,6 +128,9 @@ struct CommandInfo
     QStringList aliases;
     /// @brief 交互命令的选项条；为空表示该命令没有选项条。
     ExclusiveCommandOptionsFactory commandOptionsFactory;
+    /// @brief 选项条容器的高度（像素）。几乎都是 23，样条的是 26（原先各选项条在对话框
+    ///        工厂里写死，迁移时照原值登记）
+    int commandOptionsHeight = 23;
     /// @brief 即时命令执行前如何处理正在运行的命令；只对即时命令有效。
     InstantInterrupt instantInterrupt = InstantInterrupt::EndUninterruptible;
 };
@@ -142,7 +143,7 @@ public:
     static CommandRegistry& instance();
 
     /// @brief 注册一个交互命令。
-    /// @param id 稳定的点号命名空间字符串 ID（如 "draw.line"），不能为空。
+    /// @param id 稳定的点号命名空间字符串 ID（如 "ext.draw.line"），不能为空。
     /// @param factory 命令工厂，不能为空。
     /// @param info 说明、别名与选项条；别名与已注册命令的别名冲突时整体拒绝。
     /// @return 成功返回 true；id 已存在、别名冲突或参数非法返回 false，
@@ -183,6 +184,9 @@ public:
 
     /// @brief 交互命令的选项条工厂；未注册或未提供时返回空函数。
     ExclusiveCommandOptionsFactory commandOptionsFactory(const QString& id) const;
+
+    /// @brief 选项条容器的高度；未注册时返回默认值 23。
+    int commandOptionsHeight(const QString& id) const;
 
     /// @brief 即时命令执行前如何处理正在运行的命令；未注册时返回默认值。
     InstantInterrupt instantInterrupt(const QString& id) const;

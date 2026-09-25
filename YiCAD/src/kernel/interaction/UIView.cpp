@@ -495,13 +495,14 @@ void UIView::tabletEvent(QTabletEvent* e)
                 if (pDocument && m_pSelectTool)
                 {
                     // 橡皮擦：单点拾取后删除选择集。未命中时照旧删除已有的选择集。
-                    // 删除是即时命令，不打断当前命令（清单 E6）。
+                    // 删除是修改扩展的即时命令，不打断当前命令（清单 E6）；没有修改扩展时
+                    // 只拾取、不删除。
                     m_pSelectTool->pickAt(e->pos().x(), e->pos().y());
 
                     if (pDocument->getEntityTable()->hasSelect())
                     {
                         prepareInstantCommand();
-                        CommandRegistry::instance().runInstant(QStringLiteral("modify.delete_no_select"),
+                        CommandRegistry::instance().runInstant(QStringLiteral("ext.modify.delete_no_select"),
                                                                CommandContext{pDocument, this});
                     }
                 }

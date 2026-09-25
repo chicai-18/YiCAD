@@ -209,11 +209,11 @@ TEST(ExtensionManagerTest, 扩展的Ribbon条目按命名空间校验但可以�
                 {.id = "ext.rb.button", .panelId = "builtin.panel", .text = "B", .trigger = [] {}}));
             results.push_back(ctx.ribbon().addAction(
                 {.id = "builtin.button", .panelId = "builtin.panel", .text = "B", .trigger = [] {}}));
-            // 给内置命令加按钮时，按钮 ID 默认取命令 ID，不在命名空间内被拒绝；
+            // 给别的扩展或宿主的命令加按钮时，按钮 ID 默认取命令 ID，不在命名空间内被拒绝；
             // 显式给一个自己的 ID 就可以。
-            results.push_back(ctx.ribbon().addAction({.panelId = "builtin.panel", .commandId = "draw.line"}));
+            results.push_back(ctx.ribbon().addAction({.panelId = "builtin.panel", .commandId = "ext.draw.line"}));
             results.push_back(ctx.ribbon().addAction(
-                {.id = "ext.rb.line", .panelId = "builtin.panel", .commandId = "draw.line"}));
+                {.id = "ext.rb.line", .panelId = "builtin.panel", .commandId = "ext.draw.line"}));
             results.push_back(ctx.ribbon().addPanel({.id = "ext.rb.panel", .categoryId = "builtin.category"}));
             results.push_back(ctx.ribbon().addCategory({.id = "category.rb_bad"}));
         })));

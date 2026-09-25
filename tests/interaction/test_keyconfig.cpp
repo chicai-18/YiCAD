@@ -2,7 +2,7 @@
 /// @brief keyconfig.xml 读写（Commands）的单测
 ///
 /// 业务工具化第四步把 keyconfig.xml 从以 DM::ActionType 的枚举名为键
-/// （`action="ActionDrawLine"`）改为以命令 ID 为键（`command="draw.line"`），
+/// （`action="ActionDrawLine"`）改为以命令 ID 为键（`command="ext.draw.line"`），
 /// 见 doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节。覆盖：新格式读取、旧格式按原
 /// 映射表转换、用户目录下旧格式文件的改写与备份、保存时保留其它组，以及程序
 /// 目录下默认配置里的命令都已注册。
@@ -15,6 +15,7 @@
 
 #include "CommandRegistry.h"
 #include "Commands.h"
+#include "support/CommandExtensions.h"
 
 namespace
 {
@@ -78,15 +79,15 @@ TEST(KeyconfigTest, 新格式按命令ID读取指定组)
     const QString file = dir.filePath("keyconfig.xml");
     writeFile(file, R"(<?xml version="1.0" encoding="utf-8" ?>
 <groups>
-	<group name="A"><item command="draw.line" description="Line" keys="l"/></group>
-	<group name="B"><item command="draw.circle" description="Circle" keys=" C , Circle"/></group>
+	<group name="A"><item command="ext.draw.line" description="Line" keys="l"/></group>
+	<group name="B"><item command="ext.draw.circle" description="Circle" keys=" C , Circle"/></group>
 </groups>
 )");
 
     QString group = "B";
     const std::vector<CommandKeys> items = Commands::readConfigFile(file, group, true);
     ASSERT_EQ(items.size(), 1u);
-    EXPECT_EQ(items[0].commandId, QStringLiteral("draw.circle"));
+    EXPECT_EQ(items[0].commandId, QStringLiteral("ext.draw.circle"));
     EXPECT_EQ(items[0].description, QStringLiteral("Circle"));
     // 别名去首尾空白、转小写
     EXPECT_EQ(items[0].keys, (QStringList{"c", "circle"}));
@@ -110,14 +111,14 @@ TEST(KeyconfigTest, 旧格式按原映射表转换没有对应命令的条目丢
     QString group = "Default";
     const std::vector<CommandKeys> items = Commands::readConfigFile(file, group, true);
     ASSERT_EQ(items.size(), 3u);
-    ASSERT_NE(find(items, "draw.line"), nullptr);
-    EXPECT_EQ(find(items, "draw.line")->keys, (QStringList{"line", "li"}));
+    ASSERT_NE(find(items, "ext.draw.line"), nullptr);
+    EXPECT_EQ(find(items, "ext.draw.line")->keys, (QStringList{"line", "li"}));
     // 已搬进扩展的命令转成扩展的 ID；捕捉开关是宿主处理的内置命令
     EXPECT_NE(find(items, "ext.text.draw"), nullptr);
     EXPECT_NE(find(items, "snap.free"), nullptr);
 
     EXPECT_EQ(Commands::legacyCommandId("ActionDrawLineParallel"), QString());
-    EXPECT_EQ(Commands::legacyCommandId("ActionModifyMoveNoSelect"), QStringLiteral("modify.move"));
+    EXPECT_EQ(Commands::legacyCommandId("ActionModifyMoveNoSelect"), QStringLiteral("ext.modify.move"));
     EXPECT_EQ(Commands::legacyCommandId("ActionDimLinear"), QStringLiteral("ext.dim.linear"));
 }
 
@@ -133,7 +134,7 @@ TEST(KeyconfigTest, 旧格式文件改写为新格式并保留备份)
 
     const QString migrated = readFile(file);
     EXPECT_FALSE(migrated.contains("action="));
-    EXPECT_TRUE(migrated.contains(R"(command="draw.line")"));
+    EXPECT_TRUE(migrated.contains(R"(command="ext.draw.line")"));
     // 两组都在，内容与旧格式读出的一致
     QString group = "Pinyin";
     const std::vector<CommandKeys> pinyin = Commands::readConfigFile(file, group, true);
@@ -166,14 +167,14 @@ TEST(KeyconfigTest, 保存只替换一组其它组原样保留)
     QTemporaryDir dir;
     ASSERT_TRUE(dir.isValid());
     const QString file = dir.filePath("sub/keyconfig.xml");
-    ASSERT_TRUE(Commands::saveToFile({CommandKeys{"draw.line", "Line", {"l"}}}, "A", file));
-    ASSERT_TRUE(Commands::saveToFile({CommandKeys{"draw.circle", "Circle", {"c", "ci"}}}, "B", file));
-    ASSERT_TRUE(Commands::saveToFile({CommandKeys{"draw.arc", "Arc", {"a"}}}, "A", file));
+    ASSERT_TRUE(Commands::saveToFile({CommandKeys{"ext.draw.line", "Line", {"l"}}}, "A", file));
+    ASSERT_TRUE(Commands::saveToFile({CommandKeys{"ext.draw.circle", "Circle", {"c", "ci"}}}, "B", file));
+    ASSERT_TRUE(Commands::saveToFile({CommandKeys{"ext.draw.arc", "Arc", {"a"}}}, "A", file));
 
     QString group = "A";
     const std::vector<CommandKeys> a = Commands::readConfigFile(file, group, true);
     ASSERT_EQ(a.size(), 1u);
-    EXPECT_EQ(a[0].commandId, QStringLiteral("draw.arc"));
+    EXPECT_EQ(a[0].commandId, QStringLiteral("ext.draw.arc"));
     group = "B";
     const std::vector<CommandKeys> b = Commands::readConfigFile(file, group, true);
     ASSERT_EQ(b.size(), 1u);
@@ -182,6 +183,8 @@ TEST(KeyconfigTest, 保存只替换一组其它组原样保留)
 
 TEST(KeyconfigTest, 默认配置里的命令都已注册)
 {
+    // 默认配置里的命令都在原内置命令拆成的五个扩展里（第四步）
+    yicad_test::CommandExtensionsScope extensions;
     // 程序目录下的 keyconfig.xml 由 cmake --install 复制，这里直接读源码树里的那份
     for (const char* name : {"默认", "拼音简写"})
     {

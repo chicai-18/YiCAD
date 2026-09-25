@@ -23,6 +23,7 @@ yicad_add_test(interaction
         test_text_extension.cpp
         test_hatch_extension.cpp
         test_dim_extension.cpp
+        test_command_extensions.cpp
         test_ribbon_registry.cpp
     LABELS "interaction;unit")
 

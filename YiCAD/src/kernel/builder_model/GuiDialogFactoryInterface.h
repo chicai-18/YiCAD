@@ -240,13 +240,6 @@ public:
     /// @param right 右键帮助文本
     virtual void updateMouseWidget(const QString & = QString(), const QString & = QString()) = 0;
 
-    /// @brief 更新圆弧切线选项控件
-    /// @param radius 半径
-    /// @param lockRadius 是否锁定半径
-    /// @param angle 角度
-    /// @param lockAngle 是否锁定角度
-    virtual void updateArcTangentialOptions(const double& radius, const bool& lockRadius, const double& angle, const bool& lockAngle) = 0;
-
     /// @brief 更新选中实体数量显示
     /// @details 每次选择变化时调用
     /// @param num 选中实体的数量

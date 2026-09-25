@@ -331,14 +331,15 @@ Do not add a second PATH variable that differs only by letter case.
 
 ## Architecture Overview
 
-The project uses an **MVC + Action** architecture:
+The project uses an **MVC + command** architecture: business commands are `XxxCommand` objects run by a per-view command bus, with `XxxTool` view tools handling their events, and every command lives in an in-process extension.
 
 | Layer | Path | Description |
 |-------|------|-------------|
 | **Data Model** | `YiCAD/src/kernel/data_model/` | Dm* classes — CAD entity data |
 | **View** | `YiCAD/src/kernel/view/` | QOpenGLWidget subclasses, 4-layer rendering |
-| **Actions** | `YiCAD/src/actions/` | ~75 Action classes handling user interaction |
-| **Commands** | `YiCAD/src/cmd/` | Command-line input parsing and dispatch |
+| **Application** | `YiCAD/src/application/` | Command and view tool mechanism (command bus, registry, selection, snapping) and the extension framework |
+| **Extensions** | `YiCAD/src/extensions/` | Business commands (draw, modify, measure, edit, view, dimension, block, text, hatch, ...) |
+| **Command line** | `YiCAD/src/cmd/` | Command-line aliases (`keyconfig.xml`) |
 | **Undo/Redo** | `YiCAD/src/kernel/history/` | Command stack, transactions, macro commands |
 | **Math** | `YiCAD/src/kernel/math/` | Computational geometry, KD-tree, R-tree, Delaunay triangulation |
 | **Rendering** | `YiCAD/src/kernel/painters/` | OpenGL drawing abstraction layer |
@@ -347,7 +348,7 @@ The project uses an **MVC + Action** architecture:
 ## Development
 
 - **Code style**: UTF-8 with BOM encoding
-- **Naming conventions**: `Dm*` (data model), `Action*` (interaction commands), `UI*` (UI components), `GL*` (OpenGL), `Meta*` (serialization), `Filter*` (file formats)
+- **Naming conventions**: `Dm*` (data model), `XxxCommand`/`XxxTool` (interaction commands and view tools), `UI*` (UI components), `GL*` (OpenGL), `Meta*` (serialization), `Filter*` (file formats)
 
 ## License
 

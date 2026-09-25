@@ -62,11 +62,11 @@
 
 ## 3. 先选后建命令的选择阶段
 
-14 个命令：移动 `modify.move`、复制 `modify.copy`、旋转 `modify.rotate`、缩放
-`modify.scale`、镜像 `modify.mirror`、分解 `modify.explode`、反向 `modify.reverse`、
-删除 `modify.delete`、复制到剪贴板 `edit.copy`、剪切 `edit.cut`、复制到图层
-`modify.copy_to_layer`、创建块 `blocks.create`、编辑块 `blocks.edit`、总长度
-`info.total_length`。
+14 个命令：移动 `ext.modify.move`、复制 `ext.modify.copy`、旋转 `ext.modify.rotate`、缩放
+`ext.modify.scale`、镜像 `ext.modify.mirror`、分解 `ext.modify.explode`、反向 `ext.modify.reverse`、
+删除 `ext.modify.delete`、复制到剪贴板 `ext.edit.copy`、剪切 `ext.edit.cut`、复制到图层
+`ext.modify.copy_to_layer`、创建块 `ext.block.create`、编辑块 `ext.block.edit`、总长度
+`ext.measure.total_length`（第四步起的 ID，原先是 `modify.move` 等）。
 
 | 编号 | 操作 | 期望 |
 |------|------|------|
@@ -223,6 +223,15 @@
 | A2 | 基线标注：选一个线性标注，放两个基线标注，右键 | 逐个放置，右键结束 |
 | A3 | 引线：指定三个点后右键，输入文字；再画一条按小键盘回车；标注样式对话框打开、关闭 | 右键或回车完成引线并询问文字；样式对话框正常 |
 
+## 6F. 命令行别名与原内置命令（第四步起）
+
+| 编号 | 操作 | 期望 |
+|------|------|------|
+| F1 | 用户目录（`%LOCALAPPDATA%/YiCAD/YiApp/`）放一份旧格式 keyconfig.xml（`action="ActionDrawLine"`），启动程序；在命令行输入其中的别名 | 文件改写为 `command="ext.draw.line"` 的新格式，旁边留下 `keyconfig.xml.bak`；别名照旧启动命令 |
+| F2 | 选项 → 系统设置 → 修改命令快捷键：改一个别名、保存；再恢复默认；切换"默认/拼音简写"组 | 列表与原先相同；保存后新别名生效；恢复默认后回到原别名；换组后补全列表随之更新 |
+| F3 | "绘图"类目里逐个点开直线、曲线、多段线、圆、椭圆、其他、修改、测量面板的按钮 | 都能启动对应命令，选项条（直线、多段线、正多边形、角平分线、圆弧、相切圆弧、两切圆、样条、云线、插入图片、倒角、圆角）照常显示；多段线面板里节点按钮排在云线按钮之后 |
+| F4 | 快速访问栏的撤销、重做；Ctrl+Z/Y、Ctrl+X/C/V、Delete 键；图层面板的"复制到图层" | 与原先相同 |
+
 ## 7. 已知的有意行为变化
 
 | 步骤 | 变化 | 影响的条目 |
@@ -244,6 +253,8 @@
 | 第三步⑦ | 修改实体属性点到多行文字时由属性面板接替，面板结束后回到空闲态（原先回到修改实体属性） | T6 |
 | 第三步⑦ | 单行文字在"输入文字"一步右键结束后恢复坐标输入（原先此后命令行坐标都不被解析） | T7 |
 | 第三步⑧ | "绘图/其他"面板里填充按钮排到插入图片之后（扩展的条目总在内置条目之后） | H1 |
+| 第四步② | 用户目录下旧格式的 keyconfig.xml 首次启动时改写为以命令 ID 为键的新格式，原文件留作 keyconfig.xml.bak；原映射表里有但从未实现的条目转换时丢弃，输入这些别名不再"识别了但什么也不做"，而是与其它未知输入一样处理 | F1 |
+| 第四步④ | "多段线"面板里添加/追加/删除节点三个按钮排到三个云线按钮之后（节点编辑归修改扩展，Ribbon 按扩展的注册顺序排列） | F3 |
 
 ## 8. 核对记录
 

@@ -74,16 +74,9 @@ public:
     void updateGrids();
 
 public slots:
-    void slotZoomIn();
-    void slotZoomOut();
-    void slotZoomPan();
-
     void slotEditKillAllActions();
+    /// @brief 撤销（编辑扩展的 ext.edit.undo）；没有打开的图纸时什么也不做
     void slotEditUndo();
-
-    void slotDrawPoint();
-
-    void slotModifyDelete();
 
     void slotSetSnaps(SnapMode const& s);
     void slotSnapFree();
@@ -101,9 +94,6 @@ public slots:
 
     void disableSnaps();
     void disableRestrictions();
-
-    void slotIndoSelected();
-
 
     void slotViewGrid();
 

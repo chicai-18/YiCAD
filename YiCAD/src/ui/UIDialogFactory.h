@@ -34,7 +34,6 @@ class QWidget;
 
 class QToolBar;
 class UIBottomWindow;
-class UIArcTangentialOptions;
 class UIPrintPreviewOptions;
 class UICommandWidget;		
 class DmDocument;
@@ -95,30 +94,11 @@ protected:
 	void setOptionWidget(QWidget* ow);
 
 	//void requestPrintPreviewOptions(bool on, bool update);
-	// 内置交互命令的选项条（按命令 ID 由 requestCommandOptions 分派）
-	void requestLineOptions(IExclusiveCommand* command, bool on, bool update);
-	void requestPolylineOptions(IExclusiveCommand* command, bool on, bool update);
-	void requestLineBisectorOptions(IExclusiveCommand* command, bool on, bool update);
-	void requestLinePolygonOptions(IExclusiveCommand* command, bool on, bool update);
-	void requestCloudLineOptions(IExclusiveCommand* command, bool on, bool update);
 
-	void requestArcOptions(IExclusiveCommand* command, bool on, bool update);
-
-	void requestArcTangentialOptions(IExclusiveCommand* command, bool on, bool update);
-
-	void requestCircleTan2Options(IExclusiveCommand* command, bool on, bool update);
-
-	void requestSplineOptions(IExclusiveCommand* command, bool on, bool update);
-
-
-	void requestImageOptions(IExclusiveCommand* command, bool on, bool update);
-
-	void requestBevelOptions(IExclusiveCommand* command, bool on, bool update);
-	void requestRoundOptions(IExclusiveCommand* command, bool on, bool update);
-
-	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（扩展命令与交互命令用）。
+	/// @brief 显示/隐藏随命令注册在 CommandRegistry 里的选项条（CommandInfo::commandOptionsFactory）。
 	/// @param build 在给定的选项条容器里构造控件
-	void requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on);
+	/// @param height 选项条容器的高度（CommandInfo::commandOptionsHeight）
+	void requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on, int height = 23);
 
 public:
 	void requestSnapDistOptions(double& dist, bool on) override;
@@ -151,13 +131,10 @@ public:
 
 	static QString extToFormat(const QString& ext);
 
-	void updateArcTangentialOptions(const double& radius, const bool& lockRadius, const double& angle, const bool& lockAngle) override;
-
 protected:
 	QWidget*						parent = nullptr;						///< Pointer to the widget which can host dialogs
 	QWidget*						optionWidget = nullptr;				///< Pointer to the widget which can host individual tool options
 	UICommandWidget*				m_pCommandWidget = nullptr;			///< Pointer to the command line widget
-	UIArcTangentialOptions*			arcTangentialOptions = nullptr;		///< Pointer to arcTangential Option widge
 	UIPolylineEquidistantOptions*	polylineEquidistantOptions = nullptr;
 	UIBottomWindow*                 bottomWidget = nullptr;
 

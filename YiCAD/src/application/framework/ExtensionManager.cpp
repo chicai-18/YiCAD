@@ -78,6 +78,15 @@ public:
                                });
     }
 
+    bool registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info) override
+    {
+        return registerChecked(id, [&]()
+                               {
+                                   return CommandRegistry::instance().registerViewTool(id, std::move(factory),
+                                                                                       std::move(info));
+                               });
+    }
+
     bool registerEntityEditor(DM::EntityType type, const QString& commandId) override
     {
         return owns("entity editor", commandId) && CommandRegistry::instance().registerEntityEditor(type, commandId);

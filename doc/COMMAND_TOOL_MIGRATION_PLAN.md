@@ -1270,3 +1270,67 @@ keyconfig.xml 被改写并备份。
 
 提交③验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 250 例）；`check_layering.py` 通过；安装后程序能启动。
+
+**提交④：内置命令拆进五个扩展**
+
+1. **五个扩展**（`src/extensions/<扩展>/`，命令在 `commands/`，选项条在 `ui/`，翻译在 `ts/`）：
+   - `ext.draw`：直线、多段线、矩形、正多边形 ×2、角平分线、切线 ×2、正交切线、徒手线、射线、
+     构造线、点、圆弧 ×3、圆 ×5、椭圆 ×2、样条 ×2、云线 ×3、插入图片，共 30 个交互命令，10 个
+     选项条；
+   - `ext.modify`：移动、复制、旋转、缩放、镜像、分解、反向、删除、修剪、延伸、偏移、倒角、圆角、
+     打断 ×2、修改实体属性、复制到图层、多段线节点 ×3，共 20 个交互命令与直接删除选择集的即时
+     命令，倒角、圆角两个选项条；
+   - `ext.measure`：查询距离、角度、面积、选中实体总长，与选中实体信息（即时命令）；
+   - `ext.edit`：复制到剪贴板、剪切、粘贴，撤销、重做（即时命令）；
+   - `ext.view`：放大、缩小（即时命令，`InstantInterrupt::KeepAll`）与平移模式（临时视图工具）。
+
+   命令 ID 改为 `ext.<扩展>.*`（`draw.line` 改为 `ext.draw.line`，`polyline.add` 改为
+   `ext.modify.polyline_add`，`info.dist` 改为 `ext.measure.dist`，`zoom.in` 改为
+   `ext.view.zoom_in`，`zoom.pan` 改为 `ext.view.pan`）。`src/actions/` 删除，72 个文件与 12 个选项条
+   表单都用 `git mv` 移动。
+2. **注册**：命令不再自注册。原先每个 .cpp 末尾的静态注册改为扩展命名空间里的工厂函数
+   （如 `DrawCommands::circle()`），定义仍在命令自己的 .cpp 里（多数命令类只在匿名命名空间里可见），
+   声明在各扩展的 `commands/<扩展>Commands.h`；扩展入口像 `ext.dim` 一样用一张表登记命令、选项条
+   与 Ribbon 按钮。改写由脚本完成，避免手抄出错。`IExtensionContext` 增加 `registerViewTool()`，
+   视图扩展用它注册平移模式。
+3. **选项条**：随命令以 `CommandInfo::commandOptionsFactory` 注册，`UIDialogFactory` 按命令 ID 分派
+   内置选项条的表与 12 个 `request*Options` 删除。两处原先写在对话框工厂里的特例：
+   - 选项条容器高度：样条是 26，其余 23。`CommandInfo` 增加 `commandOptionsHeight`，照原值登记；
+   - 相切圆弧的工具每求出一个圆弧就经 `GuiDialogFactoryInterface::updateArcTangentialOptions()`
+     回写选项条。对话框工厂不能认识扩展里的控件类型，改为选项条在 `setCommand()` 时把回写函数交给
+     命令（`DrawArcTangentialCommand::setOptionsUpdater`，选项条先释放时不回写），接口里的这个方法
+     删除。
+4. **Ribbon**：宿主的"绘图"类目只注册面板（占位），按钮由扩展按原先的顺序注册。扩展的注册顺序
+   排在文件、图层、选项之后，AI、标注、块、文字、填充之前，"其他"面板里插入图片仍在填充之前。
+5. **宿主按 ID 调用的入口**：Ctrl+X/C/V 与快速访问栏的撤销、重做改为 `ext.edit.*`，Delete 键与手写板
+   橡皮擦改为 `ext.modify.delete_no_select`，图层面板的"复制到图层"改为 `ext.modify.copy_to_layer`；
+   没有对应扩展时这些入口什么也不做（与移除 `ext.file` 后一样）。`UIActionHandler` 里没有调用方的
+   `slotZoomIn/Out/Pan`、`slotDrawPoint`、`slotModifyDelete`、`slotIndoSelected` 删除。
+6. **命令行别名**：keyconfig.xml 与旧格式的转换表改用新 ID；别名仍在 keyconfig.xml，不随命令注册
+   （本节开头的确认）。
+7. **画直线的撤销、重做**：原先调用 `EditUndoCommand::run`，撤销、重做进了编辑扩展，绘图扩展不包含
+   它的头文件，改为在自己的 .cpp 里直接调用文档的 `undo()`/`redo()`（行为相同）。
+8. **翻译**：69 个上下文（绘图 41、修改 21、查询 5、编辑 2）从 `YiCAD_zh_cn.ts` 搬进各扩展的 ts，
+   location 改为相对扩展目录；按钮文字建在各扩展自己的上下文（`DrawExtension` 等）里，主程序里
+   不再使用的按钮文字从 `QObject`/`ApplicationWindow` 上下文删除（Move、Polyline、Trim 仍被宿主
+   使用，保留）。视图扩展没有需要翻译的文字，没有 ts。
+9. **测试**：新增 `tests/support/CommandExtensions.h`（在用例期间启动五个扩展）与
+   `test_command_extensions`（5 例：命令类型与打断方式、原 ID 不再存在、按钮所在面板与顺序、选项条
+   与容器高度、关闭扩展后命令注销）；`CommandTestFixture` 增加 `BuiltinCommandFixture`，绘图、修改
+   与先选后建命令的测试改用新 ID 并启动这些扩展。
+
+**与方案的偏差与补充**
+
+1. **多段线面板的按钮顺序**："添加/追加/删除节点"归修改扩展，排到绘图扩展的三个云线按钮之后
+   （原先在多段线与云线之间）。Ribbon 注册表按注册顺序排列，没有指定位置的能力；清单第 7 节登记。
+2. **缩放与平移模式没有界面入口**：原先只经 `UIActionHandler` 的三个槽启动，槽没有调用方；迁移后
+   照样没有入口，只能按 ID 启动。
+3. **宿主与内核对扩展 ID 的软依赖**：`UIView` 的手写板橡皮擦与主窗口按 ID 调用上面几个扩展命令，
+   扩展没加载时只是什么也不做，不产生编译期依赖。
+4. **图标留在主程序资源里**：与 `ext.file`、`ext.hatch` 相同，按钮图标仍是 `:/ribbon/draw2d/*`。
+5. **没有逐个点开按钮**：这台机器上注入的鼠标点击到不了程序，Ribbon 只截图核对了按钮与顺序；
+   命令本身的交互由单测覆盖，清单 F1–F4 尚待手工核对。
+
+提交④验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 255 例）；`check_layering.py` 通过；安装后程序能启动，"绘图"类目各面板的按钮
+由扩展注册、顺序如上（截图核对）。

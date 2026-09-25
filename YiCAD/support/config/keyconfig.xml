@@ -2,71 +2,71 @@
 <groups>
 	<group name="默认">
 		<!--直线-->
-		<item command="draw.line" description="两点直线" keys="line,li,l"/>
-		<item command="draw.line_rectangle" description="矩形" keys="rectangle, rectang, rect, rec"/>
-		<item command="draw.line_bisector" description="角平分线" keys="bisect, bi"/>
-		<item command="draw.line_tangent1" description="切线(点,圆)" keys="tangentpc, tanpc"/>
-		<item command="draw.line_tangent2" description="切线(圆,圆)" keys=""/>
-		<item command="draw.line_orth_tan" description="正交切线" keys=""/>
-		<item command="draw.line_polygon_cen_cor" description="多边形(中心,角点)" keys=""/>
-		<item command="draw.line_polygon_cen_tan" description="多边形(中心,切线)" keys=""/>
-		<item command="draw.ray" description="射线" keys=""/>
-		<item command="draw.xline" description="构造线" keys=""/>
+		<item command="ext.draw.line" description="两点直线" keys="line,li,l"/>
+		<item command="ext.draw.line_rectangle" description="矩形" keys="rectangle, rectang, rect, rec"/>
+		<item command="ext.draw.line_bisector" description="角平分线" keys="bisect, bi"/>
+		<item command="ext.draw.line_tangent1" description="切线(点,圆)" keys="tangentpc, tanpc"/>
+		<item command="ext.draw.line_tangent2" description="切线(圆,圆)" keys=""/>
+		<item command="ext.draw.line_orth_tan" description="正交切线" keys=""/>
+		<item command="ext.draw.line_polygon_cen_cor" description="多边形(中心,角点)" keys=""/>
+		<item command="ext.draw.line_polygon_cen_tan" description="多边形(中心,切线)" keys=""/>
+		<item command="ext.draw.ray" description="射线" keys=""/>
+		<item command="ext.draw.xline" description="构造线" keys=""/>
 		
 		<!--曲线-->
-		<item command="draw.arc" description="圆弧(圆心,半径)" keys=""/>
-		<item command="draw.arc_3p" description="圆弧(三点)" keys="arc, a"/>
-		<item command="draw.arc_tangential" description="相切弧" keys=""/>
-		<item command="draw.spline" description="控制点样条线" keys="spline, spl"/>
-		<item command="draw.spline_points" description="过点样条" keys="spline2, stp"/>
-		<item command="draw.line_free" description="徒手绘线" keys="free, fhl"/>
+		<item command="ext.draw.arc" description="圆弧(圆心,半径)" keys=""/>
+		<item command="ext.draw.arc_3p" description="圆弧(三点)" keys="arc, a"/>
+		<item command="ext.draw.arc_tangential" description="相切弧" keys=""/>
+		<item command="ext.draw.spline" description="控制点样条线" keys="spline, spl"/>
+		<item command="ext.draw.spline_points" description="过点样条" keys="spline2, stp"/>
+		<item command="ext.draw.line_free" description="徒手绘线" keys="free, fhl"/>
 		
 		<!--多段线-->
-		<item command="draw.polyline" description="多段线" keys="polyline, pl"/>
-		<item command="polyline.add" description="添加顶点" keys=""/>
-		<item command="polyline.append" description="追加顶点" keys=""/>
-		<item command="polyline.del" description="删除顶点" keys=""/>
-		<item command="draw.cloud_line_rectangle" description="矩形云线" keys=""/>
-		<item command="draw.cloud_line_polygon" description="多边形云线" keys=""/>
-		<item command="draw.cloud_line_free" description="自由绘制云线" keys=""/>
+		<item command="ext.draw.polyline" description="多段线" keys="polyline, pl"/>
+		<item command="ext.modify.polyline_add" description="添加顶点" keys=""/>
+		<item command="ext.modify.polyline_append" description="追加顶点" keys=""/>
+		<item command="ext.modify.polyline_del" description="删除顶点" keys=""/>
+		<item command="ext.draw.cloud_line_rectangle" description="矩形云线" keys=""/>
+		<item command="ext.draw.cloud_line_polygon" description="多边形云线" keys=""/>
+		<item command="ext.draw.cloud_line_free" description="自由绘制云线" keys=""/>
 		
 		<!--圆-->
-		<item command="draw.circle" description="圆心,点" keys="circle, c"/>
-		<item command="draw.circle_2p" description="两点" keys="circle2, c2"/>
-		<item command="draw.circle_3p" description="三点" keys="circle3, c3"/>
-		<item command="draw.circle_tan2" description="相切两圆,半径" keys=""/>
-		<item command="draw.circle_tan3" description="相切,三圆" keys="tan3, ct3"/>
+		<item command="ext.draw.circle" description="圆心,点" keys="circle, c"/>
+		<item command="ext.draw.circle_2p" description="两点" keys="circle2, c2"/>
+		<item command="ext.draw.circle_3p" description="三点" keys="circle3, c3"/>
+		<item command="ext.draw.circle_tan2" description="相切两圆,半径" keys=""/>
+		<item command="ext.draw.circle_tan3" description="相切,三圆" keys="tan3, ct3"/>
 		
 		<!--椭圆-->
-		<item command="draw.ellipse_axis" description="椭圆(轴)" keys=""/>
-		<item command="draw.ellipse_inscribe" description="内切椭圆" keys="ellipseinscribed, ei, ie"/>
+		<item command="ext.draw.ellipse_axis" description="椭圆(轴)" keys=""/>
+		<item command="ext.draw.ellipse_inscribe" description="内切椭圆" keys="ellipseinscribed, ei, ie"/>
 		
 		<!--文字-->
 		
 		<!--其他-->
-		<item command="draw.image" description="插入图片" keys=""/>
+		<item command="ext.draw.image" description="插入图片" keys=""/>
 		
 		<!--修改-->
-		<item command="modify.move" description="复制" keys="move, mv "/>
-		<item command="modify.rotate" description="旋转" keys="rotate, ro"/>
-		<item command="modify.scale" description="缩放" keys="scale, sz"/>
-		<item command="modify.mirror" description="镜像" keys="mirror, mi"/>
-		<item command="modify.trim" description="修剪" keys="trim, tm"/>
-		<item command="modify.extend" description="延长" keys=""/>
-		<item command="modify.single_offset" description="偏移" keys=""/>
-		<item command="modify.bevel" description="倒角" keys="bevel, bev, ch"/>
-		<item command="modify.round" description="圆角" keys="fillet, fi"/>
-		<item command="modify.cut" description="打断" keys="divide, cut, div, di"/>
-		<item command="modify.cut_2p" description="两点打断" keys=""/>
-		<item command="modify.entity" description="特性" keys="properties, prop, mp"/>
-		<item command="modify.reverse" description="反向" keys="reverse"/>
+		<item command="ext.modify.move" description="复制" keys="move, mv "/>
+		<item command="ext.modify.rotate" description="旋转" keys="rotate, ro"/>
+		<item command="ext.modify.scale" description="缩放" keys="scale, sz"/>
+		<item command="ext.modify.mirror" description="镜像" keys="mirror, mi"/>
+		<item command="ext.modify.trim" description="修剪" keys="trim, tm"/>
+		<item command="ext.modify.extend" description="延长" keys=""/>
+		<item command="ext.modify.single_offset" description="偏移" keys=""/>
+		<item command="ext.modify.bevel" description="倒角" keys="bevel, bev, ch"/>
+		<item command="ext.modify.round" description="圆角" keys="fillet, fi"/>
+		<item command="ext.modify.cut" description="打断" keys="divide, cut, div, di"/>
+		<item command="ext.modify.cut_2p" description="两点打断" keys=""/>
+		<item command="ext.modify.entity" description="特性" keys="properties, prop, mp"/>
+		<item command="ext.modify.reverse" description="反向" keys="reverse"/>
 		
 		<!--测量-->
-		<item command="info.dist" description="点到点距离" keys="distance, dist, dpp"/>
-		<item command="info.angle" description="两直线夹角" keys="angle, ang"/>
-		<item command="info.total_length" description="选中实体总长" keys=""/>
-		<item command="info.area" description="多边形面积" keys="area, ar"/>
-		<item command="info.selected" description="查看选择实体信息" keys="info"/>
+		<item command="ext.measure.dist" description="点到点距离" keys="distance, dist, dpp"/>
+		<item command="ext.measure.angle" description="两直线夹角" keys="angle, ang"/>
+		<item command="ext.measure.total_length" description="选中实体总长" keys=""/>
+		<item command="ext.measure.area" description="多边形面积" keys="area, ar"/>
+		<item command="ext.measure.selected" description="查看选择实体信息" keys="info"/>
 		
 		<!--图块-->
 		
@@ -76,71 +76,71 @@
 	</group>
 	<group name="拼音简写">
 		<!--直线-->
-		<item command="draw.line" description="两点直线" keys="zx, z"/>
-		<item command="draw.line_rectangle" description="矩形" keys="jx"/>
-		<item command="draw.line_bisector" description="角平分线" keys="jpfx, jpf"/>
-		<item command="draw.line_tangent1" description="切线(点,圆)" keys="qx"/>
-		<item command="draw.line_tangent2" description="切线(圆,圆)" keys="qxyy"/>
-		<item command="draw.line_orth_tan" description="正交切线" keys="zjqx"/>
-		<item command="draw.line_polygon_cen_cor" description="多边形(中心,角点)" keys=""/>
-		<item command="draw.line_polygon_cen_tan" description="多边形(中心,切线)" keys=""/>
-		<item command="draw.ray" description="射线" keys="sx"/>
-		<item command="draw.xline" description="构造线" keys="gzx, gz"/>
+		<item command="ext.draw.line" description="两点直线" keys="zx, z"/>
+		<item command="ext.draw.line_rectangle" description="矩形" keys="jx"/>
+		<item command="ext.draw.line_bisector" description="角平分线" keys="jpfx, jpf"/>
+		<item command="ext.draw.line_tangent1" description="切线(点,圆)" keys="qx"/>
+		<item command="ext.draw.line_tangent2" description="切线(圆,圆)" keys="qxyy"/>
+		<item command="ext.draw.line_orth_tan" description="正交切线" keys="zjqx"/>
+		<item command="ext.draw.line_polygon_cen_cor" description="多边形(中心,角点)" keys=""/>
+		<item command="ext.draw.line_polygon_cen_tan" description="多边形(中心,切线)" keys=""/>
+		<item command="ext.draw.ray" description="射线" keys="sx"/>
+		<item command="ext.draw.xline" description="构造线" keys="gzx, gz"/>
 		
 		<!--曲线-->
-		<item command="draw.arc" description="圆弧(圆心,半径)" keys=""/>
-		<item command="draw.arc_3p" description="圆弧(三点)" keys="yh, h"/>
-		<item command="draw.arc_tangential" description="相切弧" keys="xqh"/>
-		<item command="draw.spline" description="控制点样条线" keys="kzyt"/>
-		<item command="draw.spline_points" description="过点样条" keys="gdyt"/>
-		<item command="draw.line_free" description="徒手绘线" keys="tshx"/>
+		<item command="ext.draw.arc" description="圆弧(圆心,半径)" keys=""/>
+		<item command="ext.draw.arc_3p" description="圆弧(三点)" keys="yh, h"/>
+		<item command="ext.draw.arc_tangential" description="相切弧" keys="xqh"/>
+		<item command="ext.draw.spline" description="控制点样条线" keys="kzyt"/>
+		<item command="ext.draw.spline_points" description="过点样条" keys="gdyt"/>
+		<item command="ext.draw.line_free" description="徒手绘线" keys="tshx"/>
 		
 		<!--多段线-->
-		<item command="draw.polyline" description="多段线" keys="ddx"/>
-		<item command="polyline.add" description="添加顶点" keys=""/>
-		<item command="polyline.append" description="追加顶点" keys=""/>
-		<item command="polyline.del" description="删除顶点" keys=""/>
-		<item command="draw.cloud_line_rectangle" description="矩形云线" keys="jxyx"/>
-		<item command="draw.cloud_line_polygon" description="多边形云线" keys="dbxyx"/>
-		<item command="draw.cloud_line_free" description="自由绘制云线" keys="zyyx"/>
+		<item command="ext.draw.polyline" description="多段线" keys="ddx"/>
+		<item command="ext.modify.polyline_add" description="添加顶点" keys=""/>
+		<item command="ext.modify.polyline_append" description="追加顶点" keys=""/>
+		<item command="ext.modify.polyline_del" description="删除顶点" keys=""/>
+		<item command="ext.draw.cloud_line_rectangle" description="矩形云线" keys="jxyx"/>
+		<item command="ext.draw.cloud_line_polygon" description="多边形云线" keys="dbxyx"/>
+		<item command="ext.draw.cloud_line_free" description="自由绘制云线" keys="zyyx"/>
 		
 		<!--圆-->
-		<item command="draw.circle" description="圆心,点" keys="y, yuan"/>
-		<item command="draw.circle_2p" description="两点" keys="ldy"/>
-		<item command="draw.circle_3p" description="三点" keys="sdy"/>
-		<item command="draw.circle_tan2" description="相切两圆,半径" keys=""/>
-		<item command="draw.circle_tan3" description="相切,三圆" keys="xqsy"/>
+		<item command="ext.draw.circle" description="圆心,点" keys="y, yuan"/>
+		<item command="ext.draw.circle_2p" description="两点" keys="ldy"/>
+		<item command="ext.draw.circle_3p" description="三点" keys="sdy"/>
+		<item command="ext.draw.circle_tan2" description="相切两圆,半径" keys=""/>
+		<item command="ext.draw.circle_tan3" description="相切,三圆" keys="xqsy"/>
 		
 		<!--椭圆-->
-		<item command="draw.ellipse_axis" description="椭圆(轴)" keys="ty"/>
-		<item command="draw.ellipse_inscribe" description="内切椭圆" keys="nqty"/>
+		<item command="ext.draw.ellipse_axis" description="椭圆(轴)" keys="ty"/>
+		<item command="ext.draw.ellipse_inscribe" description="内切椭圆" keys="nqty"/>
 		
 		<!--文字-->
 		
 		<!--其他-->
-		<item command="draw.image" description="插入图片" keys="tp"/>
+		<item command="ext.draw.image" description="插入图片" keys="tp"/>
 		
 		<!--修改-->
-		<item command="modify.move" description="复制" keys="fz"/>
-		<item command="modify.rotate" description="旋转" keys="xz"/>
-		<item command="modify.scale" description="缩放" keys="sf"/>
-		<item command="modify.mirror" description="镜像" keys="jx"/>
-		<item command="modify.trim" description="修剪" keys="xz"/>
-		<item command="modify.extend" description="延长" keys="yc"/>
-		<item command="modify.single_offset" description="偏移" keys="py"/>
-		<item command="modify.bevel" description="倒角" keys="dj"/>
-		<item command="modify.round" description="圆角" keys="yj"/>
-		<item command="modify.cut" description="打断" keys="dd"/>
-		<item command="modify.cut_2p" description="两点打断" keys="lddd"/>
-		<item command="modify.entity" description="特性" keys="tx"/>
-		<item command="modify.reverse" description="反向" keys="fx"/>
+		<item command="ext.modify.move" description="复制" keys="fz"/>
+		<item command="ext.modify.rotate" description="旋转" keys="xz"/>
+		<item command="ext.modify.scale" description="缩放" keys="sf"/>
+		<item command="ext.modify.mirror" description="镜像" keys="jx"/>
+		<item command="ext.modify.trim" description="修剪" keys="xz"/>
+		<item command="ext.modify.extend" description="延长" keys="yc"/>
+		<item command="ext.modify.single_offset" description="偏移" keys="py"/>
+		<item command="ext.modify.bevel" description="倒角" keys="dj"/>
+		<item command="ext.modify.round" description="圆角" keys="yj"/>
+		<item command="ext.modify.cut" description="打断" keys="dd"/>
+		<item command="ext.modify.cut_2p" description="两点打断" keys="lddd"/>
+		<item command="ext.modify.entity" description="特性" keys="tx"/>
+		<item command="ext.modify.reverse" description="反向" keys="fx"/>
 		
 		<!--测量-->
-		<item command="info.dist" description="点到点距离" keys="jl"/>
-		<item command="info.angle" description="两直线夹角" keys="jj"/>
-		<item command="info.total_length" description="选中实体总长" keys=""/>
-		<item command="info.area" description="多边形面积" keys="mj"/>
-		<item command="info.selected" description="查看选择实体信息" keys="ck"/>
+		<item command="ext.measure.dist" description="点到点距离" keys="jl"/>
+		<item command="ext.measure.angle" description="两直线夹角" keys="jj"/>
+		<item command="ext.measure.total_length" description="选中实体总长" keys=""/>
+		<item command="ext.measure.area" description="多边形面积" keys="mj"/>
+		<item command="ext.measure.selected" description="查看选择实体信息" keys="ck"/>
 		
 		<!--图块-->
 		

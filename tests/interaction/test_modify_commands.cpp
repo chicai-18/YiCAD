@@ -29,25 +29,25 @@ struct FirstStep
 };
 
 const FirstStep kCommands[] = {
-    {"info.dist", "Specify first point of distance", "Cancel"},
-    {"info.angle", "Specify first line", "Cancel"},
-    {"info.area", "Specify first point of polygon", "Cancel"},
-    {"edit.paste", "Set reference point", "Cancel"},
-    {"modify.entity", "Click on entity to modify", "Cancel"},
-    {"modify.cut", "Specify entity to cut", "Cancel"},
-    {"modify.cut_2p", nullptr, nullptr},
-    {"modify.single_offset", "Choose the original entity", ""},
-    {"polyline.add", "Specify polyline to add nodes", "Cancel"},
-    {"polyline.append", "Specify the polyline somewhere near the beginning or end point",
+    {"ext.measure.dist", "Specify first point of distance", "Cancel"},
+    {"ext.measure.angle", "Specify first line", "Cancel"},
+    {"ext.measure.area", "Specify first point of polygon", "Cancel"},
+    {"ext.edit.paste", "Set reference point", "Cancel"},
+    {"ext.modify.entity", "Click on entity to modify", "Cancel"},
+    {"ext.modify.cut", "Specify entity to cut", "Cancel"},
+    {"ext.modify.cut_2p", nullptr, nullptr},
+    {"ext.modify.single_offset", "Choose the original entity", ""},
+    {"ext.modify.polyline_add", "Specify polyline to add nodes", "Cancel"},
+    {"ext.modify.polyline_append", "Specify the polyline somewhere near the beginning or end point",
      "Cancel"},
-    {"polyline.del", "Specify polyline to delete node", "Cancel"},
-    {"modify.trim", "Select entitys", "Back"},
-    {"modify.bevel", "Specify first entity", "Back"},
-    {"modify.round", "Specify first entity", "Back"},
-    {"modify.extend", nullptr, nullptr},
+    {"ext.modify.polyline_del", "Specify polyline to delete node", "Cancel"},
+    {"ext.modify.trim", "Select entitys", "Back"},
+    {"ext.modify.bevel", "Specify first entity", "Back"},
+    {"ext.modify.round", "Specify first entity", "Back"},
+    {"ext.modify.extend", nullptr, nullptr},
 };
 
-struct ModifyFixture : CommandFixture
+struct ModifyFixture : BuiltinCommandFixture
 {
     template <typename Command>
     Command* active() const
@@ -103,7 +103,7 @@ TEST_F(ModifyFixture, 启动后给出第一步提示右键结束)
 
 TEST_F(ModifyFixture, 倒角与圆角打开选项条结束时收起)
 {
-    for (const char* id : {"modify.bevel", "modify.round"})
+    for (const char* id : {"ext.modify.bevel", "ext.modify.round"})
     {
         SCOPED_TRACE(id);
         ASSERT_TRUE(start(id));
@@ -117,7 +117,7 @@ TEST_F(ModifyFixture, 倒角与圆角打开选项条结束时收起)
 
 TEST_F(ModifyFixture, 倒角命令行设置长度)
 {
-    ASSERT_TRUE(start("modify.bevel"));
+    ASSERT_TRUE(start("ext.modify.bevel"));
     auto* bevel = active<ModifyBevelCommand>();
     ASSERT_NE(bevel, nullptr);
 
@@ -126,8 +126,8 @@ TEST_F(ModifyFixture, 倒角命令行设置长度)
     EXPECT_TRUE(typeText(QStringLiteral("7")));
     EXPECT_DOUBLE_EQ(bevel->length1(), 7.0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify first entity"));
-    ASSERT_NE(lastOptions("modify.bevel"), nullptr);
-    EXPECT_TRUE(lastOptions("modify.bevel")->update);
+    ASSERT_NE(lastOptions("ext.modify.bevel"), nullptr);
+    EXPECT_TRUE(lastOptions("ext.modify.bevel")->update);
 
     // 输入无效时提示并回到原来的一步，长度不变
     EXPECT_TRUE(typeText(QStringLiteral("length1")));
@@ -146,7 +146,7 @@ TEST_F(ModifyFixture, 倒角命令行设置长度)
 
 TEST_F(ModifyFixture, 圆角命令行设置半径)
 {
-    ASSERT_TRUE(start("modify.round"));
+    ASSERT_TRUE(start("ext.modify.round"));
     auto* round = active<ModifyRoundCommand>();
     ASSERT_NE(round, nullptr);
 
@@ -166,7 +166,7 @@ TEST_F(ModifyFixture, 圆角命令行设置半径)
 TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
-    ASSERT_TRUE(start("modify.single_offset"));
+    ASSERT_TRUE(start("ext.modify.single_offset"));
     ASSERT_FALSE(ui.offsetOptions.empty());
     EXPECT_TRUE(ui.offsetOptions.back());
     ASSERT_NE(ui.offsetDistance, nullptr);
@@ -194,7 +194,7 @@ TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
 
 TEST_F(ModifyFixture, 修剪只响应小键盘回车且不接受按键)
 {
-    ASSERT_TRUE(start("modify.trim"));
+    ASSERT_TRUE(start("ext.modify.trim"));
     EXPECT_FALSE(pressKey(Qt::Key_Return));
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Select entitys"));
     EXPECT_FALSE(pressKey(Qt::Key_Enter));
@@ -207,7 +207,7 @@ TEST_F(ModifyFixture, 修剪预览隐藏的实体在退回和结束时恢复可�
 {
     DmLine* boundary = addLine(DmVector(0, -10), DmVector(0, 10));
     DmLine* target = addLine(DmVector(-10, 0), DmVector(10, 0));
-    ASSERT_TRUE(start("modify.trim"));
+    ASSERT_TRUE(start("ext.modify.trim"));
     click(0, 5);
     EXPECT_TRUE(boundary->isHighlighted());
     pressKey(Qt::Key_Enter);
@@ -235,7 +235,7 @@ TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复可见)
     DmLine* target = addLine(DmVector(0, 0), DmVector(5, 0));
     // 命令开始时有选中的实体：以它们为边界
     boundary->setSelected(true);
-    ASSERT_TRUE(start("modify.extend"));
+    ASSERT_TRUE(start("ext.modify.extend"));
 
     move(4, 0);
     EXPECT_FALSE(target->isVisible());
@@ -251,7 +251,7 @@ TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复可见)
 TEST_F(ModifyFixture, 多段线节点命令只接受多段线)
 {
     addLine(DmVector(0, 0), DmVector(10, 0));
-    for (const char* id : {"polyline.add", "polyline.append", "polyline.del"})
+    for (const char* id : {"ext.modify.polyline_add", "ext.modify.polyline_append", "ext.modify.polyline_del"})
     {
         SCOPED_TRACE(id);
         ASSERT_TRUE(start(id));
@@ -267,7 +267,7 @@ TEST_F(ModifyFixture, 多段线节点命令只接受多段线)
 TEST_F(ModifyFixture, 追加节点从近端开始预览右键结束)
 {
     DmPolyline* poly = addPolyline({DmVector(0, 0), DmVector(10, 0), DmVector(10, 10)}, false);
-    ASSERT_TRUE(start("polyline.append"));
+    ASSERT_TRUE(start("ext.modify.polyline_append"));
     click(10, 8);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify next point"));
     EXPECT_EQ(view.getRelativeZero(), DmVector(10, 10));
@@ -284,7 +284,7 @@ TEST_F(ModifyFixture, 追加节点从近端开始预览右键结束)
 TEST_F(ModifyFixture, 追加节点不接受闭合多段线)
 {
     addPolyline({DmVector(0, 0), DmVector(10, 0), DmVector(10, 10)}, true);
-    ASSERT_TRUE(start("polyline.append"));
+    ASSERT_TRUE(start("ext.modify.polyline_append"));
     click(10, 5);
     EXPECT_EQ(ui.messages.back(), QStringLiteral("Can not append nodes in a closed polyline."));
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify the polyline somewhere near the beginning or end point"));
@@ -295,14 +295,14 @@ TEST_F(ModifyFixture, 添加与删除节点选中多段线后高亮结束或退�
 {
     DmPolyline* poly = addPolyline({DmVector(0, 0), DmVector(10, 0), DmVector(10, 10)}, false);
 
-    ASSERT_TRUE(start("polyline.add"));
+    ASSERT_TRUE(start("ext.modify.polyline_add"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify adding node's point"));
     EXPECT_TRUE(poly->isHighlighted());
     endCommand();
     EXPECT_FALSE(poly->isHighlighted());
 
-    ASSERT_TRUE(start("polyline.del"));
+    ASSERT_TRUE(start("ext.modify.polyline_del"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify deleting node's point"));
     EXPECT_TRUE(poly->isHighlighted());
@@ -315,7 +315,7 @@ TEST_F(ModifyFixture, 添加与删除节点选中多段线后高亮结束或退�
 
 TEST_F(ModifyFixture, 查询距离输出结果后回到第一步)
 {
-    ASSERT_TRUE(start("info.dist"));
+    ASSERT_TRUE(start("ext.measure.dist"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify second point of distance"));
     move(3, 4);
@@ -333,7 +333,7 @@ TEST_F(ModifyFixture, 查询角度选两条线后输出夹角)
 {
     DmLine* first = addLine(DmVector(0, 0), DmVector(10, 0));
     addLine(DmVector(0, 0), DmVector(0, 10));
-    ASSERT_TRUE(start("info.angle"));
+    ASSERT_TRUE(start("ext.measure.angle"));
     move(5, 0);
     EXPECT_TRUE(first->isHighlighted());
     click(5, 0);
@@ -348,7 +348,7 @@ TEST_F(ModifyFixture, 查询角度选两条线后输出夹角)
 
 TEST_F(ModifyFixture, 查询面积回到已有的点时闭合并回到第一步)
 {
-    ASSERT_TRUE(start("info.area"));
+    ASSERT_TRUE(start("ext.measure.area"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify next point of polygon"));
     typeCoordinate(10, 0);
@@ -370,7 +370,7 @@ TEST_F(ModifyFixture, 查询面积回到已有的点时闭合并回到第一步)
 TEST_F(ModifyFixture, 打断选中实体后高亮结束时取消)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
-    ASSERT_TRUE(start("modify.cut"));
+    ASSERT_TRUE(start("ext.modify.cut"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify cutting point"));
     EXPECT_TRUE(line->isHighlighted());
@@ -381,7 +381,7 @@ TEST_F(ModifyFixture, 打断选中实体后高亮结束时取消)
 TEST_F(ModifyFixture, 修改实体属性选中实体并弹出对话框)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
-    ASSERT_TRUE(start("modify.entity"));
+    ASSERT_TRUE(start("ext.modify.entity"));
     click(5, 0);
     EXPECT_TRUE(line->isSelected());
     ASSERT_EQ(ui.entityDialogs.size(), 1u);
@@ -392,7 +392,7 @@ TEST_F(ModifyFixture, 修改实体属性选中实体并弹出对话框)
 
 TEST_F(ModifyFixture, 粘贴剪贴板为空时指定参考点即结束)
 {
-    ASSERT_TRUE(start("edit.paste"));
+    ASSERT_TRUE(start("ext.edit.paste"));
     typeCoordinate(0, 0);
     EXPECT_FALSE(bus.hasActiveCommand());
 }

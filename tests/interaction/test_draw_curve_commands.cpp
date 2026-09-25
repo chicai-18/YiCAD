@@ -27,25 +27,25 @@ struct FirstStep
 };
 
 const FirstStep kCommands[] = {
-    {"draw.arc", "Specify center", "Cancel", true},
-    {"draw.arc_3p", "Specify startpoint or [center]", "Cancel", false},
-    {"draw.arc_tangential", "Specify base entity", "Cancel", true},
-    {"draw.circle", "Specify center", "Cancel", false},
-    {"draw.circle_2p", "Specify first point", "Cancel", false},
-    {"draw.circle_3p", "Specify first point", "Cancel", false},
-    {"draw.circle_tan2", "Specify the first line/arc/circle", "Cancel", true},
-    {"draw.circle_tan3", "Specify the first line/arc/circle", "Cancel", false},
-    {"draw.ellipse_axis", "Specify ellipse center", "Cancel", false},
-    {"draw.ellipse_arc_axis", "Specify ellipse center", "Cancel", false},
-    {"draw.ellipse_inscribe", "Specify the first line", "Cancel", false},
-    {"draw.spline", "Specify first control point", "Cancel", true},
-    {"draw.spline_points", "Specify first control point", "Cancel", true},
-    {"draw.cloud_line_rectangle", "Specify first point", "Cancel", true},
-    {"draw.cloud_line_polygon", "Specify first point", "Cancel", true},
-    {"draw.cloud_line_free", "Specify first point", "Cancel", true},
+    {"ext.draw.arc", "Specify center", "Cancel", true},
+    {"ext.draw.arc_3p", "Specify startpoint or [center]", "Cancel", false},
+    {"ext.draw.arc_tangential", "Specify base entity", "Cancel", true},
+    {"ext.draw.circle", "Specify center", "Cancel", false},
+    {"ext.draw.circle_2p", "Specify first point", "Cancel", false},
+    {"ext.draw.circle_3p", "Specify first point", "Cancel", false},
+    {"ext.draw.circle_tan2", "Specify the first line/arc/circle", "Cancel", true},
+    {"ext.draw.circle_tan3", "Specify the first line/arc/circle", "Cancel", false},
+    {"ext.draw.ellipse_axis", "Specify ellipse center", "Cancel", false},
+    {"ext.draw.ellipse_arc_axis", "Specify ellipse center", "Cancel", false},
+    {"ext.draw.ellipse_inscribe", "Specify the first line", "Cancel", false},
+    {"ext.draw.spline", "Specify first control point", "Cancel", true},
+    {"ext.draw.spline_points", "Specify first control point", "Cancel", true},
+    {"ext.draw.cloud_line_rectangle", "Specify first point", "Cancel", true},
+    {"ext.draw.cloud_line_polygon", "Specify first point", "Cancel", true},
+    {"ext.draw.cloud_line_free", "Specify first point", "Cancel", true},
 };
 
-struct DrawCurveFixture : CommandFixture
+struct DrawCurveFixture : BuiltinCommandFixture
 {
     template <typename Command>
     Command* active() const
@@ -62,7 +62,7 @@ TEST_F(DrawCurveFixture, 注册为交互命令)
         SCOPED_TRACE(step.id);
         EXPECT_EQ(CommandRegistry::instance().kind(step.id), CommandKind::Exclusive);
     }
-    EXPECT_EQ(CommandRegistry::instance().kind("draw.image"), CommandKind::Exclusive);
+    EXPECT_EQ(CommandRegistry::instance().kind("ext.draw.image"), CommandKind::Exclusive);
 }
 
 TEST_F(DrawCurveFixture, 启动后给出第一步提示并按需打开选项条右键结束)
@@ -92,14 +92,14 @@ TEST_F(DrawCurveFixture, 启动后给出第一步提示并按需打开选项条�
 TEST_F(DrawCurveFixture, 插入图片取消选择对话框时启动失败)
 {
     // 对话框工厂的默认实现返回空路径：原 Action 被标记为结束，现在命令启动失败
-    EXPECT_FALSE(start("draw.image"));
+    EXPECT_FALSE(start("ext.draw.image"));
     EXPECT_FALSE(bus.hasActiveCommand());
-    EXPECT_EQ(lastOptions("draw.image"), nullptr);
+    EXPECT_EQ(lastOptions("ext.draw.image"), nullptr);
 }
 
 TEST_F(DrawCurveFixture, 圆心圆弧逐步提示并接受命令行半径)
 {
-    ASSERT_TRUE(start("draw.arc"));
+    ASSERT_TRUE(start("ext.draw.arc"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify radius"));
     move(10, 0);
@@ -119,7 +119,7 @@ TEST_F(DrawCurveFixture, 圆心圆弧逐步提示并接受命令行半径)
 
 TEST_F(DrawCurveFixture, 圆心圆弧的方向由选项条转给工具)
 {
-    ASSERT_TRUE(start("draw.arc"));
+    ASSERT_TRUE(start("ext.draw.arc"));
     auto* command = active<DrawArcCommand>();
     ASSERT_NE(command, nullptr);
     EXPECT_FALSE(command->isClockwise());
@@ -133,16 +133,16 @@ TEST_F(DrawCurveFixture, 圆心圆弧的方向由选项条转给工具)
 
 TEST_F(DrawCurveFixture, 三点圆弧命令行输入文字切换为圆心圆弧且不接受)
 {
-    ASSERT_TRUE(start("draw.arc_3p"));
+    ASSERT_TRUE(start("ext.draw.arc_3p"));
     // 与原 Action 一致（既有缺陷）：任何文字都匹配 center
     EXPECT_FALSE(typeText(QStringLiteral("line")));
-    EXPECT_EQ(bus.activeCommandId(), QStringLiteral("draw.arc"));
+    EXPECT_EQ(bus.activeCommandId(), QStringLiteral("ext.draw.arc"));
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify center"));
 }
 
 TEST_F(DrawCurveFixture, 三点圆弧第二点后预览直线)
 {
-    ASSERT_TRUE(start("draw.arc_3p"));
+    ASSERT_TRUE(start("ext.draw.arc_3p"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify second point"));
     move(10, 0);
@@ -151,7 +151,7 @@ TEST_F(DrawCurveFixture, 三点圆弧第二点后预览直线)
 
 TEST_F(DrawCurveFixture, 相切圆弧的锁定参数在命令上)
 {
-    ASSERT_TRUE(start("draw.arc_tangential"));
+    ASSERT_TRUE(start("ext.draw.arc_tangential"));
     auto* command = active<DrawArcTangentialCommand>();
     ASSERT_NE(command, nullptr);
     EXPECT_FALSE(command->isLockRadius());
@@ -169,7 +169,7 @@ TEST_F(DrawCurveFixture, 相切圆弧的锁定参数在命令上)
 
 TEST_F(DrawCurveFixture, 圆心画圆命令行半径无效时提示)
 {
-    ASSERT_TRUE(start("draw.circle"));
+    ASSERT_TRUE(start("ext.draw.circle"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify point on circle"));
     move(5, 0);
@@ -180,7 +180,7 @@ TEST_F(DrawCurveFixture, 圆心画圆命令行半径无效时提示)
 
 TEST_F(DrawCurveFixture, 两切圆半径由选项条转给工具)
 {
-    ASSERT_TRUE(start("draw.circle_tan2"));
+    ASSERT_TRUE(start("ext.draw.circle_tan2"));
     auto* command = active<DrawCircleTan2Command>();
     ASSERT_NE(command, nullptr);
     command->setRadius(12.0);
@@ -189,7 +189,7 @@ TEST_F(DrawCurveFixture, 两切圆半径由选项条转给工具)
 
 TEST_F(DrawCurveFixture, 轴端点椭圆逐步提示与右键退回)
 {
-    ASSERT_TRUE(start("draw.ellipse_arc_axis"));
+    ASSERT_TRUE(start("ext.draw.ellipse_arc_axis"));
     typeCoordinate(0, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify endpoint of major axis"));
     move(10, 0);
@@ -205,7 +205,7 @@ TEST_F(DrawCurveFixture, 轴端点椭圆逐步提示与右键退回)
 
 TEST_F(DrawCurveFixture, 样条的阶数与闭合由选项条转给工具)
 {
-    ASSERT_TRUE(start("draw.spline"));
+    ASSERT_TRUE(start("ext.draw.spline"));
     auto* command = active<DrawSplineCommand>();
     ASSERT_NE(command, nullptr);
     command->setDegree(2);
@@ -221,7 +221,7 @@ TEST_F(DrawCurveFixture, 样条的阶数与闭合由选项条转给工具)
 
 TEST_F(DrawCurveFixture, 拟合点样条没有样条时撤销给出提示)
 {
-    ASSERT_TRUE(start("draw.spline_points"));
+    ASSERT_TRUE(start("ext.draw.spline_points"));
     auto* command = active<DrawSplinePointsCommand>();
     ASSERT_NE(command, nullptr);
     command->undo();
@@ -232,7 +232,7 @@ TEST_F(DrawCurveFixture, 拟合点样条没有样条时撤销给出提示)
 
 TEST_F(DrawCurveFixture, 矩形云线第二点右键结束命令)
 {
-    ASSERT_TRUE(start("draw.cloud_line_rectangle"));
+    ASSERT_TRUE(start("ext.draw.cloud_line_rectangle"));
     auto* command = active<DrawCloudLineRectangleCommand>();
     ASSERT_NE(command, nullptr);
     EXPECT_DOUBLE_EQ(command->getMinLength(), 5.0);
@@ -249,7 +249,7 @@ TEST_F(DrawCurveFixture, 矩形云线第二点右键结束命令)
 
 TEST_F(DrawCurveFixture, 多边形云线点不够时回车给出错误提示)
 {
-    ASSERT_TRUE(start("draw.cloud_line_polygon"));
+    ASSERT_TRUE(start("ext.draw.cloud_line_polygon"));
     typeCoordinate(0, 0);
     typeCoordinate(100, 0);
     // 回车由主窗口合成为 Key_Enter，交给工具；与原 Action 一致，按键不接受
@@ -263,7 +263,7 @@ TEST_F(DrawCurveFixture, 多边形云线点不够时回车给出错误提示)
 
 TEST_F(DrawCurveFixture, 自由云线反向参数在命令上)
 {
-    ASSERT_TRUE(start("draw.cloud_line_free"));
+    ASSERT_TRUE(start("ext.draw.cloud_line_free"));
     auto* command = active<DrawCloudLineFreeCommand>();
     ASSERT_NE(command, nullptr);
     EXPECT_FALSE(command->getReversed());
