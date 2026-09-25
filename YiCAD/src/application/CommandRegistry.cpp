@@ -23,7 +23,6 @@
 #include <utility>
 
 #include "IExclusiveCommand.h"
-#include "TransientViewTool.h"
 
 // 注册冲突（重复 ID / 重复别名）用返回值报告，不用 assert() 硬中断——
 // 这条路径本身就是可测试、可恢复的正常分支（见
@@ -102,19 +101,6 @@ bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand c
     Entry entry;
     entry.kind = CommandKind::Instant;
     entry.instant = std::move(command);
-    entry.info = std::move(info);
-    return addEntry(id, std::move(entry));
-}
-
-bool CommandRegistry::registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info)
-{
-    if (!factory)
-    {
-        return false;
-    }
-    Entry entry;
-    entry.kind = CommandKind::ViewTool;
-    entry.viewToolFactory = std::move(factory);
     entry.info = std::move(info);
     return addEntry(id, std::move(entry));
 }
@@ -239,21 +225,6 @@ std::unique_ptr<IExclusiveCommand> CommandRegistry::createCommand(const QString&
         command->setCommandId(id);
     }
     return command;
-}
-
-std::unique_ptr<TransientViewTool> CommandRegistry::createViewTool(const QString& id, const CommandContext& ctx) const
-{
-    auto it = m_commands.find(id);
-    if (it == m_commands.end() || it->second.kind != CommandKind::ViewTool)
-    {
-        return nullptr;
-    }
-    std::unique_ptr<TransientViewTool> tool = it->second.viewToolFactory(ctx);
-    if (tool)
-    {
-        tool->setCommandId(id);
-    }
-    return tool;
 }
 
 bool CommandRegistry::runInstant(const QString& id, const CommandContext& ctx) const

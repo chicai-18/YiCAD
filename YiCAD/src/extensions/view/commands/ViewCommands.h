@@ -32,8 +32,6 @@ namespace ViewCommands
 InstantCommand zoomIn();
 /// @brief 即时命令 ext.view.zoom_out（ZoomCommands.cpp）
 InstantCommand zoomOut();
-/// @brief 临时视图工具 ext.view.pan（ZoomPanTool.cpp）
-ViewToolFactory pan();
 }  // namespace ViewCommands
 
 #endif  // VIEWCOMMANDS_H

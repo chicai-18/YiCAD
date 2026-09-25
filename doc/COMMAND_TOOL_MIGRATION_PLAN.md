@@ -1370,3 +1370,35 @@ keyconfig.xml 被改写并备份。
   `check_layering.py` 检查；主计划 6.7 节的两处双向依赖解开，是阶段 4"每个扩展独立成库"的前提。
 - 尚待手工核对：交互回归清单（先选后建、块编辑、多行文字、橡皮擦与第三步各批新增的条目，以及本步
   新增的 F1–F4）。这台机器上注入的鼠标点击到不了程序，只做了启动与 Ribbon 截图核对。
+
+### 9.5 第四步之后：删除平移模式（2026-09-26）
+
+第四步之后命令已经不再叠加：启动新命令先结束当前命令，右键只交给当前命令的工具。唯一还叠在命令
+之上、右键退出后恢复下面命令的是平移模式 `ext.view.pan`（原 `ActionZoomPan` 的 `ZoomPanTool`），
+命令与总线的 `suspend()`/`resume()` 只为它存在。它没有按钮，自带的 keyconfig.xml 里也没有别名
+（9.4 节"与方案的偏差与补充"第 2 项），平移实际只用中键与 Ctrl+左键（导航层 `PanZoomTool`，
+不打断命令），所以整个删掉，不再改成普通命令。
+
+1. **删除平移模式与临时视图工具这一注册类型**：`TransientViewTool.h`、`ZoomPanTool.h/.cpp` 与
+   `test_zoom_pan_tool.cpp` 删除；`CommandKind::ViewTool`、`ViewToolFactory`、
+   `CommandRegistry::registerViewTool`/`createViewTool`、`IExtensionContext::registerViewTool` 删除，
+   `UIActionHandler::activateCommand` 只剩交互命令与即时命令两种分派。`Commands::legacyCommandId`
+   不再转换 `ActionZoomPan`，旧格式配置里的这个名字与其它从未实现的旧名一样丢弃。
+2. **命令不再有挂起状态**：`IExclusiveCommand::suspend`/`resume`、`ExclusiveCommandBus` 的
+   `suspend`/`resume`/`isSuspended` 删除，`PlaceCommand`、`SelectFirstCommand` 的实现（连同
+   `onSuspend`/`onResume`，没有子类重写过）删除，`PlaceCommand::onDeactivate` 直接收起选项条。
+   `ExclusiveCommandBus::post()` 只供平移模式延迟结束自己，一并删除。
+3. **`UIView`**：删除 `startViewTool`/`endViewTool`/`viewTool()`、`suspendUnderViewTool`/
+   `resumeUnderViewTool` 与各处的平移模式分支（右键、命令行输入、活动命令 ID、捕捉查询、进入与
+   离开画布）。`SelectTool::Overlay::ViewTool` 删除：选择阶段的提示与光标总由选择层给出。
+4. **保留**：`SelectTool::suspend`/`resume` 与叠命令无关，是命令启动与结束、鼠标离开与回到画布时
+   收起、恢复选择层的预览与捕捉标记；`IEditMode::suspendMode`/`resumeMode` 是块编辑模式之上运行
+   命令时收起、恢复模式的界面。
+5. **测试与文档**：`test_exclusive_command_bus` 删去挂起与 `post()` 的 5 例，`test_select_first_commands`
+   删去平移模式叠在命令之上的 2 例，`test_draw_line_commands` 删去挂起时收起选项条的 1 例（显示与收起
+   仍由"启动后给出第一步提示并按需打开选项条"覆盖），`test_command_registry` 删去临时视图工具 1 例，
+   它与 `test_command_extensions` 改为断言 `ext.view.pan` 不再注册。交互回归清单删去 Z1–Z7，第 7 节登记这一变化；AI 扩展的视图
+   说明改为只有中键与 Ctrl+左键平移。
+
+验证：Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction` 259 例，1 例因缺基准图纸
+跳过，与本次无关）；`check_layering.py` 通过；安装后程序能启动。

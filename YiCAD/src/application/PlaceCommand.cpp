@@ -59,34 +59,8 @@ void PlaceCommand::onDeactivate()
     // 与原 Action 结束时一样：清除预览、挂起并结束捕捉会话，收起选项条
     viewToolControl()->deactivate(m_tool.get());
     m_tool->finishSession();
-    if (!m_suspended)
-    {
-        hideOptions();
-    }
-    m_suspended = false;
-    m_preview->clear();
-}
-
-void PlaceCommand::suspend()
-{
-    if (!isActive() || m_suspended)
-    {
-        return;
-    }
-    m_suspended = true;
-    viewToolControl()->deactivate(m_tool.get());
     hideOptions();
-}
-
-void PlaceCommand::resume()
-{
-    if (!isActive() || !m_suspended)
-    {
-        return;
-    }
-    m_suspended = false;
-    showOptions();
-    viewToolControl()->activate(m_tool.get());
+    m_preview->clear();
 }
 
 ISnapService* PlaceCommand::snapService() const

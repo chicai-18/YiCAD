@@ -42,7 +42,7 @@ public:
 
     /// @brief 按字符串命令 ID 启动命令（Ribbon、命令行别名、扩展共用的入口）。
     /// @details 按注册类型分派（CommandRegistry::kind）：交互命令交给视图的命令总线；
-    /// 即时命令直接执行；临时视图工具叠在视图的业务栈顶。
+    /// 即时命令直接执行。
     /// @param commandId CommandRegistry 里注册的命令 ID
     /// @param source 触发源，透传为 CommandContext::sender；为空时取 Qt 的 sender()
     void activateCommand(const QString& commandId, QObject* source = nullptr);

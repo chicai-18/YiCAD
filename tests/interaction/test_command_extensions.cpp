@@ -56,7 +56,8 @@ TEST_F(CommandExtensionsFixture, 各扩展的命令类型与打断方式)
     {
         EXPECT_EQ(registry.kind(id), CommandKind::Instant) << id;
     }
-    EXPECT_EQ(registry.kind("ext.view.pan"), CommandKind::ViewTool);
+    // 平移模式（原叠在命令之上的临时视图工具）已删除，平移只剩中键的导航手势
+    EXPECT_FALSE(registry.hasCommand("ext.view.pan"));
 
     // 缩放不打断任何命令（原视图 Action），其余即时命令照旧结束不可打断的命令
     EXPECT_EQ(registry.instantInterrupt("ext.view.zoom_in"), InstantInterrupt::KeepAll);

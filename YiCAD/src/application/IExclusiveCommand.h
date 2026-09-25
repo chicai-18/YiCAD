@@ -27,8 +27,10 @@
 ///     IDocumentView 认识视图（tools/check_layering.py），总线向命令提供
 ///     文档、视图、工具控制器与选择层；
 ///   - 总线持有命令（CommandRegistry 每次启动都新建实例）；
-///   - 增加 onEndRequested()：命令被外部结束前的回调（5.1 节）；
-///   - 增加 suspend()/resume()：临时视图工具（平移模式）叠在命令之上时挂起命令。
+///   - 增加 onEndRequested()：命令被外部结束前的回调（5.1 节）。
+///
+/// 命令不叠加，也不会被挂起：启动新命令先结束当前命令，命令进行中的平移只有
+/// 中键平移（导航层 PanZoomTool），不打断命令。
 
 #ifndef IEXCLUSIVECOMMAND_H
 #define IEXCLUSIVECOMMAND_H
@@ -80,11 +82,6 @@ public:
         (void)reason;
         return true;
     }
-
-    /// @brief 临时视图工具（平移模式）叠在命令之上时挂起：停用自己的工具，清除预览
-    virtual void suspend() {}
-    /// @brief 叠在上面的临时视图工具结束后恢复
-    virtual void resume() {}
 
     /// @brief 命令当前使用的捕捉器，画布的捕捉标记与捕捉提示读它
     /// @return 没有捕捉器时返回 nullptr

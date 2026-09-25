@@ -55,11 +55,6 @@ public:
     /// @return 不在选择阶段或没有选择集时返回 false，什么也不做
     bool confirmSelection();
 
-    /// @brief 平移模式叠在上面时挂起：选择阶段停用选择阶段工具，否则交给 onSuspend()
-    void suspend() final;
-    /// @brief 叠在上面的平移模式结束后恢复
-    void resume() final;
-
     /// @brief 真正的命令的放置工具的捕捉器；选择阶段与没有工具时返回空
     ISnapService* snapService() const override;
 
@@ -78,14 +73,9 @@ protected:
     virtual bool onSelectionReady() = 0;
     /// @brief 结束真正的命令：停用工具、清除预览（只在 onSelectionReady() 成功后调用）
     virtual void onStop() {}
-    /// @brief 真正的命令被挂起（平移模式叠在上面）
-    virtual void onSuspend() {}
-    /// @brief 真正的命令恢复
-    virtual void onResume() {}
 
     /// @brief 激活真正的命令的放置工具（在 onSelectionReady() 里调用）
-    /// @details 之后由本类管理：命令结束时停用它并结束它的捕捉会话，平移模式
-    ///          叠上来时停用、结束后重新激活。
+    /// @details 之后由本类管理：命令结束时停用它并结束它的捕捉会话。
     void activateTool(std::unique_ptr<BasePlaceTool> tool);
 
 private:

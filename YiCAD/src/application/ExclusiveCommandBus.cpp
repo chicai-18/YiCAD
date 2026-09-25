@@ -83,7 +83,6 @@ bool ExclusiveCommandBus::start(std::unique_ptr<IExclusiveCommand> command)
     }
 
     m_active = std::move(command);
-    m_suspended = false;
     m_finishPending = false;
     ++m_generation;
     // 先挂起选择层（清除它的预览与捕捉标记），与原先 Action 从空闲态启动时一致
@@ -250,49 +249,6 @@ void ExclusiveCommandBus::exitEditMode()
     }
 }
 
-void ExclusiveCommandBus::suspend()
-{
-    if (!m_active || m_suspended)
-    {
-        return;
-    }
-    m_suspended = true;
-    m_active->suspend();
-}
-
-void ExclusiveCommandBus::resume()
-{
-    if (!m_active || !m_suspended)
-    {
-        return;
-    }
-    m_suspended = false;
-    m_active->resume();
-}
-
-void ExclusiveCommandBus::post(std::function<void()> task)
-{
-    if (!task)
-    {
-        return;
-    }
-    if (m_scopeDepth > 0)
-    {
-        m_posted.push_back(std::move(task));
-        return;
-    }
-    QTimer::singleShot(0, this, [this, task = std::move(task)]()
-    {
-        if (m_scopeDepth > 0)
-        {
-            // 定时器在分发中（如模态对话框的事件循环里）触发：等这次分发返回
-            m_posted.push_back(task);
-            return;
-        }
-        task();
-    });
-}
-
 void ExclusiveCommandBus::setSnapMode(const SnapMode& snapMode)
 {
     if (ISnapService* snapper = m_active ? m_active->snapService() : nullptr)
@@ -319,7 +275,6 @@ void ExclusiveCommandBus::finishActive()
 
     // 先把 m_active 移出再 deactivate()：回调里查询总线时它已不是活动命令
     std::unique_ptr<IExclusiveCommand> command = std::move(m_active);
-    m_suspended = false;
     command->deactivate();
 
     if (m_selectTool)
@@ -366,12 +321,4 @@ void ExclusiveCommandBus::leaveScope()
     }
     m_retired.clear();
     m_retiredModes.clear();
-
-    // 任务里可能再次进入分发范围（并 post 新任务），先取出本轮的
-    std::vector<std::function<void()>> posted;
-    posted.swap(m_posted);
-    for (auto& task : posted)
-    {
-        task();
-    }
 }

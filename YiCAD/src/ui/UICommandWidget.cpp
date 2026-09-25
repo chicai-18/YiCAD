@@ -147,7 +147,7 @@ void UICommandWidget::appCmdTempText(const QString text)
 		GuiDocumentView* gv = mdiWindow->getDocumentView();
 		const bool hasCommand = gv->hasActiveCommand();
 
-		// 当前命令：临时视图工具或命令总线上的命令
+		// 当前命令：命令总线上的命令
 		const QString commandId = gv->activeCommandId();
 
 		QString displayText = text;

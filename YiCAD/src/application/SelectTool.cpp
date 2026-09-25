@@ -44,12 +44,6 @@ constexpr double kDragThresholdGui = 10.0;
 constexpr double kRefSnapGuiDist = 8.0;
 /// @brief 角度吸附步进（度）
 constexpr double kAngleSnapStep = 15.0;
-
-/// @brief 选择层之上的业务是否连选择阶段的输入、提示与光标也一并接管
-bool ownsEverything(SelectTool::Overlay above)
-{
-    return above == SelectTool::Overlay::ViewTool;
-}
 }  // namespace
 
 SelectTool::SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
@@ -135,7 +129,7 @@ void SelectTool::resume()
 void SelectTool::enterEvent()
 {
     const Overlay above = overlay();
-    if (inSelectionPhase() ? !ownsEverything(above) : above == Overlay::None || above == Overlay::EditMode)
+    if (inSelectionPhase() || above == Overlay::None || above == Overlay::EditMode)
     {
         resume();
     }
@@ -144,7 +138,7 @@ void SelectTool::enterEvent()
 void SelectTool::leaveEvent()
 {
     const Overlay above = overlay();
-    if (inSelectionPhase() ? !ownsEverything(above) : above == Overlay::None || above == Overlay::EditMode)
+    if (inSelectionPhase() || above == Overlay::None || above == Overlay::EditMode)
     {
         suspend();
     }
@@ -188,11 +182,6 @@ SelectTool::Overlay SelectTool::overlay() const
     return m_overlayQuery ? m_overlayQuery() : Overlay::None;
 }
 
-bool SelectTool::phaseOwnsInput() const
-{
-    return inSelectionPhase() && !ownsEverything(overlay());
-}
-
 void SelectTool::notifySelectionChanged()
 {
     if (inSelectionPhase())
@@ -210,11 +199,6 @@ void SelectTool::updateButtonHints() const
 {
     if (inSelectionPhase())
     {
-        if (!phaseOwnsInput())
-        {
-            // 临时视图工具叠在命令之上：提示归它
-            return;
-        }
         // 选择阶段的提示取原 ActionSelectMultiple 的（原 ActionSelect 那套
         // "Select to …"提示被它覆盖，从未显示过，见迁移计划 9.2 节）
         switch (m_status)
@@ -273,13 +257,12 @@ std::optional<DM::CursorType> SelectTool::getCursor() const
     // 有命令正活动时，光标由命令的工具经仲裁给出，选择层在仲裁通道里保持沉默，
     // 不能用自己的偏好覆盖它们。这次查询不影响 setStatus()/init() 的直接调用——
     // 那两处用的是不受这条限制约束的 cursorForStatus()。
-    // 选择阶段由本类负责选择，光标也由本类给出，除非临时视图工具叠在命令之上。
+    // 选择阶段由本类负责选择，光标也由本类给出。
     if (inSelectionPhase())
     {
-        return phaseOwnsInput() ? cursorForStatus() : std::nullopt;
+        return cursorForStatus();
     }
-    const Overlay above = overlay();
-    if (above == Overlay::Command || ownsEverything(above))
+    if (overlay() == Overlay::Command)
     {
         return std::nullopt;
     }

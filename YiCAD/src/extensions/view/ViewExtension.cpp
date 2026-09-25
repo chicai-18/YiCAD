@@ -28,5 +28,4 @@ void ViewExtension::OnRegister(IExtensionContext& ctx)
     const CommandInfo keepAll{.instantInterrupt = InstantInterrupt::KeepAll};
     ctx.registerInstantCommand(QStringLiteral("ext.view.zoom_in"), ViewCommands::zoomIn(), keepAll);
     ctx.registerInstantCommand(QStringLiteral("ext.view.zoom_out"), ViewCommands::zoomOut(), keepAll);
-    ctx.registerViewTool(QStringLiteral("ext.view.pan"), ViewCommands::pan(), {});
 }

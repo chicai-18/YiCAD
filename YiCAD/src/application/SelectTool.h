@@ -38,8 +38,7 @@
 ///   - 命令（`IExclusiveCommand`）：`getCursor()` 返回 `nullopt`、按键提示也不更新，
 ///     光标与提示归命令的工具，选择阶段除外（见下）；
 ///   - 块编辑模式（`IEditMode`）：本类照常完成块内的选择并给出光标，只是不更新
-///     按键提示，提示归编辑模式；
-///   - 临时视图工具（平移模式）：连选择阶段的输入、提示与光标也归它。
+///     按键提示，提示归编辑模式。
 /// `setStatus()`/`init()` 始终直接调用 `setMouseCursor()`。
 ///
 /// 选择阶段（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步第 4 项）：先选后建
@@ -89,8 +88,7 @@ public:
     {
         None,        ///< 空闲：提示与光标都由本类给出
         EditMode,    ///< 编辑模式（块编辑）：提示归编辑模式，光标仍由本类给出
-        Command,     ///< 命令活动：提示与光标归命令；命令的选择阶段仍由本类给出
-        ViewTool     ///< 临时视图工具（平移模式）叠在最上面：提示与光标都归它
+        Command      ///< 命令活动：提示与光标归命令；命令的选择阶段仍由本类给出
     };
 
     /// @brief 查询选择层之上正在活动的业务
@@ -120,10 +118,10 @@ public:
     void init();
 
     /// @brief 挂起：清除预览与捕捉点
-    /// @note 临时视图工具（平移模式）启动、或空闲态下鼠标离开画布时调用
+    /// @note 命令启动、或空闲态下鼠标离开画布时调用
     void suspend();
     /// @brief 恢复：刷新按键提示，重绘预览与捕捉点
-    /// @note 回到空闲态、或空闲态下鼠标回到画布时调用
+    /// @note 命令结束回到空闲态、或空闲态下鼠标回到画布时调用
     void resume();
 
     /// @brief 单点拾取：切换画布坐标处最近实体的选中状态，并刷新选择计数
@@ -157,9 +155,9 @@ public:
     ViewToolResult keyPressEvent(QKeyEvent* e) override;
     ViewToolResult keyReleaseEvent(QKeyEvent* e) override;
 
-    /// @brief 鼠标进入画布时恢复；有命令或临时视图工具时由它们自己恢复
+    /// @brief 鼠标进入画布时恢复；有命令时（选择阶段除外）由命令的工具自己恢复
     void enterEvent() override;
-    /// @brief 鼠标离开画布时挂起；有命令或临时视图工具时由它们自己挂起
+    /// @brief 鼠标离开画布时挂起；有命令时（选择阶段除外）由命令的工具自己挂起
     void leaveEvent() override;
 
     std::optional<DM::CursorType> getCursor() const override;
@@ -185,9 +183,6 @@ private:
 
     /// @brief 选择层之上正在活动的业务，见 setOverlayQuery()
     Overlay overlay() const;
-
-    /// @brief 处于选择阶段且没有临时视图工具叠在命令之上：提示与光标由选择阶段给出
-    bool phaseOwnsInput() const;
 
     /// @brief 选择完成后的通知：空闲态发 selectedChanged；选择阶段只刷新选择计数，
     ///        与原 ActionSelectMultiple 一致（发信号会启动多行文字属性编辑，顶掉当前命令）

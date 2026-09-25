@@ -32,12 +32,10 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateInput.h"
 #include "GuiDialogFactory.h"
-#include "IEditMode.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
 #include "Snapper.h"
-#include "TransientViewTool.h"
 #include "ViewToolControl.h"
 
 using DispatchScope = ExclusiveCommandBus::DispatchScope;
@@ -60,13 +58,9 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
 
         m_pCommandBus = std::make_unique<ExclusiveCommandBus>(doc, this, m_pViewToolControl.get(),
                                                               m_pSelectTool.get());
-        // 选择层之上有命令或平移模式时，提示与光标归它们（命令的选择阶段除外）
+        // 选择层之上有命令时提示与光标归命令（选择阶段除外），有编辑模式时提示归模式
         m_pSelectTool->setOverlayQuery([this]()
         {
-            if (m_pViewTool)
-            {
-                return SelectTool::Overlay::ViewTool;
-            }
             // 析构时总线先于选择层释放，释放过程中也会查询
             if (m_pCommandBus && m_pCommandBus->hasActiveCommand())
             {
@@ -90,13 +84,7 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
 
 UIView::~UIView()
 {
-    // 临时视图工具先移出工具栈；其下各层随后都要析构，不再恢复。
-    if (m_pViewTool)
-    {
-        m_pViewToolControl->deactivate(m_pViewTool.get());
-        m_pViewTool.reset();
-    }
-    // 再结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
+    // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
 }
 
@@ -113,8 +101,6 @@ bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
         return false;
     }
     m_pCommandBus->end();
-    // 启动命令结束平移模式（原先它被挂起、命令结束后恢复，迁移计划 9.3 节）
-    endViewTool();
     return m_pCommandBus->start(std::move(command));
 }
 
@@ -135,7 +121,6 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
             }
             m_pCommandBus->endAll();
         }
-        endViewTool();
         resetSelectTool();
         return true;
 
@@ -156,83 +141,6 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
     return true;
 }
 
-bool UIView::startViewTool(std::unique_ptr<TransientViewTool> tool)
-{
-    if (!m_pCommandBus || !tool || m_pCommandBus->isInCallback())
-    {
-        return false;
-    }
-    endViewTool();
-    suspendUnderViewTool();
-
-    m_pViewTool = std::move(tool);
-    const unsigned generation = ++m_viewToolGeneration;
-    m_pViewTool->setFinishHandler([this, generation]()
-    {
-        // 工具在自己的事件处理中请求结束：它还在调用栈上，分发返回后再结束
-        m_pCommandBus->post([this, generation]()
-        {
-            if (generation == m_viewToolGeneration)
-            {
-                endViewTool();
-            }
-        });
-    });
-    m_pViewToolControl->activate(m_pViewTool.get());
-    return true;
-}
-
-void UIView::endViewTool()
-{
-    if (!m_pViewTool)
-    {
-        return;
-    }
-    // 先移出成员：恢复其下各层时，选择层查询到的已不是临时视图工具
-    std::unique_ptr<TransientViewTool> tool = std::move(m_pViewTool);
-    m_pViewToolControl->deactivate(tool.get());
-    resumeUnderViewTool();
-}
-
-void UIView::suspendUnderViewTool()
-{
-    if (m_pCommandBus)
-    {
-        if (m_pCommandBus->hasActiveCommand())
-        {
-            m_pCommandBus->suspend();
-        }
-        else if (IEditMode* mode = m_pCommandBus->editMode())
-        {
-            // 命令活动时模式已被它挂起
-            mode->suspendMode();
-        }
-    }
-    if (m_pSelectTool)
-    {
-        m_pSelectTool->suspend();
-    }
-}
-
-void UIView::resumeUnderViewTool()
-{
-    if (m_pSelectTool)
-    {
-        m_pSelectTool->resume();
-    }
-    if (m_pCommandBus)
-    {
-        if (m_pCommandBus->hasActiveCommand())
-        {
-            m_pCommandBus->resume();
-        }
-        else if (IEditMode* mode = m_pCommandBus->editMode())
-        {
-            mode->resumeMode();
-        }
-    }
-}
-
 void UIView::resetSelectTool()
 {
     if (m_pSelectTool)
@@ -243,10 +151,6 @@ void UIView::resetSelectTool()
 
 QString UIView::activeCommandId() const
 {
-    if (m_pViewTool)
-    {
-        return m_pViewTool->commandId();
-    }
     return m_pCommandBus ? m_pCommandBus->activeCommandId() : QString();
 }
 
@@ -265,12 +169,7 @@ void UIView::back()
 
 void UIView::routeBack(QMouseEvent* e)
 {
-    if (m_pViewTool)
-    {
-        // 平移模式在业务栈顶，右键退出它
-        m_pViewToolControl->mouseReleaseEvent(e);
-    }
-    else if (hasBusinessOnBus())
+    if (hasBusinessOnBus())
     {
         // 右键释放不走 ViewToolControl（主计划 5.7 节）；命令的工具、编辑模式在这里收到它
         DispatchScope scope(m_pCommandBus.get());
@@ -280,9 +179,8 @@ void UIView::routeBack(QMouseEvent* e)
 
 void UIView::commandEvent(GuiCommandEvent* e)
 {
-    // 平移模式在业务栈顶，与命令一样经 ViewToolControl 交给它（它丢弃坐标、不接受文本）；
     // 空闲态不接受，由 UIActionHandler 当作新命令解析
-    if (!m_pViewTool && !hasBusinessOnBus())
+    if (!hasBusinessOnBus())
     {
         return;
     }
@@ -322,7 +220,6 @@ bool UIView::killAllActions()
         }
         m_pCommandBus->endAll();
     }
-    endViewTool();
     resetSelectTool();
     return true;
 }
@@ -335,13 +232,12 @@ void UIView::killAllActionsOnClose()
         m_pCommandBus->approveEndAll(CommandEndReason::ViewClosing);
         m_pCommandBus->endAll();
     }
-    endViewTool();
     resetSelectTool();
 }
 
 bool UIView::hasActiveCommand() const
 {
-    return hasBusinessOnBus() || m_pViewTool;
+    return hasBusinessOnBus();
 }
 
 bool UIView::hasBusinessOnBus() const
@@ -377,7 +273,7 @@ void UIView::setSnapRestriction(DM::SnapRestriction sr)
 
 ISnapService* UIView::commandSnapService() const
 {
-    if (!m_pCommandBus || !m_pCommandBus->hasActiveCommand() || m_pCommandBus->isSuspended())
+    if (!m_pCommandBus || !m_pCommandBus->hasActiveCommand())
     {
         return nullptr;
     }
@@ -390,11 +286,6 @@ ISnapService* UIView::commandSnapService() const
 
 SnapResultType UIView::currentSnapResult()
 {
-    if (m_pViewTool)
-    {
-        // 平移模式不捕捉，其下各层已挂起
-        return SnapResultType::SnapNone;
-    }
     if (ISnapService* snapper = commandSnapService())
     {
         return snapper->getSnapResult();
@@ -404,10 +295,6 @@ SnapResultType UIView::currentSnapResult()
 
 DmVector UIView::currentSnapSpot()
 {
-    if (m_pViewTool)
-    {
-        return DmVector(false);
-    }
     if (ISnapService* snapper = commandSnapService())
     {
         return snapper->getSnapSpot();
@@ -543,43 +430,21 @@ void UIView::tabletEvent(QTabletEvent* e)
 void UIView::leaveEvent(QEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    // 平移模式下其下各层已挂起，进入/离开画布只通知它
-    if (m_pViewTool)
-    {
-        m_pViewTool->leaveEvent();
-    }
-    else
-    {
-        m_pViewToolControl->leaveEvent();
-    }
+    m_pViewToolControl->leaveEvent();
     GuiDocumentView::leaveEvent(e);
 }
 
 void UIView::enterEvent(QEnterEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    if (m_pViewTool)
-    {
-        m_pViewTool->enterEvent();
-    }
-    else
-    {
-        m_pViewToolControl->enterEvent();
-    }
+    m_pViewToolControl->enterEvent();
     GuiDocumentView::enterEvent(e);
 }
 
 void UIView::focusInEvent(QFocusEvent* e)
 {
     DispatchScope scope(m_pCommandBus.get());
-    if (m_pViewTool)
-    {
-        m_pViewTool->enterEvent();
-    }
-    else
-    {
-        m_pViewToolControl->enterEvent();
-    }
+    m_pViewToolControl->enterEvent();
     GuiDocumentView::focusInEvent(e);
 }
 

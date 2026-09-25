@@ -32,11 +32,11 @@
 /// "命令设置"对话框可改）与随 `CommandInfo` 注册在这里的别名；两者重名时
 /// keyconfig.xml 优先。
 ///
-/// 命令有三种注册类型（`CommandKind`，doc/COMMAND_TOOL_MIGRATION_PLAN.md
+/// 命令有两种注册类型（`CommandKind`，doc/COMMAND_TOOL_MIGRATION_PLAN.md
 /// 第二步第 2 项与第三步）：交互命令（工厂返回 `std::unique_ptr<IExclusiveCommand>`，
-/// 由视图的命令总线运行）、即时命令（一个函数，不建命令对象、不占总线，没有打开
-/// 图纸时也能执行）与临时视图工具（平移：不占总线，叠在业务栈顶，见
-/// TransientViewTool.h）。原先的旧版 Action 类型在第四步随旧 Action 体系删除。
+/// 由视图的命令总线运行）与即时命令（一个函数，不建命令对象、不占总线，没有打开
+/// 图纸时也能执行）。原先的旧版 Action 类型在第四步随旧 Action 体系删除；叠在命令
+/// 之上的临时视图工具（平移模式）随后也删除，平移只剩中键的导航手势。
 /// `UIActionHandler::activateCommand` 按注册类型分派。
 
 #ifndef COMMANDREGISTRY_H
@@ -58,7 +58,6 @@ class IDocumentView;
 class IExclusiveCommand;
 class QObject;
 class QWidget;
-class TransientViewTool;
 
 /// @brief 构造命令所需的运行时环境。
 ///
@@ -98,16 +97,12 @@ enum class InstantInterrupt
     EndAll              ///< 先结束全部命令，被否决时不执行：原 isExclusive() 的 Action（新建、打开、保存图纸）
 };
 
-/// @brief 临时视图工具工厂：构造一个新的工具实例；返回空表示本次不启动。
-using ViewToolFactory = std::function<std::unique_ptr<TransientViewTool>(const CommandContext&)>;
-
 /// @brief 命令的注册类型
 enum class CommandKind
 {
     None,      ///< 未注册
     Exclusive, ///< 交互命令，由视图的命令总线运行
-    Instant,   ///< 即时命令
-    ViewTool   ///< 临时视图工具，不占命令总线，叠在业务栈顶
+    Instant    ///< 即时命令
 };
 
 /// @brief 交互命令的选项条工厂。命令调用
@@ -152,9 +147,6 @@ public:
 
     /// @brief 注册一个即时命令，其余同 registerExclusiveCommand()。
     bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info = {});
-
-    /// @brief 注册一个临时视图工具，其余同 registerExclusiveCommand()。
-    bool registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info = {});
 
     /// @brief 注销一个命令，连同它的别名与双击编辑、属性编辑登记。
     /// @return id 未注册时返回 false。
@@ -204,10 +196,6 @@ public:
     /// 命令或工厂返回空时返回空。
     std::unique_ptr<IExclusiveCommand> createCommand(const QString& id, const CommandContext& ctx) const;
 
-    /// @brief 按字符串 ID 构造临时视图工具，并把 id 记到工具上；未注册、不是
-    /// 临时视图工具或工厂返回空时返回空。
-    std::unique_ptr<TransientViewTool> createViewTool(const QString& id, const CommandContext& ctx) const;
-
     /// @brief 执行即时命令。
     /// @return 未注册或不是即时命令时返回 false，什么也不做。
     bool runInstant(const QString& id, const CommandContext& ctx) const;
@@ -220,7 +208,6 @@ private:
         CommandKind kind = CommandKind::None;
         ExclusiveCommandFactory commandFactory;   ///< kind 为 Exclusive 时有效
         InstantCommand instant;                   ///< kind 为 Instant 时有效
-        ViewToolFactory viewToolFactory;          ///< kind 为 ViewTool 时有效
         CommandInfo info;
     };
 

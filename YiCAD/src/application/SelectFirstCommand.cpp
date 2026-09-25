@@ -150,38 +150,6 @@ bool SelectFirstCommand::confirmSelection()
     return true;
 }
 
-void SelectFirstCommand::suspend()
-{
-    if (m_selecting)
-    {
-        viewToolControl()->deactivate(m_selectionTool.get());
-    }
-    else if (m_working)
-    {
-        if (m_tool)
-        {
-            viewToolControl()->deactivate(m_tool.get());
-        }
-        onSuspend();
-    }
-}
-
-void SelectFirstCommand::resume()
-{
-    if (m_selecting)
-    {
-        viewToolControl()->activate(m_selectionTool.get());
-    }
-    else if (m_working)
-    {
-        if (m_tool)
-        {
-            viewToolControl()->activate(m_tool.get());
-        }
-        onResume();
-    }
-}
-
 ISnapService* SelectFirstCommand::snapService() const
 {
     return m_working && m_tool ? m_tool->snapper() : nullptr;

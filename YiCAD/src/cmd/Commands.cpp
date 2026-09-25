@@ -127,7 +127,6 @@ QString Commands::legacyCommandId(const QString& actionName)
 
         {"ActionZoomIn", "ext.view.zoom_in"},
         {"ActionZoomOut", "ext.view.zoom_out"},
-        {"ActionZoomPan", "ext.view.pan"},
 
         {"ActionDrawArc", "ext.draw.arc"},
         {"ActionDrawArc3P", "ext.draw.arc_3p"},

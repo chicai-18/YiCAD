@@ -109,8 +109,6 @@ struct SelectFirstFixture : ::testing::Test
     PanZoomTool panTool{&view};
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    /// @brief 平移模式（临时视图工具）是否叠在命令之上，见 suspendUnderViewTool()
-    bool viewToolActive = false;
     ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
     /// @brief 创建块、编辑块在块扩展里（第三步⑥），其余先选后建命令在修改、编辑、查询扩展里
     ///        （第四步），用例期间启动它们
@@ -126,10 +124,6 @@ struct SelectFirstFixture : ::testing::Test
         control.setSelectionTool(&selectTool);
         selectTool.setOverlayQuery([this]()
                                    {
-                                       if (viewToolActive)
-                                       {
-                                           return SelectTool::Overlay::ViewTool;
-                                       }
                                        if (bus.hasActiveCommand())
                                        {
                                            return SelectTool::Overlay::Command;
@@ -143,21 +137,6 @@ struct SelectFirstFixture : ::testing::Test
         // 注销扩展的命令；已构造的命令与编辑模式照旧由总线析构时结束
         ExtensionManager::instance().Shutdown();
         GuiDialogFactory::instance()->setFactoryObject(nullptr);
-    }
-
-    /// @brief 与 UIView::startViewTool() 相同：平移模式叠上来时挂起命令与选择层
-    void suspendUnderViewTool()
-    {
-        bus.suspend();
-        selectTool.suspend();
-        viewToolActive = true;
-    }
-    /// @brief 与 UIView::endViewTool() 相同：平移模式结束后恢复选择层与命令
-    void resumeUnderViewTool()
-    {
-        viewToolActive = false;
-        selectTool.resume();
-        bus.resume();
     }
 
     /// @brief 按命令 ID 构造并启动命令
@@ -419,29 +398,6 @@ TEST_F(SelectFirstFixture, 选择阶段按实体类型过滤)
     selectTool.endSelectionPhase();
 }
 
-TEST_F(SelectFirstFixture, 平移模式叠在命令之上时命令被挂起结束后恢复)
-{
-    ASSERT_TRUE(start("ext.measure.total_length"));
-
-    suspendUnderViewTool();
-    EXPECT_TRUE(bus.isSuspended());
-    // 光标与提示归平移模式，选择阶段让出
-    EXPECT_FALSE(selectTool.getCursor().has_value());
-    const size_t hintsBefore = ui.hints.size();
-    selectTool.enterEvent();
-    EXPECT_EQ(ui.hints.size(), hintsBefore);
-    // 挂起时选择阶段工具被停用：回车不再确认，事件落到选择层
-    QKeyEvent* enter = nullptr;
-    EXPECT_EQ(pressKey(Qt::Key_Enter, &enter), ViewToolResult::NotHandled);
-
-    resumeUnderViewTool();
-    EXPECT_FALSE(bus.isSuspended());
-    EXPECT_TRUE(bus.hasActiveCommand());
-    ASSERT_TRUE(selectTool.getCursor().has_value());
-    EXPECT_EQ(*selectTool.getCursor(), DM::SelectCursor);
-    EXPECT_EQ(pressKey(Qt::Key_Enter), ViewToolResult::Handled);
-}
-
 TEST_F(SelectFirstFixture, P1先选后建的14个命令没有选择集时都进入选择阶段)
 {
     for (const char* id : kSelectFirstCommands)
@@ -658,23 +614,6 @@ TEST_F(SelectFirstFixture, 镜像工具输入YN切换复制方式)
     GuiCommandEvent yes("y");
     typeText(yes);
     EXPECT_TRUE(command->copies());
-}
-
-TEST_F(SelectFirstFixture, 平移模式叠在放置工具之上时停用工具结束后恢复)
-{
-    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
-    ASSERT_TRUE(start("ext.modify.move"));
-
-    suspendUnderViewTool();
-    EXPECT_TRUE(bus.isSuspended());
-    // 工具被停用：命令行坐标没有业务工具接收
-    EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::NotHandled);
-
-    resumeUnderViewTool();
-    EXPECT_FALSE(bus.isSuspended());
-    EXPECT_EQ(ui.hints.back().first, QStringLiteral("Specify reference point"));
-    EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(1.0, 1.0)); }), ViewToolResult::Handled);
 }
 
 TEST_F(SelectFirstFixture, 编辑块时选择集里没有块参照则启动失败)

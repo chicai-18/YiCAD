@@ -121,9 +121,9 @@ public:
 
     virtual void setIsDrawCursor(const bool& isDrawCursor) = 0;
 
-    /// @brief 是否有命令在运行：交互命令、编辑模式（块编辑）或临时视图工具（平移模式）
+    /// @brief 是否有命令在运行：交互命令或编辑模式（块编辑）
     virtual bool hasActiveCommand() const = 0;
-    /// @brief 活动命令的 ID：有临时视图工具时是它的，否则是命令总线上的；没有时返回空串
+    /// @brief 活动命令的 ID（命令总线上的）；没有时返回空串
     virtual QString activeCommandId() const = 0;
     /// @brief 发出选择变更信号
     virtual void emitSelectedChanged() = 0;

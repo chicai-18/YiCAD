@@ -393,25 +393,6 @@ TEST_F(DrawLineFixture, 徒手线结束后预览容器恢复持有实体)
     EXPECT_TRUE(view.getPreviewContainer()->isOwner());
 }
 
-TEST_F(DrawLineFixture, 旧Action叠上来时收起选项条结束后重新显示)
-{
-    ASSERT_TRUE(start("ext.draw.line"));
-    ui.options.clear();
-    bus.suspend();
-    ASSERT_NE(lastOptions("ext.draw.line"), nullptr);
-    EXPECT_FALSE(lastOptions("ext.draw.line")->on);
-
-    bus.resume();
-    ASSERT_NE(lastOptions("ext.draw.line"), nullptr);
-    EXPECT_TRUE(lastOptions("ext.draw.line")->on);
-
-    // 挂起期间被结束：不再重复收起选项条
-    bus.suspend();
-    ui.options.clear();
-    endCommand();
-    EXPECT_EQ(lastOptions("ext.draw.line"), nullptr);
-}
-
 TEST_F(DrawLineFixture, 放置工具不接受Esc且中键让给导航层)
 {
     ASSERT_TRUE(start("ext.draw.polyline"));

@@ -22,7 +22,6 @@
 #include "DmDocument.h"
 #include "DmPoint.h"
 #include "EntityTable.h"
-#include "TransientViewTool.h"
 #include "UIActionHandler.h"
 #include "support/CommandExtensions.h"
 #include "support/FakeDocumentView.h"
@@ -40,16 +39,6 @@ protected:
 ExclusiveCommandFactory testCommandFactory()
 {
     return [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return std::make_unique<TestCommand>(); };
-}
-
-/// @brief 最小的临时视图工具测试替身
-class TestViewTool : public TransientViewTool
-{
-};
-
-ViewToolFactory testViewToolFactory()
-{
-    return [](const CommandContext&) -> std::unique_ptr<TransientViewTool> { return std::make_unique<TestViewTool>(); };
 }
 }  // namespace
 
@@ -177,23 +166,6 @@ TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
     EXPECT_EQ(CommandRegistry::instance().kind("ext.modify.delete_no_select"), CommandKind::Instant);
 }
 
-TEST(CommandRegistryTest, 临时视图工具按ID创建并记录命令ID)
-{
-    ASSERT_TRUE(CommandRegistry::instance().registerViewTool("test.cr.view_tool", testViewToolFactory()));
-    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.view_tool"), CommandKind::ViewTool);
-
-    CommandContext ctx{};
-    std::unique_ptr<TransientViewTool> tool = CommandRegistry::instance().createViewTool("test.cr.view_tool", ctx);
-    ASSERT_NE(tool, nullptr);
-    EXPECT_EQ(tool->commandId(), QStringLiteral("test.cr.view_tool"));
-
-    // 类型不对的入口都返回空
-    EXPECT_EQ(CommandRegistry::instance().createCommand("test.cr.view_tool", ctx), nullptr);
-    EXPECT_FALSE(CommandRegistry::instance().runInstant("test.cr.view_tool", ctx));
-    EXPECT_EQ(CommandRegistry::instance().createViewTool("test.cr.exclusive_missing", ctx), nullptr);
-    EXPECT_FALSE(CommandRegistry::instance().registerViewTool("test.cr.null_view_tool", nullptr));
-}
-
 TEST(CommandRegistryTest, 即时命令的打断策略随注册登记)
 {
     ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
@@ -211,8 +183,8 @@ TEST(CommandRegistryTest, 第三步迁移的视图与即时命令注册为新类
 {
     // 第四步起这些命令在视图、编辑、查询扩展里
     yicad_test::CommandExtensionsScope extensions;
-    // 平移模式是临时视图工具，不占命令总线
-    EXPECT_EQ(CommandRegistry::instance().kind("ext.view.pan"), CommandKind::ViewTool);
+    // 平移模式（原叠在命令之上的临时视图工具）已删除
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("ext.view.pan"));
 
     for (const char* id : {"ext.view.zoom_in", "ext.view.zoom_out", "ext.edit.undo", "ext.edit.redo", "ext.measure.selected"})
     {
@@ -255,10 +227,7 @@ TEST(CommandRegistryTest, 属性编辑命令接受即时命令与交互命令且
     ASSERT_TRUE(registry.registerInstantCommand("test.cr.props_instant", [](const CommandContext&) {}));
     ASSERT_TRUE(registry.registerExclusiveCommand(
         "test.cr.props_panel", [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return nullptr; }));
-    ASSERT_TRUE(registry.registerViewTool(
-        "test.cr.props_view_tool", [](const CommandContext&) -> std::unique_ptr<TransientViewTool> { return nullptr; }));
 
-    EXPECT_FALSE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.props_view_tool"));
     EXPECT_FALSE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.no_such_command"));
     EXPECT_TRUE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.props_instant"));
     EXPECT_FALSE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.props_panel"));
@@ -271,7 +240,6 @@ TEST(CommandRegistryTest, 属性编辑命令接受即时命令与交互命令且
     // 命令注销时登记随之删除
     registry.unregisterCommand("test.cr.props_instant");
     registry.unregisterCommand("test.cr.props_panel");
-    registry.unregisterCommand("test.cr.props_view_tool");
     EXPECT_TRUE(registry.propertyEditor(DM::EntityArc).isEmpty());
     EXPECT_TRUE(registry.propertyEditor(DM::EntityCircle).isEmpty());
 }

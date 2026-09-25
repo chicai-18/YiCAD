@@ -46,9 +46,9 @@ public:
     /// @brief 离开编辑模式：总线已把工具移出业务栈，模式按之前的决定收尾
     virtual void onExit() = 0;
 
-    /// @brief 命令或临时视图工具叠到模式之上：收起模式的界面（选项条）
+    /// @brief 命令叠到模式之上：收起模式的界面（选项条）
     virtual void suspendMode() = 0;
-    /// @brief 叠在上面的命令或临时视图工具结束：恢复模式的界面与提示
+    /// @brief 叠在上面的命令结束：恢复模式的界面与提示
     virtual void resumeMode() = 0;
 };
 
