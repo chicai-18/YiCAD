@@ -55,33 +55,33 @@
 <context>
     <name>DrawTextCommand</name>
     <message>
-        <location filename="../commands/DrawTextCommand.cpp" line="321"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="326"/>
         <source>Create Text</source>
         <translation>单行文字</translation>
     </message>
     <message>
-        <location filename="../commands/DrawTextCommand.cpp" line="73"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="75"/>
         <source>Specify insertion point</source>
         <translation>指定插入点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawTextCommand.cpp" line="74"/>
-        <location filename="../commands/DrawTextCommand.cpp" line="78"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="76"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="80"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawTextCommand.cpp" line="77"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="79"/>
         <source>Specify second point</source>
         <translation>指定第二个点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawTextCommand.cpp" line="81"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="83"/>
         <source>Enter text:</source>
         <translation>输入文本：</translation>
     </message>
     <message>
-        <location filename="../commands/DrawTextCommand.cpp" line="81"/>
+        <location filename="../commands/DrawTextCommand.cpp" line="83"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -114,6 +114,7 @@
 <context>
     <name>QObject</name>
     <message>
+        <location filename="../ui/UIDlgText.cpp" line="77"/>
         <location filename="../ui/UIDlgTextStyle.cpp" line="296"/>
         <source>Tips</source>
         <translation>提示</translation>
@@ -122,19 +123,67 @@
 <context>
     <name>TextExtension</name>
     <message>
-        <location filename="../TextExtension.cpp" line="121"/>
+        <location filename="../TextExtension.cpp" line="141"/>
         <source>Single line text</source>
         <translation>单行文字</translation>
     </message>
     <message>
-        <location filename="../TextExtension.cpp" line="122"/>
+        <location filename="../TextExtension.cpp" line="142"/>
         <source>Multiline text</source>
         <translation>多行文字</translation>
     </message>
     <message>
-        <location filename="../TextExtension.cpp" line="123"/>
+        <location filename="../TextExtension.cpp" line="143"/>
         <source>Text style</source>
         <translation>文字样式</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgText</name>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="20"/>
+        <source>Text</source>
+        <translation>单行文字</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="33"/>
+        <source>Text:</source>
+        <translation>字段：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="81"/>
+        <source>Settings</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="90"/>
+        <source>Text Style:</source>
+        <translation>文字样式:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="142"/>
+        <source>Alignment:</source>
+        <translation>对齐:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="149"/>
+        <source>Angle:</source>
+        <translation>角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.ui" line="182"/>
+        <source>&amp;Height:</source>
+        <translation>&amp;高度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.cpp" line="77"/>
+        <source>Text can not be empty!</source>
+        <translation>字段不能为空！</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgText.cpp" line="169"/>
+        <source>Modify text</source>
+        <translation>修改单行文字</translation>
     </message>
 </context>
 <context>

@@ -9,6 +9,8 @@
 
 #include <vector>
 
+#include "CircleData.h"
+#include "DmCircle.h"
 #include "DmLine.h"
 #include "DmPolyline.h"
 #include "LineData.h"
@@ -383,13 +385,38 @@ TEST_F(ModifyFixture, 打断选中实体后高亮结束时取消)
 TEST_F(ModifyFixture, 修改实体属性选中实体并弹出对话框)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
+    auto* circle = new DmCircle(nullptr, CircleData(DmVector(50, 0), 5));
+    circle->calculateBorders();
+    ASSERT_TRUE(doc.getEntityTable()->add_direct(circle));
+
     ASSERT_TRUE(start("ext.modify.entity"));
     click(5, 0);
     EXPECT_TRUE(line->isSelected());
-    ASSERT_EQ(ui.entityDialogs.size(), 1u);
-    EXPECT_EQ(ui.entityDialogs.front(), line);
+    // 绘图扩展登记的属性编辑命令弹出直线的属性对话框；对话框是模态的，本命令留着
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgLine")});
+    EXPECT_TRUE(bus.hasActiveCommand());
+
+    // 接着点下一个实体
+    click(45, 0);
+    EXPECT_EQ(dialogs.shown, (std::vector<QString>{QStringLiteral("UIDlgLine"), QStringLiteral("UIDlgCircle")}));
     EXPECT_TRUE(bus.hasActiveCommand());
     endCommand();
+}
+
+TEST_F(ModifyFixture, 绘图扩展登记几类实体的属性对话框)
+{
+    const CommandRegistry& registry = CommandRegistry::instance();
+    EXPECT_EQ(registry.kind(QStringLiteral("ext.draw.properties")), CommandKind::Instant);
+    EXPECT_EQ(registry.instantInterrupt(QStringLiteral("ext.draw.properties")), InstantInterrupt::KeepAll);
+    for (DM::EntityType type : {DM::EntityPoint, DM::EntityLine, DM::EntityArc, DM::EntityCircle, DM::EntityEllipse,
+                                DM::EntitySpline, DM::EntityPolyline, DM::EntityImage})
+    {
+        EXPECT_EQ(registry.propertyEditor(type), QStringLiteral("ext.draw.properties")) << type;
+    }
+
+    // 没有实体时什么也不做
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.draw.properties"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(dialogs.shown.empty());
 }
 
 TEST_F(ModifyFixture, 粘贴剪贴板为空时指定参考点即结束)

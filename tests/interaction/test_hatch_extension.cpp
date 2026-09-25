@@ -53,5 +53,15 @@ TEST_F(HatchFixture, 取消填充对话框时启动失败)
 {
     // 对话框工厂的默认实现返回"取消"
     EXPECT_FALSE(start("ext.hatch.draw"));
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgHatch")});
     EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(HatchFixture, 登记填充的属性对话框)
+{
+    const CommandRegistry& registry = CommandRegistry::instance();
+    EXPECT_EQ(registry.propertyEditor(DM::EntityHatch), QStringLiteral("ext.hatch.properties"));
+    EXPECT_EQ(registry.kind(QStringLiteral("ext.hatch.properties")), CommandKind::Instant);
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.hatch.properties"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(dialogs.shown.empty());
 }

@@ -19,8 +19,9 @@
 /// @brief 填充扩展（src/extensions/hatch/）的入口。
 ///
 /// 业务工具化第三步第⑧批（doc/COMMAND_TOOL_MIGRATION_PLAN.md 5.2 节）：填充命令与"绘图/
-/// 其他"面板里的按钮。填充实体（DmHatch）、图案与持久化仍在内核；填充对话框
-/// （UIDlgHatch）修改填充实体时也要用，留在 ui/，经 GuiDialogFactoryInterface 调用。
+/// 其他"面板里的按钮。填充实体（DmHatch）、图案与持久化仍在内核。填充对话框（UIDlgHatch）
+/// 在本扩展的 ui/ 里，新建填充时由命令直接构造，修改填充时由登记的属性编辑命令
+/// ext.hatch.properties 构造（doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）。
 
 #ifndef HATCHEXTENSION_H
 #define HATCHEXTENSION_H
@@ -30,7 +31,7 @@
 class HatchExtension : public IExtension
 {
 public:
-    /// @brief 注册填充命令与"绘图/其他"面板里的按钮。
+    /// @brief 注册填充命令、填充的属性编辑命令与"绘图/其他"面板里的按钮。
     void OnRegister(IExtensionContext& ctx) override;
 
     std::string_view Id() const override { return "ext.hatch"; }

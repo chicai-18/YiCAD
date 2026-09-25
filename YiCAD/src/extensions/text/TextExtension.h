@@ -25,8 +25,9 @@
 ///
 /// 宿主与内核经 ID 使用本扩展：选择层双击多行文字启动它登记的编辑命令
 /// （CommandRegistry::registerEntityEditor）；选择变化时宿主运行
-/// ext.text.selection_changed，单选多行文字时显示属性面板；修改实体属性点了多行文字时
-/// 转到 ext.text.modify_mtext。
+/// ext.text.selection_changed，单选多行文字时显示属性面板；修改实体属性（与双击单行文字）
+/// 按登记的属性编辑命令（CommandRegistry::registerPropertyEditor）运行单行文字的属性对话框
+/// ext.text.properties，或转到多行文字的属性面板 ext.text.modify_mtext。
 
 #ifndef TEXTEXTENSION_H
 #define TEXTEXTENSION_H

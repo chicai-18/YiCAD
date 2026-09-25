@@ -180,12 +180,12 @@
 <context>
     <name>ModifyEntityCommand</name>
     <message>
-        <location filename="../commands/ModifyEntityCommand.cpp" line="79"/>
+        <location filename="../commands/ModifyEntityCommand.cpp" line="88"/>
         <source>Click on entity to modify</source>
         <translation>点击需修改的实体</translation>
     </message>
     <message>
-        <location filename="../commands/ModifyEntityCommand.cpp" line="80"/>
+        <location filename="../commands/ModifyEntityCommand.cpp" line="89"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>

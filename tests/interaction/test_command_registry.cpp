@@ -248,3 +248,30 @@ TEST(CommandRegistryTest, 实体双击编辑命令只接受交互命令且一类
     registry.unregisterCommand("test.cr.editor_b");
     registry.unregisterCommand("test.cr.editor_instant");
 }
+
+TEST(CommandRegistryTest, 属性编辑命令接受即时命令与交互命令且一类实体只登记一个)
+{
+    CommandRegistry& registry = CommandRegistry::instance();
+    ASSERT_TRUE(registry.registerInstantCommand("test.cr.props_instant", [](const CommandContext&) {}));
+    ASSERT_TRUE(registry.registerExclusiveCommand(
+        "test.cr.props_panel", [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return nullptr; }));
+    ASSERT_TRUE(registry.registerViewTool(
+        "test.cr.props_view_tool", [](const CommandContext&) -> std::unique_ptr<TransientViewTool> { return nullptr; }));
+
+    EXPECT_FALSE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.props_view_tool"));
+    EXPECT_FALSE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.no_such_command"));
+    EXPECT_TRUE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.props_instant"));
+    EXPECT_FALSE(registry.registerPropertyEditor(DM::EntityArc, "test.cr.props_panel"));
+    EXPECT_TRUE(registry.registerPropertyEditor(DM::EntityCircle, "test.cr.props_panel"));
+    EXPECT_EQ(registry.propertyEditor(DM::EntityArc), QStringLiteral("test.cr.props_instant"));
+    EXPECT_EQ(registry.propertyEditor(DM::EntityCircle), QStringLiteral("test.cr.props_panel"));
+    // 与双击编辑命令是两张表
+    EXPECT_TRUE(registry.entityEditor(DM::EntityArc).isEmpty());
+
+    // 命令注销时登记随之删除
+    registry.unregisterCommand("test.cr.props_instant");
+    registry.unregisterCommand("test.cr.props_panel");
+    registry.unregisterCommand("test.cr.props_view_tool");
+    EXPECT_TRUE(registry.propertyEditor(DM::EntityArc).isEmpty());
+    EXPECT_TRUE(registry.propertyEditor(DM::EntityCircle).isEmpty());
+}

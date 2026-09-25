@@ -21,10 +21,7 @@
 #ifndef GUIDIALOGFACTORYADAPTER_H
 #define GUIDIALOGFACTORYADAPTER_H
 
-#include "DmBlock.h"
 #include "GuiDialogFactoryInterface.h"
-
-class DmBlockTable;
 
 /// @brief 对话框工厂接口的默认适配器
 /// @details 当未设置实际工厂对象时使用，所有对话框操作返回默认值或空操作
@@ -78,13 +75,6 @@ public:
         return false;
     }
 
-    /// @brief 请求定义属性对话框
-    /// @return 始终返回 false
-    bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) override
-    {
-        return false;
-    }
-
     /// @brief 请求操作选项（空操作）
     void requestCommandOptions(IExclusiveCommand*, bool, bool) override
     {
@@ -98,27 +88,6 @@ public:
     /// @brief 请求捕捉中点选项（空操作）
     void requestSnapMiddleOptions(int&, bool) override
     {
-    }
-
-    /// @brief 请求修改实体对话框
-    /// @return 始终返回 false
-    bool requestModifyEntityDialog(DmEntity*) override
-    {
-        return false;
-    }
-
-    /// @brief 请求文字编辑对话框
-    /// @return 始终返回 false
-    bool requestTextDialog(DmText*) override
-    {
-        return false;
-    }
-
-    /// @brief 请求填充编辑对话框
-    /// @return 始终返回 false
-    bool requestHatchDialog(DmHatch*) override
-    {
-        return false;
     }
 
     /// @brief 更新坐标控件（空操作）

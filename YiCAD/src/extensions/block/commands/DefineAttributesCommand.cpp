@@ -43,6 +43,8 @@
 #include "Preview.h"
 #include "TextData.h"
 #include "Transaction.h"
+#include "UIDialogRunner.h"
+#include "UIDlgDefineAttribute.h"
 
 namespace
 {
@@ -173,9 +175,14 @@ std::unique_ptr<BasePlaceTool> DefineAttributesCommand::createTool()
 
     DmAttributeDefinition tmp(nullptr, *m_textData, *m_attrData);
     tmp.setDocument(document());
-    if (!GUIDIALOGFACTORY->requestDefineAttributesDialog(&tmp))
     {
-        return nullptr;
+        UIDlgDefineAttribute dlg(dialogParent());
+        dlg.setAttributeDefinition(tmp, true);
+        if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
+        {
+            return nullptr;
+        }
+        dlg.updateAttributeDefinition();
     }
     m_textData = std::make_unique<TextData>(tmp.getData());
     m_attrData = std::make_unique<AttributeDefinitionData>(tmp.getAttributeData());

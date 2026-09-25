@@ -23,6 +23,7 @@
 
 #include <QCoreApplication>
 
+#include "BaseExclusiveCommand.h"
 #include "BlockEditTool.h"
 #include "BlockFileCommands.h"
 #include "BlockInsertCommand.h"
@@ -30,11 +31,16 @@
 #include "BlocksEditCommand.h"
 #include "CommandRegistry.h"
 #include "DefineAttributesCommand.h"
+#include "DmAttributeDefinition.h"
+#include "DmBlockReference.h"
 #include "DmDocument.h"
 #include "DmSystem.h"
 #include "ExclusiveCommandBus.h"
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
+#include "UIDialogRunner.h"
+#include "UIDlgDefineAttribute.h"
+#include "UIDlgInsert.h"
 #include "UIInsertOptions.h"
 #include "UIRibbonRegistry.h"
 #include "UIView.h"
@@ -60,6 +66,44 @@ void reenterBlockEdit(const CommandContext& ctx)
     BlockEditTool* blockEdit = mode.get();
     bus->enterEditMode(std::move(mode));
     blockEdit->reenter(editingBlock);
+}
+
+/// @brief 块参照与属性定义的属性对话框（原 UIDialogFactory::requestModifyEntityDialog 的对应分支）；
+///        上下文的 entity 为要修改的实体
+void editBlockProperties(const CommandContext& ctx)
+{
+    if (!ctx.entity)
+    {
+        return;
+    }
+    QWidget* parent = BaseExclusiveCommand::dialogParentOf(ctx.view);
+    switch (ctx.entity->getEntityType())
+    {
+    case DM::EntityBlockReference:
+    {
+        auto* insert = static_cast<DmBlockReference*>(ctx.entity);
+        UIDlgInsert dlg(parent);
+        dlg.setInsert(*insert);
+        if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
+        {
+            dlg.updateInsert();
+            insert->update();
+        }
+        break;
+    }
+    case DM::EntityAttributeDefinition:
+    {
+        UIDlgDefineAttribute dlg(parent);
+        dlg.setAttributeDefinition(*static_cast<DmAttributeDefinition*>(ctx.entity), false);
+        if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
+        {
+            dlg.updateAttributeDefinition();
+        }
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 /// @brief "绘图/块"面板里的一个按钮
@@ -155,6 +199,11 @@ void BlockExtension::OnRegister(IExtensionContext& ctx)
     // 宿主的撤销/重做钩子：不打断任何命令
     ctx.registerInstantCommand(QStringLiteral("ext.block.reenter_edit"), reenterBlockEdit,
                                {.instantInterrupt = InstantInterrupt::KeepAll});
+    // 属性编辑（"修改实体属性"与选择层双击）：块参照、属性定义的属性对话框，不打断正在运行的命令
+    ctx.registerInstantCommand(QStringLiteral("ext.block.properties"), editBlockProperties,
+                               {.instantInterrupt = InstantInterrupt::KeepAll});
+    ctx.registerPropertyEditor(DM::EntityBlockReference, QStringLiteral("ext.block.properties"));
+    ctx.registerPropertyEditor(DM::EntityAttributeDefinition, QStringLiteral("ext.block.properties"));
 
     // ---- 按钮：宿主占位的"绘图/块"面板，顺序与迁移前一致 ----
     const BlockButton buttons[] = {

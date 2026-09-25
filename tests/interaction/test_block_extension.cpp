@@ -14,6 +14,7 @@
 #include "BlockExtension.h"
 #include "BlockInsertCommand.h"
 #include "DmBlock.h"
+#include "DmBlockReference.h"
 #include "DmBlockTable.h"
 #include "DmLine.h"
 #include "EntityTable.h"
@@ -159,7 +160,25 @@ TEST_F(BlockFixture, 定义属性取消对话框时启动失败)
 {
     // 对话框工厂的默认实现返回"取消"
     EXPECT_FALSE(start("ext.block.define_attributes"));
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgDefineAttribute")});
     EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(BlockFixture, 块参照的属性对话框)
+{
+    const CommandRegistry& registry = CommandRegistry::instance();
+    EXPECT_EQ(registry.propertyEditor(DM::EntityBlockReference), QStringLiteral("ext.block.properties"));
+    EXPECT_EQ(registry.propertyEditor(DM::EntityAttributeDefinition), QStringLiteral("ext.block.properties"));
+    EXPECT_EQ(registry.kind(QStringLiteral("ext.block.properties")), CommandKind::Instant);
+
+    DmBlock* block = addBlock(QStringLiteral("门"));
+    auto* insert = new DmBlockReference(nullptr, DmBlockReferenceData(block->getName(), DmVector(0, 0), DmVector(1, 1),
+                                                                      0.0, 1, 1, DmVector(0, 0)));
+    insert->setDocument(&doc);
+    ASSERT_TRUE(doc.getEntityTable()->add_direct(insert));
+    EXPECT_TRUE(
+        registry.runInstant(QStringLiteral("ext.block.properties"), CommandContext{&doc, &view, nullptr, insert}));
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgInsert")});
 }
 
 TEST_F(BlockFixture, 创建块指定基点后弹出块对话框取消时不建块)

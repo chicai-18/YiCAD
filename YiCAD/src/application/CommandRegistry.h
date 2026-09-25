@@ -156,7 +156,7 @@ public:
     /// @brief 注册一个临时视图工具，其余同 registerExclusiveCommand()。
     bool registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info = {});
 
-    /// @brief 注销一个命令，连同它的别名与双击编辑登记。
+    /// @brief 注销一个命令，连同它的别名与双击编辑、属性编辑登记。
     /// @return id 未注册时返回 false。
     bool unregisterCommand(const QString& id);
 
@@ -166,6 +166,15 @@ public:
     bool registerEntityEditor(DM::EntityType type, const QString& commandId);
     /// @brief 这类实体的双击编辑命令；没有时返回空
     QString entityEditor(DM::EntityType type) const;
+
+    /// @brief 登记某类实体的属性编辑命令："修改实体属性"命令选中这类实体时运行它，选择层
+    ///        双击这类实体而没有双击编辑命令时也运行它；上下文的 entity 为要编辑的实体。
+    ///        属性对话框登记为即时命令（不打断"修改实体属性"，可以接着点下一个实体），
+    ///        非模态的属性面板（多行文字）登记为交互命令，由它接替。命令注销时登记随之删除
+    /// @return 这类实体已有属性编辑命令，或 commandId 不是已注册的即时命令或交互命令时返回 false
+    bool registerPropertyEditor(DM::EntityType type, const QString& commandId);
+    /// @brief 这类实体的属性编辑命令；没有时返回空
+    QString propertyEditor(DM::EntityType type) const;
 
     /// @brief id 是否已注册。
     bool hasCommand(const QString& id) const;
@@ -223,6 +232,8 @@ private:
     std::map<QString, QString> m_aliases;
     /// @brief 实体类型 -> 双击编辑命令 ID
     std::map<DM::EntityType, QString> m_entityEditors;
+    /// @brief 实体类型 -> 属性编辑命令 ID
+    std::map<DM::EntityType, QString> m_propertyEditors;
 };
 
 #endif  // COMMANDREGISTRY_H

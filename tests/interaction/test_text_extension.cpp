@@ -101,9 +101,24 @@ TEST_F(TextFixture, 文字样式弹出文字样式对话框)
 
 TEST_F(TextFixture, 单行文字取消对话框时启动失败)
 {
-    // 对话框工厂的默认实现返回"取消"
+    // DialogRecorder 让对话框视为取消
     EXPECT_FALSE(start("ext.text.draw"));
+    EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgText")});
     EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(TextFixture, 登记单行文字的属性对话框与多行文字的属性面板)
+{
+    const CommandRegistry& registry = CommandRegistry::instance();
+    EXPECT_EQ(registry.propertyEditor(DM::EntityText), QStringLiteral("ext.text.properties"));
+    EXPECT_EQ(registry.kind(QStringLiteral("ext.text.properties")), CommandKind::Instant);
+    EXPECT_EQ(registry.propertyEditor(DM::EntityMText), QStringLiteral("ext.text.modify_mtext"));
+
+    // 不是单行文字时什么也不做（属性定义也是 DmText，归块扩展）
+    auto* line = new DmLine(nullptr, LineData(DmVector(0, 0), DmVector(10, 0)));
+    ASSERT_TRUE(doc.getEntityTable()->add_direct(line));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.text.properties"), CommandContext{&doc, &view, nullptr, line}));
+    EXPECT_TRUE(dialogs.shown.empty());
 }
 
 TEST_F(TextFixture, 多行文字拉编辑框)
@@ -174,7 +189,7 @@ TEST_F(TextFixture, 没有视图时选择变化的监听者什么也不做)
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 
-TEST_F(SelectEditorFixture, 选择层双击按登记的编辑命令启动没有登记时弹出属性对话框)
+TEST_F(SelectEditorFixture, 选择层双击优先启动编辑命令没有时运行属性编辑命令)
 {
     auto* line = new DmLine(nullptr, LineData(DmVector(0, 0), DmVector(10, 0)));
     line->calculateBorders();
@@ -192,13 +207,25 @@ TEST_F(SelectEditorFixture, 选择层双击按登记的编辑命令启动没有�
         dispatch([&] { return control.mouseDoubleClickEvent(&e); });
     };
 
-    // 没有登记：弹出属性对话框
+    // 什么也没有登记（本夹具不启动扩展）：什么也不做
     doubleClick(5, 0);
     EXPECT_TRUE(started.empty());
-    ASSERT_EQ(ui.entityDialogs.size(), 1u);
-    EXPECT_EQ(ui.entityDialogs.front(), line);
 
-    // 登记了直线的编辑命令：经视图启动，带上双击的实体与位置
+    // 登记了属性编辑命令（即时命令，如属性对话框）：直接运行，带上双击的实体与位置
+    std::vector<StartRecord> properties;
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        QStringLiteral("test.text.line_properties"),
+        [&properties](const CommandContext& ctx) { properties.push_back({QString(), ctx.entity, ctx.point}); }));
+    ASSERT_TRUE(
+        CommandRegistry::instance().registerPropertyEditor(DM::EntityLine, QStringLiteral("test.text.line_properties")));
+    line->setSelected(false);
+    doubleClick(5, 0);
+    EXPECT_TRUE(started.empty());
+    ASSERT_EQ(properties.size(), 1u);
+    EXPECT_EQ(properties.front().entity, line);
+    EXPECT_EQ(properties.front().point, DmVector(5, 0));
+
+    // 再登记了编辑命令：优先经视图启动它，带上双击的实体与位置
     ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(
         QStringLiteral("test.text.line_editor"),
         [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return nullptr; }));
@@ -209,8 +236,10 @@ TEST_F(SelectEditorFixture, 选择层双击按登记的编辑命令启动没有�
     EXPECT_EQ(started.front().commandId, QStringLiteral("test.text.line_editor"));
     EXPECT_EQ(started.front().entity, line);
     EXPECT_EQ(started.front().point, DmVector(5, 0));
-    EXPECT_EQ(ui.entityDialogs.size(), 1u);
+    EXPECT_EQ(properties.size(), 1u);
 
     CommandRegistry::instance().unregisterCommand(QStringLiteral("test.text.line_editor"));
+    CommandRegistry::instance().unregisterCommand(QStringLiteral("test.text.line_properties"));
     EXPECT_TRUE(CommandRegistry::instance().entityEditor(DM::EntityLine).isEmpty());
+    EXPECT_TRUE(CommandRegistry::instance().propertyEditor(DM::EntityLine).isEmpty());
 }

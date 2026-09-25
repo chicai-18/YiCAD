@@ -172,4 +172,13 @@ void DrawExtension::OnRegister(IExtensionContext& ctx)
             });
         }
     }
+
+    // 属性对话框："修改实体属性"与选择层双击按实体类型运行，不打断正在运行的命令
+    const QString properties = QStringLiteral("ext.draw.properties");
+    ctx.registerInstantCommand(properties, DrawCommands::properties(),
+                               {.instantInterrupt = InstantInterrupt::KeepAll});
+    for (DM::EntityType type : DrawCommands::propertyEntityTypes())
+    {
+        ctx.registerPropertyEditor(type, properties);
+    }
 }

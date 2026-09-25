@@ -24,6 +24,8 @@
 #ifndef DRAWCOMMANDS_H
 #define DRAWCOMMANDS_H
 
+#include <vector>
+
 #include "CommandRegistry.h"
 
 namespace DrawCommands
@@ -88,6 +90,11 @@ ExclusiveCommandFactory polyline();
 ExclusiveCommandFactory spline();
 /// @brief 交互命令 ext.draw.spline_points（DrawSplineCommand.cpp）
 ExclusiveCommandFactory splinePoints();
+
+/// @brief 即时命令 ext.draw.properties：本扩展创建的几类实体的属性对话框（DrawEntityProperties.cpp）
+InstantCommand properties();
+/// @brief ext.draw.properties 登记为属性编辑命令的实体类型
+const std::vector<DM::EntityType>& propertyEntityTypes();
 }  // namespace DrawCommands
 
 #endif  // DRAWCOMMANDS_H

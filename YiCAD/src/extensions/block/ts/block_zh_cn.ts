@@ -39,44 +39,44 @@
 <context>
     <name>BlockExtension</name>
     <message>
-        <location filename="../BlockExtension.cpp" line="85"/>
-        <location filename="../BlockExtension.cpp" line="161"/>
+        <location filename="../BlockExtension.cpp" line="129"/>
+        <location filename="../BlockExtension.cpp" line="210"/>
         <source>Create Block</source>
         <translation>创建图块</translation>
     </message>
     <message>
-        <location filename="../BlockExtension.cpp" line="99"/>
-        <location filename="../BlockExtension.cpp" line="162"/>
+        <location filename="../BlockExtension.cpp" line="143"/>
+        <location filename="../BlockExtension.cpp" line="211"/>
         <source>Insert the active block</source>
         <translation>插入图块</translation>
     </message>
     <message>
-        <location filename="../BlockExtension.cpp" line="133"/>
-        <location filename="../BlockExtension.cpp" line="164"/>
+        <location filename="../BlockExtension.cpp" line="177"/>
+        <location filename="../BlockExtension.cpp" line="213"/>
         <source>save the block to a file</source>
         <translation>图块保存</translation>
     </message>
     <message>
-        <location filename="../BlockExtension.cpp" line="110"/>
-        <location filename="../BlockExtension.cpp" line="166"/>
+        <location filename="../BlockExtension.cpp" line="154"/>
+        <location filename="../BlockExtension.cpp" line="215"/>
         <source>Define attributes</source>
         <translation>定义属性</translation>
     </message>
     <message>
-        <location filename="../BlockExtension.cpp" line="107"/>
-        <location filename="../BlockExtension.cpp" line="169"/>
+        <location filename="../BlockExtension.cpp" line="151"/>
+        <location filename="../BlockExtension.cpp" line="218"/>
         <source>Edit Block</source>
         <translation>编辑块</translation>
     </message>
     <message>
-        <location filename="../BlockExtension.cpp" line="154"/>
-        <location filename="../BlockExtension.cpp" line="170"/>
+        <location filename="../BlockExtension.cpp" line="198"/>
+        <location filename="../BlockExtension.cpp" line="219"/>
         <source>Import Block</source>
         <translation>导入块</translation>
     </message>
     <message>
-        <location filename="../BlockExtension.cpp" line="122"/>
-        <location filename="../BlockExtension.cpp" line="168"/>
+        <location filename="../BlockExtension.cpp" line="166"/>
+        <location filename="../BlockExtension.cpp" line="217"/>
         <source>Delete Block</source>
         <translation>删除块</translation>
     </message>
@@ -204,23 +204,23 @@ This block cannot be inserted.</source>
 <context>
     <name>DefineAttributesCommand</name>
     <message>
-        <location filename="../commands/DefineAttributesCommand.cpp" line="241"/>
+        <location filename="../commands/DefineAttributesCommand.cpp" line="248"/>
         <source>Create Attributes</source>
         <translation>创建属性</translation>
     </message>
     <message>
-        <location filename="../commands/DefineAttributesCommand.cpp" line="72"/>
+        <location filename="../commands/DefineAttributesCommand.cpp" line="74"/>
         <source>Specify insertion point</source>
         <translation>指定插入点</translation>
     </message>
     <message>
-        <location filename="../commands/DefineAttributesCommand.cpp" line="73"/>
-        <location filename="../commands/DefineAttributesCommand.cpp" line="77"/>
+        <location filename="../commands/DefineAttributesCommand.cpp" line="75"/>
+        <location filename="../commands/DefineAttributesCommand.cpp" line="79"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DefineAttributesCommand.cpp" line="76"/>
+        <location filename="../commands/DefineAttributesCommand.cpp" line="78"/>
         <source>Specify second point</source>
         <translation>指定第二个点</translation>
     </message>
@@ -231,6 +231,11 @@ This block cannot be inserted.</source>
         <location filename="../commands/BlockInsertCommand.cpp" line="458"/>
         <source>Block List</source>
         <translation>插入块</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.cpp" line="192"/>
+        <source>Tips</source>
+        <translation>提示</translation>
     </message>
 </context>
 <context>
@@ -397,6 +402,69 @@ This block cannot be inserted.</source>
     </message>
 </context>
 <context>
+    <name>UIDlgDefineAttribute</name>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="20"/>
+        <source>Attribute Definition</source>
+        <translation>属性定义</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="29"/>
+        <source>Attribute</source>
+        <translation>属性</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="35"/>
+        <source>Tag:</source>
+        <translation>标签：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="45"/>
+        <source>Prompt:</source>
+        <translation>提示：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="55"/>
+        <source>Default:</source>
+        <translation>默认：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="68"/>
+        <source>Text setting</source>
+        <translation>文字设置</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="77"/>
+        <source>Text Style:</source>
+        <translation>文字样式:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="84"/>
+        <source>&amp;Height:</source>
+        <translation>&amp;高度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="97"/>
+        <source>Angle:</source>
+        <translation>角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.ui" line="130"/>
+        <source>Alignment:</source>
+        <translation>对齐:</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.cpp" line="125"/>
+        <source>Modify attribute definition</source>
+        <translation>修改属性定义</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgDefineAttribute.cpp" line="192"/>
+        <source>Tag can not be empty!</source>
+        <translation>标记不能为空！</translation>
+    </message>
+</context>
+<context>
     <name>UIDlgEditAttributes</name>
     <message>
         <location filename="../ui/UIDlgEditAttributes.ui" line="14"/>
@@ -427,6 +495,90 @@ This block cannot be inserted.</source>
         <location filename="../ui/UIDlgEditAttributes.cpp" line="46"/>
         <source>Values</source>
         <translation>值</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgInsert</name>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="26"/>
+        <source>Insert</source>
+        <translation>图块</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="77"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="103"/>
+        <source>Insertion point (x):</source>
+        <translation>插入点(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="113"/>
+        <source>Insertion point (y):</source>
+        <translation>插入点(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="133"/>
+        <source>Scale X:</source>
+        <translation>缩放(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="153"/>
+        <source>Scale Y:</source>
+        <translation>缩放(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="163"/>
+        <source>Angle:</source>
+        <translation>角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="183"/>
+        <source>Rows:</source>
+        <translation>行：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="213"/>
+        <source>Columns:</source>
+        <translation>列：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="223"/>
+        <source>Row Spacing:</source>
+        <translation>行间距：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="253"/>
+        <source>Column Spacing:</source>
+        <translation>列间距：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.ui" line="272"/>
+        <location filename="../ui/UIDlgInsert.cpp" line="100"/>
+        <source>Attributes</source>
+        <translation>属性</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.cpp" line="50"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.cpp" line="100"/>
+        <source>Values</source>
+        <translation>值</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgInsert.cpp" line="130"/>
+        <source>Modify block reference</source>
+        <translation>修改块参照</translation>
     </message>
 </context>
 <context>

@@ -43,6 +43,8 @@
 #include "Preview.h"
 #include "TextData.h"
 #include "Transaction.h"
+#include "UIDialogRunner.h"
+#include "UIDlgText.h"
 
 namespace
 {
@@ -216,10 +218,13 @@ std::unique_ptr<BasePlaceTool> DrawTextCommand::createTool()
                                         QString(), style, 0.0, EUpdateMode::Update);
     DmText tmp(nullptr, *m_data);
     tmp.setDocument(document());
-    if (!GUIDIALOGFACTORY->requestTextDialog(&tmp))
+    UIDlgText dlg(dialogParent());
+    dlg.setText(tmp, true);
+    if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
     {
         return nullptr;
     }
+    dlg.updateText();
     m_data = std::make_unique<TextData>(tmp.getData());
     return std::make_unique<DrawTextTool>(*this, document(), view());
 }

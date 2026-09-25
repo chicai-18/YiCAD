@@ -614,22 +614,24 @@ ViewToolResult SelectTool::mouseDoubleClickEvent(QMouseEvent* e)
         return ViewToolResult::Handled;
     }
 
-    // 修改实体
+    // 修改实体：优先用双击编辑命令（多行文字的就地编辑），没有时用属性编辑命令（属性对话框），
+    // 两者都由实体所在的扩展登记
     if (selectCount == 0 || (selectCount == 1 && en == ents.front()))
     {
-        // 登记了双击编辑命令的实体（多行文字的就地编辑，由文字扩展登记）：启动该命令
-        const QString editor = CommandRegistry::instance().entityEditor(en->getEntityType());
-        if (!editor.isEmpty())
+        const CommandRegistry& registry = CommandRegistry::instance();
+        QString editor = registry.entityEditor(en->getEntityType());
+        if (editor.isEmpty())
         {
-            if (m_commandStarter)
-            {
-                m_commandStarter(editor, en, clickPos);
-            }
-            return ViewToolResult::Handled;
+            editor = registry.propertyEditor(en->getEntityType());
         }
-
-        // 其余实体弹出属性对话框
-        GUIDIALOGFACTORY->requestModifyEntityDialog(en);
+        if (registry.kind(editor) == CommandKind::Instant)
+        {
+            registry.runInstant(editor, CommandContext{m_pDocument, m_docView, nullptr, en, clickPos});
+        }
+        else if (!editor.isEmpty() && m_commandStarter)
+        {
+            m_commandStarter(editor, en, clickPos);
+        }
     }
     return ViewToolResult::Handled;
 }

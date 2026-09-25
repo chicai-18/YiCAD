@@ -42,7 +42,7 @@
 <context>
     <name>QMessageBox</name>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="93"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="68"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
@@ -713,127 +713,112 @@
         <translation>无法备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="340"/>
-        <source>Modify dimension text</source>
-        <translation>修改标注文本</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="340"/>
-        <source>New dimension text:</source>
-        <translation>新标注文本：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="485"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="231"/>
         <source>Windows Bitmap</source>
         <translation>BMP</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="501"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="247"/>
         <source>Portable Bit Map</source>
         <translation>PBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="505"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="251"/>
         <source>Portable Grey Map</source>
         <translation>PGM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="513"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="259"/>
         <source>Portable Pixel Map</source>
         <translation>PPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="517"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="263"/>
         <source>X Bitmap Format</source>
         <translation>XBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="521"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="267"/>
         <source>X Pixel Map</source>
         <translation>XPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="343"/>
-        <source>Modify dimension</source>
-        <translation>修改标注</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="489"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="235"/>
         <source>Joint Photo document Experts Group</source>
         <translation>JPEG 图像格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="493"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="239"/>
         <source>Documents Interchange Format</source>
         <translation>文档交换格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="497"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="243"/>
         <source>Multiple-image Network Documents</source>
         <translation>多图像网络文档</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="509"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="255"/>
         <source>Portable Network Document</source>
         <translation>便携式网络图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="525"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="271"/>
         <source>Scalable Vector Documents</source>
         <translation>可缩放矢量图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="529"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="275"/>
         <source>SGI Black &amp; White</source>
         <translation>BW</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="533"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="279"/>
         <source>Encapsulated PostScript</source>
         <translation>EPS</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="537"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="283"/>
         <source>Encapsulated PostScript Format</source>
         <translation>EPSF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="541"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="287"/>
         <source>Encapsulated PostScript Interchange</source>
         <translation>EPSI</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="545"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="291"/>
         <source>Windows Icon</source>
         <translation>ICO</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="549"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="295"/>
         <source>JPEG 2000</source>
         <translation>JPEG 2000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="553"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="299"/>
         <source>ZSoft Paintbrush</source>
         <translation>PCX</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="557"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="303"/>
         <source>PC Paint</source>
         <translation>PIC</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="561"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="307"/>
         <source>SGI-Bilddatei</source>
         <translation>SGI-Bilddatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="565"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="311"/>
         <source>Targa Image File</source>
         <translation>TGA</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="569"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="315"/>
         <source>Tagged Image File Format</source>
         <translation>TIF/TIFF</translation>
     </message>
@@ -898,8 +883,6 @@
     </message>
     <message>
         <location filename="../src/kernel/builder_model/DmDocument.cpp" line="585"/>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.cpp" line="192"/>
-        <location filename="../src/ui/forms/UIDlgText.cpp" line="77"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
@@ -1345,551 +1328,6 @@
     </message>
 </context>
 <context>
-    <name>UIDlgArc</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="26"/>
-        <source>Arc</source>
-        <translation>弧</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="71"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="77"/>
-        <source>Normal (z):</source>
-        <translation>法向(z):</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="107"/>
-        <source>Normal (y):</source>
-        <translation>法向(y):</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="183"/>
-        <source>Normal (x):</source>
-        <translation>法向(x):</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="226"/>
-        <source>Radius:</source>
-        <translation>半径(r)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="143"/>
-        <source>Center (y):</source>
-        <translation>圆心(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="153"/>
-        <source>Center (x):</source>
-        <translation>圆心(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="163"/>
-        <source>Start Angle:</source>
-        <translation>初始角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.ui" line="236"/>
-        <source>End Angle:</source>
-        <translation>终止角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.cpp" line="51"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgArc.cpp" line="86"/>
-        <source>Modify arc</source>
-        <translation>修改圆弧</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgCircle</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.ui" line="26"/>
-        <source>Circle</source>
-        <translation>圆</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.ui" line="71"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.ui" line="77"/>
-        <source>Radius:</source>
-        <translation>半径(r)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.ui" line="97"/>
-        <source>Center (y):</source>
-        <translation>圆心(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.ui" line="117"/>
-        <source>Center (x):</source>
-        <translation>圆心(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.cpp" line="53"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.cpp" line="37"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.cpp" line="36"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgCircle.cpp" line="78"/>
-        <source>Modify circle</source>
-        <translation>修改圆</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgDefineAttribute</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="20"/>
-        <source>Attribute Definition</source>
-        <translation>属性定义</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="29"/>
-        <source>Attribute</source>
-        <translation>属性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="35"/>
-        <source>Tag:</source>
-        <translation>标签：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="45"/>
-        <source>Prompt:</source>
-        <translation>提示：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="55"/>
-        <source>Default:</source>
-        <translation>默认：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="68"/>
-        <source>Text setting</source>
-        <translation>文字设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="77"/>
-        <source>Text Style:</source>
-        <translation>文字样式:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="84"/>
-        <source>&amp;Height:</source>
-        <translation>&amp;高度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="97"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.ui" line="130"/>
-        <source>Alignment:</source>
-        <translation>对齐:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.cpp" line="125"/>
-        <source>Modify attribute definition</source>
-        <translation>修改属性定义</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgDefineAttribute.cpp" line="192"/>
-        <source>Tag can not be empty!</source>
-        <translation>标记不能为空！</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgEllipse</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="26"/>
-        <source>Ellipse</source>
-        <translation>椭圆</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="71"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="87"/>
-        <source>Normal (x):</source>
-        <translation>法向(x):</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="163"/>
-        <source>Center (y):</source>
-        <translation>圆心(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="213"/>
-        <source>Normal (y):</source>
-        <translation>法向(y):</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="223"/>
-        <source>Center (x):</source>
-        <translation>圆心(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="243"/>
-        <source>End Angle:</source>
-        <translation>终止角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="253"/>
-        <source>Normal (z):</source>
-        <translation>法向(z):</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="203"/>
-        <source>Start Angle:</source>
-        <translation>起始角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="140"/>
-        <source>Rotation:</source>
-        <translation>旋转角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="97"/>
-        <source>Minor:</source>
-        <translation>短轴半径：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.ui" line="130"/>
-        <source>Major:</source>
-        <translation>长轴半径：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.cpp" line="52"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.cpp" line="37"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.cpp" line="36"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgEllipse.cpp" line="91"/>
-        <source>Modify ellipse</source>
-        <translation>修改椭圆</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgHatch</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.ui" line="26"/>
-        <source>Choose Hatch Attributes</source>
-        <translation>填充属性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.ui" line="43"/>
-        <source>Pattern</source>
-        <translation>图案</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.ui" line="75"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.ui" line="91"/>
-        <source>Scale:</source>
-        <translation>缩放：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.ui" line="117"/>
-        <source>Solid Fill</source>
-        <translation>实体填充</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.ui" line="125"/>
-        <source>Preview</source>
-        <translation>预览</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.cpp" line="43"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.cpp" line="120"/>
-        <source>Modify hatch</source>
-        <translation>修改填充</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgHatch.cpp" line="42"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgImage</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="26"/>
-        <source>Image</source>
-        <translation>图片</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="80"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="86"/>
-        <source>Width:</source>
-        <translation>宽度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="116"/>
-        <source>Height:</source>
-        <translation>高度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="123"/>
-        <source>insert (x):</source>
-        <translation>插入(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="130"/>
-        <source>Scale:</source>
-        <translation>缩放：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="166"/>
-        <source>Size (px):</source>
-        <translation>大小(px)</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="183"/>
-        <source>path:</source>
-        <translation>路径：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="206"/>
-        <source>insert (y):</source>
-        <translation>插入(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="223"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.ui" line="260"/>
-        <source>DPI</source>
-        <translation>DPI</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.cpp" line="55"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.cpp" line="37"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.cpp" line="36"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgImage.cpp" line="133"/>
-        <source>Modify image</source>
-        <translation>修改图片</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgInsert</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="26"/>
-        <source>Insert</source>
-        <translation>图块</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="77"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="103"/>
-        <source>Insertion point (x):</source>
-        <translation>插入点(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="113"/>
-        <source>Insertion point (y):</source>
-        <translation>插入点(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="133"/>
-        <source>Scale X:</source>
-        <translation>缩放(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="153"/>
-        <source>Scale Y:</source>
-        <translation>缩放(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="163"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="183"/>
-        <source>Rows:</source>
-        <translation>行：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="213"/>
-        <source>Columns:</source>
-        <translation>列：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="223"/>
-        <source>Row Spacing:</source>
-        <translation>行间距：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="253"/>
-        <source>Column Spacing:</source>
-        <translation>列间距：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.ui" line="272"/>
-        <location filename="../src/ui/forms/UIDlgInsert.cpp" line="100"/>
-        <source>Attributes</source>
-        <translation>属性</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.cpp" line="50"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.cpp" line="100"/>
-        <source>Values</source>
-        <translation>值</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgInsert.cpp" line="130"/>
-        <source>Modify block reference</source>
-        <translation>修改块参照</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgLine</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="29"/>
-        <source>Line</source>
-        <translation>线段</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="47"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="80"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="86"/>
-        <source>End point (x):</source>
-        <translation>终点(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="116"/>
-        <source>End point (y):</source>
-        <translation>终点(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="126"/>
-        <source>Start point (y):</source>
-        <translation>起点(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.ui" line="146"/>
-        <source>Start point (x):</source>
-        <translation>起点(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.cpp" line="52"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.cpp" line="37"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.cpp" line="36"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgLine.cpp" line="76"/>
-        <source>Modify line</source>
-        <translation>修改直线</translation>
-    </message>
-</context>
-<context>
     <name>UIDlgLineType</name>
     <message>
         <location filename="../src/ui/forms/UIDlgLineType.ui" line="14"/>
@@ -2029,193 +1467,6 @@
         <location filename="../src/ui/forms/UIDlgLoadLineType.cpp" line="175"/>
         <source>LineType(*.lin);;All files(*.*)</source>
         <translation>线型文件(*.lin);;所有文件(*.*)</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgPoint</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.ui" line="26"/>
-        <source>Point</source>
-        <translation>点</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.ui" line="71"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.ui" line="77"/>
-        <source>Position (y):</source>
-        <translation>坐标(y)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.ui" line="97"/>
-        <source>Position (x):</source>
-        <translation>坐标(x)：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.cpp" line="52"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.cpp" line="37"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.cpp" line="36"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPoint.cpp" line="73"/>
-        <source>Modify point</source>
-        <translation>修改点</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgPolyline</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.ui" line="26"/>
-        <source>Polyline</source>
-        <translation>多段线</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.ui" line="44"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.ui" line="77"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.cpp" line="51"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.cpp" line="36"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.cpp" line="35"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.cpp" line="68"/>
-        <source>Modify polyline</source>
-        <translation>修改多段线</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgPolyline.ui" line="115"/>
-        <source>Closed</source>
-        <translation>闭合</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgSpline</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.ui" line="26"/>
-        <source>Spline</source>
-        <translation>控制点样条线</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.ui" line="47"/>
-        <source>Layer:</source>
-        <translation>图层：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.ui" line="80"/>
-        <source>Geometry</source>
-        <translation>几何</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.ui" line="118"/>
-        <source>Degree:</source>
-        <translation>阶数：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.ui" line="128"/>
-        <source>Closed</source>
-        <translation>闭合</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.cpp" line="40"/>
-        <source>OK</source>
-        <translation>确定</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.cpp" line="39"/>
-        <source>Cancel</source>
-        <translation>取消</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.cpp" line="58"/>
-        <source>Pen</source>
-        <translation>画笔</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgSpline.cpp" line="79"/>
-        <source>Modify spline</source>
-        <translation>修改样条线</translation>
-    </message>
-</context>
-<context>
-    <name>UIDlgText</name>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="20"/>
-        <source>Text</source>
-        <translation>单行文字</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="33"/>
-        <source>Text:</source>
-        <translation>字段：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="81"/>
-        <source>Settings</source>
-        <translation>设置</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="142"/>
-        <source>Alignment:</source>
-        <translation>对齐:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="90"/>
-        <source>Text Style:</source>
-        <translation>文字样式:</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="182"/>
-        <source>&amp;Height:</source>
-        <translation>&amp;高度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.ui" line="149"/>
-        <source>Angle:</source>
-        <translation>角度：</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.cpp" line="77"/>
-        <source>Text can not be empty!</source>
-        <translation>字段不能为空！</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UIDlgText.cpp" line="169"/>
-        <source>Modify text</source>
-        <translation>修改单行文字</translation>
     </message>
 </context>
 <context>

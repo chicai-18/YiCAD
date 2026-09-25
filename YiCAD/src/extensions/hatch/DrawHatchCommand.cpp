@@ -41,6 +41,8 @@
 #include "ISnapService.h"
 #include "Preview.h"
 #include "Transaction.h"
+#include "UIDialogRunner.h"
+#include "UIDlgHatch.h"
 
 namespace
 {
@@ -106,9 +108,14 @@ std::unique_ptr<BasePlaceTool> DrawHatchCommand::createTool()
 
     DmHatch tmp(nullptr, *m_data);
     tmp.setDocument(document());
-    if (!GUIDIALOGFACTORY->requestHatchDialog(&tmp))
     {
-        return nullptr;
+        UIDlgHatch dlg(dialogParent());
+        dlg.setHatch(tmp, true);
+        if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
+        {
+            return nullptr;
+        }
+        dlg.updateHatch();
     }
     *m_data = tmp.getData();
 

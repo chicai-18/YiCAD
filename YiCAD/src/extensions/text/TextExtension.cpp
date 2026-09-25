@@ -38,8 +38,11 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
+#include "BaseExclusiveCommand.h"
+#include "DmText.h"
 #include "ModifyMTextCommand.h"
 #include "UIDialogRunner.h"
+#include "UIDlgText.h"
 #include "UIDlgTextStyle.h"
 #include "UIRibbonRegistry.h"
 #include "UITextOptions.h"
@@ -97,6 +100,23 @@ void onSelectionChanged(const CommandContext& ctx)
             QStringLiteral("ext.text.modify_mtext"), CommandContext{ctx.document, ctx.view, nullptr, first}))
     {
         view->startCommand(std::move(command));
+    }
+}
+
+/// @brief 单行文字的属性对话框（原 UIDialogFactory::requestModifyEntityDialog 的文字分支）；
+///        上下文的 entity 为要修改的文字
+void editTextProperties(const CommandContext& ctx)
+{
+    // 按实体类型判断：属性定义也是 DmText，但它的属性对话框在块扩展
+    if (!ctx.entity || ctx.entity->getEntityType() != DM::EntityText)
+    {
+        return;
+    }
+    UIDlgText dlg(BaseExclusiveCommand::dialogParentOf(ctx.view));
+    dlg.setText(*static_cast<DmText*>(ctx.entity), false);
+    if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
+    {
+        dlg.updateText();
     }
 }
 
@@ -159,6 +179,13 @@ void TextExtension::OnRegister(IExtensionContext& ctx)
                                      return mtext ? std::make_unique<ModifyMTextCommand>(mtext) : nullptr;
                                  },
                                  {});
+    // 属性编辑（"修改实体属性"与选择层双击）：单行文字弹出属性对话框，不打断正在运行的命令；
+    // 多行文字转到上面的属性面板（双击时先用就地编辑）
+    ctx.registerInstantCommand(QStringLiteral("ext.text.properties"), editTextProperties,
+                               {.instantInterrupt = InstantInterrupt::KeepAll});
+    ctx.registerPropertyEditor(DM::EntityText, QStringLiteral("ext.text.properties"));
+    ctx.registerPropertyEditor(DM::EntityMText, QStringLiteral("ext.text.modify_mtext"));
+
     // 宿主在选择变化时运行；不打断任何命令
     ctx.registerInstantCommand(QStringLiteral("ext.text.selection_changed"), onSelectionChanged,
                                {.instantInterrupt = InstantInterrupt::KeepAll});

@@ -137,8 +137,9 @@ public:
     /// @param query 为空时视为空闲（Overlay::None）
     void setOverlayQuery(OverlayQuery query);
 
-    /// @brief 设置启动命令的方式：双击实体时按 CommandRegistry::entityEditor 找到的
-    ///        编辑命令经它启动（如多行文字的就地编辑）
+    /// @brief 设置启动命令的方式：双击实体时按 CommandRegistry::entityEditor（没有时
+    ///        CommandRegistry::propertyEditor）找到的交互命令经它启动（如多行文字的就地编辑）；
+    ///        找到的是即时命令（属性对话框）时直接运行
     void setCommandStarter(CommandStarter starter) { m_commandStarter = std::move(starter); }
 
     /// @brief 进入选择阶段：复位到 Neutral，按约束工作

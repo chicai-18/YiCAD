@@ -16,7 +16,16 @@
  */
 
 /// @file GuiDialogFactoryInterface.h
-/// @brief 对话框工厂接口类，定义创建和显示对话框的纯虚接口
+/// @brief 界面服务接口：内核、命令机制与扩展经它使用宿主界面
+///
+/// 名字沿用"对话框工厂"，内容已不是业务对话框：业务对话框由扩展直接构造
+/// （doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）。留下的是
+///   - 通用提示：警告、确认、是/否/取消（测试夹具重写它们预设回答）；
+///   - 内核反向要的：当前活动文档、未命名文档的名字、文件读写；
+///   - 选项条的摆放：命令的（CommandInfo::commandOptionsFactory）、编辑模式的、捕捉中点的；
+///   - 状态栏与命令行的反馈：坐标、按键提示、选中数量、命令消息。
+/// 由主窗口经 GuiDialogFactory::setFactoryObject 装入实现（UIDialogFactory），没有装入时用
+/// 什么也不做的 GuiDialogFactoryAdapter。
 
 #ifndef GUIDIALOGFACTORYINTERFACE_H
 #define GUIDIALOGFACTORYINTERFACE_H
@@ -24,50 +33,15 @@
 #include <functional>
 
 #include <QString>
-#include <QStringList>
 
 #include "Datamodel.h"
 
+class DmDocument;
+class DmVector;
 class IExclusiveCommand;
 class QWidget;
-class AttributesData;
-class BevelData;
-class DmBlock;
-struct DmBlockData;
-class DmBlockTable;
-class DmAttributeDefinition;
-class DmAttribute;
-struct DmCircleData;
-struct DmDimLinearData;
-struct DmDimensionData;
-class DmEntity;
-class DmDocument;
-class GuiDocumentView;
-class GuiGrid;
-class DmHatch;
-class DmBlockReference;
-class DmLayer;
-class DmLayerTable;
-class MirrorData;
-class CopyData;
-class DmMText;
-class GuiPainter;
-class Rotate2Data;
-class RotateData;
-class RoundData;
-class ScaleData;
-class DmSolid;
-class DmText;
-class DmVector;
-class UICommandWidget;
 class UIBottomWindow;
-class DmTextStyleTable;
-class DmLineTypeTable;
-class DmViewport;
-class DmViewportTable;
-class DmTableStyle;
-class DmTableStyleTable;
-class DmTable;
+class UICommandWidget;
 
 /// @brief 是/否/取消对话框的回答
 enum class DialogAnswer
@@ -77,8 +51,7 @@ enum class DialogAnswer
     Cancel  ///< 取消
 };
 
-/// @brief 对话框工厂接口
-/// @details 定义了创建和显示各类 CAD 对话框的纯虚接口
+/// @brief 界面服务接口，见文件说明
 class GuiDialogFactoryInterface
 {
 public:
@@ -125,11 +98,6 @@ public:
     /// @return 导入是否成功
     virtual bool requestFileImport(DmDocument& document, const QString& file) = 0;
 
-    /// @brief 属性定义对话框
-    /// @param attrDef 属性定义
-    /// @return true 表示用户确认，false 表示取消
-    virtual bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) = 0;
-
     /// @brief 显示交互命令的选项条（CommandInfo::commandOptionsFactory 注册的控件）
     /// @param command 需要选项的命令
     /// @param on true 打开控件，false 关闭控件
@@ -147,21 +115,6 @@ public:
     /// @param[out] middlePoints 中点数量
     /// @param on true 打开控件，false 关闭控件
     virtual void requestSnapMiddleOptions(int& middlePoints, bool on) = 0;
-
-    /// @brief 显示编辑实体属性对话框
-    /// @param entity 要编辑的实体
-    /// @return true 表示用户确认，false 表示取消
-    virtual bool requestModifyEntityDialog(DmEntity* entity) = 0;
-
-    /// @brief 显示文字实体属性编辑对话框
-    /// @param text 文字实体
-    /// @return true 表示用户确认，false 表示取消
-    virtual bool requestTextDialog(DmText* text) = 0;
-
-    /// @brief 显示填充图案选择对话框
-    /// @param hatch 填充实体
-    /// @return true 表示用户确认，false 表示取消
-    virtual bool requestHatchDialog(DmHatch* hatch) = 0;
 
     /// @brief 更新坐标显示控件
     /// @details 每次鼠标位置变化时调用

@@ -92,6 +92,12 @@ public:
         return owns("entity editor", commandId) && CommandRegistry::instance().registerEntityEditor(type, commandId);
     }
 
+    bool registerPropertyEditor(DM::EntityType type, const QString& commandId) override
+    {
+        return owns("property editor", commandId) &&
+               CommandRegistry::instance().registerPropertyEditor(type, commandId);
+    }
+
     bool activateCommand(const QString& commandId) override { return m_host.activateCommand(commandId); }
 
     /// @brief 注销本扩展注册过的全部命令，在其 OnShutdown 之后调用。

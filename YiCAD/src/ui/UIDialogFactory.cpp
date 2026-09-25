@@ -16,47 +16,22 @@
  */
 
 /// @file UIDialogFactory.cpp
-/// @brief 对话框工厂类，集中管理所有实体编辑对话框、选项工具栏和文件选择对话框的创建与生命周期
+/// @brief GuiDialogFactoryInterface 的 Qt 实现
 
 #include "UIDialogFactory.h"
 
-
 #include <QMessageBox>
 #include <QString>
-#include <QInputDialog>
 
-#include "DmPatternList.h"
-#include "DmSettings.h"
-#include "DmSystem.h"
-#include "IExclusiveCommand.h"
-#include "DmDocument.h"
-#include "DmHatch.h"
-#include "DmDimLinear.h"
 #include "ApplicationWindow.h"
-#include "UITabDrawWidget.h"
-#include "Fileio.h"
-
-
-#include "UICommandWidget.h"
-#include "UIDlgArc.h"
-#include "UIDlgCircle.h"
-#include "UIDlgDefineAttribute.h"
-#include "UIDlgEllipse.h"
-#include "UIDlgHatch.h"
-#include "UIDlgImage.h"
-#include "UIDlgInsert.h"
-#include "UIDlgLine.h"
-
-#include "UIDlgPoint.h"
-#include "UIDlgPolyline.h"
-#include "UIDlgSpline.h"
-#include "UIDlgText.h"
-#include "UISnapMiddleOptions.h"
-#include "DmBlockTable.h"
+#include "DmDocument.h"
 #include "DmVector.h"
-#include "Debug.h"
+#include "Fileio.h"
+#include "IExclusiveCommand.h"
 #include "UIBottomWidget.h"
-#include "Transaction.h"
+#include "UICommandWidget.h"
+#include "UISnapMiddleOptions.h"
+#include "UITabDrawWidget.h"
 
 /// @brief Constructor
 /// @param parent Pointer to parent widget which can host dialogs.
@@ -131,24 +106,6 @@ bool UIDialogFactory::requestFileExport(DmDocument& document, const QString& fil
 bool UIDialogFactory::requestFileImport(DmDocument& document, const QString& file)
 {
 	return FileIO::instance()->fileImport(document, file);
-}
-
-bool UIDialogFactory::requestDefineAttributesDialog(DmAttributeDefinition* attrDef)
-{
-	if (!attrDef)
-	{
-		return false;
-	}
-
-	UIDlgDefineAttribute dlg(parent);
-	dlg.setAttributeDefinition(*attrDef, true);
-	if (dlg.exec())
-	{
-		dlg.updateAttributeDefinition();
-		return true;
-	}
-
-	return false;
 }
 
 void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on, bool update)
@@ -227,217 +184,6 @@ void UIDialogFactory::requestSnapMiddleOptions(int& middlePoints, bool on)
 	}
 }
 
-// Shows a dialog to edit the given entity.
-bool UIDialogFactory::requestModifyEntityDialog(DmEntity* entity)
-{
-	if (!entity)
-	{
-		return false;
-	}
-
-	bool ret = false;
-
-	switch (entity->getEntityType())
-	{
-	case DM::EntityPoint:
-	{
-		UIDlgPoint dlg(parent);
-		dlg.setPoint(*((DmPoint*)entity));
-		if (dlg.exec())
-		{
-			dlg.updatePoint();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityLine:
-	{
-		UIDlgLine dlg(parent);
-		dlg.setLine(*((DmLine*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateLine();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityArc:
-	{
-		UIDlgArc dlg(parent);
-		dlg.setArc(*((DmArc*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateArc();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityCircle:
-	{
-		UIDlgCircle dlg(parent);
-		dlg.setCircle(*((DmCircle*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateCircle();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityEllipse:
-	{
-		UIDlgEllipse dlg(parent);
-		dlg.setEllipse(*((DmEllipse*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateEllipse();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntitySpline:
-	{
-		UIDlgSpline dlg(nullptr, false);
-		dlg.setSpline(*((DmSpline*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateSpline();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityBlockReference:
-	{
-		UIDlgInsert dlg(parent);
-		dlg.setInsert(*((DmBlockReference*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateInsert();
-			ret = true;
-			entity->update();
-		}
-	}
-	break;
-	case DM::EntityAttributeDefinition:
-	{
-		UIDlgDefineAttribute dlg(parent);
-		dlg.setAttributeDefinition(*static_cast<DmAttributeDefinition *>(entity), false);
-		if (dlg.exec())
-		{
-			dlg.updateAttributeDefinition();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityDimAligned:
-	case DM::EntityDimAngular:
-	case DM::EntityDimDiametric:
-	case DM::EntityDimRadial:
-	case DM::EntityDimLinear:
-	{
-		DmDimension* dim = static_cast<DmDimension*>(entity);
-		QString text = dim->getLabel();
-		bool ok = false;
-		QString newTert = QInputDialog::getText(parent, QObject::tr("Modify dimension text"), QObject::tr("New dimension text:"), QLineEdit::Normal, text, &ok);
-		if (ok)
-		{
-            Transaction t(QObject::tr("Modify dimension").toStdString(), dim->getDocument());
-            t.start();
-            dim->getDocument()->getEntityTable()->startModify(dim);
-			dim->setLabel(newTert);
-			dim->update();
-            t.commit();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityText:
-	{
-		UIDlgText dlg(parent);
-		dlg.setText(*((DmText*)entity), false);
-		if (dlg.exec())
-		{
-			dlg.updateText();
-			ret = true;
-		}
-	}
-	break;
-    case DM::EntityHatch:
-    {
-        UIDlgHatch dlg(parent);
-        dlg.setHatch(*((DmHatch*)entity), false);
-        if (dlg.exec())
-        {
-            dlg.updateHatch();
-            ret = true;
-        }
-    }
-        break;
-	case DM::EntityPolyline:
-	{
-		UIDlgPolyline dlg(parent);
-		dlg.setPolyline(*((DmPolyline*)entity));
-		if (dlg.exec())
-		{
-			dlg.updatePolyline();
-			ret = true;
-		}
-	}
-	break;
-	case DM::EntityImage:
-	{
-		UIDlgImage dlg(parent);
-		dlg.setImage(*((DmImage*)entity));
-		if (dlg.exec())
-		{
-			dlg.updateImage();
-			ret = true;
-		}
-	}
-	break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-// Shows a dialog to edit the attributes of the given text entity.
-bool UIDialogFactory::requestTextDialog(DmText* text)
-{
-	if (!text)
-	{
-		return false;
-	}
-
-	UIDlgText dlg(parent);
-	dlg.setText(*text, true);
-	if (dlg.exec())
-	{
-		dlg.updateText();
-		return true;
-	}
-
-	return false;
-}
-
-
-// Shows a dialog to edit pattern / hatch attributes of the given entity.
-bool UIDialogFactory::requestHatchDialog(DmHatch* hatch)
-{
-	if (!hatch)
-	{
-		return false;
-	}
-
-	UIDlgHatch dlg(parent);
-	dlg.setHatch(*hatch, true);
-	if (dlg.exec())
-	{
-		dlg.updateHatch();
-		return true;
-	}
-	return false;
-}
 
 // Called whenever the mouse position changed.
 void UIDialogFactory::updateCoordinateWidget(const DmVector& abs, const DmVector& rel, bool updateFormat)

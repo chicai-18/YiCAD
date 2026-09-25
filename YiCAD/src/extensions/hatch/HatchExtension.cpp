@@ -21,11 +21,34 @@
 
 #include <QCoreApplication>
 
+#include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
+#include "DmHatch.h"
 #include "DmSystem.h"
 #include "DrawHatchCommand.h"
 #include "IExtensionContext.h"
+#include "UIDialogRunner.h"
+#include "UIDlgHatch.h"
 #include "UIRibbonRegistry.h"
+
+namespace
+{
+/// @brief 填充的属性对话框（原 UIDialogFactory::requestModifyEntityDialog 的填充分支）；
+///        上下文的 entity 为要修改的填充
+void editHatchProperties(const CommandContext& ctx)
+{
+    if (!ctx.entity || ctx.entity->getEntityType() != DM::EntityHatch)
+    {
+        return;
+    }
+    UIDlgHatch dlg(BaseExclusiveCommand::dialogParentOf(ctx.view));
+    dlg.setHatch(*static_cast<DmHatch*>(ctx.entity), false);
+    if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
+    {
+        dlg.updateHatch();
+    }
+}
+}  // namespace
 
 void HatchExtension::OnRegister(IExtensionContext& ctx)
 {
@@ -42,4 +65,9 @@ void HatchExtension::OnRegister(IExtensionContext& ctx)
         .iconPath = QStringLiteral(":/ribbon/draw2d/hatch.svg"),
         .commandId = QStringLiteral("ext.hatch.draw"),
     });
+
+    // 属性编辑（"修改实体属性"与选择层双击），不打断正在运行的命令
+    ctx.registerInstantCommand(QStringLiteral("ext.hatch.properties"), editHatchProperties,
+                               {.instantInterrupt = InstantInterrupt::KeepAll});
+    ctx.registerPropertyEditor(DM::EntityHatch, QStringLiteral("ext.hatch.properties"));
 }

@@ -124,3 +124,17 @@ TEST_F(DimFixture, 没有文档时标注样式什么也不做)
 {
     EXPECT_TRUE(CommandRegistry::instance().runInstant(QStringLiteral("ext.dim.style"), CommandContext{}));
 }
+
+TEST_F(DimFixture, 登记标注的属性编辑修改标注文字)
+{
+    const CommandRegistry& registry = CommandRegistry::instance();
+    for (DM::EntityType type : {DM::EntityDimAligned, DM::EntityDimAngular, DM::EntityDimDiametric,
+                                DM::EntityDimRadial, DM::EntityDimLinear})
+    {
+        EXPECT_EQ(registry.propertyEditor(type), QStringLiteral("ext.dim.properties")) << type;
+    }
+    EXPECT_EQ(registry.kind(QStringLiteral("ext.dim.properties")), CommandKind::Instant);
+    // 没有实体时什么也不做
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.dim.properties"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(dialogs.shown.empty());
+}

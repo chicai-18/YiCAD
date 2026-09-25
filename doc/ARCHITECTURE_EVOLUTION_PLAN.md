@@ -1778,6 +1778,67 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
 提交③验证：Release 构建通过；`ctest` 4 个测试程序通过（`test_interaction` 270 例，1 例跳过）；
 `check_layering.py` 通过；各 `.ts` 没有未完成与失效条目；安装后程序能启动。
 
+**提交④：属性对话框按登记分派**
+
+1. **属性编辑登记**：`CommandRegistry` 在双击编辑（`registerEntityEditor`）之外增加一张表
+   `registerPropertyEditor(type, commandId)`/`propertyEditor(type)`，`IExtensionContext` 同名方法按
+   扩展命名空间校验。两张表分开，是因为多行文字双击是就地编辑（`ext.text.edit_mtext`），修改属性
+   却是属性面板（`ext.text.modify_mtext`）。属性编辑命令可以是即时命令或交互命令：
+   - 属性对话框登记为即时命令（`InstantInterrupt::KeepAll`）。"修改实体属性"命令原先弹完对话框
+     仍然活动，可以接着点下一个实体；如果属性编辑是交互命令，`replaceWith` 会把它结束掉。
+   - 多行文字的属性面板是非模态的交互命令，由它接替"修改实体属性"（与原先一致）。
+2. **分派**：选择层双击先找双击编辑命令，没有时找属性编辑命令，即时命令直接运行、交互命令经
+   视图启动；"修改实体属性"按属性编辑命令运行或让位，多行文字的特判随之删除。没有登记的实体
+   什么也不做（原先 `requestModifyEntityDialog` 的 switch 对没有分支的类型也什么都不做）。
+3. **各扩展登记的属性编辑命令**：
+
+   | 扩展 | 命令 | 实体类型 | 对话框 |
+   |------|------|----------|--------|
+   | ext.draw | `ext.draw.properties` | 点、直线、圆弧、圆、椭圆、样条、多段线、图片 | `UIDlgPoint` 等 8 个 |
+   | ext.text | `ext.text.properties` | 单行文字 | `UIDlgText` |
+   | ext.text | `ext.text.modify_mtext`（已有） | 多行文字 | 属性面板 |
+   | ext.hatch | `ext.hatch.properties` | 填充 | `UIDlgHatch` |
+   | ext.block | `ext.block.properties` | 块参照、属性定义 | `UIDlgInsert`、`UIDlgDefineAttribute` |
+   | ext.dim | `ext.dim.properties` | 五种标注 | `QInputDialog`（改标注文字） |
+
+   按实体类型而不是 `dynamic_cast` 判断：属性定义也是 `DmText`，它的对话框在块扩展。
+4. **新建时的对话框**：单行文字、填充、定义属性三个命令启动时的对话框（原 `requestTextDialog`、
+   `requestHatchDialog`、`requestDefineAttributesDialog`）改为命令直接构造，与属性对话框在同一个扩展。
+5. **表单**：12 个属性对话框搬进各自的扩展（绘图 8 个、文字、填充、块 2 个）。标注文字原先用
+   `QInputDialog::getText()`，改为自己构造 `QInputDialog` 以便经 `UIDialogRunner` 运行，其余一样。
+6. **删除的工厂方法**：`requestModifyEntityDialog`、`requestTextDialog`、`requestHatchDialog`、
+   `requestDefineAttributesDialog`。接口的文件说明改为"界面服务"，删去 30 余个用不到的前置声明。
+7. **译文**：139 条随表单迁到 draw、text、hatch、block 四个扩展；标注文字 3 条的上下文从
+   `QObject` 改为 `DimExtension`，属性定义里 `QObject::tr("Tips")` 1 条 lupdate 预填了猜测，这 4 条
+   手工补上。
+
+新增与修改的用例：修改实体属性依次点直线、圆，弹出 `UIDlgLine`、`UIDlgCircle`，命令一直活动；
+选择层双击没有登记时什么也不做、只有属性编辑命令时运行它（带上实体与位置）、再登记双击编辑命令时
+优先启动后者；注册表的属性编辑登记只接受即时命令与交互命令、一类实体只登记一个、命令注销时删除；
+各扩展登记的属性编辑命令；单行文字、填充、定义属性取消时弹出的是各自的对话框；块参照的属性对话框
+是 `UIDlgInsert`。
+
+提交④验证：Release 构建通过；`ctest` 4 个测试程序通过（`test_interaction` 276 例，1 例跳过）；
+`check_layering.py` 通过；各 `.ts` 没有未完成与失效条目；安装后程序能启动。
+
+**结果**
+
+`GuiDialogFactoryInterface` 从 33 个方法减到 16 个，不再有业务对话框：
+
+| 类别 | 方法 |
+|------|------|
+| 通用提示 | `requestWarningDialog`、`requestConfirmDialog`、`requestYesNoCancelDialog` |
+| 内核反向要的 | `requestActiveDocument`、`requestUntitledDocumentName`、`requestFileExport`、`requestFileImport` |
+| 选项条的摆放 | `requestCommandOptions`、`requestEditModeOptions`、`requestSnapMiddleOptions` |
+| 状态栏与命令行 | `updateCoordinateWidget`、`updateMouseWidget`、`updateSelectionWidget`、`commandMessage`、`setCommandWidget`、`setBottomWidget` |
+
+`ui/forms/` 只剩宿主与 `ui/` 自己用的：线型两个（线型框）、退出确认（标签页）、捕捉中点选项条
+（捕捉器）、画笔控件 `UIWidgetPen`（多个扩展的对话框共用）。
+
+遗留：扩展里原本就直接弹出的模态窗口（块的删除对话框、标注样式管理、AI 设置，以及各处的
+`QMessageBox`、`QInputDialog::getText`、`QColorDialog::getColor`）没有改走 `UIDialogRunner`，
+它们不在测试覆盖的路径上；以后给这些路径加用例时再改。
+
 ---
 
 ## 10. 回退策略

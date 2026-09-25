@@ -16,11 +16,13 @@
  */
 
 /// @file UIDialogFactory.h
-/// @brief 对话框工厂，负责创建和显示各类CAD对话框
+/// @brief GuiDialogFactoryInterface 的 Qt 实现：通用提示、选项条的摆放、状态栏与命令行反馈，
+///        以及内核经它取的活动文档与文件读写
+///
+/// 业务对话框不在这里：由扩展直接构造（doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）。
 
 #ifndef UIDIALOGFACTORY_H
 #define UIDIALOGFACTORY_H
-#include <list>
 #include <QPointer>
 #include "CommandRegistry.h"
 #include "GuiDialogFactoryInterface.h"
@@ -32,11 +34,10 @@ class UIBottomWindow;
 class UICommandWidget;
 class DmDocument;
 class DmVector;
-class DmAttributeDefinition;
 
 #define UIDIALOGFACTORY (GuiDialogFactory::instance()->getFactoryObject())
 
-// This is the Qt implementation of a widget which can create and show dialogs.
+/// @brief GuiDialogFactoryInterface 的 Qt 实现，由主窗口创建并装进 GuiDialogFactory
 class UIDialogFactory: public GuiDialogFactoryInterface
 {
 public:
@@ -56,8 +57,6 @@ public:
 	bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override;
 	bool requestFileImport(DmDocument& document, const QString& file) override;
 
-	bool requestDefineAttributesDialog(DmAttributeDefinition* attrDef) override;
-
 	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
 	void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) override;
 	void requestEditModeOptions(const std::function<QWidget*(QWidget*)>& build, bool on) override;
@@ -74,11 +73,6 @@ protected:
 
 public:
 	void requestSnapMiddleOptions(int& middlePoints, bool on) override;
-
-public:
-	bool requestModifyEntityDialog(DmEntity* entity) override;
-	bool requestTextDialog(DmText* text) override;
-	bool requestHatchDialog(DmHatch* hatch) override;
 
 	void updateCoordinateWidget(const DmVector& abs, const DmVector& rel, bool updateFormat=false) override;
 	/// @brief updateMouseWidget Called when an action has a mouse hint.

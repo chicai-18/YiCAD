@@ -19,8 +19,9 @@
  */
 
 /// @file ModifyEntityCommand.cpp
-/// @brief 修改实体属性命令 ext.modify.entity，取代原 ActionModifyEntity：单击实体，弹出它的属性
-///        对话框；多行文字转到文字扩展的属性面板（ext.text.modify_mtext）
+/// @brief 修改实体属性命令 ext.modify.entity，取代原 ActionModifyEntity：单击实体，运行实体所在
+///        扩展登记的属性编辑命令（CommandRegistry::registerPropertyEditor）——属性对话框，或多行
+///        文字的属性面板（ext.text.modify_mtext）
 
 #include <memory>
 
@@ -28,6 +29,7 @@
 #include <QMouseEvent>
 
 #include "BasePlaceTool.h"
+#include "CommandRegistry.h"
 #include "ModifyCommands.h"
 #include "DmEntity.h"
 #include "GuiDialogFactory.h"
@@ -43,18 +45,25 @@ class ModifyEntityCommand : public PlaceCommand
     Q_DECLARE_TR_FUNCTIONS(ModifyEntityCommand)
 
 public:
-    /// @brief 修改实体：多行文字转到文字扩展的属性面板，其余弹出属性对话框
+    /// @brief 修改实体：运行这类实体登记的属性编辑命令；没有登记时什么也不做
     void modify(DmEntity* entity)
     {
-        if (entity->getEntityType() == DM::EntityMText &&
-            CommandRegistry::instance().hasCommand(QStringLiteral("ext.text.modify_mtext")))
+        const CommandRegistry& registry = CommandRegistry::instance();
+        const QString editor = registry.propertyEditor(entity->getEntityType());
+        switch (registry.kind(editor))
         {
-            // 属性面板不是模态对话框，由它接替本命令；面板结束后回到空闲态
+        case CommandKind::Instant:
+            // 属性对话框是模态的，本命令留着，可以接着点下一个实体（与原先一致）
+            registry.runInstant(editor, CommandContext{document(), view(), nullptr, entity});
+            break;
+        case CommandKind::Exclusive:
+            // 属性面板（多行文字）不是模态对话框，由它接替本命令；面板结束后回到空闲态
             // （原先把属性编辑的旧 Action 叠在本命令之上，结束后回到本命令）
-            replaceWith(QStringLiteral("ext.text.modify_mtext"), entity);
-            return;
+            replaceWith(editor, entity);
+            break;
+        default:
+            break;
         }
-        GUIDIALOGFACTORY->requestModifyEntityDialog(entity);
     }
 
 protected:

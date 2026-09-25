@@ -19,13 +19,22 @@
 
 #include "DimExtension.h"
 
+#include <algorithm>
+#include <iterator>
+
 #include <QCoreApplication>
+#include <QInputDialog>
 #include <QStringList>
 
+#include "BaseExclusiveCommand.h"
 #include "DimCommands.h"
+#include "DmDimension.h"
 #include "DmDocument.h"
 #include "DmSystem.h"
+#include "EntityTable.h"
 #include "IExtensionContext.h"
+#include "Transaction.h"
+#include "UIDialogRunner.h"
 #include "UIDimLinearOptions.h"
 #include "UIDlgDimensionStyleMgr.h"
 #include "UIRibbonRegistry.h"
@@ -42,6 +51,40 @@ struct DimCommand
     ExclusiveCommandFactory factory;
     ExclusiveCommandOptionsFactory optionsFactory;
 };
+
+/// @brief 登记属性编辑命令 ext.dim.properties 的标注类型
+const DM::EntityType kDimensionTypes[] = {DM::EntityDimAligned, DM::EntityDimAngular, DM::EntityDimDiametric,
+                                          DM::EntityDimRadial, DM::EntityDimLinear};
+
+/// @brief 标注的属性编辑：修改标注文字（原 UIDialogFactory::requestModifyEntityDialog 的标注分支）；
+///        上下文的 entity 为要修改的标注
+void editDimensionText(const CommandContext& ctx)
+{
+    if (!ctx.entity || std::find(std::begin(kDimensionTypes), std::end(kDimensionTypes),
+                                 ctx.entity->getEntityType()) == std::end(kDimensionTypes))
+    {
+        return;
+    }
+    auto* dim = static_cast<DmDimension*>(ctx.entity);
+
+    // 与原先的 QInputDialog::getText() 相同，改为自己构造以便经 UIDialogRunner 运行
+    QInputDialog dlg(BaseExclusiveCommand::dialogParentOf(ctx.view));
+    dlg.setWindowTitle(QCoreApplication::translate("DimExtension", "Modify dimension text"));
+    dlg.setLabelText(QCoreApplication::translate("DimExtension", "New dimension text:"));
+    dlg.setTextEchoMode(QLineEdit::Normal);
+    dlg.setTextValue(dim->getLabel());
+    if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
+    {
+        return;
+    }
+
+    Transaction t(QCoreApplication::translate("DimExtension", "Modify dimension").toStdString(), dim->getDocument());
+    t.start();
+    dim->getDocument()->getEntityTable()->startModify(dim);
+    dim->setLabel(dlg.textValue());
+    dim->update();
+    t.commit();
+}
 }  // namespace
 
 void DimExtension::OnRegister(IExtensionContext& ctx)
@@ -112,4 +155,12 @@ void DimExtension::OnRegister(IExtensionContext& ctx)
         .iconPath = QStringLiteral(":/extensions/dim/dim_style.svg"),
         .commandId = QStringLiteral("ext.dim.style"),
     });
+
+    // 属性编辑（"修改实体属性"与选择层双击）：修改标注文字，不打断正在运行的命令
+    ctx.registerInstantCommand(QStringLiteral("ext.dim.properties"), editDimensionText,
+                               {.instantInterrupt = InstantInterrupt::KeepAll});
+    for (DM::EntityType type : kDimensionTypes)
+    {
+        ctx.registerPropertyEditor(type, QStringLiteral("ext.dim.properties"));
+    }
 }

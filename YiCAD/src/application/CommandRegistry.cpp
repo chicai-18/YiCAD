@@ -131,9 +131,12 @@ bool CommandRegistry::unregisterCommand(const QString& id)
         m_aliases.erase(alias);
     }
     m_commands.erase(it);
-    for (auto editor = m_entityEditors.begin(); editor != m_entityEditors.end();)
+    for (auto* editors : {&m_entityEditors, &m_propertyEditors})
     {
-        editor = editor->second == id ? m_entityEditors.erase(editor) : std::next(editor);
+        for (auto editor = editors->begin(); editor != editors->end();)
+        {
+            editor = editor->second == id ? editors->erase(editor) : std::next(editor);
+        }
     }
     return true;
 }
@@ -152,6 +155,24 @@ QString CommandRegistry::entityEditor(DM::EntityType type) const
 {
     auto it = m_entityEditors.find(type);
     return it == m_entityEditors.end() ? QString() : it->second;
+}
+
+bool CommandRegistry::registerPropertyEditor(DM::EntityType type, const QString& commandId)
+{
+    const CommandKind commandKind = kind(commandId);
+    if ((commandKind != CommandKind::Instant && commandKind != CommandKind::Exclusive) ||
+        m_propertyEditors.count(type) != 0)
+    {
+        return false;
+    }
+    m_propertyEditors[type] = commandId;
+    return true;
+}
+
+QString CommandRegistry::propertyEditor(DM::EntityType type) const
+{
+    auto it = m_propertyEditors.find(type);
+    return it == m_propertyEditors.end() ? QString() : it->second;
 }
 
 bool CommandRegistry::hasCommand(const QString& id) const

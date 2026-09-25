@@ -1208,6 +1208,495 @@
     </message>
 </context>
 <context>
+    <name>UIDlgArc</name>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="26"/>
+        <source>Arc</source>
+        <translation>弧</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="71"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="77"/>
+        <source>Normal (z):</source>
+        <translation>法向(z):</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="107"/>
+        <source>Normal (y):</source>
+        <translation>法向(y):</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="143"/>
+        <source>Center (y):</source>
+        <translation>圆心(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="153"/>
+        <source>Center (x):</source>
+        <translation>圆心(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="163"/>
+        <source>Start Angle:</source>
+        <translation>初始角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="183"/>
+        <source>Normal (x):</source>
+        <translation>法向(x):</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="226"/>
+        <source>Radius:</source>
+        <translation>半径(r)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.ui" line="236"/>
+        <source>End Angle:</source>
+        <translation>终止角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.cpp" line="51"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgArc.cpp" line="86"/>
+        <source>Modify arc</source>
+        <translation>修改圆弧</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgCircle</name>
+    <message>
+        <location filename="../ui/UIDlgCircle.ui" line="26"/>
+        <source>Circle</source>
+        <translation>圆</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.ui" line="71"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.ui" line="77"/>
+        <source>Radius:</source>
+        <translation>半径(r)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.ui" line="97"/>
+        <source>Center (y):</source>
+        <translation>圆心(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.ui" line="117"/>
+        <source>Center (x):</source>
+        <translation>圆心(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.cpp" line="36"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.cpp" line="37"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.cpp" line="53"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgCircle.cpp" line="78"/>
+        <source>Modify circle</source>
+        <translation>修改圆</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgEllipse</name>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="26"/>
+        <source>Ellipse</source>
+        <translation>椭圆</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="71"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="87"/>
+        <source>Normal (x):</source>
+        <translation>法向(x):</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="97"/>
+        <source>Minor:</source>
+        <translation>短轴半径：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="130"/>
+        <source>Major:</source>
+        <translation>长轴半径：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="140"/>
+        <source>Rotation:</source>
+        <translation>旋转角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="163"/>
+        <source>Center (y):</source>
+        <translation>圆心(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="203"/>
+        <source>Start Angle:</source>
+        <translation>起始角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="213"/>
+        <source>Normal (y):</source>
+        <translation>法向(y):</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="223"/>
+        <source>Center (x):</source>
+        <translation>圆心(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="243"/>
+        <source>End Angle:</source>
+        <translation>终止角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.ui" line="253"/>
+        <source>Normal (z):</source>
+        <translation>法向(z):</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.cpp" line="36"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.cpp" line="37"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.cpp" line="52"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgEllipse.cpp" line="91"/>
+        <source>Modify ellipse</source>
+        <translation>修改椭圆</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgImage</name>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="26"/>
+        <source>Image</source>
+        <translation>图片</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="80"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="86"/>
+        <source>Width:</source>
+        <translation>宽度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="116"/>
+        <source>Height:</source>
+        <translation>高度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="123"/>
+        <source>insert (x):</source>
+        <translation>插入(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="130"/>
+        <source>Scale:</source>
+        <translation>缩放：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="166"/>
+        <source>Size (px):</source>
+        <translation>大小(px)</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="183"/>
+        <source>path:</source>
+        <translation>路径：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="206"/>
+        <source>insert (y):</source>
+        <translation>插入(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="223"/>
+        <source>Angle:</source>
+        <translation>角度：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.ui" line="260"/>
+        <source>DPI</source>
+        <translation>DPI</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.cpp" line="36"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.cpp" line="37"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.cpp" line="55"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgImage.cpp" line="133"/>
+        <source>Modify image</source>
+        <translation>修改图片</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgLine</name>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="29"/>
+        <source>Line</source>
+        <translation>线段</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="47"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="80"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="86"/>
+        <source>End point (x):</source>
+        <translation>终点(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="116"/>
+        <source>End point (y):</source>
+        <translation>终点(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="126"/>
+        <source>Start point (y):</source>
+        <translation>起点(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.ui" line="146"/>
+        <source>Start point (x):</source>
+        <translation>起点(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.cpp" line="36"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.cpp" line="37"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.cpp" line="52"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgLine.cpp" line="76"/>
+        <source>Modify line</source>
+        <translation>修改直线</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgPoint</name>
+    <message>
+        <location filename="../ui/UIDlgPoint.ui" line="26"/>
+        <source>Point</source>
+        <translation>点</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.ui" line="71"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.ui" line="77"/>
+        <source>Position (y):</source>
+        <translation>坐标(y)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.ui" line="97"/>
+        <source>Position (x):</source>
+        <translation>坐标(x)：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.cpp" line="36"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.cpp" line="37"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.cpp" line="52"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPoint.cpp" line="73"/>
+        <source>Modify point</source>
+        <translation>修改点</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgPolyline</name>
+    <message>
+        <location filename="../ui/UIDlgPolyline.ui" line="26"/>
+        <source>Polyline</source>
+        <translation>多段线</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.ui" line="44"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.ui" line="77"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.ui" line="115"/>
+        <source>Closed</source>
+        <translation>闭合</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.cpp" line="35"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.cpp" line="36"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.cpp" line="51"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgPolyline.cpp" line="68"/>
+        <source>Modify polyline</source>
+        <translation>修改多段线</translation>
+    </message>
+</context>
+<context>
+    <name>UIDlgSpline</name>
+    <message>
+        <location filename="../ui/UIDlgSpline.ui" line="26"/>
+        <source>Spline</source>
+        <translation>控制点样条线</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.ui" line="47"/>
+        <source>Layer:</source>
+        <translation>图层：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.ui" line="80"/>
+        <source>Geometry</source>
+        <translation>几何</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.ui" line="118"/>
+        <source>Degree:</source>
+        <translation>阶数：</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.ui" line="128"/>
+        <source>Closed</source>
+        <translation>闭合</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.cpp" line="39"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.cpp" line="40"/>
+        <source>OK</source>
+        <translation>确定</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.cpp" line="58"/>
+        <source>Pen</source>
+        <translation>画笔</translation>
+    </message>
+    <message>
+        <location filename="../ui/UIDlgSpline.cpp" line="79"/>
+        <source>Modify spline</source>
+        <translation>修改样条线</translation>
+    </message>
+</context>
+<context>
     <name>Ui_ArcOptions</name>
     <message>
         <location filename="../ui/UIArcOptions.ui" line="26"/>
