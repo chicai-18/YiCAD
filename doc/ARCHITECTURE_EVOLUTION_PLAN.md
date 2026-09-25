@@ -97,6 +97,9 @@ flowchart TB
 `doc/COMMAND_TOOL_MIGRATION_PLAN.md`（业务工具化方案：取消 Action 概念）之后，
 理由见该文件第 2 节。
 
+**进度**（2026-09-25）：阶段 0–4 完成（阶段 4 的收尾见 7.11 节：打印取消、插件入口接入注册表、
+每个扩展独立成库）；业务工具化方案四步完成；下一步是阶段 5。
+
 第 9 节的独立小项不依赖任何阶段，可随时穿插执行。
 
 ---
@@ -592,6 +595,10 @@ flowchart TB
 > 对应 DS 的 `Application/`：命令与视图工具的机制（原 `kernel/actions/`）与进程内扩展框架
 > （原 `kernel/extension/`）；内置命令（原 `actions/`）拆进扩展，`YiCadInteraction` 只剩交互
 > 视图 `UIView`。见 `COMMAND_TOOL_MIGRATION_PLAN.md` 9.4 节。
+>
+> 2026-09-25：每个扩展是独立的 OBJECT 库 `YiCadExt_<扩展>`（`extensions/<扩展>/`），位于
+> `YiCadUi`/`YiCadApplication` 之上、`YiCadApp` 之下，扩展之间互不依赖；扩展注册表
+> `main/BuiltinExtensions.cpp` 只编进可执行文件。见 7.11 节。
 
 `YiCadRender` 在此仅作为一个层次边界存在，本方案**不改动其内部实现**。
 未来的渲染专项将在这个边界内进行，届时不会波及其它库。
@@ -1262,6 +1269,50 @@ YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
 `check_layering.py` 通过；安装后程序能启动，本机插件目录里唯一的清单是只注册文件过滤器的 dxf 插件，
 Ribbon 与改动前一致（截图核对）。**插件按钮的界面效果没有在程序里核对**：本机没有部署注册命令与按钮
 的插件（示例插件的清单需要放进 `C:\ProgramData\YiCAD\plugins`），由上面的单测覆盖。
+
+**提交③：每个扩展独立成库**
+
+1. **扩展库**：`src/extensions/<扩展>/` 各建一个 OBJECT 库 `YiCadExt_<扩展>`（13 个），仍按目录 glob
+   收集，CMake 里没有逐个扩展的登记。选 OBJECT 与 `YiCadCore` 同理：扩展里有 Qt 资源与元对象类，
+   静态库会丢掉没有显式引用的自动注册符号。扩展库 `PUBLIC` 链接 `YiCadCore`，预编译头沿用
+   `YiCadCore` 的（`REUSE_FROM`，拆出来之前扩展源码一直带着 `YiCadPch.h` 编译）。
+2. **边界由构建强制**：扩展的头文件目录只挂在它自己的库上（`YiCadCore` 的 include 路径不再含
+   扩展目录）；表单由新的 `yicad_wrap_ui` 生成到 `build/.../extensions/<扩展>/`，资源编进该扩展的库。
+   扩展包含别的扩展的头文件会直接编译失败（在 `ext.edit` 里临时包含 `DrawExtension.h` 核对过，
+   C1083），`check_layering.py` 的同一条规则保留作更早的提示。
+3. **扩展注册表移出内核**：`ApplicationWindow::registerExtensions()` 里的 13 条 `#include` 与
+   `Register` 移到 `src/main/BuiltinExtensions.cpp` 的 `registerBuiltinExtensions()`，它与
+   `Main.cpp` 一样只编进可执行文件；`ApplicationWindow` 的构造函数接收注册函数
+   （`ExtensionRegistrar`，为空时不注册扩展），由 `main()` 传入。至此 `YiCadCore` 不引用任何扩展，
+   这是原先唯一的反向引用（测试直接包含扩展头文件，不算）。
+4. **链接**：可执行目标逐个直接链接扩展库（OBJECT 库的目标文件只从直接链接的库带入）；扩展目标
+   记在全局属性 `YICAD_EXTENSION_TARGETS` 里，`test_interaction` 读它链接。
+5. **`AGENTS.md`**：源文件收集一节改为扩展各自成库、注册表在 `BuiltinExtensions.cpp`。
+
+**与方案的偏差**
+
+- 7.4 节任务⑤写的是"每个扩展独立成库（依托阶段 3 的库拆分能力）"，没有定库类型。这里是
+  OBJECT 库，扩展仍在编译期链接进可执行文件，不能在运行期单独装卸；要做成运行期可装卸的 DLL，
+  `YiCadCore` 得先改成动态库并给扩展用到的类加导出宏，工作量与本阶段不成比例，开始前确认不做。
+- 构建时间没有测：扩展原先就在 `YiCadCore` 里按文件增量编译，拆库只改变目标划分，预计不影响
+  单文件增量；Visual Studio 生成器下项目多了 13 个。
+
+提交③验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过；
+`check_layering.py` 通过；安装后程序能启动，各扩展的 Ribbon 按钮与资源图标（AI、标注）正常
+（截图核对）。
+
+**阶段 4 的结果**：对照 7.5 节的验收标准——
+
+| 7.5 节的验收标准 | 状态 |
+|------------------|------|
+| 新增一条绘图命令不需要修改 `src/kernel/` 下的任何文件 | 维持达成；新增一个扩展也不需要改内核与 CMake，只在 `BuiltinExtensions.cpp` 加两行 |
+| `UIActionHandler.cpp` 无 `switch (actionType)` 巨型分支 | 维持达成（`DM::ActionType` 已删除） |
+| `ai/` 作为独立扩展加载，关闭该扩展后应用正常启动与绘图 | 维持达成；每个扩展是独立的库 |
+| 扩展的注册与卸载顺序可预测，`OnShutdown` 反序执行 | 维持达成 |
+
+7.4 节五项任务：①② 7.7 节；③④ 7.8 节；⑤ 文字、块、填充与其它领域在业务工具化方案第三、四步做成
+扩展，打印取消（本节开头），每个扩展独立成库（提交③）。三条入口收敛到同一注册表：Ribbon 与命令行
+（7.10 节）、插件（提交②）。阶段 4 完成。
 
 ---
 

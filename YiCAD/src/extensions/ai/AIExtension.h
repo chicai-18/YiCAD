@@ -40,7 +40,7 @@ public:
     // 构造/析构都声明在这里、定义放到 .cpp——m_assistant 是
     // unique_ptr<AIAssistant>，这里只前置声明了 AIAssistant。隐式生成的
     // 构造/析构函数会在任何调用 std::make_unique<AIExtension>() 的翻译
-    // 单元里实例化（比如 ApplicationWindow.cpp，它不需要也不包含
+    // 单元里实例化（比如扩展注册表 BuiltinExtensions.cpp，它不需要也不包含
     // AIAssistant.h），那时 AIAssistant 还是不完整类型，编译不过。两者
     // 都显式声明 + 挪到 AIExtension.cpp 定义，把实例化点固定在真正
     // #include "AIAssistant.h" 的地方（标准的 pimpl 惯用法）。

@@ -179,11 +179,13 @@ yicad_collect_sources(UI
 # 对应阶段 3 的 YiCadApp（可执行目标）。
 #
 # 计划图未列出 src/plugin_runtime/，它位于 UI 之上：
-#   plugin_runtime/   引用 UIActionHandler.h、UICommandWidget.h
+#   plugin_runtime/   PluginUiAdapter 把插件命令与按钮登记进 CommandRegistry 与
+#                     UIRibbonRegistry（主计划 7.11 节）
 #
 # 宿主侧的 IExtensionHost 实现在 ApplicationWindow 里；扩展框架本身在
-# APPLICATION 分区（src/application/framework/），各扩展的源码见下方
-# src/extensions/ 的收集规则。
+# APPLICATION 分区（src/application/framework/），各扩展是独立的库，见下方
+# src/extensions/ 的规则。src/main/BuiltinExtensions.cpp（扩展注册表）与 Main.cpp
+# 一样只编进可执行文件。
 #
 # kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
 # getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
@@ -195,53 +197,44 @@ yicad_collect_sources(APP
     src/plugin_runtime
     src/kernel/fileio)
 
-# 进程内扩展：src/extensions/ 下每个子目录是一个扩展，全部靠 glob 收集，
-# 构建系统里没有逐个扩展的登记。目录约定：
-#   <扩展>/**/*.h、*.cpp   源码，递归收集，编进 YiCadCore；含头文件的
-#                          每个目录自动成为 include 路径
+# 进程内扩展：src/extensions/ 下每个子目录是一个扩展，各自建成 OBJECT 库
+# YiCadExt_<扩展>（见下方 YiCadCore 之后），构建系统里没有逐个扩展的登记。目录约定：
+#   <扩展>/**/*.h、*.cpp   源码，递归收集；含头文件的每个目录自动成为该扩展的 include 路径
 #   <扩展>/**/*.qrc        Qt 资源
-#   <扩展>/**/*.ui         Qt Designer 表单，与 src/ui 的表单一起由 uic 生成 ui_*.h
+#   <扩展>/**/*.ui         Qt Designer 表单，uic 生成的 ui_*.h 放在该扩展自己的目录里
 #   <扩展>/ts/<扩展>_<语言>.ts
 #                          扩展自己的翻译，lupdate 只扫本扩展源码，编译成
 #                          qm 与主程序翻译包装在一起，运行期由扩展调用
 #                          DmSystem::loadExtensionTranslation("<扩展>") 加载
 #   <扩展>/support/        运行期文件，安装到 bin/<扩展>/
-# 移除一个扩展 = 删除其目录 + 删除 ApplicationWindow::registerExtensions()
-# 里对应的 #include 与 Register 两行；CONFIGURE_DEPENDS 保证增删目录后
-# 自动重新配置。
+# 移除一个扩展 = 删除其目录 + 删除 src/main/BuiltinExtensions.cpp 里对应的
+# #include 与 Register 两行；CONFIGURE_DEPENDS 保证增删目录后自动重新配置。
 set(YICAD_EXTENSIONS_ROOT "${YICAD_SRC_ROOT}/src/extensions")
-file(GLOB _yicad_extension_entries LIST_DIRECTORIES true "${YICAD_EXTENSIONS_ROOT}/*")
+file(GLOB _yicad_extension_entries LIST_DIRECTORIES true CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*")
 set(YICAD_EXTENSION_DIRS "")
 foreach(_entry IN LISTS _yicad_extension_entries)
     if(IS_DIRECTORY "${_entry}")
         list(APPEND YICAD_EXTENSION_DIRS "${_entry}")
     endif()
 endforeach()
-file(GLOB_RECURSE YICAD_EXTENSION_HEADERS CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.h")
-file(GLOB_RECURSE YICAD_EXTENSION_SOURCES CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.cpp")
-file(GLOB_RECURSE YICAD_EXTENSION_QRCS CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.qrc")
 
-set(YICAD_EXTENSION_INCLUDE_DIRS "")
-foreach(_header IN LISTS YICAD_EXTENSION_HEADERS)
-    get_filename_component(_header_dir "${_header}" DIRECTORY)
-    list(APPEND YICAD_EXTENSION_INCLUDE_DIRS "${_header_dir}")
-endforeach()
-list(REMOVE_DUPLICATES YICAD_EXTENSION_INCLUDE_DIRS)
-
-list(APPEND qrc_DIRS ${YICAD_EXTENSION_QRCS})
-
-# src/ui 与各扩展下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h。
+# src/ui 下的 Qt Designer 表单，由 QT5_WRAP_UI 生成对应的 ui_*.h（扩展的表单见下方
+# yicad_wrap_ui）。
 file(GLOB YICAD_UI_FORMS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms/*.ui)
-file(GLOB_RECURSE YICAD_EXTENSION_FORMS CONFIGURE_DEPENDS "${YICAD_EXTENSIONS_ROOT}/*.ui")
 
 # main() 必须留在可执行目标里，否则测试二进制无法提供自己的入口。
+# 扩展注册表 BuiltinExtensions.cpp 同样只编进可执行目标：它引用全部扩展，而扩展
+# 各自是独立的库，只有可执行目标（与需要它们的测试）链接。
 set(YICAD_MAIN_ENTRY "${CMAKE_CURRENT_SOURCE_DIR}/src/main/Main.cpp")
-list(REMOVE_ITEM YICAD_APP_SOURCES "${YICAD_MAIN_ENTRY}")
-if(NOT EXISTS "${YICAD_MAIN_ENTRY}")
-    message(FATAL_ERROR "未找到应用入口 ${YICAD_MAIN_ENTRY}")
-endif()
+set(YICAD_BUILTIN_EXTENSIONS "${CMAKE_CURRENT_SOURCE_DIR}/src/main/BuiltinExtensions.cpp")
+foreach(_exe_only IN ITEMS "${YICAD_MAIN_ENTRY}" "${YICAD_BUILTIN_EXTENSIONS}")
+    if(NOT EXISTS "${_exe_only}")
+        message(FATAL_ERROR "未找到只编进可执行目标的源文件 ${_exe_only}")
+    endif()
+    list(REMOVE_ITEM YICAD_APP_SOURCES "${_exe_only}")
+endforeach()
 
 # #####################################################
 # ======================main===========================
@@ -281,11 +274,34 @@ install(FILES ${PLUGIN_SDK_HEADERS}
 # #####################################################
 file(GLOB TS_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ts/*.ts")
 
-# 将.ui转成.h
-QT5_WRAP_UI(ui_FILES ${YICAD_UI_FORMS} ${YICAD_EXTENSION_FORMS})
+# 将.ui转成.h（src/ui 的表单；扩展的表单由各扩展库用 yicad_wrap_ui 生成）
+QT5_WRAP_UI(ui_FILES ${YICAD_UI_FORMS})
 
-# 将.qrc转成.cpp
+# 将.qrc转成.cpp（主程序的资源；扩展的资源编进各扩展库）
 qt5_add_resources(qrc_FILES ${qrc_DIRS})
+
+# ---------------------------------------------------------------------------
+# yicad_wrap_ui(<输出变量> <输出目录> <表单> [<表单> ...])
+#
+# 与 QT5_WRAP_UI 相同，但 ui_*.h 生成到给定目录：每个扩展的表单放在自己的目录里，
+# 别的扩展看不到。
+# ---------------------------------------------------------------------------
+function(yicad_wrap_ui out_var out_dir)
+    set(_headers "")
+    foreach(_form IN LISTS ARGN)
+        get_filename_component(_name "${_form}" NAME_WE)
+        set(_header "${out_dir}/ui_${_name}.h")
+        add_custom_command(OUTPUT "${_header}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${out_dir}"
+            COMMAND Qt5::uic -o "${_header}" "${_form}"
+            MAIN_DEPENDENCY "${_form}"
+            VERBATIM)
+        set_source_files_properties("${_form}" PROPERTIES SKIP_AUTOMOC ON SKIP_AUTOUIC ON)
+        set_source_files_properties("${_header}" PROPERTIES SKIP_AUTOMOC ON SKIP_AUTOUIC ON)
+        list(APPEND _headers "${_header}")
+    endforeach()
+    set(${out_var} ${_headers} PARENT_SCOPE)
+endfunction()
 
 # 附加库路径(lib路径)
 find_package(Qt5LinguistTools REQUIRED)
@@ -447,9 +463,10 @@ target_link_libraries(YiCadPersistence PUBLIC YiCadModel)
 # #####################################################
 # ==================== YiCadCore ======================
 #
-# RENDER + INTERACTION + UI + APP 四个分区。可执行目标和测试二进制共享
-# 同一批目标文件，测试因此不必重新编译这部分代码，也不必为每个测试手工
-# 维护源文件子集。
+# RENDER + APPLICATION + INTERACTION + UI + APP 五个分区。可执行目标和测试二进制
+# 共享同一批目标文件，测试因此不必重新编译这部分代码，也不必为每个测试手工
+# 维护源文件子集。进程内扩展不在其中，各自是 OBJECT 库 YiCadExt_<扩展>（见下方），
+# YiCadCore 不引用任何扩展。
 #
 # 选 OBJECT 而非 STATIC：静态库的符号剥离会丢掉 Qt 的静态注册（资源初始化、
 # 插件注册宏等自动注册符号没有显式引用），OBJECT 库没有这个问题。
@@ -467,8 +484,7 @@ add_library(YiCadCore OBJECT
     ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
     ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
-    ${YICAD_EXTENSION_HEADERS}   ${YICAD_EXTENSION_SOURCES}
-    ${YICAD_UI_FORMS}            ${YICAD_EXTENSION_FORMS}
+    ${YICAD_UI_FORMS}
     ${ui_FILES}
     ${qrc_FILES})
 
@@ -490,8 +506,7 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon
-    ${YICAD_EXTENSION_INCLUDE_DIRS})
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon)
 
 target_precompile_headers(YiCadCore PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/main/YiCadPch.h")
@@ -528,17 +543,76 @@ foreach(qtmod ${YICAD_USE_QT_MODULES})
 endforeach(qtmod)
 
 # #####################################################
+# ============== 进程内扩展 YiCadExt_<扩展> ==============
+#
+# src/extensions/ 下每个子目录建一个 OBJECT 库（与 YiCadCore 同样选 OBJECT：扩展里有
+# Qt 资源与元对象类，静态库会丢掉没有显式引用的自动注册符号）。扩展依赖 YiCadCore
+# （内核、命令机制、界面），YiCadCore 不依赖任何扩展；扩展只看得到自己的头文件与
+# uic 生成的 ui_*.h，扩展之间互相包含会直接编译失败（主计划 7.11 节）。
+#
+# 头文件目录是 PUBLIC 的：链接扩展的只有可执行目标（BuiltinExtensions.cpp 要包含
+# 扩展入口的头文件）与测试。
+#
+# 预编译头沿用 YiCadCore 的：拆出来之前扩展的源码一直带着 YiCadPch.h 编译。
+#
+# 全部扩展目标记在全局属性 YICAD_EXTENSION_TARGETS 里，供 tests/ 链接。
+# #####################################################
+set(YICAD_EXTENSION_TARGETS "")
+foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
+    get_filename_component(_ext_name "${_ext_dir}" NAME)
+    set(_ext_target "YiCadExt_${_ext_name}")
+
+    file(GLOB_RECURSE _ext_headers CONFIGURE_DEPENDS "${_ext_dir}/*.h")
+    file(GLOB_RECURSE _ext_sources CONFIGURE_DEPENDS "${_ext_dir}/*.cpp")
+    file(GLOB_RECURSE _ext_forms CONFIGURE_DEPENDS "${_ext_dir}/*.ui")
+    file(GLOB_RECURSE _ext_qrcs CONFIGURE_DEPENDS "${_ext_dir}/*.qrc")
+    if(NOT _ext_sources)
+        message(FATAL_ERROR "扩展目录 ${_ext_dir} 里没有源文件")
+    endif()
+
+    set(_ext_gen_dir "${CMAKE_CURRENT_BINARY_DIR}/extensions/${_ext_name}")
+    yicad_wrap_ui(_ext_ui_headers "${_ext_gen_dir}" ${_ext_forms})
+    set(_ext_qrc_sources "")
+    if(_ext_qrcs)
+        qt5_add_resources(_ext_qrc_sources ${_ext_qrcs})
+    endif()
+
+    add_library(${_ext_target} OBJECT
+        ${_ext_headers} ${_ext_sources}
+        ${_ext_forms} ${_ext_ui_headers}
+        ${_ext_qrcs} ${_ext_qrc_sources})
+
+    set(_ext_include_dirs "${_ext_gen_dir}")
+    foreach(_header IN LISTS _ext_headers)
+        get_filename_component(_header_dir "${_header}" DIRECTORY)
+        list(APPEND _ext_include_dirs "${_header_dir}")
+    endforeach()
+    list(REMOVE_DUPLICATES _ext_include_dirs)
+    target_include_directories(${_ext_target} PUBLIC ${_ext_include_dirs})
+
+    target_link_libraries(${_ext_target} PUBLIC YiCadCore)
+    target_precompile_headers(${_ext_target} REUSE_FROM YiCadCore)
+    set_target_properties(${_ext_target} PROPERTIES FOLDER "YiCAD/extensions")
+    GroupSourcesByFolder(${_ext_target})
+
+    list(APPEND YICAD_EXTENSION_TARGETS ${_ext_target})
+endforeach()
+set_property(GLOBAL PROPERTY YICAD_EXTENSION_TARGETS ${YICAD_EXTENSION_TARGETS})
+
+# #####################################################
 # ================ YiCAD 可执行目标 ====================
-# 只编译 main()，其余目标文件来自 YiCadCore。
+# 只编译 main() 与扩展注册表，其余目标文件来自 YiCadCore 与各扩展库。
 # #####################################################
 add_executable(${PROJECT_NAME} ${YICAD_MAIN_ENTRY}
+                               ${YICAD_BUILTIN_EXTENSIONS}
                                ${MAIN_RES}
                                ${qrc_DIRS}
                                ${QM_FILES})
 
 # 链接 OBJECT 库会同时带入它的目标文件和全部使用要求（include 路径、
-# 编译定义、依赖库），无需再写 $<TARGET_OBJECTS:YiCadCore>。
-target_link_libraries(${PROJECT_NAME} PRIVATE YiCadCore)
+# 编译定义、依赖库），无需再写 $<TARGET_OBJECTS:YiCadCore>。目标文件只从直接链接的
+# OBJECT 库带入，所以扩展库要逐个直接链接。
+target_link_libraries(${PROJECT_NAME} PRIVATE YiCadCore ${YICAD_EXTENSION_TARGETS})
 
 target_precompile_headers(${PROJECT_NAME} REUSE_FROM YiCadCore)
 

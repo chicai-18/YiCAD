@@ -27,6 +27,7 @@
 #include <set>
 #include <map>
 #include <memory>
+#include <functional>
 
 class SARibbonCategory;
 class SARibbonContextCategory;
@@ -58,6 +59,7 @@ class UIBlockListWidget;
 class UIBlockSaveAs;
 class ApplicationPluginHostContext;
 class ApplicationWindowExtensionHost;
+class ExtensionManager;
 class UIRibbonManager;
 class UIRibbonRegistrar;
 class UIRibbonRegistry;
@@ -72,7 +74,13 @@ class ApplicationWindow : public SARibbonMainWindow
 {
     Q_OBJECT
 public:
-    ApplicationWindow(QWidget* par = nullptr);
+    /// @brief 注册进程内扩展的函数（ExtensionManager::Register），在内置 Ribbon 类目注册之后调用
+    using ExtensionRegistrar = std::function<void(ExtensionManager&)>;
+
+    /// @param extensionRegistrar 注册进程内扩展；可执行文件传 registerBuiltinExtensions，
+    ///        为空时不注册任何扩展。主窗口不引用任何扩展（扩展是各自独立的库，主计划 7.11 节）
+    /// @param par 父窗口
+    explicit ApplicationWindow(ExtensionRegistrar extensionRegistrar = {}, QWidget* par = nullptr);
     ~ApplicationWindow();
 
     /// @brief 判断点是否在多边形内（射线法）
@@ -335,6 +343,9 @@ private:
     // 由 m_ribbonManager 装配并按上下文重算可用状态。
     std::unique_ptr<UIRibbonRegistry>               m_ribbonRegistry;
     std::unique_ptr<UIRibbonManager>                m_ribbonManager;
+
+    // 注册进程内扩展的函数，构造时传入，由 registerExtensions() 调用。
+    ExtensionRegistrar                              m_extensionRegistrar;
 
     // 进程内扩展的宿主服务（阶段4）；引用 m_ribbonRegistry，声明在其后以先于它析构。
     std::unique_ptr<ApplicationWindowExtensionHost> m_extensionHost;

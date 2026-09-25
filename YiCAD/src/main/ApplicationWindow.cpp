@@ -86,22 +86,6 @@
 #include "UIRibbonManager.h"
 #include "UIRibbonRegistry.h"
 
-// 进程内扩展（src/extensions/<扩展>/，构建系统自动 glob 收集）。移除一个扩展：
-// 删除其目录、这里的 #include，以及 registerExtensions() 里的 Register 一行。
-#include "AIExtension.h"
-#include "BlockExtension.h"
-#include "DimExtension.h"
-#include "DrawExtension.h"
-#include "EditExtension.h"
-#include "FileExtension.h"
-#include "HatchExtension.h"
-#include "LayerExtension.h"
-#include "MeasureExtension.h"
-#include "ModifyExtension.h"
-#include "OptionsExtension.h"
-#include "TextExtension.h"
-#include "ViewExtension.h"
-
 #include "MDIWindow.h"
 #include "GuiDocumentView.h"
 #include "DmSettings.h"
@@ -274,7 +258,7 @@ void applyLightThemeStyle(QWidget* rootWidget)
 
 ApplicationWindow* ApplicationWindow::appWindow = nullptr;
 
-ApplicationWindow::ApplicationWindow(QWidget* par)
+ApplicationWindow::ApplicationWindow(ExtensionRegistrar extensionRegistrar, QWidget* par)
 	: SARibbonMainWindow(par)
 	, m_customizeWidget(nullptr)
 	, m_pActionHandler(new UIActionHandler(this))
@@ -282,6 +266,7 @@ ApplicationWindow::ApplicationWindow(QWidget* par)
 	, m_pLayerTableWidget(nullptr)
 	, m_pCurrentLayerItem(new ComboBoxData())
 	, m_pLibraryList(nullptr)
+	, m_extensionRegistrar(std::move(extensionRegistrar))
 {
 	appWindow = this;
 	PRINT_COST_START();
@@ -405,26 +390,15 @@ void ApplicationWindow::loadPlugins()
 /// @brief 注册进程内扩展并调用它们的 OnRegister（阶段4第二阶段，
 /// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4 §7.4任务③④）。
 ///
-/// 每个扩展一行 Register，注册顺序即启动顺序、关闭的反序。
+/// 注册哪些扩展由构造时传入的注册函数决定（可执行文件里的 registerBuiltinExtensions()，
+/// 主计划 7.11 节）：扩展是各自独立的库，主窗口不引用任何扩展。注册顺序即启动顺序、关闭的反序。
 void ApplicationWindow::registerExtensions()
 {
 	m_extensionHost = std::make_unique<ApplicationWindowExtensionHost>(*m_ribbonRegistry, *this);
-	// 文件、图层、选项排在前面：选项扩展的两个按钮要排在其它扩展的设置页入口之前（与迁移前一致）
-	ExtensionManager::instance().Register(std::make_unique<FileExtension>());
-	ExtensionManager::instance().Register(std::make_unique<LayerExtension>());
-	ExtensionManager::instance().Register(std::make_unique<OptionsExtension>());
-	// 原内置命令（迁移计划 9.4 节）：绘图排在修改之前（多段线面板里节点按钮在云线之后），
-	// 也排在填充之前（其他面板里插入图片在填充之前）
-	ExtensionManager::instance().Register(std::make_unique<DrawExtension>());
-	ExtensionManager::instance().Register(std::make_unique<ModifyExtension>());
-	ExtensionManager::instance().Register(std::make_unique<MeasureExtension>());
-	ExtensionManager::instance().Register(std::make_unique<EditExtension>());
-	ExtensionManager::instance().Register(std::make_unique<ViewExtension>());
-	ExtensionManager::instance().Register(std::make_unique<AIExtension>());
-	ExtensionManager::instance().Register(std::make_unique<DimExtension>());
-	ExtensionManager::instance().Register(std::make_unique<BlockExtension>());
-	ExtensionManager::instance().Register(std::make_unique<TextExtension>());
-	ExtensionManager::instance().Register(std::make_unique<HatchExtension>());
+	if (m_extensionRegistrar)
+	{
+		m_extensionRegistrar(ExtensionManager::instance());
+	}
 	ExtensionManager::instance().BootAll(*m_extensionHost);
 }
 

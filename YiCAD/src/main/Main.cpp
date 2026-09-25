@@ -42,6 +42,7 @@
 #include "DmLineTypeTable.h"
 
 #include "ApplicationWindow.h"
+#include "BuiltinExtensions.h"
 
 #include "Debug.h"
 
@@ -109,7 +110,7 @@ int App_Run(int argc, char* argv[])
         app.processEvents();
     }
 
-    ApplicationWindow w;
+    ApplicationWindow w(&registerBuiltinExtensions);
     app.installEventFilter(&w);
     w.setWindowTitle(QObject::tr("YiCAD"));
     w.setWindowIcon(QIcon(":/ribbon/logo.png"));

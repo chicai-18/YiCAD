@@ -29,6 +29,11 @@ yicad_add_test(interaction
         test_plugin_ui_adapter.cpp
     LABELS "interaction;unit")
 
+# 各扩展是独立的 OBJECT 库（YiCAD/CMakeLists.txt 的 YiCadExt_<扩展>），用例要启动扩展、
+# 包含扩展的命令头文件。OBJECT 库的目标文件只从直接链接的库带入，所以逐个链接。
+get_property(_yicad_extension_targets GLOBAL PROPERTY YICAD_EXTENSION_TARGETS)
+target_link_libraries(test_interaction PRIVATE ${_yicad_extension_targets})
+
 # test_keyconfig 读源码树里的默认 keyconfig.xml（程序目录下的那份由 cmake --install 复制）
 target_compile_definitions(test_interaction PRIVATE
     YICAD_DEFAULT_KEYCONFIG="${CMAKE_CURRENT_SOURCE_DIR}/../../YiCAD/support/config/keyconfig.xml")
