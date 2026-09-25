@@ -25,16 +25,17 @@ set(qrc_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/res/ribbon/ribbon_icon.qrc)
 # #####################################################
 # ================== 源文件清单 ========================
 #
-# 源文件按 doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.3 节的目标库边界分成七个
-# 分区收集。唯一的事实来源是目录结构：文件放进哪个目录就归哪个库。
+# 源文件按 doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.3 节的目标库边界分成八个
+# 分区收集（APPLICATION 是业务工具化第四步新增的，见
+# doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节）。唯一的事实来源是目录结构：文件放进哪个目录就归哪个库。
 #
 # 全部加了 CONFIGURE_DEPENDS：新增或删除源文件时构建系统会自己重新收集，
 # 不会出现「文件建好了但没进构建」（方案 P5）。
 #
-# 阶段 0 里七个分区全部喂给同一个 YiCadCore OBJECT 库，依赖方向尚未由构建
+# 阶段 0 里全部分区喂给同一个 YiCadCore OBJECT 库，依赖方向尚未由构建
 # 系统强制。阶段 3 拆库时发现 RENDER/INTERACTION/UI/APP 四个分区之间存在
 # 真实的双向依赖（见下方各分区注释与 6.7 节），只有 MATH/MODEL/PERSISTENCE
-# 三个分区能拆成三个独立静态库，其余四个分区仍合编进 YiCadCore。
+# 三个分区能拆成三个独立静态库，其余分区仍合编进 YiCadCore。
 # #####################################################
 set(YICAD_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -134,24 +135,33 @@ yicad_collect_sources(RENDER
     src/kernel/view
     src/kernel/printing)
 
-# 对应阶段 3 的 YiCadInteraction。
+# 对应 DS 的 Application/：扩展赖以运行的机制，业务工具化第四步从 kernel/actions/
+# 与 kernel/extension/ 移来（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节）。
+#   src/application/            命令（IExclusiveCommand/BaseExclusiveCommand/
+#                               ExclusiveCommandBus/CommandRegistry、放置命令与先选
+#                               后建的基类）、视图工具框架（IViewTool/ViewToolControl/
+#                               PanZoomTool）、选择层 SelectTool、捕捉器 Snapper、预览
+#   src/application/framework/  进程内扩展框架（IExtension/IExtensionContext/
+#                               IExtensionHost/ExtensionManager），对应 DS 的
+#                               Application/Framework/
+#   src/cmd/                    keyconfig.xml 与命令行别名（Commands）；计划图未列出，
+#                               工具要调用 Commands::checkCommand，归此
 #
-# 计划图未列出 src/cmd/（命令行输入解析），它与 Ribbon 同为命令入口，归此。
-# 阶段 1（视图解耦）与阶段 2（交互层工具化）的改动集中在本分区。
-#
-# src/actions/ 下 106 个具体 Action 里有 40 余个直接包含 UI（对话框、
-# 文件选择器）与 APP（ApplicationWindow/MDIWindow）头文件——这是 Action
-# orchestrate 用户交互的正常需要，但意味着本分区不能反过来独立于 UI/APP
-# 之下。见上方 RENDER 分区说明与 6.7 节。
-#
-# kernel/interaction/ 是交互视图 UIView：继承 RENDER 分区的画布
-# GuiDocumentView，持有 kernel/actions/ 的 ViewToolControl 与各层工具（对应
-# DS 的 View/UIView）。业务工具化第四步 kernel/actions/ 并入这里。
-yicad_collect_sources(INTERACTION
-    src/kernel/actions
-    src/kernel/interaction
-    src/actions
+# 本分区不包含 UI/APP 的头文件，也不包含交互视图 UIView（tools/check_layering.py
+# 检查）：命令与工具只经 IDocumentView/GuiDocumentView 认识视图。
+yicad_collect_sources(APPLICATION
+    src/application
+    src/application/framework
     src/cmd)
+
+# 对应阶段 3 的 YiCadInteraction：交互视图 UIView（kernel/interaction/，对应 DS 的
+# View/UIView），继承 RENDER 分区的画布 GuiDocumentView，装配 APPLICATION 分区的
+# ViewToolControl、各层工具与命令总线。
+#
+# src/actions/ 是尚未拆进扩展的内置命令，业务工具化第四步随后拆进 src/extensions/。
+yicad_collect_sources(INTERACTION
+    src/kernel/interaction
+    src/actions)
 
 # 对应阶段 3 的 YiCadUi。
 #
@@ -171,10 +181,9 @@ yicad_collect_sources(UI
 # 计划图未列出 src/plugin_runtime/，它位于 UI 之上：
 #   plugin_runtime/   引用 UIActionHandler.h、UICommandWidget.h
 #
-# kernel/extension/（IExtension/IExtensionContext/IExtensionHost/
-# ExtensionManager）是进程内扩展框架本身，只依赖前置声明，归入本分区是
-# 因为宿主侧的 IExtensionHost 实现在 ApplicationWindow 里。各扩展的源码
-# 见下方 src/extensions/ 的收集规则。
+# 宿主侧的 IExtensionHost 实现在 ApplicationWindow 里；扩展框架本身在
+# APPLICATION 分区（src/application/framework/），各扩展的源码见下方
+# src/extensions/ 的收集规则。
 #
 # kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
 # getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
@@ -183,7 +192,6 @@ yicad_collect_sources(UI
 # 只是它决定了 Fileio.{h,cpp} 不能编进只应依赖 Model 的 YiCadPersistence。
 yicad_collect_sources(APP
     src/main
-    src/kernel/extension
     src/plugin_runtime
     src/kernel/fileio)
 
@@ -282,12 +290,13 @@ qt5_add_resources(qrc_FILES ${qrc_DIRS})
 # 附加库路径(lib路径)
 find_package(Qt5LinguistTools REQUIRED)
 
-# lupdate 扫描范围：与拆分前保持一致（七个分区的全部源文件，加上 Main.cpp 与 .rc）。
+# lupdate 扫描范围：与拆分前保持一致（各分区的全部源文件，加上 Main.cpp 与 .rc）。
 # src/extensions/ 下的源码不在此列，由各扩展自己的 ts 覆盖（见下方）。
 set (ALL_RSC_FILES ${YICAD_MATH_HEADERS}        ${YICAD_MATH_SOURCES}
                    ${YICAD_MODEL_HEADERS}       ${YICAD_MODEL_SOURCES}
                    ${YICAD_PERSISTENCE_HEADERS} ${YICAD_PERSISTENCE_SOURCES}
                    ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
+                   ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
                    ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
                    ${YICAD_UI_SOURCES}
                    ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
@@ -454,6 +463,7 @@ target_link_libraries(YiCadPersistence PUBLIC YiCadModel)
 # #####################################################
 add_library(YiCadCore OBJECT
     ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
+    ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
     ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
     ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
@@ -469,8 +479,9 @@ target_include_directories(YiCadCore PUBLIC
     # uic 生成的 ui_*.h 落在构建目录
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src/actions
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/application
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/application/framework
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cmd
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/actions
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/fileio
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/interaction
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/view
@@ -478,7 +489,6 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/painters/opengl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/main
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/extension
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_runtime
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms

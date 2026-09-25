@@ -1247,3 +1247,26 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交②验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 250 例）；`check_layering.py` 通过；安装后程序能启动，用户目录下的旧格式
 keyconfig.xml 被改写并备份。
+
+**提交③：目录**
+
+1. **`src/application/`**：`kernel/actions/` 删去旧框架后剩下的 28 个文件移来（命令、命令总线、
+   注册表、放置命令与先选后建的基类、视图工具框架、选择层、捕捉器、预览），对应 DS 的
+   `Application/`；扩展框架（原 `kernel/extension/` 的 6 个文件）移到 `src/application/framework/`，
+   对应 DS 的 `Application/Framework/`。都用 `git mv`；头文件按文件名包含，`#include` 不用改。
+2. **分区**：新增 APPLICATION 分区（`src/application/`、`src/application/framework/`、`src/cmd/`），
+   `src/cmd/` 从 INTERACTION 移来，因为工具要调用 `Commands::checkCommand`；INTERACTION 只剩
+   `kernel/interaction/`（`UIView`）与尚未拆进扩展的 `src/actions/`；APP 去掉扩展框架。include
+   路径与 lupdate 的扫描范围同步。主计划 6.3 节的库结构图补上 `YiCadApplication`。
+3. **分层检查**：`check_layering.py` 的"不得包含 UI 层头文件"从 `src/kernel/` 扩到
+   `src/application/`，白名单改用相对 `YiCAD/src` 的路径。第 6 节第四步第 4 项的新规则在提交⑤加。
+4. **`AGENTS.md`**：目录说明补上 `src/application/` 与扩展框架的新位置。
+
+**与方案的偏差与补充**
+
+1. 第 6 节第四步第 5 项原写"`kernel/actions/` 并入 `kernel/interaction/`"，按本节开头的确认改为
+   与 DS 对齐：机制代码在 `src/application/`，交互视图留在 `kernel/interaction/`，两者分属两个分区。
+2. 代码注释里"原先在 `kernel/actions/`"一类的历史说明保留。
+
+提交③验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 250 例）；`check_layering.py` 通过；安装后程序能启动。

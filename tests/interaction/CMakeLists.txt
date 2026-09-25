@@ -1,6 +1,6 @@
-# tests/interaction —— 对应阶段2引入的交互层工具化
-# （IViewTool / ViewToolControl / PanZoomTool），落在阶段3的 YiCadInteraction
-# 分区（kernel/actions/）。
+# tests/interaction —— 交互层：命令与视图工具的机制（src/application/，含扩展框架
+# src/application/framework/）、keyconfig.xml（src/cmd/）、内置命令与各扩展的命令。
+# 业务工具化第四步之前这些机制在 kernel/actions/。
 
 yicad_add_test(interaction
     SOURCES

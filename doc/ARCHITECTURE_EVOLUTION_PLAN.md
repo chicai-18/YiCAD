@@ -561,7 +561,8 @@ ActionTool` 的转发范围是否要进一步收窄（见"与方案的偏差"表
 flowchart TB
     App["YiCadApp<br/>exe: main/"]
     Ui["YiCadUi<br/>ui/, 49 个 .ui"]
-    Inter["YiCadInteraction<br/>actions/, kernel/actions/,<br/>kernel/interaction/"]
+    Inter["YiCadInteraction<br/>kernel/interaction/"]
+    Appl["YiCadApplication<br/>application/, application/framework/,<br/>cmd/"]
     Render["YiCadRender<br/>kernel/painters/, kernel/view/"]
     Persist["YiCadPersistence<br/>kernel/persistence/, filters/, fileio/"]
     Model["YiCadModel<br/>kernel/builder_model/, data_model/,<br/>history/, modification/, information/"]
@@ -570,8 +571,11 @@ flowchart TB
     App --> Ui
     App --> Inter
     Ui --> Inter
+    Ui --> Appl
+    Inter --> Appl
     Inter --> Render
-    Inter --> Model
+    Appl --> Render
+    Appl --> Model
     Render --> Model
     Persist --> Model
     Model --> Math
@@ -583,6 +587,11 @@ flowchart TB
 > 2026-09-24：`kernel/gui/` 更名 `kernel/view/`；新增 `kernel/interaction/` 放交互视图
 > `UIView`（画布之上装配工具栈），见 `COMMAND_TOOL_MIGRATION_PLAN.md` 9.1 节偏差 7。
 > 本文其余各节的执行记录保留当时的目录名。
+>
+> 2026-09-25：新增 `YiCadApplication`（`application/`、`application/framework/`、`cmd/`），
+> 对应 DS 的 `Application/`：命令与视图工具的机制（原 `kernel/actions/`）与进程内扩展框架
+> （原 `kernel/extension/`）；内置命令（原 `actions/`）拆进扩展，`YiCadInteraction` 只剩交互
+> 视图 `UIView`。见 `COMMAND_TOOL_MIGRATION_PLAN.md` 9.4 节。
 
 `YiCadRender` 在此仅作为一个层次边界存在，本方案**不改动其内部实现**。
 未来的渲染专项将在这个边界内进行，届时不会波及其它库。
