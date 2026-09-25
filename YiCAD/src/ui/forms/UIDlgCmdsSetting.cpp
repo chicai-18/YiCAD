@@ -73,9 +73,9 @@ void UIDlgCmdsSetting::loadDataToUI()
     //设置数据
     for (int i = 0; i < m_data.size(); i++)
     {
-        auto item = m_data.at(i);
-        QString desr = std::get<1>(item);
-        QStringList keys = std::get<2>(item);
+        const CommandKeys& item = m_data.at(i);
+        const QString& desr = item.description;
+        const QStringList& keys = item.keys;
 
         QTableWidgetItem* desrItem = new QTableWidgetItem(desr);
         desrItem->setFlags(desrItem->flags() ^ Qt::ItemIsEditable ^ Qt::ItemIsSelectable);
@@ -106,11 +106,10 @@ void UIDlgCmdsSetting::slotOk()
 {
     for (int i = 0; i < m_data.size(); i++)
     {
-        auto& item = m_data.at(i);
+        CommandKeys& item = m_data.at(i);
         QString keysStr = tblCmds->item(i, 1)->text().trimmed().toLower();
         keysStr.replace(QString::fromLocal8Bit(","), ",");
-        QStringList keys = keysStr.split(",", Qt::SkipEmptyParts);
-        std::get<2>(item) = keys;
+        item.keys = keysStr.split(",", Qt::SkipEmptyParts);
     }
 
     //保存到文件

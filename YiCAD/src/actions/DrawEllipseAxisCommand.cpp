@@ -497,12 +497,12 @@ std::unique_ptr<BasePlaceTool> DrawEllipseAxisCommand::createTool()
 }
 
 const bool g_registeredAxis = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawEllipseAxis, QStringLiteral("draw.ellipse_axis"),
+    QStringLiteral("draw.ellipse_axis"),
     [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand>
     { return std::make_unique<DrawEllipseAxisCommand>(false); });
 
 const bool g_registeredArcAxis = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawEllipseArcAxis, QStringLiteral("draw.ellipse_arc_axis"),
+    QStringLiteral("draw.ellipse_arc_axis"),
     [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand>
     { return std::make_unique<DrawEllipseAxisCommand>(true); });
 }  // namespace

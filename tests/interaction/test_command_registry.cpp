@@ -2,19 +2,15 @@
 /// @brief CommandRegistry 的单测
 ///
 /// 覆盖阶段4第一部分（doc/ARCHITECTURE_EVOLUTION_PLAN.md 7.4节任务①）的核心
-/// 行为：字符串 ID 注册、legacy ActionType 桥接、重复注册被拒绝；以及业务
+/// 行为：字符串 ID 注册、重复注册被拒绝；以及业务
 /// 工具化第二步新增的交互命令、即时命令两类注册（doc/COMMAND_TOOL_MIGRATION_PLAN.md
 /// 第二步第 2 项），第三步新增的临时视图工具注册与即时命令的打断策略。
 /// makeSelectFirstFactory 随先选后建命令的迁移删除，旧版 Action 的注册类型随旧
-/// Action 体系在第四步删除。
+/// Action 体系在第四步删除，DM::ActionType 桥接随 keyconfig.xml 改以命令 ID 为键删除。
 ///
 /// CommandRegistry 是进程范围的单例，同一个测试二进制内的所有用例共享同一份
 /// 注册表状态，且 gtest 不保证跨用例的严格声明顺序（如加 --gtest_shuffle）。
-/// 因此每个用例都用互不相同的字符串 ID；涉及 DM::ActionType 的用例只用原
-/// 153-case switch 从未处理过的枚举值（ActionScriptOpenIDE/ActionScriptRun/
-/// ActionViewDraft）——阶段4后续几批迁移真实 Action 时不会用到它们，不会跟
-/// 这里的注册撞车。"确认没有注册"类断言统一用 DM::ActionNone，它是枚举自带
-/// 的"无效"哨兵，不会被任何真实命令注册。
+/// 因此每个用例都用互不相同的字符串 ID。
 
 #include <gtest/gtest.h>
 
@@ -56,36 +52,10 @@ ViewToolFactory testViewToolFactory()
 }
 }  // namespace
 
-TEST(CommandRegistryTest, legacy桥接按ActionType查到字符串ID)
-{
-    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(DM::ActionScriptOpenIDE, "test.cr.legacy",
-                                                                     testCommandFactory()));
-
-    EXPECT_TRUE(CommandRegistry::instance().hasLegacyMapping(DM::ActionScriptOpenIDE));
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionScriptOpenIDE), QStringLiteral("test.cr.legacy"));
-    EXPECT_EQ(CommandRegistry::instance().kind("test.cr.legacy"), CommandKind::Exclusive);
-
-    // 没有任何东西注册到 ActionNone。
-    EXPECT_FALSE(CommandRegistry::instance().hasLegacyMapping(DM::ActionNone));
-    EXPECT_TRUE(CommandRegistry::instance().commandId(DM::ActionNone).isEmpty());
-}
-
 TEST(CommandRegistryTest, 重复注册同一字符串ID被拒绝)
 {
     ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand("test.cr.dup_id", [](const CommandContext&) {}));
     EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand("test.cr.dup_id", [](const CommandContext&) {}));
-}
-
-TEST(CommandRegistryTest, 重复注册同一legacyActionType被拒绝且不留半成品)
-{
-    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand(DM::ActionScriptRun, "test.cr.dup_legacy_1",
-                                                                     testCommandFactory()));
-    EXPECT_FALSE(CommandRegistry::instance().registerExclusiveCommand(DM::ActionScriptRun, "test.cr.dup_legacy_2",
-                                                                      testCommandFactory()));
-
-    // 第二次调用在校验 legacyType 冲突时就应该短路，不该把
-    // "test.cr.dup_legacy_2" 也注册进字符串表。
-    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.dup_legacy_2"));
 }
 
 TEST(CommandRegistryTest, 别名大小写不敏感并随说明与选项条一起登记)
@@ -118,17 +88,12 @@ TEST(CommandRegistryTest, 别名冲突时整条命令被拒绝且不留半成品
     EXPECT_EQ(CommandRegistry::instance().commandForAlias("crtaken"), QStringLiteral("test.cr.alias_owner"));
 }
 
-TEST(CommandRegistryTest, 注销清除命令别名与legacy桥接)
+TEST(CommandRegistryTest, 注销清除命令与别名)
 {
-    // ActionViewStatusBar 从未被任何内置命令注册（原 switch 里没有它的 case）。
-    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(DM::ActionViewStatusBar, "test.cr.unregister",
-                                                                   [](const CommandContext&) {}));
-    ASSERT_EQ(CommandRegistry::instance().commandId(DM::ActionViewStatusBar), QStringLiteral("test.cr.unregister"));
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand("test.cr.unregister", [](const CommandContext&) {}));
 
     EXPECT_TRUE(CommandRegistry::instance().unregisterCommand("test.cr.unregister"));
     EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.unregister"));
-    EXPECT_FALSE(CommandRegistry::instance().hasLegacyMapping(DM::ActionViewStatusBar));
-    EXPECT_TRUE(CommandRegistry::instance().commandId(DM::ActionViewStatusBar).isEmpty());
     EXPECT_FALSE(CommandRegistry::instance().unregisterCommand("test.cr.unregister"));
 
     ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
@@ -188,37 +153,19 @@ TEST(CommandRegistryTest, 三类命令共用ID与别名空间)
     EXPECT_EQ(CommandRegistry::instance().commandForAlias("crshared"), QStringLiteral("test.cr.shared"));
 }
 
-TEST(CommandRegistryTest, 为交互命令建立legacy桥接并可反查)
-{
-    ASSERT_TRUE(CommandRegistry::instance().registerExclusiveCommand("test.cr.bind", testCommandFactory()));
-    ASSERT_TRUE(CommandRegistry::instance().bindLegacyType(DM::ActionViewLibrary, "test.cr.bind"));
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionViewLibrary), QStringLiteral("test.cr.bind"));
-    EXPECT_EQ(CommandRegistry::instance().legacyType("test.cr.bind"), DM::ActionViewLibrary);
-
-    // 已桥接的枚举、未注册的 ID 都被拒绝
-    EXPECT_FALSE(CommandRegistry::instance().bindLegacyType(DM::ActionViewLibrary, "test.cr.bind"));
-    EXPECT_FALSE(CommandRegistry::instance().bindLegacyType(DM::ActionViewPenToolbar, "test.cr.bind_missing"));
-    EXPECT_EQ(CommandRegistry::instance().legacyType("test.cr.bind_missing"), DM::ActionNone);
-}
-
 TEST(CommandRegistryTest, 迁移后的先选后建命令注册为新类型)
 {
-    // keyconfig.xml 仍以枚举为键，桥接保留到第四步
-    const std::pair<DM::ActionType, const char*> migrated[] = {
-        {DM::ActionModifyMove, "modify.move"},       {DM::ActionModifyCopy, "modify.copy"},
-        {DM::ActionModifyRotate, "modify.rotate"},   {DM::ActionModifyScale, "modify.scale"},
-        {DM::ActionModifyMirror, "modify.mirror"},   {DM::ActionModifyExplode, "modify.explode"},
-        {DM::ActionModifyReverse, "modify.reverse"}, {DM::ActionModifyDelete, "modify.delete"},
-        {DM::ActionEditCopy, "edit.copy"},           {DM::ActionEditCut, "edit.cut"},
-        {DM::ActionCopyToLayer, "modify.copy_to_layer"}, {DM::ActionInfoTotalLength, "info.total_length"},
+    const char* const migrated[] = {
+        "modify.move",    "modify.copy",    "modify.rotate", "modify.scale", "modify.mirror",
+        "modify.explode", "modify.reverse", "modify.delete", "edit.copy",    "edit.cut",
+        "modify.copy_to_layer", "info.total_length",
     };
-    for (const auto& [type, id] : migrated)
+    for (const char* id : migrated)
     {
         SCOPED_TRACE(id);
         EXPECT_EQ(CommandRegistry::instance().kind(id), CommandKind::Exclusive);
-        EXPECT_EQ(CommandRegistry::instance().commandId(type), QString::fromLatin1(id));
         // 原先只供 ActionSelect 选择完成后使用的 _no_select 入口随之删除（删除的除外，见下）
-        if (type != DM::ActionModifyDelete)
+        if (QLatin1String(id) != QLatin1String("modify.delete"))
         {
             EXPECT_FALSE(CommandRegistry::instance().hasCommand(QString::fromLatin1(id) + "_no_select"));
         }
@@ -244,25 +191,6 @@ TEST(CommandRegistryTest, 临时视图工具按ID创建并记录命令ID)
     EXPECT_FALSE(CommandRegistry::instance().registerViewTool("test.cr.null_view_tool", nullptr));
 }
 
-TEST(CommandRegistryTest, 带legacy桥接的即时命令与临时视图工具)
-{
-    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
-        DM::ActionViewBlockList, "test.cr.bridged_instant", [](const CommandContext&) {}));
-    ASSERT_TRUE(CommandRegistry::instance().registerViewTool(
-        DM::ActionViewCommandLine, "test.cr.bridged_view_tool", testViewToolFactory()));
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionViewBlockList), QStringLiteral("test.cr.bridged_instant"));
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionViewCommandLine),
-              QStringLiteral("test.cr.bridged_view_tool"));
-
-    // 已桥接的枚举被拒绝，且不留下注册
-    EXPECT_FALSE(CommandRegistry::instance().registerInstantCommand(
-        DM::ActionViewBlockList, "test.cr.bridged_instant_dup", [](const CommandContext&) {}));
-    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.bridged_instant_dup"));
-    EXPECT_FALSE(CommandRegistry::instance().registerViewTool(
-        DM::ActionViewCommandLine, "test.cr.bridged_view_tool_dup", testViewToolFactory()));
-    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.cr.bridged_view_tool_dup"));
-}
-
 TEST(CommandRegistryTest, 即时命令的打断策略随注册登记)
 {
     ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
@@ -280,18 +208,11 @@ TEST(CommandRegistryTest, 第三步迁移的视图与即时命令注册为新类
 {
     // 平移模式是临时视图工具，不占命令总线
     EXPECT_EQ(CommandRegistry::instance().kind("zoom.pan"), CommandKind::ViewTool);
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionZoomPan), QStringLiteral("zoom.pan"));
 
-    const std::pair<DM::ActionType, const char*> instants[] = {
-        {DM::ActionZoomIn, "zoom.in"},     {DM::ActionZoomOut, "zoom.out"},
-        {DM::ActionEditUndo, "edit.undo"}, {DM::ActionEditRedo, "edit.redo"},
-        {DM::ActionInfoSelected, "info.selected"},
-    };
-    for (const auto& [type, id] : instants)
+    for (const char* id : {"zoom.in", "zoom.out", "edit.undo", "edit.redo", "info.selected"})
     {
         SCOPED_TRACE(id);
         EXPECT_EQ(CommandRegistry::instance().kind(id), CommandKind::Instant);
-        EXPECT_EQ(CommandRegistry::instance().commandId(type), QString::fromLatin1(id));
     }
     // 原视图 Action 不打断任何命令（多行文字编辑中缩放不结束它）；撤销等照旧结束不可打断的
     EXPECT_EQ(CommandRegistry::instance().instantInterrupt("zoom.in"), InstantInterrupt::KeepAll);

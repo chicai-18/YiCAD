@@ -343,6 +343,6 @@ void DrawArcTangentialCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawArcTangential, QStringLiteral("draw.arc_tangential"),
+    QStringLiteral("draw.arc_tangential"),
     exclusiveCommandFactory<DrawArcTangentialCommand>());
 }  // namespace

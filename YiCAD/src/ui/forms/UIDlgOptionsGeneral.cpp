@@ -202,7 +202,7 @@ void UIDlgOptionsGeneral::ok()
 
         UICommandWidget* cmdWidget = ApplicationWindow::getAppWindow()->getCmdWidget();
         QStringList strs;
-        for (auto kv : COMMANDS->getActionCommands())
+        for (const auto& kv : COMMANDS->getKeyCommands())
         {
             strs.append(kv.first);
         }

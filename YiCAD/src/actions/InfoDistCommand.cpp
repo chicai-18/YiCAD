@@ -170,5 +170,5 @@ std::unique_ptr<BasePlaceTool> InfoDistCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionInfoDist, QStringLiteral("info.dist"), exclusiveCommandFactory<InfoDistCommand>());
+    QStringLiteral("info.dist"), exclusiveCommandFactory<InfoDistCommand>());
 }  // namespace

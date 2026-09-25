@@ -457,6 +457,6 @@ std::unique_ptr<BasePlaceTool> DrawLineTangent2Command::createTool()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLineTangent2, QStringLiteral("draw.line_tangent2"),
+    QStringLiteral("draw.line_tangent2"),
     exclusiveCommandFactory<DrawLineTangent2Command>());
 }  // namespace

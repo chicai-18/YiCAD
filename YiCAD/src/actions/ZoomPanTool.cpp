@@ -121,7 +121,7 @@ std::optional<DM::CursorType> ZoomPanTool::getCursor() const
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerViewTool(
-    DM::ActionZoomPan, QStringLiteral("zoom.pan"),
+    QStringLiteral("zoom.pan"),
     [](const CommandContext& ctx) -> std::unique_ptr<TransientViewTool>
     { return std::make_unique<ZoomPanTool>(ctx.view); });
 }  // namespace

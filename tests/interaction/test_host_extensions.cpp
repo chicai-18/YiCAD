@@ -1,7 +1,7 @@
 /// @file test_host_extensions.cpp
 /// @brief 文件、图层、选项扩展（业务工具化第三步第⑤批）的单元测试
 ///
-/// 覆盖：三个扩展注册的即时命令与打断方式、原内置 ID 与枚举桥接不再存在、按钮挂进宿主
+/// 覆盖：三个扩展注册的即时命令与打断方式、原内置 ID 不再存在、按钮挂进宿主
 /// 占位的面板、没有宿主标签页或文档时命令什么也不做、Shutdown 后命令注销；图层下拉框
 /// 每行按钮记着图层名。命令对文档的修改要走事务，默认构造的 DmDocument 走事务会崩溃
 /// （见 CommandTestFixture.h），因此不执行修改。
@@ -75,7 +75,7 @@ TEST(HostExtensionsTest, 注册即时命令文件命令先结束全部命令)
     }
 }
 
-TEST(HostExtensionsTest, 原内置ID与枚举桥接不再存在)
+TEST(HostExtensionsTest, 原内置ID不再存在)
 {
     HostExtensions extensions;
     const CommandRegistry& registry = CommandRegistry::instance();
@@ -85,9 +85,6 @@ TEST(HostExtensionsTest, 原内置ID与枚举桥接不再存在)
         SCOPED_TRACE(id);
         EXPECT_FALSE(registry.hasCommand(id));
     }
-    EXPECT_TRUE(registry.commandId(DM::ActionFileNew).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionLayersFreeze).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionOptionsDrawing).isEmpty());
 }
 
 TEST(HostExtensionsTest, 按钮挂进宿主占位的面板)

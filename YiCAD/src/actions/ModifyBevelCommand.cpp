@@ -614,5 +614,5 @@ void ModifyBevelCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyBevel, QStringLiteral("modify.bevel"), exclusiveCommandFactory<ModifyBevelCommand>());
+    QStringLiteral("modify.bevel"), exclusiveCommandFactory<ModifyBevelCommand>());
 }  // namespace

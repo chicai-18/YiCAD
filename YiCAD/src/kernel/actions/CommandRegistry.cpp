@@ -25,7 +25,7 @@
 #include "IExclusiveCommand.h"
 #include "TransientViewTool.h"
 
-// 注册冲突（重复 ID / 重复 legacy 类型）用返回值报告，不用 assert() 硬中断——
+// 注册冲突（重复 ID / 重复别名）用返回值报告，不用 assert() 硬中断——
 // 这条路径本身就是可测试、可恢复的正常分支（见
 // tests/interaction/test_command_registry.cpp 的"重复注册…被拒绝"用例），
 // 与 PluginRegistry 用返回值而非 assert 报告注册错误的既有约定一致。
@@ -93,12 +93,6 @@ bool CommandRegistry::registerExclusiveCommand(const QString& id, ExclusiveComma
     return addEntry(id, std::move(entry));
 }
 
-bool CommandRegistry::registerExclusiveCommand(DM::ActionType legacyType, const QString& id,
-                                               ExclusiveCommandFactory factory)
-{
-    return addBridged(legacyType, id, [&]() { return registerExclusiveCommand(id, std::move(factory)); });
-}
-
 bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info)
 {
     if (!command)
@@ -110,13 +104,6 @@ bool CommandRegistry::registerInstantCommand(const QString& id, InstantCommand c
     entry.instant = std::move(command);
     entry.info = std::move(info);
     return addEntry(id, std::move(entry));
-}
-
-bool CommandRegistry::registerInstantCommand(DM::ActionType legacyType, const QString& id, InstantCommand command,
-                                             CommandInfo info)
-{
-    return addBridged(legacyType, id,
-                      [&]() { return registerInstantCommand(id, std::move(command), std::move(info)); });
 }
 
 bool CommandRegistry::registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info)
@@ -132,36 +119,6 @@ bool CommandRegistry::registerViewTool(const QString& id, ViewToolFactory factor
     return addEntry(id, std::move(entry));
 }
 
-bool CommandRegistry::registerViewTool(DM::ActionType legacyType, const QString& id, ViewToolFactory factory)
-{
-    return addBridged(legacyType, id, [&]() { return registerViewTool(id, std::move(factory)); });
-}
-
-bool CommandRegistry::bindLegacyType(DM::ActionType legacyType, const QString& id)
-{
-    if (m_legacyBridge.find(legacyType) != m_legacyBridge.end() || !hasCommand(id))
-    {
-        return false;
-    }
-    m_legacyBridge.emplace(legacyType, id);
-    return true;
-}
-
-bool CommandRegistry::addBridged(DM::ActionType legacyType, const QString& id,
-                                 const std::function<bool()>& registerEntry)
-{
-    if (m_legacyBridge.find(legacyType) != m_legacyBridge.end())
-    {
-        return false;
-    }
-    if (!registerEntry())
-    {
-        return false;
-    }
-    m_legacyBridge.emplace(legacyType, id);
-    return true;
-}
-
 bool CommandRegistry::unregisterCommand(const QString& id)
 {
     auto it = m_commands.find(id);
@@ -174,10 +131,6 @@ bool CommandRegistry::unregisterCommand(const QString& id)
         m_aliases.erase(alias);
     }
     m_commands.erase(it);
-    for (auto bridge = m_legacyBridge.begin(); bridge != m_legacyBridge.end();)
-    {
-        bridge = bridge->second == id ? m_legacyBridge.erase(bridge) : std::next(bridge);
-    }
     for (auto editor = m_entityEditors.begin(); editor != m_entityEditors.end();)
     {
         editor = editor->second == id ? m_entityEditors.erase(editor) : std::next(editor);
@@ -210,29 +163,6 @@ CommandKind CommandRegistry::kind(const QString& id) const
 {
     auto it = m_commands.find(id);
     return it == m_commands.end() ? CommandKind::None : it->second.kind;
-}
-
-bool CommandRegistry::hasLegacyMapping(DM::ActionType legacyType) const
-{
-    return m_legacyBridge.find(legacyType) != m_legacyBridge.end();
-}
-
-QString CommandRegistry::commandId(DM::ActionType legacyType) const
-{
-    auto it = m_legacyBridge.find(legacyType);
-    return it == m_legacyBridge.end() ? QString() : it->second;
-}
-
-DM::ActionType CommandRegistry::legacyType(const QString& id) const
-{
-    for (const auto& [type, bridgedId] : m_legacyBridge)
-    {
-        if (bridgedId == id)
-        {
-            return type;
-        }
-    }
-    return DM::ActionNone;
 }
 
 QString CommandRegistry::commandForAlias(const QString& alias) const

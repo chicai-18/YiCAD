@@ -1,7 +1,7 @@
 /// @file test_hatch_extension.cpp
 /// @brief 填充扩展（业务工具化第三步第⑧批）的单元测试
 ///
-/// 覆盖：注册的命令类型与别名、原内置 ID 与枚举桥接不再存在、按钮挂进宿主的"绘图/其他"
+/// 覆盖：注册的命令类型与别名、原内置 ID 不再存在、按钮挂进宿主的"绘图/其他"
 /// 面板（排在插入图片之后）、取消填充对话框时启动失败。区域查找与生成填充要真正的实体
 /// 与事务，不在单测范围内（见 CommandTestFixture.h）。
 
@@ -42,8 +42,6 @@ TEST_F(HatchFixture, 注册为交互命令并带别名)
     {
         EXPECT_FALSE(registry.hasCommand(id)) << id;
     }
-    EXPECT_TRUE(registry.commandId(DM::ActionDrawHatch).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionDrawHatchNoSelect).isEmpty());
 }
 
 TEST_F(HatchFixture, 按钮挂进宿主的其他面板)

@@ -239,6 +239,6 @@ std::unique_ptr<BasePlaceTool> ModifySingleOffsetCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifySingleOffset, QStringLiteral("modify.single_offset"),
+    QStringLiteral("modify.single_offset"),
     exclusiveCommandFactory<ModifySingleOffsetCommand>());
 }  // namespace

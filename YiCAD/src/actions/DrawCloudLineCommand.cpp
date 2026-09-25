@@ -1045,13 +1045,13 @@ std::unique_ptr<BasePlaceTool> DrawCloudLineFreeCommand::createTool()
 namespace
 {
 const bool g_registeredRectangle = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionCloudLineRectangle, QStringLiteral("draw.cloud_line_rectangle"),
+    QStringLiteral("draw.cloud_line_rectangle"),
     exclusiveCommandFactory<DrawCloudLineRectangleCommand>());
 
 const bool g_registeredPolygon = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionCloudLinePolygon, QStringLiteral("draw.cloud_line_polygon"),
+    QStringLiteral("draw.cloud_line_polygon"),
     exclusiveCommandFactory<DrawCloudLinePolygonCommand>());
 
 const bool g_registeredFree = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionCloudLineFree, QStringLiteral("draw.cloud_line_free"), exclusiveCommandFactory<DrawCloudLineFreeCommand>());
+    QStringLiteral("draw.cloud_line_free"), exclusiveCommandFactory<DrawCloudLineFreeCommand>());
 }  // namespace

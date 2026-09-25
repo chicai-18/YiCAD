@@ -106,5 +106,5 @@ std::unique_ptr<BasePlaceTool> ModifyEntityCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyEntity, QStringLiteral("modify.entity"), exclusiveCommandFactory<ModifyEntityCommand>());
+    QStringLiteral("modify.entity"), exclusiveCommandFactory<ModifyEntityCommand>());
 }  // namespace

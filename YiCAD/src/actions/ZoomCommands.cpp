@@ -42,7 +42,7 @@ CommandInfo viewCommandInfo()
 }
 
 const bool g_registeredIn = CommandRegistry::instance().registerInstantCommand(
-    DM::ActionZoomIn, QStringLiteral("zoom.in"),
+    QStringLiteral("zoom.in"),
     [](const CommandContext& ctx)
     {
         if (ctx.view)
@@ -53,7 +53,7 @@ const bool g_registeredIn = CommandRegistry::instance().registerInstantCommand(
     viewCommandInfo());
 
 const bool g_registeredOut = CommandRegistry::instance().registerInstantCommand(
-    DM::ActionZoomOut, QStringLiteral("zoom.out"),
+    QStringLiteral("zoom.out"),
     [](const CommandContext& ctx)
     {
         if (ctx.view)

@@ -13,6 +13,7 @@ yicad_add_test(interaction
         test_select_tool.cpp
         test_command_registry.cpp
         test_command_dispatch.cpp
+        test_keyconfig.cpp
         test_coordinate_input.cpp
         test_exclusive_command_bus.cpp
         test_select_first_commands.cpp
@@ -24,3 +25,7 @@ yicad_add_test(interaction
         test_dim_extension.cpp
         test_ribbon_registry.cpp
     LABELS "interaction;unit")
+
+# test_keyconfig 读源码树里的默认 keyconfig.xml（程序目录下的那份由 cmake --install 复制）
+target_compile_definitions(test_interaction PRIVATE
+    YICAD_DEFAULT_KEYCONFIG="${CMAKE_CURRENT_SOURCE_DIR}/../../YiCAD/support/config/keyconfig.xml")

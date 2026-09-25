@@ -2,7 +2,7 @@
 /// @brief 文字扩展（业务工具化第三步第⑦批）与它用到的内核机制的单元测试
 ///
 /// 覆盖：注册的命令类型、打断方式与别名、多行文字的双击编辑登记（Shutdown 后随命令注销）、
-/// 原内置 ID 与枚举桥接不再存在、按钮挂进宿主占位的"绘图/文字"面板；单行文字取消对话框
+/// 原内置 ID 不再存在、按钮挂进宿主占位的"绘图/文字"面板；单行文字取消对话框
 /// 时启动失败；多行文字拉编辑框的提示与预览（假视图没有画布，进入编辑时直接结束）；
 /// 属性面板不可打断、单击取消选中并结束；选择层双击实体按登记的编辑命令经视图启动，没有
 /// 登记时弹出属性对话框。编辑框本身要真正的画布，不在单测范围内。
@@ -79,16 +79,13 @@ TEST_F(TextFixture, 多行文字登记为双击编辑且Shutdown后注销)
     EXPECT_TRUE(CommandRegistry::instance().entityEditor(DM::EntityMText).isEmpty());
 }
 
-TEST_F(TextFixture, 原内置ID与枚举桥接不再存在)
+TEST_F(TextFixture, 原内置ID不再存在)
 {
     const CommandRegistry& registry = CommandRegistry::instance();
     for (const char* id : {"draw.text", "draw.mtext", "text.style", "select.selection_changed"})
     {
         EXPECT_FALSE(registry.hasCommand(id)) << id;
     }
-    EXPECT_TRUE(registry.commandId(DM::ActionDrawText).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionDrawMText).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionSelectedChanged).isEmpty());
 }
 
 TEST_F(TextFixture, 按钮挂进宿主占位的文字面板)

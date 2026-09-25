@@ -2,187 +2,151 @@
 <groups>
 	<group name="默认">
 		<!--直线-->
-		<item action="ActionDrawLine" description="两点直线" keys="line,li,l"/>
-		<item action="ActionDrawLineRectangle" description="矩形" keys="rectangle, rectang, rect, rec"/>
-		<item action="ActionDrawLineParallel" description="平行线" keys="offset, parallel, o, pa"/>
-		<item action="ActionDrawLineParallelThrough" description="过指定点平行线" keys="ptp, pp"/>
-		<item action="ActionDrawLineBisector" description="角平分线" keys="bisect, bi"/>
-		<item action="ActionDrawLineTangent1" description="切线(点,圆)" keys="tangentpc, tanpc"/>
-		<item action="ActionDrawLineAngle" description="角度画线" keys=""/>
-		<item action="ActionDrawLineHorizontal" description="水平画线" keys="horizontal, hor"/>
-		<item action="ActionDrawLineVertical" description="竖直画线" keys="vertical, ver"/>
-		<item action="ActionDrawLineTangent2" description="切线(圆,圆)" keys=""/>
-		<item action="ActionDrawLineOrthTan" description="正交切线" keys=""/>
-		<item action="ActionDrawLineOrthogonal" description="正交" keys="perp, ortho"/>
-		<item action="ActionDrawLineRelAngle" description="相对角度" keys=""/>
-		<item action="ActionDrawLinePolygonCenCor" description="多边形(中心,角点)" keys=""/>
-		<item action="ActionDrawLinePolygonCenTan" description="多边形(中心,切线)" keys=""/>
-		<item action="ActionDrawLinePolygonCorCor" description="多边形(角点,角点)" keys="polygon2v, poly2"/>
-		<item action="ActionDrawRay" description="射线" keys=""/>
-		<item action="ActionDrawXline" description="构造线" keys=""/>
+		<item command="draw.line" description="两点直线" keys="line,li,l"/>
+		<item command="draw.line_rectangle" description="矩形" keys="rectangle, rectang, rect, rec"/>
+		<item command="draw.line_bisector" description="角平分线" keys="bisect, bi"/>
+		<item command="draw.line_tangent1" description="切线(点,圆)" keys="tangentpc, tanpc"/>
+		<item command="draw.line_tangent2" description="切线(圆,圆)" keys=""/>
+		<item command="draw.line_orth_tan" description="正交切线" keys=""/>
+		<item command="draw.line_polygon_cen_cor" description="多边形(中心,角点)" keys=""/>
+		<item command="draw.line_polygon_cen_tan" description="多边形(中心,切线)" keys=""/>
+		<item command="draw.ray" description="射线" keys=""/>
+		<item command="draw.xline" description="构造线" keys=""/>
 		
 		<!--曲线-->
-		<item action="ActionDrawArc" description="圆弧(圆心,半径)" keys=""/>
-		<item action="ActionDrawArc3P" description="圆弧(三点)" keys="arc, a"/>
-		<item action="ActionDrawArcTangential" description="相切弧" keys=""/>
-		<item action="ActionDrawSpline" description="控制点样条线" keys="spline, spl"/>
-		<item action="ActionDrawSplinePoints" description="过点样条" keys="spline2, stp"/>
-		<item action="ActionDrawLineFree" description="徒手绘线" keys="free, fhl"/>
+		<item command="draw.arc" description="圆弧(圆心,半径)" keys=""/>
+		<item command="draw.arc_3p" description="圆弧(三点)" keys="arc, a"/>
+		<item command="draw.arc_tangential" description="相切弧" keys=""/>
+		<item command="draw.spline" description="控制点样条线" keys="spline, spl"/>
+		<item command="draw.spline_points" description="过点样条" keys="spline2, stp"/>
+		<item command="draw.line_free" description="徒手绘线" keys="free, fhl"/>
 		
 		<!--多段线-->
-		<item action="ActionDrawPolyline" description="多段线" keys="polyline, pl"/>
-		<item action="ActionPolylineAdd" description="添加顶点" keys=""/>
-		<item action="ActionPolylineAppend" description="追加顶点" keys=""/>
-		<item action="ActionPolylineDel" description="删除顶点" keys=""/>
-		<item action="ActionPolylineDelBetween" description="删除两顶点间的顶点" keys=""/>
-		<item action="ActionCloudLineRectangle" description="矩形云线" keys=""/>
-		<item action="ActionCloudLinePolygon" description="多边形云线" keys=""/>
-		<item action="ActionCloudLineFree" description="自由绘制云线" keys=""/>
+		<item command="draw.polyline" description="多段线" keys="polyline, pl"/>
+		<item command="polyline.add" description="添加顶点" keys=""/>
+		<item command="polyline.append" description="追加顶点" keys=""/>
+		<item command="polyline.del" description="删除顶点" keys=""/>
+		<item command="draw.cloud_line_rectangle" description="矩形云线" keys=""/>
+		<item command="draw.cloud_line_polygon" description="多边形云线" keys=""/>
+		<item command="draw.cloud_line_free" description="自由绘制云线" keys=""/>
 		
 		<!--圆-->
-		<item action="ActionDrawCircle" description="圆心,点" keys="circle, c"/>
-		<item action="ActionDrawCircle2P" description="两点" keys="circle2, c2"/>
-		<item action="ActionDrawCircle3P" description="三点" keys="circle3, c3"/>
-		<item action="ActionDrawCircleTan2_1P" description="相切两圆,一点" keys=""/>
-		<item action="ActionDrawCircleTan1_2P" description="相切,两点" keys=""/>
-		<item action="ActionDrawCircleTan2" description="相切两圆,半径" keys=""/>
-		<item action="ActionDrawCircleTan3" description="相切,三圆" keys="tan3, ct3"/>
+		<item command="draw.circle" description="圆心,点" keys="circle, c"/>
+		<item command="draw.circle_2p" description="两点" keys="circle2, c2"/>
+		<item command="draw.circle_3p" description="三点" keys="circle3, c3"/>
+		<item command="draw.circle_tan2" description="相切两圆,半径" keys=""/>
+		<item command="draw.circle_tan3" description="相切,三圆" keys="tan3, ct3"/>
 		
 		<!--椭圆-->
-		<item action="ActionDrawEllipseAxis" description="椭圆(轴)" keys=""/>
-		<item action="ActionDrawEllipseInscribe" description="内切椭圆" keys="ellipseinscribed, ei, ie"/>
+		<item command="draw.ellipse_axis" description="椭圆(轴)" keys=""/>
+		<item command="draw.ellipse_inscribe" description="内切椭圆" keys="ellipseinscribed, ei, ie"/>
 		
 		<!--文字-->
-		<item action="ActionModifyExplodeText" description="分解文字" keys=""/>
 		
 		<!--其他-->
-		<item action="ActionDrawImage" description="插入图片" keys=""/>
+		<item command="draw.image" description="插入图片" keys=""/>
 		
 		<!--修改-->
-		<item action="ActionModifyMove" description="复制" keys="move, mv "/>
-		<item action="ActionModifyRotate" description="旋转" keys="rotate, ro"/>
-		<item action="ActionModifyScale" description="缩放" keys="scale, sz"/>
-		<item action="ActionModifyMirror" description="镜像" keys="mirror, mi"/>
-		<item action="ActionModifyMoveRotate" description="移动并旋转" keys=""/>
-		<item action="ActionModifyRevertDirection" description="反转" keys="revert, rev"/>
-		<item action="ActionModifyTrim" description="修剪" keys="trim, tm"/>
-		<item action="ActionModifyExtend" description="延长" keys=""/>
-		<item action="ActionModifySingleOffset" description="偏移" keys=""/>
-		<item action="ActionModifyBevel" description="倒角" keys="bevel, bev, ch"/>
-		<item action="ActionModifyRound" description="圆角" keys="fillet, fi"/>
-		<item action="ActionModifyCut" description="打断" keys="divide, cut, div, di"/>
-		<item action="ActionModifyCut2P" description="两点打断" keys=""/>
-		<item action="ActionModifyStretch" description="拉伸" keys="stretch, ss"/>
-		<item action="ActionModifyEntity" description="特性" keys="properties, prop, mp"/>
-		<item action="ActionModifyReverse" description="反向" keys="reverse"/>
-		<item action="ActionBlocksExplode" description="分解" keys="explode, xp"/>
+		<item command="modify.move" description="复制" keys="move, mv "/>
+		<item command="modify.rotate" description="旋转" keys="rotate, ro"/>
+		<item command="modify.scale" description="缩放" keys="scale, sz"/>
+		<item command="modify.mirror" description="镜像" keys="mirror, mi"/>
+		<item command="modify.trim" description="修剪" keys="trim, tm"/>
+		<item command="modify.extend" description="延长" keys=""/>
+		<item command="modify.single_offset" description="偏移" keys=""/>
+		<item command="modify.bevel" description="倒角" keys="bevel, bev, ch"/>
+		<item command="modify.round" description="圆角" keys="fillet, fi"/>
+		<item command="modify.cut" description="打断" keys="divide, cut, div, di"/>
+		<item command="modify.cut_2p" description="两点打断" keys=""/>
+		<item command="modify.entity" description="特性" keys="properties, prop, mp"/>
+		<item command="modify.reverse" description="反向" keys="reverse"/>
 		
 		<!--测量-->
-		<item action="ActionInfoDist" description="点到点距离" keys="distance, dist, dpp"/>
-		<item action="ActionInfoDist2" description="实体到点距离" keys=""/>
-		<item action="ActionInfoAngle" description="两直线夹角" keys="angle, ang"/>
-		<item action="ActionInfoTotalLength" description="选中实体总长" keys=""/>
-		<item action="ActionInfoArea" description="多边形面积" keys="area, ar"/>
-		<item action="ActionInfoSelected" description="查看选择实体信息" keys="info"/>
+		<item command="info.dist" description="点到点距离" keys="distance, dist, dpp"/>
+		<item command="info.angle" description="两直线夹角" keys="angle, ang"/>
+		<item command="info.total_length" description="选中实体总长" keys=""/>
+		<item command="info.area" description="多边形面积" keys="area, ar"/>
+		<item command="info.selected" description="查看选择实体信息" keys="info"/>
 		
 		<!--图块-->
 		
 		<!--设置-->
 		
 		<!--矩形阵列-->
-		<item action="ActionArrayRect" description="矩形阵列" keys="arrayrect, ar"/>
 	</group>
 	<group name="拼音简写">
 		<!--直线-->
-		<item action="ActionDrawLine" description="两点直线" keys="zx, z"/>
-		<item action="ActionDrawLineRectangle" description="矩形" keys="jx"/>
-		<item action="ActionDrawLineParallel" description="平行线" keys="pxx, px"/>
-		<item action="ActionDrawLineParallelThrough" description="过指定点平行线" keys="gdpxx, gdpx"/>
-		<item action="ActionDrawLineBisector" description="角平分线" keys="jpfx, jpf"/>
-		<item action="ActionDrawLineTangent1" description="切线(点,圆)" keys="qx"/>
-		<item action="ActionDrawLineAngle" description="角度画线" keys="jdx"/>
-		<item action="ActionDrawLineHorizontal" description="水平画线" keys="spx, sp"/>
-		<item action="ActionDrawLineVertical" description="竖直画线" keys="szx, sz"/>
-		<item action="ActionDrawLineTangent2" description="切线(圆,圆)" keys="qxyy"/>
-		<item action="ActionDrawLineOrthTan" description="正交切线" keys="zjqx"/>
-		<item action="ActionDrawLineOrthogonal" description="正交" keys="zj"/>
-		<item action="ActionDrawLineRelAngle" description="相对角度" keys="xdjd"/>
-		<item action="ActionDrawLinePolygonCenCor" description="多边形(中心,角点)" keys=""/>
-		<item action="ActionDrawLinePolygonCenTan" description="多边形(中心,切线)" keys=""/>
-		<item action="ActionDrawLinePolygonCorCor" description="多边形(角点,角点)" keys="dbx"/>
-		<item action="ActionDrawRay" description="射线" keys="sx"/>
-		<item action="ActionDrawXline" description="构造线" keys="gzx, gz"/>
+		<item command="draw.line" description="两点直线" keys="zx, z"/>
+		<item command="draw.line_rectangle" description="矩形" keys="jx"/>
+		<item command="draw.line_bisector" description="角平分线" keys="jpfx, jpf"/>
+		<item command="draw.line_tangent1" description="切线(点,圆)" keys="qx"/>
+		<item command="draw.line_tangent2" description="切线(圆,圆)" keys="qxyy"/>
+		<item command="draw.line_orth_tan" description="正交切线" keys="zjqx"/>
+		<item command="draw.line_polygon_cen_cor" description="多边形(中心,角点)" keys=""/>
+		<item command="draw.line_polygon_cen_tan" description="多边形(中心,切线)" keys=""/>
+		<item command="draw.ray" description="射线" keys="sx"/>
+		<item command="draw.xline" description="构造线" keys="gzx, gz"/>
 		
 		<!--曲线-->
-		<item action="ActionDrawArc" description="圆弧(圆心,半径)" keys=""/>
-		<item action="ActionDrawArc3P" description="圆弧(三点)" keys="yh, h"/>
-		<item action="ActionDrawArcTangential" description="相切弧" keys="xqh"/>
-		<item action="ActionDrawSpline" description="控制点样条线" keys="kzyt"/>
-		<item action="ActionDrawSplinePoints" description="过点样条" keys="gdyt"/>
-		<item action="ActionDrawLineFree" description="徒手绘线" keys="tshx"/>
+		<item command="draw.arc" description="圆弧(圆心,半径)" keys=""/>
+		<item command="draw.arc_3p" description="圆弧(三点)" keys="yh, h"/>
+		<item command="draw.arc_tangential" description="相切弧" keys="xqh"/>
+		<item command="draw.spline" description="控制点样条线" keys="kzyt"/>
+		<item command="draw.spline_points" description="过点样条" keys="gdyt"/>
+		<item command="draw.line_free" description="徒手绘线" keys="tshx"/>
 		
 		<!--多段线-->
-		<item action="ActionDrawPolyline" description="多段线" keys="ddx"/>
-		<item action="ActionPolylineAdd" description="添加顶点" keys=""/>
-		<item action="ActionPolylineAppend" description="追加顶点" keys=""/>
-		<item action="ActionPolylineDel" description="删除顶点" keys=""/>
-		<item action="ActionPolylineDelBetween" description="删除两顶点间的顶点" keys=""/>
-		<item action="ActionCloudLineRectangle" description="矩形云线" keys="jxyx"/>
-		<item action="ActionCloudLinePolygon" description="多边形云线" keys="dbxyx"/>
-		<item action="ActionCloudLineFree" description="自由绘制云线" keys="zyyx"/>
+		<item command="draw.polyline" description="多段线" keys="ddx"/>
+		<item command="polyline.add" description="添加顶点" keys=""/>
+		<item command="polyline.append" description="追加顶点" keys=""/>
+		<item command="polyline.del" description="删除顶点" keys=""/>
+		<item command="draw.cloud_line_rectangle" description="矩形云线" keys="jxyx"/>
+		<item command="draw.cloud_line_polygon" description="多边形云线" keys="dbxyx"/>
+		<item command="draw.cloud_line_free" description="自由绘制云线" keys="zyyx"/>
 		
 		<!--圆-->
-		<item action="ActionDrawCircle" description="圆心,点" keys="y, yuan"/>
-		<item action="ActionDrawCircle2P" description="两点" keys="ldy"/>
-		<item action="ActionDrawCircle3P" description="三点" keys="sdy"/>
-		<item action="ActionDrawCircleTan2_1P" description="相切两圆,一点" keys=""/>
-		<item action="ActionDrawCircleTan1_2P" description="相切,两点" keys=""/>
-		<item action="ActionDrawCircleTan2" description="相切两圆,半径" keys=""/>
-		<item action="ActionDrawCircleTan3" description="相切,三圆" keys="xqsy"/>
+		<item command="draw.circle" description="圆心,点" keys="y, yuan"/>
+		<item command="draw.circle_2p" description="两点" keys="ldy"/>
+		<item command="draw.circle_3p" description="三点" keys="sdy"/>
+		<item command="draw.circle_tan2" description="相切两圆,半径" keys=""/>
+		<item command="draw.circle_tan3" description="相切,三圆" keys="xqsy"/>
 		
 		<!--椭圆-->
-		<item action="ActionDrawEllipseAxis" description="椭圆(轴)" keys="ty"/>
-		<item action="ActionDrawEllipseInscribe" description="内切椭圆" keys="nqty"/>
+		<item command="draw.ellipse_axis" description="椭圆(轴)" keys="ty"/>
+		<item command="draw.ellipse_inscribe" description="内切椭圆" keys="nqty"/>
 		
 		<!--文字-->
-		<item action="ActionModifyExplodeText" description="分解文字" keys="fjwz"/>
 		
 		<!--其他-->
-		<item action="ActionDrawImage" description="插入图片" keys="tp"/>
+		<item command="draw.image" description="插入图片" keys="tp"/>
 		
 		<!--修改-->
-		<item action="ActionModifyMove" description="复制" keys="fz"/>
-		<item action="ActionModifyRotate" description="旋转" keys="xz"/>
-		<item action="ActionModifyScale" description="缩放" keys="sf"/>
-		<item action="ActionModifyMirror" description="镜像" keys="jx"/>
-		<item action="ActionModifyMoveRotate" description="移动并旋转" keys=""/>
-		<item action="ActionModifyRevertDirection" description="反转" keys="fz"/>
-		<item action="ActionModifyTrim" description="修剪" keys="xz"/>
-		<item action="ActionModifyExtend" description="延长" keys="yc"/>
-		<item action="ActionModifySingleOffset" description="偏移" keys="py"/>
-		<item action="ActionModifyBevel" description="倒角" keys="dj"/>
-		<item action="ActionModifyRound" description="圆角" keys="yj"/>
-		<item action="ActionModifyCut" description="打断" keys="dd"/>
-		<item action="ActionModifyCut2P" description="两点打断" keys="lddd"/>
-		<item action="ActionModifyStretch" description="拉伸" keys="ls"/>
-		<item action="ActionModifyEntity" description="特性" keys="tx"/>
-		<item action="ActionModifyReverse" description="反向" keys="fx"/>
-		<item action="ActionBlocksExplode" description="分解" keys="fj"/>
+		<item command="modify.move" description="复制" keys="fz"/>
+		<item command="modify.rotate" description="旋转" keys="xz"/>
+		<item command="modify.scale" description="缩放" keys="sf"/>
+		<item command="modify.mirror" description="镜像" keys="jx"/>
+		<item command="modify.trim" description="修剪" keys="xz"/>
+		<item command="modify.extend" description="延长" keys="yc"/>
+		<item command="modify.single_offset" description="偏移" keys="py"/>
+		<item command="modify.bevel" description="倒角" keys="dj"/>
+		<item command="modify.round" description="圆角" keys="yj"/>
+		<item command="modify.cut" description="打断" keys="dd"/>
+		<item command="modify.cut_2p" description="两点打断" keys="lddd"/>
+		<item command="modify.entity" description="特性" keys="tx"/>
+		<item command="modify.reverse" description="反向" keys="fx"/>
 		
 		<!--测量-->
-		<item action="ActionInfoDist" description="点到点距离" keys="jl"/>
-		<item action="ActionInfoDist2" description="实体到点距离" keys=""/>
-		<item action="ActionInfoAngle" description="两直线夹角" keys="jj"/>
-		<item action="ActionInfoTotalLength" description="选中实体总长" keys=""/>
-		<item action="ActionInfoArea" description="多边形面积" keys="mj"/>
-		<item action="ActionInfoSelected" description="查看选择实体信息" keys="ck"/>
+		<item command="info.dist" description="点到点距离" keys="jl"/>
+		<item command="info.angle" description="两直线夹角" keys="jj"/>
+		<item command="info.total_length" description="选中实体总长" keys=""/>
+		<item command="info.area" description="多边形面积" keys="mj"/>
+		<item command="info.selected" description="查看选择实体信息" keys="ck"/>
 		
 		<!--图块-->
 		
 		<!--设置-->
 		
 		<!--矩形阵列-->
-		<item action="ActionArrayRect" description="矩形阵列" keys="jz"/>
 	</group>
 </groups>
 

@@ -323,5 +323,5 @@ bool ModifyExplodeCommand::explodeMTextIntoLetters(DmMText* text, std::vector<Dm
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyExplode, QStringLiteral("modify.explode"), exclusiveCommandFactory<ModifyExplodeCommand>());
+    QStringLiteral("modify.explode"), exclusiveCommandFactory<ModifyExplodeCommand>());
 }  // namespace

@@ -197,5 +197,5 @@ void ModifyMoveCommand::commitMove(const DmVector& reference, const DmVector& ta
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyMove, QStringLiteral("modify.move"), exclusiveCommandFactory<ModifyMoveCommand>());
+    QStringLiteral("modify.move"), exclusiveCommandFactory<ModifyMoveCommand>());
 }  // namespace

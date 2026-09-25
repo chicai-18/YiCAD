@@ -210,6 +210,6 @@ std::unique_ptr<BasePlaceTool> DrawLineRectangleCommand::createTool()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLineRectangle, QStringLiteral("draw.line_rectangle"),
+    QStringLiteral("draw.line_rectangle"),
     exclusiveCommandFactory<DrawLineRectangleCommand>());
 }  // namespace

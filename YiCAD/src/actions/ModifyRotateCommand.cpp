@@ -209,5 +209,5 @@ void ModifyRotateCommand::commitRotate(const DmVector& center, double angle)
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyRotate, QStringLiteral("modify.rotate"), exclusiveCommandFactory<ModifyRotateCommand>());
+    QStringLiteral("modify.rotate"), exclusiveCommandFactory<ModifyRotateCommand>());
 }  // namespace

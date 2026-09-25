@@ -628,11 +628,11 @@ std::unique_ptr<BasePlaceTool> DrawCircle3PCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawCircle, QStringLiteral("draw.circle"), exclusiveCommandFactory<DrawCircleCommand>());
+    QStringLiteral("draw.circle"), exclusiveCommandFactory<DrawCircleCommand>());
 
 const bool g_registered2P = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawCircle2P, QStringLiteral("draw.circle_2p"), exclusiveCommandFactory<DrawCircle2PCommand>());
+    QStringLiteral("draw.circle_2p"), exclusiveCommandFactory<DrawCircle2PCommand>());
 
 const bool g_registered3P = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawCircle3P, QStringLiteral("draw.circle_3p"), exclusiveCommandFactory<DrawCircle3PCommand>());
+    QStringLiteral("draw.circle_3p"), exclusiveCommandFactory<DrawCircle3PCommand>());
 }  // namespace

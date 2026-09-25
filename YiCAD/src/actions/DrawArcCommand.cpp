@@ -587,8 +587,8 @@ std::unique_ptr<BasePlaceTool> DrawArc3PCommand::createTool()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawArc, QStringLiteral("draw.arc"), exclusiveCommandFactory<DrawArcCommand>());
+    QStringLiteral("draw.arc"), exclusiveCommandFactory<DrawArcCommand>());
 
 const bool g_registered3P = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawArc3P, QStringLiteral("draw.arc_3p"), exclusiveCommandFactory<DrawArc3PCommand>());
+    QStringLiteral("draw.arc_3p"), exclusiveCommandFactory<DrawArc3PCommand>());
 }  // namespace

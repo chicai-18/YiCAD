@@ -48,10 +48,10 @@ void EditUndoCommand::run(DmDocument* doc, bool undo)
 namespace
 {
 const bool g_registeredUndo = CommandRegistry::instance().registerInstantCommand(
-    DM::ActionEditUndo, QStringLiteral("edit.undo"),
+    QStringLiteral("edit.undo"),
     [](const CommandContext& ctx) { EditUndoCommand::run(ctx.document, true); });
 
 const bool g_registeredRedo = CommandRegistry::instance().registerInstantCommand(
-    DM::ActionEditRedo, QStringLiteral("edit.redo"),
+    QStringLiteral("edit.redo"),
     [](const CommandContext& ctx) { EditUndoCommand::run(ctx.document, false); });
 }  // namespace

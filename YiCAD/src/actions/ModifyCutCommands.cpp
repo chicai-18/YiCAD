@@ -433,8 +433,8 @@ std::unique_ptr<BasePlaceTool> ModifyCut2PCommand::createTool()
 }
 
 const bool g_registeredCut = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyCut, QStringLiteral("modify.cut"), exclusiveCommandFactory<ModifyCutCommand>());
+    QStringLiteral("modify.cut"), exclusiveCommandFactory<ModifyCutCommand>());
 
 const bool g_registeredCut2P = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyCut2P, QStringLiteral("modify.cut_2p"), exclusiveCommandFactory<ModifyCut2PCommand>());
+    QStringLiteral("modify.cut_2p"), exclusiveCommandFactory<ModifyCut2PCommand>());
 }  // namespace

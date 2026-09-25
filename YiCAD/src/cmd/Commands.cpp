@@ -36,9 +36,45 @@ const char* Commands::FnPrefix = "Fn";
 const char* Commands::AltPrefix = "Alt-";
 const char* Commands::MetaPrefix = "Meta-";
 
-bool Commands::g_strActMapInilized = false;
-std::map<QString, DM::ActionType> Commands::m_strActMap;
-std::map<DM::ActionType, QString> Commands::m_actStrMap;
+namespace
+{
+/// @brief 旧格式里一条的属性名
+const char* const kLegacyAttribute = "action";
+/// @brief 新格式里一条的属性名
+const char* const kCommandAttribute = "command";
+
+/// @brief 读取 XML 配置文件
+/// @return 文件不存在或打不开时返回空文档
+QDomDocument readDocument(const QString& file)
+{
+    QFile f(file);
+    if (!f.exists() || !f.open(QIODevice::ReadOnly))
+    {
+        return QDomDocument();
+    }
+    QDomDocument doc(file);
+    doc.setContent(&f);
+    f.close();
+    return doc;
+}
+
+/// @brief 一条的命令 ID：新格式直接取 command 属性，旧格式按原映射表转换
+/// @return 注释节点、没有命令属性或旧格式里没有对应命令时返回空串
+QString itemCommandId(const QDomNode& item)
+{
+    if (item.isComment())
+    {
+        return QString();
+    }
+    const QString command = item.attributes().namedItem(kCommandAttribute).nodeValue();
+    if (!command.isEmpty())
+    {
+        return command;
+    }
+    const QString action = item.attributes().namedItem(kLegacyAttribute).nodeValue();
+    return action.isEmpty() ? QString() : Commands::legacyCommandId(action);
+}
+}  // namespace
 
 /// @brief 获取命令管理器单例实例
 /// @return 唯一实例指针
@@ -59,7 +95,6 @@ Commands::Commands()
     m_strUserConfig = QDir::cleanPath(
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
         + QDir::separator() + "keyconfig.xml");
-    initStrActionMap();
     load();
 }
 
@@ -68,197 +103,138 @@ Commands::~Commands()
 {
 }
 
-/// @brief 初始化字符串到ActionType的静态映射表
-void Commands::initStrActionMap()
+QString Commands::legacyCommandId(const QString& actionName)
 {
-    if (g_strActMapInilized)
-    {
-        return;
-    }
-    g_strActMapInilized = true;
+    // 原 Commands::initStrActionMap() 登记的枚举名，逐个对到现在的命令 ID。原映射表
+    // 里有、但一直没有实现的（ActionFileExport/Print/Quit、ActionView*、ActionSelect*、
+    // 椭圆的另三种画法、ActionScript* 等）不在这里，转换时丢弃；已搬进扩展的命令对到
+    // 扩展的 ID。*NoSelect 是原先先选后建命令"已有选择集"的入口，现在与原命令合一。
+    static const std::map<QString, QString> table = {
+        {"ActionFileNew", "ext.file.new"},
+        {"ActionFileOpen", "ext.file.open"},
+        {"ActionFileSave", "ext.file.save"},
+        {"ActionFileSaveAs", "ext.file.save_as"},
 
-    // 全部DM::ActionType的翻译映射
-    m_strActMap["ActionNone"] = DM::ActionNone;
-    m_strActMap["ActionDefault"] = DM::ActionDefault;
+        {"ActionEditKillAllActions", "edit.kill_all"},
+        {"ActionEditUndo", "edit.undo"},
+        {"ActionEditRedo", "edit.redo"},
+        {"ActionEditCut", "edit.cut"},
+        {"ActionEditCutNoSelect", "edit.cut"},
+        {"ActionEditCopy", "edit.copy"},
+        {"ActionEditCopyNoSelect", "edit.copy"},
+        {"ActionEditPaste", "edit.paste"},
 
-    m_strActMap["ActionFileNew"] = DM::ActionFileNew;
-    m_strActMap["ActionFileOpen"] = DM::ActionFileOpen;
-    m_strActMap["ActionFileSave"] = DM::ActionFileSave;
-    m_strActMap["ActionFileSaveAs"] = DM::ActionFileSaveAs;
-    m_strActMap["ActionFileExport"] = DM::ActionFileExport;
-    m_strActMap["ActionFileClose"] = DM::ActionFileClose;
-    m_strActMap["ActionFilePrint"] = DM::ActionFilePrint;
-    m_strActMap["ActionFilePrintPDF"] = DM::ActionFilePrintPDF;
-    m_strActMap["ActionFilePrintPreview"] = DM::ActionFilePrintPreview;
+        {"ActionZoomIn", "zoom.in"},
+        {"ActionZoomOut", "zoom.out"},
+        {"ActionZoomPan", "zoom.pan"},
 
-    m_strActMap["ActionFileQuit"] = DM::ActionFileQuit;
+        {"ActionDrawArc", "draw.arc"},
+        {"ActionDrawArc3P", "draw.arc_3p"},
+        {"ActionDrawArcTangential", "draw.arc_tangential"},
+        {"ActionDrawCircle", "draw.circle"},
+        {"ActionDrawCircle2P", "draw.circle_2p"},
+        {"ActionDrawCircle3P", "draw.circle_3p"},
+        {"ActionDrawCircleTan2", "draw.circle_tan2"},
+        {"ActionDrawCircleTan3", "draw.circle_tan3"},
+        {"ActionDrawEllipseArcAxis", "draw.ellipse_arc_axis"},
+        {"ActionDrawEllipseAxis", "draw.ellipse_axis"},
+        {"ActionDrawEllipseInscribe", "draw.ellipse_inscribe"},
+        {"ActionDrawHatch", "ext.hatch.draw"},
+        {"ActionDrawHatchNoSelect", "ext.hatch.draw"},
+        {"ActionDrawImage", "draw.image"},
+        {"ActionDrawLine", "draw.line"},
+        {"ActionDrawLineBisector", "draw.line_bisector"},
+        {"ActionDrawLineFree", "draw.line_free"},
+        {"ActionDrawLineOrthTan", "draw.line_orth_tan"},
+        {"ActionDrawLinePolygonCenCor", "draw.line_polygon_cen_cor"},
+        {"ActionDrawLinePolygonCenTan", "draw.line_polygon_cen_tan"},
+        {"ActionDrawLineRectangle", "draw.line_rectangle"},
+        {"ActionDrawLineTangent1", "draw.line_tangent1"},
+        {"ActionDrawLineTangent2", "draw.line_tangent2"},
+        {"ActionDrawMText", "ext.text.mtext"},
+        {"ActionDrawPoint", "draw.point"},
+        {"ActionDrawRay", "draw.ray"},
+        {"ActionDrawSpline", "draw.spline"},
+        {"ActionDrawSplinePoints", "draw.spline_points"},
+        {"ActionDrawPolyline", "draw.polyline"},
+        {"ActionDrawText", "ext.text.draw"},
+        {"ActionDrawXline", "draw.xline"},
 
-    m_strActMap["ActionEditKillAllActions"] = DM::ActionEditKillAllActions;
-    m_strActMap["ActionEditUndo"] = DM::ActionEditUndo;
-    m_strActMap["ActionEditRedo"] = DM::ActionEditRedo;
-    m_strActMap["ActionEditCut"] = DM::ActionEditCut;
-    m_strActMap["ActionEditCutNoSelect"] = DM::ActionEditCutNoSelect;
-    m_strActMap["ActionEditCopy"] = DM::ActionEditCopy;
-    m_strActMap["ActionEditCopyNoSelect"] = DM::ActionEditCopyNoSelect;
-    m_strActMap["ActionEditPaste"] = DM::ActionEditPaste;
+        {"ActionPolylineAdd", "polyline.add"},
+        {"ActionPolylineAppend", "polyline.append"},
+        {"ActionPolylineDel", "polyline.del"},
+        {"ActionCloudLineRectangle", "draw.cloud_line_rectangle"},
+        {"ActionCloudLinePolygon", "draw.cloud_line_polygon"},
+        {"ActionCloudLineFree", "draw.cloud_line_free"},
 
-    m_strActMap["ActionViewStatusBar"] = DM::ActionViewStatusBar;
-    m_strActMap["ActionViewLayerTable"] = DM::ActionViewLayerTable;
-    m_strActMap["ActionViewBlockList"] = DM::ActionViewBlockList;
-    m_strActMap["ActionViewCommandLine"] = DM::ActionViewCommandLine;
-    m_strActMap["ActionViewLibrary"] = DM::ActionViewLibrary;
+        {"ActionDimAligned", "ext.dim.aligned"},
+        {"ActionDimLinear", "ext.dim.linear"},
+        {"ActionDimRadial", "ext.dim.radial"},
+        {"ActionDimDiametric", "ext.dim.diametric"},
+        {"ActionDimAngular", "ext.dim.angular"},
+        {"ActionDimLeader", "ext.dim.leader"},
 
-    m_strActMap["ActionViewPenToolbar"] = DM::ActionViewPenToolbar;
-    m_strActMap["ActionViewOptionToolbar"] = DM::ActionViewOptionToolbar;
-    m_strActMap["ActionViewCadToolbar"] = DM::ActionViewCadToolbar;
-    m_strActMap["ActionViewFileToolbar"] = DM::ActionViewFileToolbar;
-    m_strActMap["ActionViewEditToolbar"] = DM::ActionViewEditToolbar;
-    m_strActMap["ActionViewSnapToolbar"] = DM::ActionViewSnapToolbar;
+        {"ActionModifyDelete", "modify.delete"},
+        {"ActionModifyDeleteNoSelect", "modify.delete_no_select"},
+        {"ActionModifyMove", "modify.move"},
+        {"ActionModifyMoveNoSelect", "modify.move"},
+        {"ActionModifyRotate", "modify.rotate"},
+        {"ActionModifyRotateNoSelect", "modify.rotate"},
+        {"ActionModifyScale", "modify.scale"},
+        {"ActionModifyScaleNoSelect", "modify.scale"},
+        {"ActionModifyMirror", "modify.mirror"},
+        {"ActionModifyMirrorNoSelect", "modify.mirror"},
+        {"ActionModifyEntity", "modify.entity"},
+        {"ActionModifyTrim", "modify.trim"},
+        {"ActionModifyCut", "modify.cut"},
+        {"ActionModifyCut2P", "modify.cut_2p"},
+        {"ActionModifyBevel", "modify.bevel"},
+        {"ActionModifyRound", "modify.round"},
+        {"ActionModifySingleOffset", "modify.single_offset"},
+        {"ActionModifyExtend", "modify.extend"},
+        {"ActionModifyExplode", "modify.explode"},
+        {"ActionModifyExplodeNoSelect", "modify.explode"},
+        {"ActionModifyReverse", "modify.reverse"},
+        {"ActionModifyReverseNoSelect", "modify.reverse"},
 
-    m_strActMap["ActionViewGrid"] = DM::ActionViewGrid;
-    m_strActMap["ActionViewDraft"] = DM::ActionViewDraft;
+        {"ActionSnapFree", "snap.free"},
+        {"ActionSnapGrid", "snap.grid"},
+        {"ActionSnapEndpoint", "snap.endpoint"},
+        {"ActionSnapOnEntity", "snap.on_entity"},
+        {"ActionSnapCenter", "snap.center"},
+        {"ActionSnapMiddle", "snap.middle"},
+        {"ActionSnapIntersection", "snap.intersection"},
 
-    m_strActMap["ActionZoomIn"] = DM::ActionZoomIn;
-    m_strActMap["ActionZoomOut"] = DM::ActionZoomOut;
-    m_strActMap["ActionZoomPan"] = DM::ActionZoomPan;
+        {"ActionRestrictNothing", "restrict.nothing"},
+        {"ActionRestrictOrthogonal", "restrict.orthogonal"},
+        {"ActionRestrictHorizontal", "restrict.horizontal"},
+        {"ActionRestrictVertical", "restrict.vertical"},
 
-    m_strActMap["ActionSelect"] = DM::ActionSelect;
-    m_strActMap["ActionSelectSingle"] = DM::ActionSelectSingle;
-    m_strActMap["ActionSelectMultiple"] = DM::ActionSelectMultiple;
+        {"ActionInfoDist", "info.dist"},
+        {"ActionInfoAngle", "info.angle"},
+        {"ActionInfoTotalLength", "info.total_length"},
+        {"ActionInfoTotalLengthNoSelect", "info.total_length"},
+        {"ActionInfoArea", "info.area"},
+        {"ActionInfoSelected", "info.selected"},
 
-    m_strActMap["ActionDrawArc"] = DM::ActionDrawArc;
-    m_strActMap["ActionDrawArc3P"] = DM::ActionDrawArc3P;
-    m_strActMap["ActionDrawArcTangential"] = DM::ActionDrawArcTangential;
-    m_strActMap["ActionDrawCircle"] = DM::ActionDrawCircle;
-    m_strActMap["ActionDrawCircle2P"] = DM::ActionDrawCircle2P;
-    m_strActMap["ActionDrawCircle3P"] = DM::ActionDrawCircle3P;
-    m_strActMap["ActionDrawCircleTan2"] = DM::ActionDrawCircleTan2;
-    m_strActMap["ActionDrawCircleTan3"] = DM::ActionDrawCircleTan3;
+        {"ActionLayersDefreezeAll", "ext.layer.defreeze_all"},
+        {"ActionLayersFreezeAll", "ext.layer.freeze_all"},
+        {"ActionLayersUnlockAll", "ext.layer.unlock_all"},
+        {"ActionLayersLockAll", "ext.layer.lock_all"},
+        {"ActionLayersAdd", "ext.layer.add"},
 
-    m_strActMap["ActionDrawEllipseArcAxis"] = DM::ActionDrawEllipseArcAxis;
-    m_strActMap["ActionDrawEllipseAxis"] = DM::ActionDrawEllipseAxis;
-    m_strActMap["ActionDrawEllipseFociPoint"] = DM::ActionDrawEllipseFociPoint;
-    m_strActMap["ActionDrawEllipse4Points"] = DM::ActionDrawEllipse4Points;
-    m_strActMap["ActionDrawEllipseCenter3Points"] =
-        DM::ActionDrawEllipseCenter3Points;
-    m_strActMap["ActionDrawEllipseInscribe"] = DM::ActionDrawEllipseInscribe;
+        {"ActionBlocksSave", "ext.block.save"},
+        {"ActionBlocksInsert", "ext.block.insert"},
+        {"ActionBlocksCreate", "ext.block.create"},
+        {"ActionBlocksCreateNoSelect", "ext.block.create"},
+        {"ActionBlocksDelete", "ext.block.delete"},
+        {"ActionBlocksImport", "ext.block.import"},
 
-    m_strActMap["ActionDrawHatch"] = DM::ActionDrawHatch;
-    m_strActMap["ActionDrawHatchNoSelect"] = DM::ActionDrawHatchNoSelect;
-    m_strActMap["ActionDrawImage"] = DM::ActionDrawImage;
-    m_strActMap["ActionDrawLine"] = DM::ActionDrawLine;
-    m_strActMap["ActionDrawLineBisector"] = DM::ActionDrawLineBisector;
-    m_strActMap["ActionDrawLineFree"] = DM::ActionDrawLineFree;
-    m_strActMap["ActionDrawLineOrthTan"] = DM::ActionDrawLineOrthTan;
-    m_strActMap["ActionDrawLinePolygonCenCor"] =
-        DM::ActionDrawLinePolygonCenCor;
-    m_strActMap["ActionDrawLinePolygonCenTan"] =
-        DM::ActionDrawLinePolygonCenTan;
-    m_strActMap["ActionDrawLineRectangle"] = DM::ActionDrawLineRectangle;
-    m_strActMap["ActionDrawLineTangent1"] = DM::ActionDrawLineTangent1;
-    m_strActMap["ActionDrawLineTangent2"] = DM::ActionDrawLineTangent2;
-    m_strActMap["ActionDrawMText"] = DM::ActionDrawMText;
-    m_strActMap["ActionDrawPoint"] = DM::ActionDrawPoint;
-    m_strActMap["ActionDrawRay"] = DM::ActionDrawRay;
-    m_strActMap["ActionDrawSpline"] = DM::ActionDrawSpline;
-    m_strActMap["ActionDrawSplinePoints"] = DM::ActionDrawSplinePoints;
-    m_strActMap["ActionDrawPolyline"] = DM::ActionDrawPolyline;
-    m_strActMap["ActionDrawText"] = DM::ActionDrawText;
-    m_strActMap["ActionDrawXline"] = DM::ActionDrawXline;
-
-    m_strActMap["ActionPolylineAdd"] = DM::ActionPolylineAdd;
-    m_strActMap["ActionPolylineAppend"] = DM::ActionPolylineAppend;
-    m_strActMap["ActionPolylineDel"] = DM::ActionPolylineDel;
-    m_strActMap["ActionCloudLineRectangle"] = DM::ActionCloudLineRectangle;
-    m_strActMap["ActionCloudLinePolygon"] = DM::ActionCloudLinePolygon;
-    m_strActMap["ActionCloudLineFree"] = DM::ActionCloudLineFree;
-
-    m_strActMap["ActionDimAligned"] = DM::ActionDimAligned;
-    m_strActMap["ActionDimLinear"] = DM::ActionDimLinear;
-    m_strActMap["ActionDimRadial"] = DM::ActionDimRadial;
-    m_strActMap["ActionDimDiametric"] = DM::ActionDimDiametric;
-    m_strActMap["ActionDimAngular"] = DM::ActionDimAngular;
-    m_strActMap["ActionDimLeader"] = DM::ActionDimLeader;
-
-    m_strActMap["ActionModifyDelete"] = DM::ActionModifyDelete;
-    m_strActMap["ActionModifyDeleteNoSelect"] =
-        DM::ActionModifyDeleteNoSelect;
-    m_strActMap["ActionModifyMove"] = DM::ActionModifyMove;
-    m_strActMap["ActionModifyMoveNoSelect"] = DM::ActionModifyMoveNoSelect;
-    m_strActMap["ActionModifyRotate"] = DM::ActionModifyRotate;
-    m_strActMap["ActionModifyRotateNoSelect"] =
-        DM::ActionModifyRotateNoSelect;
-    m_strActMap["ActionModifyScale"] = DM::ActionModifyScale;
-    m_strActMap["ActionModifyScaleNoSelect"] =
-        DM::ActionModifyScaleNoSelect;
-    m_strActMap["ActionModifyMirror"] = DM::ActionModifyMirror;
-    m_strActMap["ActionModifyMirrorNoSelect"] =
-        DM::ActionModifyMirrorNoSelect;
-    m_strActMap["ActionModifyEntity"] = DM::ActionModifyEntity;
-    m_strActMap["ActionModifyTrim"] = DM::ActionModifyTrim;
-    m_strActMap["ActionModifyCut"] = DM::ActionModifyCut;
-    m_strActMap["ActionModifyCut2P"] = DM::ActionModifyCut2P;
-    m_strActMap["ActionModifyBevel"] = DM::ActionModifyBevel;
-    m_strActMap["ActionModifyRound"] = DM::ActionModifyRound;
-    m_strActMap["ActionModifySingleOffset"] = DM::ActionModifySingleOffset;
-    m_strActMap["ActionModifyExtend"] = DM::ActionModifyExtend;
-
-    m_strActMap["ActionSnapFree"] = DM::ActionSnapFree;
-    m_strActMap["ActionSnapGrid"] = DM::ActionSnapGrid;
-    m_strActMap["ActionSnapEndpoint"] = DM::ActionSnapEndpoint;
-    m_strActMap["ActionSnapOnEntity"] = DM::ActionSnapOnEntity;
-    m_strActMap["ActionSnapCenter"] = DM::ActionSnapCenter;
-    m_strActMap["ActionSnapMiddle"] = DM::ActionSnapMiddle;
-    m_strActMap["ActionSnapIntersection"] = DM::ActionSnapIntersection;
-
-    m_strActMap["ActionRestrictNothing"] = DM::ActionRestrictNothing;
-    m_strActMap["ActionRestrictOrthogonal"] = DM::ActionRestrictOrthogonal;
-    m_strActMap["ActionRestrictHorizontal"] = DM::ActionRestrictHorizontal;
-    m_strActMap["ActionRestrictVertical"] = DM::ActionRestrictVertical;
-
-    m_strActMap["ActionInfoDist"] = DM::ActionInfoDist;
-    m_strActMap["ActionInfoAngle"] = DM::ActionInfoAngle;
-    m_strActMap["ActionInfoTotalLength"] = DM::ActionInfoTotalLength;
-    m_strActMap["ActionInfoTotalLengthNoSelect"] =
-        DM::ActionInfoTotalLengthNoSelect;
-    m_strActMap["ActionInfoArea"] = DM::ActionInfoArea;
-    m_strActMap["ActionInfoSelected"] = DM::ActionInfoSelected;
-
-    m_strActMap["ActionLayersDefreezeAll"] = DM::ActionLayersDefreezeAll;
-    m_strActMap["ActionLayersFreezeAll"] = DM::ActionLayersFreezeAll;
-    m_strActMap["ActionLayersUnlockAll"] = DM::ActionLayersUnlockAll;
-    m_strActMap["ActionLayersLockAll"] = DM::ActionLayersLockAll;
-    m_strActMap["ActionLayersAdd"] = DM::ActionLayersAdd;
-
-    m_strActMap["ActionBlocksSave"] = DM::ActionBlocksSave;
-    m_strActMap["ActionBlocksInsert"] = DM::ActionBlocksInsert;
-    m_strActMap["ActionBlocksCreate"] = DM::ActionBlocksCreate;
-    m_strActMap["ActionBlocksCreateNoSelect"] =
-        DM::ActionBlocksCreateNoSelect;
-    m_strActMap["ActionBlocksDelete"] = DM::ActionBlocksDelete;
-    m_strActMap["ActionModifyExplode"] = DM::ActionModifyExplode;
-    m_strActMap["ActionModifyExplodeNoSelect"] =
-        DM::ActionModifyExplodeNoSelect;
-    m_strActMap["ActionModifyReverse"] = DM::ActionModifyReverse;
-    m_strActMap["ActionModifyReverseNoSelect"] =
-        DM::ActionModifyReverseNoSelect;
-    m_strActMap["ActionBlocksImport"] = DM::ActionBlocksImport;
-
-    m_strActMap["ActionOptionsGeneral"] = DM::ActionOptionsGeneral;
-    m_strActMap["ActionOptionsDrawing"] = DM::ActionOptionsDrawing;
-
-    m_strActMap["ActionScriptOpenIDE"] = DM::ActionScriptOpenIDE;
-    m_strActMap["ActionScriptRun"] = DM::ActionScriptRun;
-
-    m_strActMap["ActionLast"] = DM::ActionLast;
-
-    // 反向的映射
-    for (auto& kv : m_strActMap)
-    {
-        DM::ActionType type = kv.second;
-        QString name = kv.first;
-        m_actStrMap[type] = name;
-    }
+        {"ActionOptionsGeneral", "ext.options.general"},
+        {"ActionOptionsDrawing", "ext.options.drawing"},
+    };
+    auto it = table.find(actionName);
+    return it == table.end() ? QString() : it->second;
 }
 
 /// @brief 删除命令管理器单例实例
@@ -271,40 +247,23 @@ void Commands::deleteCommands()
     }
 }
 
-/// @brief 将命令字符串转换为对应的ActionType
+/// @brief 将命令字符串转换为对应的命令 ID
 /// @param [in] cmd 命令字符串（自动转为小写）
-/// @param [in] verbose 是否输出详细信息
-/// @return 对应的ActionType，未找到返回ActionNone
-DM::ActionType Commands::cmdToAction(const QString& cmd, bool verbose)
+/// @return 对应的命令 ID，未找到返回空串
+QString Commands::cmdToCommand(const QString& cmd) const
 {
-    QString full = cmd.toLower();
-    DM::ActionType ret = DM::ActionNone;
-
-    // 查找命令:
-    if (m_keyActMap.count(full))
-    {
-        ret = m_keyActMap[full];
-    }
-    else
-    {
-        return ret;
-    }
-
-    if (!verbose)
-    {
-        return ret;
-    }
-    return ret;
+    auto it = m_keyCommandMap.find(cmd.toLower());
+    return it == m_keyCommandMap.end() ? QString() : it->second;
 }
 
-/// @brief 将快捷键编码转换为对应的ActionType
+/// @brief 将快捷键编码转换为对应的命令 ID
 /// @param [in] code 按键编码字符串
-/// @return 对应的ActionType，未找到返回ActionNone
-DM::ActionType Commands::keycodeToAction(const QString& code)
+/// @return 对应的命令 ID，未找到返回空串
+QString Commands::keycodeToCommand(const QString& code) const
 {
     if (code.size() < 1)
     {
-        return DM::ActionNone;
+        return QString();
     }
 
     QString c;
@@ -316,7 +275,7 @@ DM::ActionType Commands::keycodeToAction(const QString& code)
             || code.contains(QRegExp("^[a-z].*", Qt::CaseInsensitive))
                == false)
         {
-            return DM::ActionNone;
+            return QString();
         }
         c = code.toLower();
     }
@@ -324,11 +283,11 @@ DM::ActionType Commands::keycodeToAction(const QString& code)
     {
         c = code;
     }
-    auto it = m_keyActMap.find(c);
+    auto it = m_keyCommandMap.find(c);
 
-    if (it == m_keyActMap.end())
+    if (it == m_keyCommandMap.end())
     {
-        return DM::ActionNone;
+        return QString();
     }
     // 找到
     GUIDIALOGFACTORY->commandMessage(
@@ -341,6 +300,9 @@ DM::ActionType Commands::keycodeToAction(const QString& code)
 /// @return true表示加载成功
 bool Commands::load()
 {
+    // 用户目录下的旧格式文件先改写为新格式（保留备份），之后只读写新格式
+    migrateLegacyConfig(m_strUserConfig);
+
     // 读取当前的快捷键组
     m_curGroup = DMSETTINGS->readEntry("/DefaultKeyboard", "");
     m_data = readConfigFile(m_strConfigFile, m_curGroup, false);
@@ -353,34 +315,26 @@ bool Commands::load()
 /// @brief 通过XML读取的数据加载到映射表中
 /// @param [in] data 命令数据列表
 /// @param [in] clearOld 是否清除旧数据
-void Commands::loadFromData(
-    const std::vector<std::tuple<DM::ActionType, QString, QStringList>>& data,
-    bool clearOld)
+void Commands::loadFromData(const std::vector<CommandKeys>& data, bool clearOld)
 {
     if (clearOld)
     {
-        m_actKeysMap.clear();
-        m_keyActMap.clear();
-        //m_acts.clear();
+        m_keyCommandMap.clear();
     }
-    for (auto& item : data)
+    for (const CommandKeys& item : data)
     {
-        DM::ActionType type = std::get<0>(item);
-        QString desr = std::get<1>(item);
-        QStringList keys = std::get<2>(item);
-        m_actKeysMap[type] = keys;
-        for (auto key : keys)
+        for (const QString& key : item.keys)
         {
-            m_keyActMap[key] = type;
+            m_keyCommandMap[key] = item.commandId;
         }
         auto it = std::find_if(m_data.begin(), m_data.end(),
-            [&type](const std::tuple<DM::ActionType, QString, QStringList>& t)
+            [&item](const CommandKeys& t)
             {
-                return std::get<0>(t) == type;
+                return t.commandId == item.commandId;
             });
         if (it != m_data.end())
         {
-            *it = std::make_tuple(type, desr, keys);
+            *it = item;
         }
         else
         {
@@ -394,19 +348,7 @@ void Commands::loadFromData(
 QStringList Commands::getGroups() const
 {
     QStringList groups;
-    QFile configFile(m_strConfigFile);
-    if (!configFile.exists())
-    {
-        return groups;
-    }
-    if (!configFile.open(QIODevice::ReadOnly))
-    {
-        return groups;
-    }
-    QDomDocument doc(m_strConfigFile);
-    doc.setContent(&configFile);
-    configFile.close();
-
+    QDomDocument doc = readDocument(m_strConfigFile);
     QDomElement groupsElem = doc.documentElement(); // groups
     QDomNodeList groupNodes = groupsElem.childNodes(); // group
     for (int i = 0; i < groupNodes.size(); i++)
@@ -421,16 +363,20 @@ QStringList Commands::getGroups() const
     return groups;
 }
 
-/// @brief 获取ActionType对应的描述文本（翻译后的命令名）
-/// @param [in] type ActionType
+/// @brief 获取命令对应的描述文本（翻译后的命令名）
+/// @param [in] commandId 命令 ID
 /// @return 描述文本，未找到返回空字符串
-QString Commands::description(DM::ActionType type) const
+QString Commands::description(const QString& commandId) const
 {
-    for (auto& item : m_data)
+    if (commandId.isEmpty())
     {
-        if (std::get<0>(item) == type)
+        return QString();
+    }
+    for (const CommandKeys& item : m_data)
+    {
+        if (item.commandId == commandId)
         {
-            return std::get<1>(item);
+            return item.description;
         }
     }
     return QString();
@@ -457,11 +403,9 @@ QString Commands::command(const QString& cmd)
 
 /// @brief 检查给定字符串是否匹配指定命令
 /// @param [in] cmd 要检查的命令（如 "angle"）
-/// @param [in] action 相关的ActionType
 /// @param [in] str 用户输入的字符串
 /// @return true表示匹配
-bool Commands::checkCommand(const QString& cmd, const QString& str,
-                            DM::ActionType /*action*/)
+bool Commands::checkCommand(const QString& cmd, const QString& str)
 {
     // todo ：
     // todo ：简单改造了一下解决707bug 不知是否满足需求后续重写再考虑
@@ -519,26 +463,13 @@ QString Commands::filterCliCal(const QString& cmd)
 /// @param [in,out] group 组名，精确匹配或返回第一个组
 /// @param [in] restrictMatch 是否精确匹配组
 /// @return 组内的命令数据列表
-std::vector<std::tuple<DM::ActionType, QString, QStringList>>
-    Commands::readConfigFile(const QString& configFile, QString& group,
-                             const bool restrictMatch)
+std::vector<CommandKeys> Commands::readConfigFile(const QString& configFile, QString& group,
+                                                  const bool restrictMatch)
 {
-    std::vector<std::tuple<DM::ActionType, QString, QStringList>> res;
+    std::vector<CommandKeys> res;
 
     // 从配置文件查找指定名字的组
-    QFile configFileF(configFile);
-    if (!configFileF.exists())
-    {
-        return res;
-    }
-    if (!configFileF.open(QIODevice::ReadOnly))
-    {
-        return res;
-    }
-    QDomDocument doc(configFile);
-    doc.setContent(&configFileF);
-    configFileF.close();
-
+    QDomDocument doc = readDocument(configFile);
     QDomElement groupsElem = doc.documentElement(); // groups
     QDomNodeList groupNodes = groupsElem.childNodes(); // group
     if (groupNodes.size() == 0)
@@ -574,48 +505,32 @@ std::vector<std::tuple<DM::ActionType, QString, QStringList>>
     for (int i = 0; i < items.size(); i++)
     {
         QDomNode item = items.at(i);
-        if (item.isComment())
+        const QString commandId = itemCommandId(item);
+        if (commandId.isEmpty())
         {
             continue;
         }
-        QString action = item.attributes().namedItem("action").nodeValue();
-        if (action.isEmpty())
-        {
-            continue;
-        }
-        auto it = m_strActMap.find(action);
-        if (m_strActMap.end() == it)
-        {
-            continue;
-        }
-        DM::ActionType type = it->second;
         QString descr = item.attributes()
                         .namedItem("description").nodeValue();
         QString keys = item.attributes().namedItem("keys").nodeValue();
         QStringList keysList;
-        if (keys.isEmpty())
-        {
-            keysList = QStringList();
-        }
-        else
+        if (!keys.isEmpty())
         {
             QStringList list = keys.split(",");
             for (auto key : list)
             {
                 QString trimedKey = key.trimmed().toLower();
                 keysList.append(trimedKey);
-                //m_keyActMap[trimedKey] = type;
             }
         }
-        res.emplace_back(std::make_tuple(type, descr, keysList));
+        res.push_back(CommandKeys{commandId, descr, keysList});
     }
     return res;
 }
 
 /// @brief 获取当前命令数据
 /// @return 命令数据列表
-std::vector<std::tuple<DM::ActionType, QString, QStringList>>
-    Commands::getData() const
+std::vector<CommandKeys> Commands::getData() const
 {
     return m_data;
 }
@@ -625,25 +540,14 @@ std::vector<std::tuple<DM::ActionType, QString, QStringList>>
 /// @param [in] group 组名
 /// @param [in] file 文件路径
 /// @return true表示保存成功
-bool Commands::saveToFile(
-    const std::vector<std::tuple<DM::ActionType, QString, QStringList>>& data,
-    const QString& group, const QString& file)
+bool Commands::saveToFile(const std::vector<CommandKeys>& data, const QString& group, const QString& file)
 {
     QFileInfo fi(file);
     if (!fi.dir().exists())
     {
-        QString path = fi.dir().path();
-        bool res = QDir().mkpath(path);
+        QDir().mkpath(fi.dir().path());
     }
-    QFile f(file);
-    QDomDocument doc;
-    if (f.exists())
-    {
-        f.open(QIODevice::ReadOnly);
-        doc = QDomDocument(file);
-        doc.setContent(&f);
-        f.close();
-    }
+    QDomDocument doc = readDocument(file);
 
     // 删除原group
     QDomElement groupsElem = doc.documentElement(); // groups
@@ -679,24 +583,23 @@ bool Commands::saveToFile(
     // 填充数据
     QDomElement groupNode = doc.createElement("group");
     groupNode.setAttribute("name", group);
-    for (int i = 0; i < data.size(); i++)
+    for (const CommandKeys& item : data)
     {
-        auto item = data.at(i);
-        DM::ActionType act = std::get<0>(item);
-        QString desr = std::get<1>(item);
-        QStringList keys = std::get<2>(item);
-        QString strKeys = keys.join(",");
         QDomElement newElem = doc.createElement("item");
-        newElem.setAttribute("action", m_actStrMap[act]);
-        newElem.setAttribute("description", desr);
-        newElem.setAttribute("keys", strKeys);
+        newElem.setAttribute(kCommandAttribute, item.commandId);
+        newElem.setAttribute("description", item.description);
+        newElem.setAttribute("keys", item.keys.join(","));
         groupNode.appendChild(newElem);
     }
     groupsElem.appendChild(groupNode);
     doc.appendChild(groupsElem);
 
     // 写入
-    f.open(QIODevice::ReadWrite | QIODevice::Truncate | QIODevice::Text);
+    QFile f(file);
+    if (!f.open(QIODevice::ReadWrite | QIODevice::Truncate | QIODevice::Text))
+    {
+        return false;
+    }
     QTextStream out(&f);
     //QString docStr = doc.toString();
     //out << docStr; // 用这个容易乱码
@@ -705,11 +608,73 @@ bool Commands::saveToFile(
     return true;
 }
 
-/// @brief 获取命令到ActionType的映射
-/// @return 命令映射表
-std::map<QString, DM::ActionType> Commands::getActionCommands()
+bool Commands::migrateLegacyConfig(const QString& file)
 {
-    return m_keyActMap;
+    QDomDocument doc = readDocument(file);
+    QDomElement groupsElem = doc.documentElement();
+    if (groupsElem.isNull())
+    {
+        return false;
+    }
+
+    // 只要有一条旧格式的条目就整份改写
+    bool legacy = false;
+    QDomNodeList groupNodes = groupsElem.childNodes();
+    for (int i = 0; i < groupNodes.size() && !legacy; i++)
+    {
+        QDomNodeList items = groupNodes.at(i).childNodes();
+        for (int j = 0; j < items.size(); j++)
+        {
+            if (!items.at(j).isComment() && items.at(j).attributes().contains(kLegacyAttribute))
+            {
+                legacy = true;
+                break;
+            }
+        }
+    }
+    if (!legacy)
+    {
+        return false;
+    }
+
+    // 备份原文件；已有备份（更早一次迁移留下的）不覆盖
+    const QString backup = file + QStringLiteral(".bak");
+    if (!QFile::exists(backup) && !QFile::copy(file, backup))
+    {
+        return false;
+    }
+
+    // 逐组转换：saveToFile 每次替换一组，按原顺序依次写入。先清空文件里的组，
+    // 否则第一次写入读到的仍是旧格式的其它组
+    std::vector<std::pair<QString, std::vector<CommandKeys>>> groups;
+    for (int i = 0; i < groupNodes.size(); i++)
+    {
+        QString name = groupNodes.at(i).attributes().namedItem("name").nodeValue();
+        if (name.isEmpty())
+        {
+            continue;
+        }
+        groups.emplace_back(name, readConfigFile(file, name, true));
+    }
+    if (!QFile::remove(file))
+    {
+        return false;
+    }
+    for (const auto& [name, data] : groups)
+    {
+        if (!saveToFile(data, name, file))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+/// @brief 获取命令行别名到命令 ID 的映射
+/// @return 命令映射表
+std::map<QString, QString> Commands::getKeyCommands() const
+{
+    return m_keyCommandMap;
 }
 
 /// @brief 获取配置文件路径

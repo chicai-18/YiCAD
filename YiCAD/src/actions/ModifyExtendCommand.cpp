@@ -1120,5 +1120,5 @@ std::unique_ptr<BasePlaceTool> ModifyExtendCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyExtend, QStringLiteral("modify.extend"), exclusiveCommandFactory<ModifyExtendCommand>());
+    QStringLiteral("modify.extend"), exclusiveCommandFactory<ModifyExtendCommand>());
 }  // namespace

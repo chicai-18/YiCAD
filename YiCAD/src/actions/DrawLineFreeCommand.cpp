@@ -212,5 +212,5 @@ std::unique_ptr<BasePlaceTool> DrawLineFreeCommand::createTool()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLineFree, QStringLiteral("draw.line_free"), exclusiveCommandFactory<DrawLineFreeCommand>());
+    QStringLiteral("draw.line_free"), exclusiveCommandFactory<DrawLineFreeCommand>());
 }  // namespace

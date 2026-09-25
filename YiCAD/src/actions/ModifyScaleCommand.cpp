@@ -229,5 +229,5 @@ void ModifyScaleCommand::commitScale(const DmVector& reference, double factor)
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyScale, QStringLiteral("modify.scale"), exclusiveCommandFactory<ModifyScaleCommand>());
+    QStringLiteral("modify.scale"), exclusiveCommandFactory<ModifyScaleCommand>());
 }  // namespace

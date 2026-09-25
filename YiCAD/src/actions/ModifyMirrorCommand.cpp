@@ -274,5 +274,5 @@ void ModifyMirrorCommand::commitMirror(const DmVector& axisPoint1, const DmVecto
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyMirror, QStringLiteral("modify.mirror"), exclusiveCommandFactory<ModifyMirrorCommand>());
+    QStringLiteral("modify.mirror"), exclusiveCommandFactory<ModifyMirrorCommand>());
 }  // namespace

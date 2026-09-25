@@ -570,5 +570,5 @@ void ModifyRoundCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyRound, QStringLiteral("modify.round"), exclusiveCommandFactory<ModifyRoundCommand>());
+    QStringLiteral("modify.round"), exclusiveCommandFactory<ModifyRoundCommand>());
 }  // namespace

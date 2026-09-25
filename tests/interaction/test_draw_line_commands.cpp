@@ -1,7 +1,7 @@
 /// @file test_draw_line_commands.cpp
 /// @brief 直线类绘图命令（业务工具化第三步第②批）的单元测试
 ///
-/// 逐项对照原 Action 经 GuiEventHandler 运行时的行为：注册类型与枚举桥接、第一步
+/// 逐项对照原 Action 经 GuiEventHandler 运行时的行为：注册类型、第一步
 /// 提示、右键退回、命令行输入、选项条的打开与关闭（被旧 Action 挂起时收起），以及
 /// 放置工具的光标。不执行提交（见 CommandTestFixture.h）。
 
@@ -21,29 +21,28 @@ using namespace yicad_test;
 
 namespace
 {
-/// @brief 本批迁移的命令、桥接的枚举与第一步提示
+/// @brief 本批迁移的命令与第一步提示
 struct FirstStep
 {
-    DM::ActionType type;
     const char* id;
     const char* hint;
     const char* right;
 };
 
 const FirstStep kCommands[] = {
-    {DM::ActionDrawLine, "draw.line", "Specify first point", "Cancel"},
-    {DM::ActionDrawPolyline, "draw.polyline", "Specify first point", "Cancel"},
-    {DM::ActionDrawLineRectangle, "draw.line_rectangle", "Specify first corner", "Cancel"},
-    {DM::ActionDrawLinePolygonCenCor, "draw.line_polygon_cen_cor", "Specify center", ""},
-    {DM::ActionDrawLinePolygonCenTan, "draw.line_polygon_cen_tan", "Specify center", ""},
-    {DM::ActionDrawLineBisector, "draw.line_bisector", "Select first line", "Cancel"},
-    {DM::ActionDrawLineTangent1, "draw.line_tangent1", "Specify point", "Cancel"},
-    {DM::ActionDrawLineTangent2, "draw.line_tangent2", "Select first circle or ellipse", "Cancel"},
-    {DM::ActionDrawLineOrthTan, "draw.line_orth_tan", "Select a line", "Cancel"},
-    {DM::ActionDrawLineFree, "draw.line_free", "Click and drag to draw a line", "Cancel"},
-    {DM::ActionDrawRay, "draw.ray", "Specify first point", "Cancel"},
-    {DM::ActionDrawXline, "draw.xline", "Specify first point", "Cancel"},
-    {DM::ActionDrawPoint, "draw.point", "Specify location", "Cancel"},
+    {"draw.line", "Specify first point", "Cancel"},
+    {"draw.polyline", "Specify first point", "Cancel"},
+    {"draw.line_rectangle", "Specify first corner", "Cancel"},
+    {"draw.line_polygon_cen_cor", "Specify center", ""},
+    {"draw.line_polygon_cen_tan", "Specify center", ""},
+    {"draw.line_bisector", "Select first line", "Cancel"},
+    {"draw.line_tangent1", "Specify point", "Cancel"},
+    {"draw.line_tangent2", "Select first circle or ellipse", "Cancel"},
+    {"draw.line_orth_tan", "Select a line", "Cancel"},
+    {"draw.line_free", "Click and drag to draw a line", "Cancel"},
+    {"draw.ray", "Specify first point", "Cancel"},
+    {"draw.xline", "Specify first point", "Cancel"},
+    {"draw.point", "Specify location", "Cancel"},
 };
 
 /// @brief 有选项条的命令
@@ -72,13 +71,12 @@ struct DrawLineFixture : CommandFixture
 };
 }  // namespace
 
-TEST_F(DrawLineFixture, 注册为交互命令并保留枚举桥接)
+TEST_F(DrawLineFixture, 注册为交互命令)
 {
     for (const FirstStep& step : kCommands)
     {
         SCOPED_TRACE(step.id);
         EXPECT_EQ(CommandRegistry::instance().kind(step.id), CommandKind::Exclusive);
-        EXPECT_EQ(CommandRegistry::instance().commandId(step.type), QString::fromLatin1(step.id));
     }
 }
 

@@ -56,5 +56,5 @@ bool InfoTotalLengthCommand::onSelectionReady()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionInfoTotalLength, QStringLiteral("info.total_length"), exclusiveCommandFactory<InfoTotalLengthCommand>());
+    QStringLiteral("info.total_length"), exclusiveCommandFactory<InfoTotalLengthCommand>());
 }  // namespace

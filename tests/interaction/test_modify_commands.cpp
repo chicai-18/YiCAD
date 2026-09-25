@@ -1,7 +1,7 @@
 /// @file test_modify_commands.cpp
 /// @brief 修改与查询命令（业务工具化第三步第④批）的单元测试
 ///
-/// 对照原 Action 的行为：注册类型与枚举桥接、第一步提示、选项条、右键结束、命令行
+/// 对照原 Action 的行为：注册类型、第一步提示、选项条、右键结束、命令行
 /// 选项、拾取实体后的提示与高亮，以及迁移时修正的"预览隐藏的实体结束后仍不可见"。
 /// 不执行提交（见 CommandTestFixture.h）。
 
@@ -23,29 +23,28 @@ namespace
 {
 struct FirstStep
 {
-    DM::ActionType type;
     const char* id;
     const char* hint;  ///< 为空：原 Action 没有按键提示
     const char* right;
 };
 
 const FirstStep kCommands[] = {
-    {DM::ActionInfoDist, "info.dist", "Specify first point of distance", "Cancel"},
-    {DM::ActionInfoAngle, "info.angle", "Specify first line", "Cancel"},
-    {DM::ActionInfoArea, "info.area", "Specify first point of polygon", "Cancel"},
-    {DM::ActionEditPaste, "edit.paste", "Set reference point", "Cancel"},
-    {DM::ActionModifyEntity, "modify.entity", "Click on entity to modify", "Cancel"},
-    {DM::ActionModifyCut, "modify.cut", "Specify entity to cut", "Cancel"},
-    {DM::ActionModifyCut2P, "modify.cut_2p", nullptr, nullptr},
-    {DM::ActionModifySingleOffset, "modify.single_offset", "Choose the original entity", ""},
-    {DM::ActionPolylineAdd, "polyline.add", "Specify polyline to add nodes", "Cancel"},
-    {DM::ActionPolylineAppend, "polyline.append", "Specify the polyline somewhere near the beginning or end point",
+    {"info.dist", "Specify first point of distance", "Cancel"},
+    {"info.angle", "Specify first line", "Cancel"},
+    {"info.area", "Specify first point of polygon", "Cancel"},
+    {"edit.paste", "Set reference point", "Cancel"},
+    {"modify.entity", "Click on entity to modify", "Cancel"},
+    {"modify.cut", "Specify entity to cut", "Cancel"},
+    {"modify.cut_2p", nullptr, nullptr},
+    {"modify.single_offset", "Choose the original entity", ""},
+    {"polyline.add", "Specify polyline to add nodes", "Cancel"},
+    {"polyline.append", "Specify the polyline somewhere near the beginning or end point",
      "Cancel"},
-    {DM::ActionPolylineDel, "polyline.del", "Specify polyline to delete node", "Cancel"},
-    {DM::ActionModifyTrim, "modify.trim", "Select entitys", "Back"},
-    {DM::ActionModifyBevel, "modify.bevel", "Specify first entity", "Back"},
-    {DM::ActionModifyRound, "modify.round", "Specify first entity", "Back"},
-    {DM::ActionModifyExtend, "modify.extend", nullptr, nullptr},
+    {"polyline.del", "Specify polyline to delete node", "Cancel"},
+    {"modify.trim", "Select entitys", "Back"},
+    {"modify.bevel", "Specify first entity", "Back"},
+    {"modify.round", "Specify first entity", "Back"},
+    {"modify.extend", nullptr, nullptr},
 };
 
 struct ModifyFixture : CommandFixture
@@ -77,13 +76,12 @@ struct ModifyFixture : CommandFixture
 };
 }  // namespace
 
-TEST_F(ModifyFixture, 注册为交互命令并保留枚举桥接)
+TEST_F(ModifyFixture, 注册为交互命令)
 {
     for (const FirstStep& step : kCommands)
     {
         SCOPED_TRACE(step.id);
         EXPECT_EQ(CommandRegistry::instance().kind(step.id), CommandKind::Exclusive);
-        EXPECT_EQ(CommandRegistry::instance().commandId(step.type), QString::fromLatin1(step.id));
     }
 }
 

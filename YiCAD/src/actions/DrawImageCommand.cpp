@@ -326,5 +326,5 @@ void DrawImageCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawImage, QStringLiteral("draw.image"), exclusiveCommandFactory<DrawImageCommand>());
+    QStringLiteral("draw.image"), exclusiveCommandFactory<DrawImageCommand>());
 }  // namespace

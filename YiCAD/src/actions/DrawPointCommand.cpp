@@ -136,5 +136,5 @@ std::unique_ptr<BasePlaceTool> DrawPointCommand::createTool()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawPoint, QStringLiteral("draw.point"), exclusiveCommandFactory<DrawPointCommand>());
+    QStringLiteral("draw.point"), exclusiveCommandFactory<DrawPointCommand>());
 }  // namespace

@@ -1,7 +1,7 @@
 /// @file test_draw_curve_commands.cpp
 /// @brief 曲线类绘图命令（业务工具化第三步第③批）的单元测试
 ///
-/// 对照原 Action 的行为：注册类型与枚举桥接、第一步提示、选项条、右键退回、命令行
+/// 对照原 Action 的行为：注册类型、第一步提示、选项条、右键退回、命令行
 /// 输入、三点圆弧切换为圆心圆弧、选项条参数转给工具、插入图片取消对话框时启动失败。
 /// 不执行提交（见 CommandTestFixture.h）。
 
@@ -20,7 +20,6 @@ namespace
 {
 struct FirstStep
 {
-    DM::ActionType type;
     const char* id;
     const char* hint;
     const char* right;
@@ -28,22 +27,22 @@ struct FirstStep
 };
 
 const FirstStep kCommands[] = {
-    {DM::ActionDrawArc, "draw.arc", "Specify center", "Cancel", true},
-    {DM::ActionDrawArc3P, "draw.arc_3p", "Specify startpoint or [center]", "Cancel", false},
-    {DM::ActionDrawArcTangential, "draw.arc_tangential", "Specify base entity", "Cancel", true},
-    {DM::ActionDrawCircle, "draw.circle", "Specify center", "Cancel", false},
-    {DM::ActionDrawCircle2P, "draw.circle_2p", "Specify first point", "Cancel", false},
-    {DM::ActionDrawCircle3P, "draw.circle_3p", "Specify first point", "Cancel", false},
-    {DM::ActionDrawCircleTan2, "draw.circle_tan2", "Specify the first line/arc/circle", "Cancel", true},
-    {DM::ActionDrawCircleTan3, "draw.circle_tan3", "Specify the first line/arc/circle", "Cancel", false},
-    {DM::ActionDrawEllipseAxis, "draw.ellipse_axis", "Specify ellipse center", "Cancel", false},
-    {DM::ActionDrawEllipseArcAxis, "draw.ellipse_arc_axis", "Specify ellipse center", "Cancel", false},
-    {DM::ActionDrawEllipseInscribe, "draw.ellipse_inscribe", "Specify the first line", "Cancel", false},
-    {DM::ActionDrawSpline, "draw.spline", "Specify first control point", "Cancel", true},
-    {DM::ActionDrawSplinePoints, "draw.spline_points", "Specify first control point", "Cancel", true},
-    {DM::ActionCloudLineRectangle, "draw.cloud_line_rectangle", "Specify first point", "Cancel", true},
-    {DM::ActionCloudLinePolygon, "draw.cloud_line_polygon", "Specify first point", "Cancel", true},
-    {DM::ActionCloudLineFree, "draw.cloud_line_free", "Specify first point", "Cancel", true},
+    {"draw.arc", "Specify center", "Cancel", true},
+    {"draw.arc_3p", "Specify startpoint or [center]", "Cancel", false},
+    {"draw.arc_tangential", "Specify base entity", "Cancel", true},
+    {"draw.circle", "Specify center", "Cancel", false},
+    {"draw.circle_2p", "Specify first point", "Cancel", false},
+    {"draw.circle_3p", "Specify first point", "Cancel", false},
+    {"draw.circle_tan2", "Specify the first line/arc/circle", "Cancel", true},
+    {"draw.circle_tan3", "Specify the first line/arc/circle", "Cancel", false},
+    {"draw.ellipse_axis", "Specify ellipse center", "Cancel", false},
+    {"draw.ellipse_arc_axis", "Specify ellipse center", "Cancel", false},
+    {"draw.ellipse_inscribe", "Specify the first line", "Cancel", false},
+    {"draw.spline", "Specify first control point", "Cancel", true},
+    {"draw.spline_points", "Specify first control point", "Cancel", true},
+    {"draw.cloud_line_rectangle", "Specify first point", "Cancel", true},
+    {"draw.cloud_line_polygon", "Specify first point", "Cancel", true},
+    {"draw.cloud_line_free", "Specify first point", "Cancel", true},
 };
 
 struct DrawCurveFixture : CommandFixture
@@ -56,16 +55,14 @@ struct DrawCurveFixture : CommandFixture
 };
 }  // namespace
 
-TEST_F(DrawCurveFixture, 注册为交互命令并保留枚举桥接)
+TEST_F(DrawCurveFixture, 注册为交互命令)
 {
     for (const FirstStep& step : kCommands)
     {
         SCOPED_TRACE(step.id);
         EXPECT_EQ(CommandRegistry::instance().kind(step.id), CommandKind::Exclusive);
-        EXPECT_EQ(CommandRegistry::instance().commandId(step.type), QString::fromLatin1(step.id));
     }
     EXPECT_EQ(CommandRegistry::instance().kind("draw.image"), CommandKind::Exclusive);
-    EXPECT_EQ(CommandRegistry::instance().commandId(DM::ActionDrawImage), QStringLiteral("draw.image"));
 }
 
 TEST_F(DrawCurveFixture, 启动后给出第一步提示并按需打开选项条右键结束)

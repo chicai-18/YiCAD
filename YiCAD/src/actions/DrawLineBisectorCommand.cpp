@@ -443,6 +443,6 @@ void DrawLineBisectorCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLineBisector, QStringLiteral("draw.line_bisector"),
+    QStringLiteral("draw.line_bisector"),
     exclusiveCommandFactory<DrawLineBisectorCommand>());
 }  // namespace

@@ -58,48 +58,81 @@ void UIActionHandler::killAllActions()
 }
 
 
-void UIActionHandler::setCurrentAction(DM::ActionType id)
+void UIActionHandler::slotEditKillAllActions()
 {
-	// ActionEditKillAllActions 不构造任何 Action，只做副作用；killAllActions()
-	// 只在具体类 GuiDocumentView 上，不在 IDocumentView 接口上，没法进
-	// CommandRegistry 的工厂签名，原样保留为显式分支（阶段4第一部分，
-	// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。
-	if (id == DM::ActionEditKillAllActions)
+	// 结束全部命令并清空选择（原 ActionEditKillAllActions）；它只作用于视图与选择集，
+	// 由宿主自己处理，不进 CommandRegistry
+	if (m_pView)
 	{
-		if (m_pView)
+		// 被命令否决时（迁移计划 5.1 节）命令继续，选择集也不清空
+		if (!m_pView->killAllActions())
 		{
-			// 被命令否决时（迁移计划 5.1 节）命令继续，选择集也不清空
-			if (!m_pView->killAllActions())
-			{
-				return;
-			}
-
-			Selection s(m_pDocument, m_pView);
-			s.selectAll(false);
-			GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+			return;
 		}
-		return;
-	}
 
-	// Snap/Restrict 类型直接调用 setCurrentAction 时的兜底：commandLineActions()
-	// 已经是这批类型的权威实现（command() 早就在调用它），这里只是让
-	// setCurrentAction 自身对这批类型保持定义行为，不需要再进注册表或 switch。
-	if (commandLineActions(id))
+		Selection s(m_pDocument, m_pView);
+		s.selectAll(false);
+		GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+	}
+}
+
+bool UIActionHandler::runBuiltinCommand(const QString& commandId, bool fromCommandLine)
+{
+	// keyconfig.xml 可以给它们配别名：原先是 DM::ActionEditKillAllActions 与
+	// ActionSnap*/ActionRestrict* 这些枚举值，由本类的 switch 特判
+	struct Builtin
 	{
-		return;
+		const char* id;
+		void (UIActionHandler::*slot)();
+	};
+	static const Builtin builtins[] = {
+		{"edit.kill_all", &UIActionHandler::slotEditKillAllActions},
+		{"snap.free", &UIActionHandler::slotSnapFree},
+		{"snap.grid", &UIActionHandler::slotSnapGrid},
+		{"snap.endpoint", &UIActionHandler::slotSnapEndpoint},
+		{"snap.on_entity", &UIActionHandler::slotSnapOnEntity},
+		{"snap.center", &UIActionHandler::slotSnapCenter},
+		{"snap.middle", &UIActionHandler::slotSnapMiddle},
+		{"snap.intersection", &UIActionHandler::slotSnapIntersection},
+		{"restrict.nothing", &UIActionHandler::slotRestrictNothing},
+		{"restrict.orthogonal", &UIActionHandler::slotRestrictOrthogonal},
+		{"restrict.horizontal", &UIActionHandler::slotRestrictHorizontal},
+		{"restrict.vertical", &UIActionHandler::slotRestrictVertical},
+	};
+	for (const Builtin& builtin : builtins)
+	{
+		if (commandId != QLatin1String(builtin.id))
+		{
+			continue;
+		}
+		// 与原先一致（既有缺陷）：命令行输入的自由捕捉开关被识别但不起作用，原
+		// commandLineActions() 漏了 ActionSnapFree；按键编码（keycode()）照常切换
+		if (!(fromCommandLine && commandId == QLatin1String("snap.free")))
+		{
+			(this->*builtin.slot)();
+		}
+		return true;
 	}
+	return false;
+}
 
-	// 全部 153 个原 case 已分批迁移到 CommandRegistry（阶段4第一至八部分，
-	// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4）。未命中注册表的类型
-	// （枚举里从未进入过这个 switch 的保留值，如 ActionFileExport/Print/
-	// Quit、ActionView* 系列，以及已搬进扩展、不再有枚举桥接的命令）维持
-	// 原 default 行为：什么也不做。
-	const QString commandId = CommandRegistry::instance().commandId(id);
+bool UIActionHandler::runKeyconfigCommand(const QString& commandId, bool fromCommandLine)
+{
 	if (commandId.isEmpty())
 	{
-		return;
+		return false;
 	}
-	activateCommand(commandId, sender());
+	if (runBuiltinCommand(commandId, fromCommandLine))
+	{
+		return true;
+	}
+	// keyconfig.xml 认领了、但没有注册的命令（如对应的扩展没有加载）不在这里处理
+	if (!CommandRegistry::instance().hasCommand(commandId))
+	{
+		return false;
+	}
+	activateCommand(commandId);
+	return true;
 }
 
 void UIActionHandler::activateCommand(const QString& commandId, QObject* source)
@@ -174,56 +207,13 @@ bool UIActionHandler::keycode(const QString& code)
 	// it might be intended to launch a new keycode
 
 	// keycode for new action:
-	DM::ActionType type = COMMANDS->keycodeToAction(code);
-	if (type != DM::ActionNone && hasBuiltinHandler(type))
+	const QString configured = COMMANDS->keycodeToCommand(code);
+	if (runKeyconfigCommand(configured, false))
 	{
-		// some actions require special handling (GUI update):
-		switch (type)
-		{
-		case DM::ActionSnapFree:
-			slotSnapFree();
-			break;
-		case DM::ActionSnapCenter:
-			slotSnapCenter();
-			break;
-			break;
-		case DM::ActionSnapEndpoint:
-			slotSnapEndpoint();
-			break;
-		case DM::ActionSnapGrid:
-			slotSnapGrid();
-			break;
-		case DM::ActionSnapIntersection:
-			slotSnapIntersection();
-			break;
-		case DM::ActionSnapMiddle:
-			slotSnapMiddle();
-			break;
-		case DM::ActionSnapOnEntity:
-			slotSnapOnEntity();
-			break;
-		case DM::ActionRestrictNothing:
-			slotRestrictNothing();
-			break;
-		case DM::ActionRestrictOrthogonal:
-			slotRestrictOrthogonal();
-			break;
-		case DM::ActionRestrictHorizontal:
-			slotRestrictHorizontal();
-			break;
-		case DM::ActionRestrictVertical:
-			slotRestrictVertical();
-			break;
-
-		default:
-			setCurrentAction(type);
-			break;
-		}
 		return true;
 	}
 
-	// 纯字符串命令（扩展命令）没有枚举值，也不在 keyconfig.xml 里，按注册表
-	// 登记的别名再查一次。
+	// keyconfig.xml 里没有的别名，按注册表登记的别名（扩展命令）再查一次。
 	const QString commandId = CommandRegistry::instance().commandForAlias(code);
 	if (!commandId.isEmpty())
 	{
@@ -231,77 +221,9 @@ bool UIActionHandler::keycode(const QString& code)
 		return true;
 	}
 
-	// keyconfig.xml 认领了、但宿主没有实现的枚举（如用户目录下旧 keyconfig
-	// 里残留的、已搬进扩展的命令）：保持原行为，按已识别处理。
-	return type != DM::ActionNone;
-}
-
-bool UIActionHandler::hasBuiltinHandler(DM::ActionType type)
-{
-	switch (type)
-	{
-	case DM::ActionEditKillAllActions:
-	case DM::ActionSnapFree:
-	case DM::ActionSnapCenter:
-	case DM::ActionSnapEndpoint:
-	case DM::ActionSnapGrid:
-	case DM::ActionSnapIntersection:
-	case DM::ActionSnapMiddle:
-	case DM::ActionSnapOnEntity:
-	case DM::ActionRestrictNothing:
-	case DM::ActionRestrictOrthogonal:
-	case DM::ActionRestrictHorizontal:
-	case DM::ActionRestrictVertical:
-		return true;
-	default:
-		return CommandRegistry::instance().hasLegacyMapping(type);
-	}
-}
-
-
-// toggle snap modes when calling from command line
-bool UIActionHandler::commandLineActions(DM::ActionType type)
-{
-	// snap actions require special handling (GUI update)
-	//more special handling of actions can be added here
-	switch (type) 
-	{
-	case DM::ActionSnapCenter:
-		slotSnapCenter();
-		return true;
-	case DM::ActionSnapEndpoint:
-		slotSnapEndpoint();
-		return true;
-	case DM::ActionSnapGrid:
-		slotSnapGrid();
-		return true;
-	case DM::ActionSnapIntersection:
-		slotSnapIntersection();
-		return true;
-	case DM::ActionSnapMiddle:
-		slotSnapMiddle();
-		return true;
-	case DM::ActionSnapOnEntity:
-		slotSnapOnEntity();
-		return true;
-
-	case DM::ActionRestrictNothing:
-		slotRestrictNothing();
-		return true;
-	case DM::ActionRestrictOrthogonal:
-		slotRestrictOrthogonal();
-		return true;
-	case DM::ActionRestrictHorizontal:
-		slotRestrictHorizontal();
-		return true;
-	case DM::ActionRestrictVertical:
-		slotRestrictVertical();
-		return true;
-
-	default:
-		return false;
-	}
-
+	// keyconfig.xml 认领了、但宿主没有实现的命令（如对应的扩展没有加载）：
+	// 保持原行为，按已识别处理。
+	return !configured.isEmpty();
 }
 
 /**
@@ -344,17 +266,11 @@ bool UIActionHandler::command(const QString& cmd)
 	// it might be intended to launch a new command
 	if (!e.isAccepted()) 
 	{
-		// 解析顺序：keyconfig.xml 里有实现的内置命令 > 注册表登记的别名
+		// 解析顺序：keyconfig.xml 里有实现的命令 > 注册表登记的别名
 		// （扩展命令）> keyconfig.xml 认领但没有实现的条目 > 插件命令。
-		DM::ActionType type = COMMANDS->cmdToAction(cmd);
-		if (type != DM::ActionNone && hasBuiltinHandler(type))
+		const QString configured = COMMANDS->cmdToCommand(cmd);
+		if (runKeyconfigCommand(configured, true))
 		{
-			//special handling, currently needed for snap actions
-			if (!commandLineActions(type))
-			{
-				//not handled yet
-				setCurrentAction(type);
-			}
 			return true;
 		}
 
@@ -365,7 +281,7 @@ bool UIActionHandler::command(const QString& cmd)
 			return true;
 		}
 
-		if (type != DM::ActionNone)
+		if (!configured.isEmpty())
 		{
 			return true;
 		}
@@ -406,23 +322,19 @@ bool UIActionHandler::executeExternalCommand(const QString& command)
 
 void UIActionHandler::slotZoomIn() 
 {
-	setCurrentAction(DM::ActionZoomIn);
+	activateCommand(QStringLiteral("zoom.in"));
 }
 
 void UIActionHandler::slotZoomOut() 
 {
-	setCurrentAction(DM::ActionZoomOut);
+	activateCommand(QStringLiteral("zoom.out"));
 }
 
 void UIActionHandler::slotZoomPan() 
 {
-	setCurrentAction(DM::ActionZoomPan);
+	activateCommand(QStringLiteral("zoom.pan"));
 }
 
-void UIActionHandler::slotEditKillAllActions() 
-{
-	setCurrentAction(DM::ActionEditKillAllActions);
-}
 void UIActionHandler::slotEditUndo() 
 {
 	//to avoid operation on deleted entities, Undo action invalid all suspended
@@ -432,17 +344,17 @@ void UIActionHandler::slotEditUndo()
 	{
 		return;
 	}
-	setCurrentAction(DM::ActionEditUndo);
+	activateCommand(QStringLiteral("edit.undo"));
 }
 
 void UIActionHandler::slotDrawPoint() 
 {
-	setCurrentAction(DM::ActionDrawPoint);
+	activateCommand(QStringLiteral("draw.point"));
 }
 
 void UIActionHandler::slotModifyDelete() 
 {
-	setCurrentAction(DM::ActionModifyDelete);
+	activateCommand(QStringLiteral("modify.delete"));
 }
 
 void UIActionHandler::slotSetSnaps(SnapMode const& s) 
@@ -558,7 +470,7 @@ void UIActionHandler::disableRestrictions()
 
 void UIActionHandler::slotIndoSelected()
 {
-    setCurrentAction(DM::ActionInfoSelected);
+    activateCommand(QStringLiteral("info.selected"));
 }
 
 void UIActionHandler::slotSecectedChanged()

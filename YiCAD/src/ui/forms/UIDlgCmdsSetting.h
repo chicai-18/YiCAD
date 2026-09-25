@@ -21,8 +21,10 @@
 #ifndef UIDLGCMDSSETTING_H
 #define UIDLGCMDSSETTING_H
 
+#include <vector>
+
 #include "ui_UIDlgCmdsSetting.h"
-#include "Datamodel.h"
+#include "Commands.h"
 
 class UIDlgCmdsSetting : public QDialog, public Ui::UIDlgCmdsSetting
 {
@@ -55,7 +57,7 @@ private slots:
 
 private:
     QString m_group;                                                   ///< 命令分组名称
-    std::vector<std::tuple<DM::ActionType, QString, QStringList>> m_data; ///< 命令数据列表
+    std::vector<CommandKeys> m_data;                                   ///< 命令数据列表
 };
 
 #endif // UIDLGCMDSSETTING_H

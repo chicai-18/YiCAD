@@ -145,17 +145,13 @@ void UICommandWidget::appCmdTempText(const QString text)
 
 		// 当前命令：临时视图工具或命令总线上的命令
 		const QString commandId = gv->activeCommandId();
-		const DM::ActionType actionType = CommandRegistry::instance().legacyType(commandId);
 
 		QString displayText = text;
-		if (actionType != DM::ActionNone || !commandId.isEmpty())
+		if (!commandId.isEmpty())
 		{
-			QString desc;
-			if (actionType != DM::ActionNone)
-			{
-				desc = COMMANDS->description(actionType);
-			}
-			// 扩展命令不在 keyconfig.xml 里，说明随命令注册在 CommandRegistry。
+			// keyconfig.xml 里的说明优先；不在 keyconfig.xml 里的命令（扩展命令），
+			// 说明随命令注册在 CommandRegistry。
+			QString desc = COMMANDS->description(commandId);
 			if (desc.isEmpty())
 			{
 				desc = CommandRegistry::instance().description(commandId);
@@ -340,7 +336,7 @@ QWidget* UICommandWidget::createTempEdit()
 	m_editline->setAutoFillBackground(true);
 	connect(m_editline, SIGNAL(returnPressed()), this, SLOT(pressShowLineEdit()));
 
-	std::map<QString, DM::ActionType> cmdTranslation = COMMANDS->getActionCommands();
+	std::map<QString, QString> cmdTranslation = COMMANDS->getKeyCommands();
 	m_completerStrings.clear();
 	for (auto ite = cmdTranslation.begin(); ite != cmdTranslation.end(); ite++)
 	{

@@ -331,10 +331,10 @@ QString DrawLinePolygonCenTanCommand::transactionName() const
 namespace
 {
 const bool g_registeredCenCor = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLinePolygonCenCor, QStringLiteral("draw.line_polygon_cen_cor"),
+    QStringLiteral("draw.line_polygon_cen_cor"),
     exclusiveCommandFactory<DrawLinePolygonCenCorCommand>());
 
 const bool g_registeredCenTan = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLinePolygonCenTan, QStringLiteral("draw.line_polygon_cen_tan"),
+    QStringLiteral("draw.line_polygon_cen_tan"),
     exclusiveCommandFactory<DrawLinePolygonCenTanCommand>());
 }  // namespace

@@ -623,9 +623,9 @@ bool DrawSplinePointsCommand::isClosed() const
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawSpline, QStringLiteral("draw.spline"), exclusiveCommandFactory<DrawSplineCommand>());
+    QStringLiteral("draw.spline"), exclusiveCommandFactory<DrawSplineCommand>());
 
 const bool g_registeredPoints = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawSplinePoints, QStringLiteral("draw.spline_points"),
+    QStringLiteral("draw.spline_points"),
     exclusiveCommandFactory<DrawSplinePointsCommand>());
 }  // namespace

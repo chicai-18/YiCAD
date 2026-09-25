@@ -1,7 +1,7 @@
 /// @file test_block_extension.cpp
 /// @brief 块扩展（业务工具化第三步第⑥批）的单元测试
 ///
-/// 覆盖：注册的命令类型与打断方式、原内置 ID 与枚举桥接不再存在、按钮挂进宿主占位的
+/// 覆盖：注册的命令类型与打断方式、原内置 ID 不再存在、按钮挂进宿主占位的
 /// "绘图/块"面板；插入块的两个阶段（选块、放置）、选项条只在放置阶段出现、命令行改选项、
 /// 右键回到选块、选块阶段单击画布结束；定义属性取消对话框时启动失败。创建块、编辑块与
 /// 块编辑模式见 test_select_first_commands。不执行提交（见 CommandTestFixture.h）。
@@ -68,7 +68,7 @@ TEST_F(BlockFixture, 注册的命令类型与打断方式)
     EXPECT_EQ(registry.instantInterrupt("ext.block.reenter_edit"), InstantInterrupt::KeepAll);
 }
 
-TEST_F(BlockFixture, 原内置ID与枚举桥接不再存在)
+TEST_F(BlockFixture, 原内置ID不再存在)
 {
     const CommandRegistry& registry = CommandRegistry::instance();
     for (const char* id : {"blocks.create", "blocks.edit", "blocks.insert", "blocks.insert_prepare", "blocks.save",
@@ -76,9 +76,6 @@ TEST_F(BlockFixture, 原内置ID与枚举桥接不再存在)
     {
         EXPECT_FALSE(registry.hasCommand(id)) << id;
     }
-    EXPECT_TRUE(registry.commandId(DM::ActionBlocksCreate).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionBlocksEdit).isEmpty());
-    EXPECT_TRUE(registry.commandId(DM::ActionBlockInsertPrepare).isEmpty());
 }
 
 TEST_F(BlockFixture, 按钮挂进宿主占位的块面板)

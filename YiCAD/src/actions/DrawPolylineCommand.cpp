@@ -597,5 +597,5 @@ void DrawPolylineCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawPolyline, QStringLiteral("draw.polyline"), exclusiveCommandFactory<DrawPolylineCommand>());
+    QStringLiteral("draw.polyline"), exclusiveCommandFactory<DrawPolylineCommand>());
 }  // namespace

@@ -313,5 +313,5 @@ void DrawCircleTan2Command::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawCircleTan2, QStringLiteral("draw.circle_tan2"), exclusiveCommandFactory<DrawCircleTan2Command>());
+    QStringLiteral("draw.circle_tan2"), exclusiveCommandFactory<DrawCircleTan2Command>());
 }  // namespace

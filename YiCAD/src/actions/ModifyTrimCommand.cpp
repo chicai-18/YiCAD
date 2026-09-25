@@ -337,5 +337,5 @@ std::unique_ptr<BasePlaceTool> ModifyTrimCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyTrim, QStringLiteral("modify.trim"), exclusiveCommandFactory<ModifyTrimCommand>());
+    QStringLiteral("modify.trim"), exclusiveCommandFactory<ModifyTrimCommand>());
 }  // namespace

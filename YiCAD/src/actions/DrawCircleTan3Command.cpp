@@ -523,5 +523,5 @@ std::unique_ptr<BasePlaceTool> DrawCircleTan3Command::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawCircleTan3, QStringLiteral("draw.circle_tan3"), exclusiveCommandFactory<DrawCircleTan3Command>());
+    QStringLiteral("draw.circle_tan3"), exclusiveCommandFactory<DrawCircleTan3Command>());
 }  // namespace

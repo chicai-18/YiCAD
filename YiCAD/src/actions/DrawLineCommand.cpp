@@ -538,5 +538,5 @@ void DrawLineCommand::hideOptions()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLine, QStringLiteral("draw.line"), exclusiveCommandFactory<DrawLineCommand>());
+    QStringLiteral("draw.line"), exclusiveCommandFactory<DrawLineCommand>());
 }  // namespace

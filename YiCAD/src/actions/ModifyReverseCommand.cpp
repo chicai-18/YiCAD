@@ -107,5 +107,5 @@ bool ModifyReverseCommand::onSelectionReady()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyReverse, QStringLiteral("modify.reverse"), exclusiveCommandFactory<ModifyReverseCommand>());
+    QStringLiteral("modify.reverse"), exclusiveCommandFactory<ModifyReverseCommand>());
 }  // namespace

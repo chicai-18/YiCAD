@@ -272,5 +272,5 @@ void ModifyCopyCommand::commitCopy(const DmVector& reference, const DmVector& ta
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyCopy, QStringLiteral("modify.copy"), exclusiveCommandFactory<ModifyCopyCommand>());
+    QStringLiteral("modify.copy"), exclusiveCommandFactory<ModifyCopyCommand>());
 }  // namespace

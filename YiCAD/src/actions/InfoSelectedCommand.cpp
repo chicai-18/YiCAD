@@ -164,6 +164,6 @@ private:
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerInstantCommand(
-    DM::ActionInfoSelected, QStringLiteral("info.selected"),
+    QStringLiteral("info.selected"),
     [](const CommandContext& ctx) { InfoSelectedCommand::run(ctx.document, ctx.view); });
 }  // namespace

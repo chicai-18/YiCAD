@@ -1,10 +1,10 @@
 /// @file test_command_dispatch.cpp
-/// @brief UIActionHandler 按命令 ID / 别名 / legacy 枚举启动命令的单测
+/// @brief UIActionHandler 按命令 ID / 别名启动命令的单测
 ///
 /// 覆盖阶段4 字符串命令 ID 的入口（doc/ARCHITECTURE_EVOLUTION_PLAN.md
 /// 7.10 节）：activateCommand 按 ID 启动命令、触发源透传为
-/// CommandContext::sender；keycode() 在 keyconfig.xml 查不到时按注册表别名
-/// 启动；setCurrentAction(DM::ActionType) 经 legacy 桥接走同一条路径。
+/// CommandContext::sender；keycode() 先按 keyconfig.xml（以命令 ID 为键，业务工具化
+/// 第四步）查，查不到时按注册表别名启动。
 ///
 /// 没有打开文档（UIActionHandler 没有视图）时即时命令照常执行——测试用即时
 /// 命令观察命令是否真的被启动。
@@ -17,6 +17,7 @@
 
 #include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
+#include "Commands.h"
 #include "UIActionHandler.h"
 
 TEST(CommandDispatchTest, activateCommand按ID执行并透传触发源)
@@ -58,17 +59,44 @@ TEST(CommandDispatchTest, keycode在keyconfig之外按注册表别名启动)
     EXPECT_EQ(runs, 1);
 }
 
-TEST(CommandDispatchTest, setCurrentAction经legacy桥接走同一条路径)
+TEST(CommandDispatchTest, keycode按keyconfig的命令ID启动且优先于注册表别名)
 {
-    static int runs = 0;
-    runs = 0;
-    // ActionViewLayerTable 从未被任何内置命令注册（原 switch 里没有它的 case）。
+    static int configuredRuns = 0;
+    static int aliasRuns = 0;
+    configuredRuns = 0;
+    aliasRuns = 0;
     ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
-        DM::ActionViewLayerTable, "test.dispatch.legacy", [](const CommandContext&) { ++runs; }));
+        "test.dispatch.configured", [](const CommandContext&) { ++configuredRuns; }));
+    // 注册表别名与 keyconfig.xml 的别名重名：keyconfig.xml 优先
+    ASSERT_TRUE(CommandRegistry::instance().registerInstantCommand(
+        "test.dispatch.shadowed", [](const CommandContext&) { ++aliasRuns; }, {.aliases = {"tdconfigured"}}));
+    COMMANDS->loadFromData({CommandKeys{"test.dispatch.configured", "Configured", {"tdconfigured"}}}, false);
 
     UIActionHandler handler(nullptr);
-    handler.setCurrentAction(DM::ActionViewLayerTable);
-    EXPECT_EQ(runs, 1);
+    EXPECT_TRUE(handler.keycode("tdconfigured"));
+    EXPECT_EQ(configuredRuns, 1);
+    EXPECT_EQ(aliasRuns, 0);
+    EXPECT_EQ(COMMANDS->description("test.dispatch.configured"), QStringLiteral("Configured"));
+}
+
+TEST(CommandDispatchTest, keyconfig认领但没有实现的命令按已识别处理)
+{
+    // 如对应的扩展没有加载：命令 ID 不在注册表里，按键被认领、什么也不做
+    COMMANDS->loadFromData({CommandKeys{"test.dispatch.unregistered", "", {"tdunregistered"}}}, false);
+
+    UIActionHandler handler(nullptr);
+    EXPECT_TRUE(handler.keycode("tdunregistered"));
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("test.dispatch.unregistered"));
+}
+
+TEST(CommandDispatchTest, 结束全部命令是宿主处理的内置命令)
+{
+    // 原 DM::ActionEditKillAllActions：不进注册表，没有视图时什么也不做
+    COMMANDS->loadFromData({CommandKeys{"edit.kill_all", "", {"tdkillall"}}}, false);
+
+    UIActionHandler handler(nullptr);
+    EXPECT_FALSE(CommandRegistry::instance().hasCommand("edit.kill_all"));
+    EXPECT_TRUE(handler.keycode("tdkillall"));
 }
 
 TEST(CommandDispatchTest, 没有视图时即时命令照常执行交互命令不启动)

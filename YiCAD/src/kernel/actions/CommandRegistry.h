@@ -25,13 +25,14 @@
 /// 选成 OBJECT 库而非 STATIC 库的决定——OBJECT 库不会因为"没人引用"而把
 /// 整个翻译单元的目标文件从链接里剔除，STATIC 库的归档器则会。
 ///
-/// `DM::ActionType` 是过渡期的桥接键，供既有内置命令使用，不是新命令的
-/// 必需项：扩展命令（`IExtensionContext::registerExclusiveCommand` 等，ID 形如
-/// "ext.dim.linear"）只有字符串 ID，由 `UIActionHandler::activateCommand` 按 ID 启动。
+/// 命令只以字符串 ID 标识（内置命令形如 "draw.line"，扩展命令形如
+/// "ext.dim.linear"），由 `UIActionHandler::activateCommand` 按 ID 启动。原先供
+/// keyconfig.xml 使用的 `DM::ActionType` 桥接在业务工具化第四步删除
+/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
 ///
-/// 内置命令的命令行别名与说明来自 keyconfig.xml（`Commands`，以
-/// `DM::ActionType` 为键）；纯字符串命令没有枚举值可挂，别名与说明随
-/// `CommandInfo` 一起注册在这里。
+/// 命令行别名有两个来源：keyconfig.xml（`Commands`，以命令 ID 为键，分组可选，
+/// "命令设置"对话框可改）与随 `CommandInfo` 注册在这里的别名；两者重名时
+/// keyconfig.xml 优先。
 ///
 /// 命令有三种注册类型（`CommandKind`，doc/COMMAND_TOOL_MIGRATION_PLAN.md
 /// 第二步第 2 项与第三步）：交互命令（工厂返回 `std::unique_ptr<IExclusiveCommand>`，
@@ -125,7 +126,7 @@ struct CommandInfo
 {
     /// @brief 显示名，命令行提示里的 "[说明]" 前缀用。
     QString description;
-    /// @brief 命令行别名，大小写不敏感；与 keyconfig.xml 里的内置别名重名时内置优先。
+    /// @brief 命令行别名，大小写不敏感；与 keyconfig.xml 里的别名重名时 keyconfig.xml 优先。
     QStringList aliases;
     /// @brief 交互命令的选项条；为空表示该命令没有选项条。
     ExclusiveCommandOptionsFactory commandOptionsFactory;
@@ -133,7 +134,7 @@ struct CommandInfo
     InstantInterrupt instantInterrupt = InstantInterrupt::EndUninterruptible;
 };
 
-/// @brief 命令注册表。字符串 ID 为主键，`DM::ActionType` 只是过渡期桥接。
+/// @brief 命令注册表，以字符串 ID 为键。
 /// @note 仅限 UI 主线程访问，无内部同步（与 PluginRegistry 的既有约定一致）。
 class CommandRegistry
 {
@@ -148,30 +149,13 @@ public:
     /// 失败时不留下任何部分注册的状态。
     bool registerExclusiveCommand(const QString& id, ExclusiveCommandFactory factory, CommandInfo info = {});
 
-    /// @brief 注册一个内置交互命令，同时建立 legacy ActionType 桥接。
-    /// @return 成功返回 true；id 或 legacyType 已存在时返回 false，不留下部分注册的状态。
-    bool registerExclusiveCommand(DM::ActionType legacyType, const QString& id, ExclusiveCommandFactory factory);
-
     /// @brief 注册一个即时命令，其余同 registerExclusiveCommand()。
     bool registerInstantCommand(const QString& id, InstantCommand command, CommandInfo info = {});
-
-    /// @brief 注册一个内置即时命令，同时建立 legacy ActionType 桥接。
-    /// @return 成功返回 true；id 或 legacyType 已存在时返回 false，不留下部分注册的状态。
-    bool registerInstantCommand(DM::ActionType legacyType, const QString& id, InstantCommand command,
-                                CommandInfo info = {});
 
     /// @brief 注册一个临时视图工具，其余同 registerExclusiveCommand()。
     bool registerViewTool(const QString& id, ViewToolFactory factory, CommandInfo info = {});
 
-    /// @brief 注册一个内置临时视图工具，同时建立 legacy ActionType 桥接。
-    /// @return 成功返回 true；id 或 legacyType 已存在时返回 false，不留下部分注册的状态。
-    bool registerViewTool(DM::ActionType legacyType, const QString& id, ViewToolFactory factory);
-
-    /// @brief 为已注册的命令建立 legacy ActionType 桥接（keyconfig.xml 仍以枚举为键）。
-    /// @return id 未注册或 legacyType 已桥接时返回 false。
-    bool bindLegacyType(DM::ActionType legacyType, const QString& id);
-
-    /// @brief 注销一个命令，连同它的别名与 legacy 桥接。
+    /// @brief 注销一个命令，连同它的别名与双击编辑登记。
     /// @return id 未注册时返回 false。
     bool unregisterCommand(const QString& id);
 
@@ -187,15 +171,6 @@ public:
 
     /// @brief 命令的注册类型；未注册返回 CommandKind::None。
     CommandKind kind(const QString& id) const;
-
-    /// @brief legacyType 是否已经迁移到本注册表。
-    bool hasLegacyMapping(DM::ActionType legacyType) const;
-
-    /// @brief legacyType 桥接到的字符串 ID；未桥接返回空串。
-    QString commandId(DM::ActionType legacyType) const;
-
-    /// @brief 桥接到 id 的 legacy ActionType；未桥接返回 DM::ActionNone。
-    DM::ActionType legacyType(const QString& id) const;
 
     /// @brief 按命令行别名查命令 ID（大小写不敏感）；未找到返回空串。
     QString commandForAlias(const QString& alias) const;
@@ -238,11 +213,8 @@ private:
 
     /// @brief 各种注册共用：校验 id 与别名，登记条目
     bool addEntry(const QString& id, Entry entry);
-    /// @brief 带 legacy 桥接的注册共用：legacyType 未桥接时才注册，注册成功后建立桥接
-    bool addBridged(DM::ActionType legacyType, const QString& id, const std::function<bool()>& registerEntry);
 
     std::map<QString, Entry> m_commands;
-    std::map<DM::ActionType, QString> m_legacyBridge;
     /// @brief 小写别名 -> 命令 ID
     std::map<QString, QString> m_aliases;
     /// @brief 实体类型 -> 双击编辑命令 ID

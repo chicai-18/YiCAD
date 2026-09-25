@@ -311,6 +311,6 @@ std::unique_ptr<BasePlaceTool> DrawEllipseInscribeCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawEllipseInscribe, QStringLiteral("draw.ellipse_inscribe"),
+    QStringLiteral("draw.ellipse_inscribe"),
     exclusiveCommandFactory<DrawEllipseInscribeCommand>());
 }  // namespace

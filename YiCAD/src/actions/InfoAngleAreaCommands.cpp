@@ -448,8 +448,8 @@ std::unique_ptr<BasePlaceTool> InfoAreaCommand::createTool()
 }
 
 const bool g_registeredAngle = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionInfoAngle, QStringLiteral("info.angle"), exclusiveCommandFactory<InfoAngleCommand>());
+    QStringLiteral("info.angle"), exclusiveCommandFactory<InfoAngleCommand>());
 
 const bool g_registeredArea = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionInfoArea, QStringLiteral("info.area"), exclusiveCommandFactory<InfoAreaCommand>());
+    QStringLiteral("info.area"), exclusiveCommandFactory<InfoAreaCommand>());
 }  // namespace

@@ -56,12 +56,9 @@ bool ModifyDeleteCommand::onSelectionReady()
 namespace
 {
 const bool g_registeredDelete = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionModifyDelete, QStringLiteral("modify.delete"), exclusiveCommandFactory<ModifyDeleteCommand>());
+    QStringLiteral("modify.delete"), exclusiveCommandFactory<ModifyDeleteCommand>());
 
-const bool g_registeredDeleteNoSelect =
-    CommandRegistry::instance().registerInstantCommand(
-        QStringLiteral("modify.delete_no_select"),
-        [](const CommandContext& ctx) { ModifyDeleteCommand::deleteSelection(ctx.document, ctx.view); })
-    && CommandRegistry::instance().bindLegacyType(DM::ActionModifyDeleteNoSelect,
-                                                  QStringLiteral("modify.delete_no_select"));
+const bool g_registeredDeleteNoSelect = CommandRegistry::instance().registerInstantCommand(
+    QStringLiteral("modify.delete_no_select"),
+    [](const CommandContext& ctx) { ModifyDeleteCommand::deleteSelection(ctx.document, ctx.view); });
 }  // namespace

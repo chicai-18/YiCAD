@@ -1204,3 +1204,46 @@ virtual bool onEndRequested(CommandEndReason reason) { return true; }
 提交①验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
 （`test_interaction` 246 例）；`check_layering.py` 通过；安装后程序能启动，主窗口、Ribbon 与
 画布正常（截图核对）。
+
+**提交②：`DM::ActionType` 退出命令 ID**
+
+1. **keyconfig.xml 以命令 ID 为键**：`<item command="draw.line" description="两点直线" keys="line,li,l"/>`。
+   `Commands` 的数据改为 `CommandKeys`（命令 ID、说明、别名），`cmdToCommand()`/`keycodeToCommand()`/
+   `description(commandId)`/`getKeyCommands()` 取代按枚举的接口。默认配置转换后 98 条；36 条
+   （平行线、水平/竖直线、拉伸、矩形阵列等 18 种）的枚举名原映射表里就没有，读取时一直被丢弃，
+   这次从文件里删除，行为不变。
+2. **读取旧格式**：`Commands::legacyCommandId()` 是原 `initStrActionMap()` 的枚举名到命令 ID 的转换
+   表。已搬进扩展的命令对到扩展的 ID（2026-09-25 确认），`*NoSelect` 对到同一个命令，原映射表里
+   有但从未实现的（`ActionFileExport`/`Print`/`Quit`、`ActionView*`、`ActionSelect*`、椭圆的另三种
+   画法、`ActionScript*` 等）不在表里。`readConfigFile()` 遇到 `action` 属性时按它转换。
+3. **用户目录下的旧文件改写一次**：`Commands::load()` 先调用 `migrateLegacyConfig()`，文件里只要有
+   一条旧格式条目，就逐组转换后整份改写为新格式，原文件复制为 `keyconfig.xml.bak`，已有备份不覆盖。
+4. **宿主的内置命令**：结束全部命令与捕捉/约束开关原先是 `DM::ActionEditKillAllActions`、
+   `ActionSnap*`、`ActionRestrict*` 的特判，现在是 `UIActionHandler` 自己处理的字符串 ID
+   `edit.kill_all`、`snap.*`、`restrict.*`（`runBuiltinCommand()`），不进注册表，keyconfig.xml
+   可以给它们配别名。命令行的解析顺序不变：keyconfig.xml 里有实现的命令、注册表登记的别名、
+   keyconfig.xml 认领但没有实现的条目、插件命令。
+5. **删除**：`CommandRegistry` 的枚举桥接（带枚举的注册重载、`bindLegacyType`、`commandId(ActionType)`、
+   `legacyType`、`hasLegacyMapping`），`UIActionHandler::setCurrentAction`/`commandLineActions`/
+   `hasBuiltinHandler`，`Commands` 的枚举映射表；63 处内置命令的注册去掉枚举参数。`DM::ActionType`
+   没有剩下非命令的用途，整个删除。
+6. **界面**："命令设置"对话框、切换快捷键组后刷新命令行补全、命令行的"[说明]"前缀都改用命令 ID。
+7. **测试**：新增 `test_keyconfig`（6 例：新格式按组读取、旧格式转换与丢弃、旧文件改写与备份、已有
+   备份不覆盖、保存时保留其它组、默认配置里的命令都已注册，读源码树里的 keyconfig.xml）；
+   `test_command_dispatch` 的枚举入口 1 例改为 3 例（keyconfig 的命令 ID 优先于注册表别名、认领但
+   没有实现、结束全部是宿主的内置命令）；`test_command_registry` 删去桥接 4 例；其余测试去掉桥接
+   断言。
+
+**与方案的偏差与补充**
+
+1. **原样保留**：命令行输入配给自由捕捉开关（原 `ActionSnapFree`）的别名仍被识别但不起作用
+   （原 `commandLineActions()` 漏了它），按键编码照常切换，代码里注明。
+2. **从未实现的用户条目不再认领**：用户给原映射表里有、但从未实现的枚举名（如 `ActionFilePrint`）
+   配过别名时，原先输入该别名被当作已识别、什么也不做；现在转换时丢弃，输入后按插件命令解析，
+   解析不了就与其它未知输入一样。
+3. **在程序里核对了改写**：在用户目录放一份旧格式文件后启动程序，文件改写为新格式、留下
+   `keyconfig.xml.bak`，`ActionDrawText` 转成 `ext.text.draw`，从未实现的条目丢弃；核对后删除。
+
+提交②验证：Debug、Release 构建通过；Debug、Release 的 `ctest` 4 个测试程序全部通过
+（`test_interaction` 250 例）；`check_layering.py` 通过；安装后程序能启动，用户目录下的旧格式
+keyconfig.xml 被改写并备份。

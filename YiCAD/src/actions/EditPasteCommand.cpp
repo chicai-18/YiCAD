@@ -191,5 +191,5 @@ std::unique_ptr<BasePlaceTool> EditPasteCommand::createTool()
 }
 
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionEditPaste, QStringLiteral("edit.paste"), exclusiveCommandFactory<EditPasteCommand>());
+    QStringLiteral("edit.paste"), exclusiveCommandFactory<EditPasteCommand>());
 }  // namespace

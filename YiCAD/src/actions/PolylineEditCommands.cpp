@@ -822,11 +822,11 @@ std::unique_ptr<BasePlaceTool> PolylineDelCommand::createTool()
 }
 
 const bool g_registeredAdd = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionPolylineAdd, QStringLiteral("polyline.add"), exclusiveCommandFactory<PolylineAddCommand>());
+    QStringLiteral("polyline.add"), exclusiveCommandFactory<PolylineAddCommand>());
 
 const bool g_registeredAppend = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionPolylineAppend, QStringLiteral("polyline.append"), exclusiveCommandFactory<PolylineAppendCommand>());
+    QStringLiteral("polyline.append"), exclusiveCommandFactory<PolylineAppendCommand>());
 
 const bool g_registeredDel = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionPolylineDel, QStringLiteral("polyline.del"), exclusiveCommandFactory<PolylineDelCommand>());
+    QStringLiteral("polyline.del"), exclusiveCommandFactory<PolylineDelCommand>());
 }  // namespace

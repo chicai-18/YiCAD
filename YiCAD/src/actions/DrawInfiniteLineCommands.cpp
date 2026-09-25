@@ -229,8 +229,8 @@ protected:
 };
 
 const bool g_registeredRay = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawRay, QStringLiteral("draw.ray"), exclusiveCommandFactory<DrawRayCommand>());
+    QStringLiteral("draw.ray"), exclusiveCommandFactory<DrawRayCommand>());
 
 const bool g_registeredXline = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawXline, QStringLiteral("draw.xline"), exclusiveCommandFactory<DrawXlineCommand>());
+    QStringLiteral("draw.xline"), exclusiveCommandFactory<DrawXlineCommand>());
 }  // namespace

@@ -120,10 +120,10 @@ namespace
 {
 // 剪切与复制到剪贴板共用一个类，copy 参数区分
 const bool g_registeredCut = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionEditCut, QStringLiteral("edit.cut"),
+    QStringLiteral("edit.cut"),
     [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return std::make_unique<EditCopyCommand>(false); });
 
 const bool g_registeredCopy = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionEditCopy, QStringLiteral("edit.copy"),
+    QStringLiteral("edit.copy"),
     [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return std::make_unique<EditCopyCommand>(true); });
 }  // namespace

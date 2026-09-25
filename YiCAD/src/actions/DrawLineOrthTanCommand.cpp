@@ -260,6 +260,6 @@ std::unique_ptr<BasePlaceTool> DrawLineOrthTanCommand::createTool()
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionDrawLineOrthTan, QStringLiteral("draw.line_orth_tan"),
+    QStringLiteral("draw.line_orth_tan"),
     exclusiveCommandFactory<DrawLineOrthTanCommand>());
 }  // namespace

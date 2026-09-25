@@ -240,5 +240,5 @@ void CopyToLayerCommand::commitCopy(const DmVector& basePoint, const DmVector& e
 namespace
 {
 const bool g_registered = CommandRegistry::instance().registerExclusiveCommand(
-    DM::ActionCopyToLayer, QStringLiteral("modify.copy_to_layer"), exclusiveCommandFactory<CopyToLayerCommand>());
+    QStringLiteral("modify.copy_to_layer"), exclusiveCommandFactory<CopyToLayerCommand>());
 }  // namespace

@@ -45,10 +45,6 @@ public:
     UIActionHandler(QObject* parent);
     virtual ~UIActionHandler() = default;
 
-    /// @brief 按 keyconfig.xml 的枚举启动命令：捕捉/约束开关与"结束全部"由本类处理，
-    ///        其余经 CommandRegistry 的枚举桥接转成命令 ID 交给 activateCommand()
-    void setCurrentAction(DM::ActionType id);
-
     /// @brief 按字符串命令 ID 启动命令（Ribbon、命令行别名、扩展共用的入口）。
     /// @details 按注册类型分派（CommandRegistry::kind）：交互命令交给视图的命令总线；
     /// 即时命令直接执行；临时视图工具叠在视图的业务栈顶。
@@ -65,9 +61,6 @@ public:
     void killAllActions();
 
     bool keycode(const QString& code);
-    // special handling of actions issued from command line, currently used for snap actions
-    // return true if handled
-    bool commandLineActions(DM::ActionType id);
     bool command(const QString& cmd);
 
     /// @brief 设置规范外部命令的执行入口。
@@ -123,9 +116,14 @@ private:
     /// @brief 解析并执行 pluginId/commandId 形式的外部命令。
     bool executeExternalCommand(const QString& command);
 
-    /// @brief keyconfig.xml 查到的枚举在宿主侧是否有实现：注册表桥接、
-    /// KillAllActions，或捕捉/约束开关。
-    static bool hasBuiltinHandler(DM::ActionType type);
+    /// @brief 宿主自己处理的内置命令：结束全部命令（edit.kill_all）与捕捉/约束开关
+    ///        （snap.*、restrict.*），keyconfig.xml 可以给它们配别名
+    /// @param fromCommandLine 来自命令行（command()）还是按键编码（keycode()）
+    /// @return commandId 是内置命令时返回 true
+    bool runBuiltinCommand(const QString& commandId, bool fromCommandLine);
+    /// @brief 运行 keyconfig.xml 查到的命令：内置命令，或 CommandRegistry 里注册了的命令
+    /// @return 运行了时返回 true；命令 ID 为空或没有实现时返回 false
+    bool runKeyconfigCommand(const QString& commandId, bool fromCommandLine);
 
     UISnapWidget*       m_pSnapToolbar = nullptr;
     GuiDocumentView*    m_pView = nullptr;
