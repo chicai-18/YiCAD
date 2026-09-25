@@ -97,8 +97,9 @@ flowchart TB
 `doc/COMMAND_TOOL_MIGRATION_PLAN.md`（业务工具化方案：取消 Action 概念）之后，
 理由见该文件第 2 节。
 
-**进度**（2026-09-25）：阶段 0–4 完成（阶段 4 的收尾见 7.11 节：打印取消、插件入口接入注册表、
-每个扩展独立成库）；业务工具化方案四步完成；下一步是阶段 5。
+**进度**（2026-09-25）：阶段 0–5 全部完成（阶段 4 的收尾见 7.11 节：打印取消、插件入口接入注册表、
+每个扩展独立成库；阶段 5 见 8.6 节：迁到 Qt 6.8，不保留 Qt 5 构建）；业务工具化方案四步完成。
+翻译重新生成与 Debug 增量构建的 LNK1103 两个遗留问题见 8.6 节末尾。
 
 第 9 节的独立小项不依赖任何阶段，可随时穿插执行。
 
@@ -1356,6 +1357,121 @@ Ribbon 与改动前一致（截图核对）。**插件按钮的界面效果没�
   且字符编码部分（DXF 代码页）有真实的行为回归风险。
 - 缓解：阶段 0 建立的 persistence 往返测试在此阶段发挥核心作用。
 
+### 8.6 执行结果
+
+目标版本 Qt 6.8.0（msvc2022_64，与 `E:\dev\DS` 相同）。两项事先确认的决策：只保留 Qt 6，不做过渡期
+双构建；Qt 6 默认开启的高 DPI 缩放先关闭，画布的 devicePixelRatio 适配归渲染专项。
+
+**提交**
+
+| 提交 | 内容 | 在哪个 Qt 上验证 |
+|------|------|------------------|
+| ① | Qt 5.15 已有 Qt 6 写法的 API 先换掉：`QRegExp` → `QRegularExpression`，`QPixmap::grabWidget` → `QWidget::grab`，滚轮事件改 `position()`/`angleDelta()`，删掉未用的 `QDesktopWidget`；定义 `QT_DISABLE_DEPRECATED_BEFORE=0x060000` | Qt 5.15，Debug/Release 构建与 ctest |
+| ② | 构建切到 Qt 6，处理只在 Qt 6 下才出现的问题（下文），CI 与 README、AGENTS.md 同步 | Qt 6.8，Debug/Release 构建、ctest、安装后运行 |
+| ③ | DXF 中文编码与基准图纸的端到端测试，本节 | Qt 6.8，Debug/Release ctest |
+
+回退：① 单独在 Qt 5 上可用，revert ②③ 即回到 Qt 5 构建。
+
+**依赖侧**
+
+- SARibbonBar 保持 `b5d3818`（它的 CMake 已按 `Qt6 Qt5` 查找），对 Qt 6 重新构建，安装到
+  `external/SARibbonBar/install-qt6-{debug,release}`，`CMakePresets.json` 指向新目录。旧的 Qt 5 产物留在
+  `install-{debug,release}`，检出老提交仍能构建。没有升级到 DS 用的 2.2.8（API 改名较多）。
+- CDT 与全部 Conan 包都不依赖 Qt，`conanfile.py` 只改说明文字，`conan.lock` 不变。
+- 本地构建用环境变量 `Qt6_DIR` 指向 Qt 安装前缀（与原来的 `Qt5_DIR` 用法相同）；CI 装 Qt 6.8.0，
+  SARibbonBar 的缓存键带上 Qt 版本。
+
+**构建侧**
+
+- 模块：`Widgets Gui Core OpenGL OpenGLWidgets Xml Svg Network`，外加 `LinguistTools`。去掉了
+  `Designer`（代码没用它，此前只是借它间接带进 `Xml`），`QDomDocument` 所在的 `Xml` 改为显式声明；
+  `QOpenGLWidget` 在 Qt 6 里属于 `OpenGLWidgets`。
+- Qt 6 的导入目标按目录可见，`cmake/dependencies.cmake` 在顶层一次找齐全部组件，`tests/` 才能链接
+  `Qt6::Widgets`。
+- `QT_NO_UNICODE_DEFINES`：`Qt6::Platform` 在 Windows 上给使用方加 `UNICODE`/`_UNICODE`（Qt 5 的
+  CMake 目标不加），会把 muParser 头文件切到 `std::wstring` 接口，与 Conan 的窄字符 muparser 链接不上，
+  也会把 Win32 的 `TCHAR` 宏切到 W 版本。所有链接 Qt 的目标都设这一属性，沿用 Qt 5 下的行为。
+- uic 加 `--connections string`：Qt 6 的 uic 默认生成函数指针连接，槽必须是表单根控件类（`QDialog`、
+  `QWidget`）的成员，而本项目 `.ui` 连接的是子类的槽。
+- `QT5_WRAP_UI`/`qt5_add_resources`/`QT5_ADD_TRANSLATION` 换成 `qt6_*`，自定义的 lupdate 函数改名
+  `yicad_create_translation`；windeployqt 用 `Qt6::windeployqt` 导入目标。
+- `QT_DISABLE_DEPRECATED_BEFORE` 改为 Qt 6 的 `QT_DISABLE_DEPRECATED_UP_TO=0x060000`。
+
+**代码侧**
+
+| 项 | 改法 |
+|----|------|
+| `QTextCodec`（`DmFont.cpp` 解码 TrueType 字体名） | UTF-16BE 用 `QStringDecoder`；Shift-JIS、GB18030、Big5 用 Win32 `MultiByteToWideChar`（代码页 932、54936、950）。本机这份 Qt 6 不带 ICU，`QStringDecoder` 不认东亚编码 |
+| `QTextStream`/`QXmlStreamWriter::setCodec` | Qt 6 默认 UTF-8；`QTextStream` 改 `setEncoding(QStringConverter::Utf8)`，写入 `QString` 的 `QXmlStreamWriter` 本来就不写 encoding 声明，直接删除 |
+| `QMouseEvent::x()/y()/globalPos()` | 改 `pos().x()/pos().y()`（Qt 6.8 里 `pos()` 未废弃，舍入与原来一致）与 `globalPosition().toPoint()`，共 20 个文件 |
+| `QTabletEvent` | 按 `pointerType()`/`deviceType()` 重写，见下文偏差 |
+| `enterEvent(QEvent*)` | 改 `enterEvent(QEnterEvent*)` |
+| 其它 | `QVariant::Invalid` → `isValid()`；`QStandardPaths::DataLocation` → `AppLocalDataLocation`（同一路径）；`QString(int)` → `QString(QChar(int))`；删掉 `AA_DisableWindowContextHelpButton`（Qt 6 默认不显示）；测试里 `QAction::associatedWidgets()` → `associatedObjects()` |
+| Qt 6.x 才废弃的 API | 一并清掉：`QString::count()`、五参数的 `QMouseEvent` 构造、`QDateTime::toTimeSpec(Qt::OffsetFromUTC)`（文档说明等同 `toUTC()`）、按整数按钮的 `QMessageBox`、`QColor::setNamedColor`。Qt 相关的 C4996 告警清零 |
+
+`QRegExp` 的 `\s`、`\S` 按 `QChar::isSpace` 判断（含全角空格），`QRegularExpression` 默认只认 ASCII
+空白，这几处加了 `UseUnicodePropertiesOption`；`test_keyconfig.cpp` 新增用例覆盖命令行计算器的取式，
+含全角空格。
+
+**运行期行为（安装后运行、截图比对发现的）**
+
+1. **画布彩色噪点**。Qt 6 版画布只剩竖向的虚点线，放大看是成片的随机彩色像素。定位过程：关掉
+   MSAA 仍然出现，`glReadPixels` 读控件自己的 FBO 已经是噪点（不是合成问题），全部 program 链接成功。
+   根因：各绘制层开着深度测试（`GL_LEQUAL`），却从不 `glClear`（背景用全屏矩形覆盖）。Qt 5 的
+   QOpenGLWidget 在每次 `paintGL` 前会清空颜色、深度、模板缓冲；Qt 6 在支持 `glInvalidateFramebuffer`
+   （GL 4.3 起）的驱动上改为只作废 FBO 内容，深度缓冲里是随机值，片元被随机剔除。
+   `GuiDocumentView::paintGL` 与 `GuiPreviewWidget::paintGL` 开头显式清一次。修复后空文档画布与 Qt 5
+   版逐像素一致（2560×1080 区域 0 个像素不同，NVIDIA RTX 3070 Ti，驱动 566.07）。
+2. **Ribbon 面板标题看不见、下拉框深色底**。Qt 6.7 起在 Windows 11 上默认使用 `windows11` 样式；
+   `Main.cpp` 显式设为 Qt 5 时的 `windowsvista`。
+3. **高 DPI**。本机 150% 缩放，Qt 6 默认缩放下画布的 GL 视口、拾取容差都未按 devicePixelRatio 计算。
+   `Main.cpp` 在创建 `QApplication` 前设置 `QT_ENABLE_HIGHDPI_SCALING=0`（外部已设置时不覆盖）。
+
+**与方案的偏差**
+
+| 项 | 方案 | 实际 | 理由 |
+|----|------|------|------|
+| Qt 5 并行 | 第 10 节：双 CI 并行一段时间 | 只保留 Qt 6 | 事先确认的决策；① 在 Qt 5 上单独可用，回退粒度靠提交保证 |
+| 任务 3 DXF 编码 | 验证 `sourceCodePage` 相关处理，改用 `QStringConverter` 或 ICU | DXF 路径无需改动 | DXF 的代码页转换在插件内置的 libdxfrw 里完成，不经过 Qt；宿主只透传 `$DWGCODEPAGE` 字符串。真正用 `QTextCodec` 的只有字体名解码（见上表）。新增端到端测试兜底（见下） |
+| 任务 4 翻译 | 用 Qt 6 的 lupdate 重新生成 `ts/` | 未重新生成，`.ts` 不变 | 试跑发现项目自己的 lupdate 流程会丢译文：源文件清单不含 `.ui` 表单，命令挪进扩展后翻译仍留在主程序 `.ts`。结果是主程序 237 条、各扩展合计 169 条已完成译文被标为 vanished，与 Qt 版本无关（Qt 5 的 lupdate 同样如此）。Qt 6 的 lrelease 直接编译现有 `.ts`（TS 2.1 格式未变），界面中文正常。`qtbase_zh_CN.ts` 也在 `ts/*.ts` 的匹配范围里，走 lupdate 会把 Qt 词条全部作废；Qt 5.15.2 本身没有这份翻译，是项目自己维护的，保持不动 |
+| 数位板橡皮擦 | — | 行为修正 | Qt 5 下原代码拿 `QTabletEvent::Eraser`（指针类型枚举）去比 `device()`（设备类型枚举），实际命中数值相同的 Airbrush，真正的橡皮擦走了笔的分支。Qt 6 的枚举是强类型，不能再混比，按注释的本意改为 `pointerType() == Eraser` 时拾取并删除 |
+| 三份基准图纸行为一致 | 按图纸比对 | 导入逐类型比对 + 空文档画布逐像素比对 | 程序没有命令行打开文件的入口，试过用按键脚本驱动“打开”对话框，按键会落到别的前台窗口，放弃。改为无头用例（见下），画面一致性由空文档的逐像素比对与根因分析保证 |
+
+**测试**
+
+- `tests/interaction/test_dxf_encoding.cpp`（新增 3 例），加载构建目录里真实的 `YiCadDxfPlugin.dll`，走与程序
+  相同的插件运行时：
+  - R2000 图纸按 `ANSI_936` 用 GBK 存中文图层名与文字，导入后中文正确；
+  - 导入后导出（插件固定写 R2013，UTF-8），文件里是中文的 UTF-8 字节，路径本身带中文，再导入内容一致；
+  - 基准图纸：设置 `YICAD_BENCHMARK_DIR` 时运行，否则跳过；逐类型比对 DXF 的 ENTITIES 段与导入后的
+    顶层实体数。三份图纸在 Qt 6 Release 下全部一致，总耗时约 238 秒（主要是大图纸）。BASELINE.md 里
+    没有打开耗时的基线，Qt 5 下未跑这一用例，无从比较快慢。
+- `test_keyconfig.cpp` 新增命令行计算器用例（见上）。
+- Debug、Release 的 ctest 4 个测试程序全部通过；`check_layering.py` 通过。
+
+**验收对照**
+
+| 8.4 节的验收标准 | 状态 |
+|------------------|------|
+| Qt 6 下全部测试绿灯，三份基准图纸行为一致 | 测试全部通过；基准图纸按上文方式验证（逐类型导入一致，空文档画布与 Qt 5 逐像素一致），未在界面上逐份打开比对 |
+| DXF 导入导出的中文编码往返测试通过 | 达成（`DxfEncodingTest`） |
+| CI 同时或切换到 Qt 6 构建 | 已切换（`build.yml`、`build-deps.yml`）；本地未运行 CI |
+
+**已知差异**
+
+- 默认界面字体：Qt 5 在中文 Windows 上用宋体，Qt 6 用系统消息字体（微软雅黑 UI），字宽变大，
+  线型下拉框里的 “ByLayer” 显示为 “ByLay”。未强制改回宋体。
+- 高 DPI 缩放关闭，界面在 150% 缩放的屏幕上与 Qt 5 一样偏小。
+
+**遗留问题**（均与 Qt 版本无关，本阶段不处理）
+
+1. Debug 增量构建偶发 `LNK1103`（调试信息损坏）：扩展库与可执行目标用 `REUSE_FROM YiCadCore` 共用
+   预编译头，VS 生成器在构建前把 `YiCadCore.pdb` 复制到各扩展目录；YiCadCore 里任一文件重编后，复制会
+   覆盖扩展的 PDB，没重编的扩展对象丢失类型信息。7.11 节提交③引入，Release 与 CI 不受影响；全量
+   构建可规避。
+2. 翻译重新生成：先把 `.ui` 表单加进 lupdate 的源文件清单、把 `qtbase_zh_CN.ts` 排除在 lupdate
+   之外、把挪进扩展的字符串的译文迁到扩展的 `.ts`，再用 Qt 6 的 lupdate 生成。
+
 ---
 
 ## 9. 独立小项
@@ -1476,7 +1592,7 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
 | 2 | 按 Action 分批 | 适配器让新旧事件体系共存，可逐 Action 回退 |
 | 3 | 按库分批 | 自底向上拆，每拆一层单独 PR |
 | 4 | 按命令分批 | 注册表与枚举并行共存，未迁移的命令走旧路径 |
-| 5 | 分支隔离 | Qt 5 与 Qt 6 双 CI 并行一段时间 |
+| 5 | 分支隔离 | Qt 5 与 Qt 6 双 CI 并行一段时间（实际未采用：只保留 Qt 6，回退靠 revert 构建切换的提交，见 8.6 节） |
 
 **通用约束**：禁止出现跨阶段的「大爆炸式」PR。任何超过三个核心文件的改动，
 按 `AGENTS.md` 的约定先说明影响范围再执行。
