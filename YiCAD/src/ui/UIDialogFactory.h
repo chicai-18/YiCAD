@@ -24,30 +24,19 @@
 #include <QPointer>
 #include "CommandRegistry.h"
 #include "GuiDialogFactoryInterface.h"
-#include "UIActionHandler.h"
 
-class UIPolylineEquidistantOptions;
 class UISnapMiddleOptions;
-class UISnapDistOptions;
 class UIModifyOffsetOptions;
 class QWidget;
 
-class QToolBar;
 class UIBottomWindow;
-class UICommandWidget;		
+class UICommandWidget;
 class DmDocument;
-class UILineAngleOptions;
 class DmVector;
 class DmTextStyleTable;
 class UIDlgTextStyle;
 class DmAttributeDefinition;
-class DmViewport;
-class DmViewportTable;
-class DmTableStyle;
-class DmTable;
-class UIDlgTableStyle;
 class UIDlgLineType;
-class UIDlgTableStyleMgr;
 
 #define UIDIALOGFACTORY (GuiDialogFactory::instance()->getFactoryObject())
 
@@ -64,7 +53,6 @@ public:
 	// Links this dialog factory to a command widget.
 	void setCommandWidget(UICommandWidget* command) override;
 
-	void setActionHandle(UIActionHandler* handle);
 	void requestWarningDialog(const QString& warning) override;
 	bool requestConfirmDialog(const QString& title, const QString& message) override;
 	DmDocument* requestActiveDocument() override;
@@ -98,7 +86,6 @@ protected:
 	void requestRegisteredOptions(const std::function<QWidget*(QWidget*)>& build, bool on, int height = 23);
 
 public:
-	void requestSnapDistOptions(double& dist, bool on) override;
 	void requestSnapMiddleOptions(int& middlePoints, bool on) override;
 
 public:
@@ -110,12 +97,9 @@ public:
 	void requestOptionsGeneralDialog() override;
 	void requestOptionsDrawingDialog(DmDocument& document) override;
 
-
 	/// @brief 线型对话框
 	/// @return 确定返回true，取消返回false
 	bool requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document) override;
-
-	QString requestFileSaveAsDialog(const QString& caption = QString(), const QString& dir = QString(), const QString& filter = QString(), QString* selectedFilter = 0) override;
 
 	void updateCoordinateWidget(const DmVector& abs, const DmVector& rel, bool updateFormat=false) override;
 	/// @brief updateMouseWidget Called when an action has a mouse hint.
@@ -132,22 +116,16 @@ protected:
 	QWidget*						parent = nullptr;						///< Pointer to the widget which can host dialogs
 	QWidget*						optionWidget = nullptr;				///< Pointer to the widget which can host individual tool options
 	UICommandWidget*				m_pCommandWidget = nullptr;			///< Pointer to the command line widget
-	UIPolylineEquidistantOptions*	polylineEquidistantOptions = nullptr;
 	UIBottomWindow*                 bottomWidget = nullptr;
 
 private:
 	// pointers to snap option widgets
 	UISnapMiddleOptions*			m_pSnapMiddleOptions = nullptr;
-	UISnapDistOptions*				m_pSnapDistOptions = nullptr;
 	UIModifyOffsetOptions*			m_pModifyOffsetOptions = nullptr;
-	UILineAngleOptions*				m_pLineAngleOptions = nullptr;
 	QPointer<QWidget>				m_pRegisteredOptions;					///< requestRegisteredOptions 当前显示的选项条
 
 	UIDlgTextStyle*					m_pTextStyle = nullptr;
 	UIDlgLineType*					m_pLineType = nullptr;
-	UIDlgTableStyle*				m_pTableStyle = nullptr;
-	UIDlgTableStyleMgr*				m_pTableStyleMgr = nullptr;
-	UIActionHandler*                m_pActionHandler = nullptr;
 };
 
 #endif

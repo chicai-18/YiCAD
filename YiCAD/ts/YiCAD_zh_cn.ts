@@ -42,7 +42,7 @@
 <context>
     <name>QMessageBox</name>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="128"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="106"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
@@ -57,7 +57,7 @@
         <translation>名称为“%1”的层已存在。 请指定其他名称。</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="258"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="236"/>
         <source>Layer Dialog</source>
         <translation>图层对话框</translation>
     </message>
@@ -428,7 +428,7 @@
         <translation>arch e</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="581"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="578"/>
         <source>command</source>
         <translation>命令</translation>
     </message>
@@ -496,7 +496,7 @@
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="472"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="469"/>
         <source>select qss file</source>
         <translation>选择qss文件</translation>
     </message>
@@ -541,22 +541,22 @@
         <translation>移动引用点</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1250"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1247"/>
         <source>on all</source>
         <translation>显示所有图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1254"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1251"/>
         <source>unlock all</source>
         <translation>解锁所有图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1258"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1255"/>
         <source>new layer</source>
         <translation>新增图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1266"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1263"/>
         <source>rename layer</source>
         <translation>重命名图层</translation>
     </message>
@@ -566,7 +566,7 @@
         <translation>文字</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1262"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1259"/>
         <source>copy to layer</source>
         <translation>复制实体到指定图层</translation>
     </message>
@@ -615,29 +615,29 @@
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="61"/>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="80"/>
-        <location filename="../src/main/ApplicationWindow.cpp" line="462"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="459"/>
         <location filename="../src/main/ApplicationWindowRibbon.cpp" line="44"/>
         <location filename="../src/main/ApplicationWindowRibbon.cpp" line="47"/>
         <source>File</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1164"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1161"/>
         <source>open</source>
         <translation>打开文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1160"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1157"/>
         <source>new</source>
         <translation>新建文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1172"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1169"/>
         <source>save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1176"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1173"/>
         <source>save as</source>
         <translation>另存为</translation>
     </message>
@@ -660,14 +660,14 @@
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1183"/>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1661"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1180"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1658"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1190"/>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1671"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1187"/>
+        <location filename="../src/main/ApplicationWindow.cpp" line="1668"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
@@ -728,147 +728,147 @@
         <translation>无法备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="357"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="335"/>
         <source>All Image Files (%1)</source>
         <translation>所有图像文件 (%1)</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="359"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="337"/>
         <source>All Files (*.*)</source>
         <translation>所有文件 (*.*)</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="364"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="342"/>
         <source>Open Image</source>
         <translation>打开图片</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="653"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="601"/>
         <source>Modify dimension text</source>
         <translation>修改标注文本</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="653"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="601"/>
         <source>New dimension text:</source>
         <translation>新标注文本：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="849"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="789"/>
         <source>Windows Bitmap</source>
         <translation>BMP</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="865"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="805"/>
         <source>Portable Bit Map</source>
         <translation>PBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="869"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="809"/>
         <source>Portable Grey Map</source>
         <translation>PGM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="877"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="817"/>
         <source>Portable Pixel Map</source>
         <translation>PPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="881"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="821"/>
         <source>X Bitmap Format</source>
         <translation>XBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="885"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="825"/>
         <source>X Pixel Map</source>
         <translation>XPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="194"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="172"/>
         <source>Level</source>
         <translation>图层</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="656"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="604"/>
         <source>Modify dimension</source>
         <translation>修改标注</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="853"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="793"/>
         <source>Joint Photo document Experts Group</source>
         <translation>JPEG 图像格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="857"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="797"/>
         <source>Documents Interchange Format</source>
         <translation>文档交换格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="861"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="801"/>
         <source>Multiple-image Network Documents</source>
         <translation>多图像网络文档</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="873"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="813"/>
         <source>Portable Network Document</source>
         <translation>便携式网络图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="889"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="829"/>
         <source>Scalable Vector Documents</source>
         <translation>可缩放矢量图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="893"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="833"/>
         <source>SGI Black &amp; White</source>
         <translation>BW</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="897"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="837"/>
         <source>Encapsulated PostScript</source>
         <translation>EPS</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="901"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="841"/>
         <source>Encapsulated PostScript Format</source>
         <translation>EPSF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="905"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="845"/>
         <source>Encapsulated PostScript Interchange</source>
         <translation>EPSI</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="909"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="849"/>
         <source>Windows Icon</source>
         <translation>ICO</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="913"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="853"/>
         <source>JPEG 2000</source>
         <translation>JPEG 2000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="917"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="857"/>
         <source>ZSoft Paintbrush</source>
         <translation>PCX</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="921"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="861"/>
         <source>PC Paint</source>
         <translation>PIC</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="925"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="865"/>
         <source>SGI-Bilddatei</source>
         <translation>SGI-Bilddatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="929"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="869"/>
         <source>Targa Image File</source>
         <translation>TGA</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="933"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="873"/>
         <source>Tagged Image File Format</source>
         <translation>TIF/TIFF</translation>
     </message>
@@ -3045,50 +3045,6 @@
     </message>
 </context>
 <context>
-    <name>UISelectionWidget</name>
-    <message>
-        <location filename="../src/ui/forms/UISelectionWidget.ui" line="32"/>
-        <source>Selection</source>
-        <translation>选择</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UISelectionWidget.ui" line="74"/>
-        <source>Selected</source>
-        <translation>已选</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UISelectionWidget.ui" line="102"/>
-        <source>Total Length</source>
-        <translation>总长</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UISelectionWidget.ui" line="121"/>
-        <source>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;Helvetica&apos;; font-size:7pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Number of selected entities&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;Helvetica&apos;; font-size:7pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;选中的实体数量&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UISelectionWidget.ui" line="153"/>
-        <source>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;Helvetica&apos;; font-size:7pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Total length of selected entities&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
-&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
-p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:&apos;Helvetica&apos;; font-size:7pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;选中的实体总长度&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-</context>
-<context>
     <name>UISnapWidget</name>
     <message>
         <location filename="../src/ui/UISnapWidget.cpp" line="61"/>
@@ -3652,19 +3608,6 @@ p, li { white-space: pre-wrap; }
         <location filename="../src/ui/forms/UIModifyOffsetOptions.ui" line="72"/>
         <source>Offset from original entity</source>
         <translation>从初始实体偏移</translation>
-    </message>
-</context>
-<context>
-    <name>Ui_SnapDistOptions</name>
-    <message>
-        <location filename="../src/ui/forms/UISnapDistOptions.ui" line="32"/>
-        <source>Snap Distance Options</source>
-        <translation>捕捉距离选项</translation>
-    </message>
-    <message>
-        <location filename="../src/ui/forms/UISnapDistOptions.ui" line="50"/>
-        <source>Distance:</source>
-        <translation>距离：</translation>
     </message>
 </context>
 <context>

@@ -90,13 +90,6 @@ public:
         return false;
     }
 
-    /// @brief 请求新建文档
-    /// @return 始终返回 nullptr
-    GuiDocumentView* requestNewDocument(const QString&, DmDocument*)
-    {
-        return nullptr;
-    }
-
     /// @brief 请求新建图层对话框
     /// @return 始终返回 nullptr
     DmLayer* requestNewLayerDialog(DmLayerTable*) override
@@ -144,11 +137,6 @@ public:
     {
     }
 
-    /// @brief 请求捕捉距离选项（空操作）
-    void requestSnapDistOptions(double&, bool) override
-    {
-    }
-
     /// @brief 请求捕捉中点选项（空操作）
     void requestSnapMiddleOptions(int&, bool) override
     {
@@ -188,14 +176,6 @@ public:
     /// @brief 请求绘图选项对话框（空操作）
     void requestOptionsDrawingDialog(DmDocument&) override
     {
-    }
-
-
-    /// @brief 请求文件另存为对话框
-    /// @return 始终返回空字符串
-    QString requestFileSaveAsDialog(const QString&, const QString&, const QString&, QString*) override
-    {
-        return {};
     }
 
     /// @brief 更新坐标控件（空操作）

@@ -25,8 +25,6 @@
 #include <QFileDialog>
 #include <QImageReader>
 #include <QString>
-#include <QFileDialog>
-#include <QToolBar>
 #include <QRegularExpression>
 #include <QInputDialog>
 
@@ -64,11 +62,8 @@
 #include "UIDlgText.h"
 #include "UILayerDialog.h"
 #include "UIModifyOffsetOptions.h"
-#include "UISnapDistOptions.h"
 #include "UISnapMiddleOptions.h"
 #include "DmBlockTable.h"
-#include "UISnapMiddleOptions.h"
-#include "UISnapDistOptions.h"
 #include "DmVector.h"
 #include "Debug.h"
 #include "UIBottomWidget.h"
@@ -82,20 +77,8 @@
 UIDialogFactory::UIDialogFactory(QWidget* parent, QWidget* ow)
 	: GuiDialogFactoryInterface()
 	, parent(parent)
-	, m_pLineAngleOptions(nullptr)
 {
 	setOptionWidget(ow);
-
-	bottomWidget = nullptr;
-	m_pCommandWidget = nullptr;
-	polylineEquidistantOptions = nullptr;
-	m_pSnapMiddleOptions = nullptr;
-	m_pSnapDistOptions = nullptr;
-	m_pModifyOffsetOptions = nullptr;
-	m_pTextStyle = nullptr;
-	m_pActionHandler = nullptr;
-	m_pTableStyle = nullptr;
-	m_pTableStyleMgr = nullptr;
 }
 
 UIDialogFactory::~UIDialogFactory()
@@ -110,11 +93,6 @@ void UIDialogFactory::setBottomWidget(UIBottomWindow* bw)
 void UIDialogFactory::setCommandWidget(UICommandWidget* command)
 {
 	m_pCommandWidget = command;
-}
-
-void UIDialogFactory::setActionHandle(UIActionHandler* handle)
-{
-	m_pActionHandler = handle;
 }
 
 void UIDialogFactory::setOptionWidget(QWidget* ow)
@@ -481,36 +459,6 @@ void UIDialogFactory::requestSnapMiddleOptions(int& middlePoints, bool on)
 	}
 }
 
-// Shows a widget for 'snap to a point with a given distance' options.
-void UIDialogFactory::requestSnapDistOptions(double& dist, bool on)
-{
-	if (!on)
-	{
-		if (m_pSnapDistOptions)
-		{
-			delete m_pSnapDistOptions;
-			m_pSnapDistOptions = nullptr;
-			optionWidget->hide();
-		}
-		return;
-	}
-	if (optionWidget)
-	{
-		if (!m_pSnapDistOptions)
-		{
-			m_pSnapDistOptions = new UISnapDistOptions(optionWidget);
-			m_pSnapDistOptions->setDist(dist);
-		}
-		else
-		{
-			m_pSnapDistOptions->setDist(dist, false);
-		}
-		m_pSnapDistOptions->show();
-		optionWidget->resize(m_pSnapDistOptions->width(), 23);
-		optionWidget->show();
-	}
-}
-
 void UIDialogFactory::requestModifySingleOffsetOptions(double& dist, bool on, bool update)
 {
 	if (!on)
@@ -780,14 +728,6 @@ void UIDialogFactory::requestOptionsDrawingDialog(DmDocument& document)
 	dlg.setDocument(&document);
 	dlg.exec();
 }
-
-
-
-QString UIDialogFactory::requestFileSaveAsDialog(const QString& caption, const QString& dir, const QString& filter, QString* selectedFilter)
-{
-	return QFileDialog::getSaveFileName(parent, caption, dir, filter, selectedFilter);
-}
-
 
 bool UIDialogFactory::requestLineTypeDialog(DmLineTypeTable* lineTypeTable, DmDocument* document)
 {

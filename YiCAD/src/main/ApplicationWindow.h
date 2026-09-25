@@ -55,8 +55,6 @@ class UIBottomWindow;
 class UITabDrawWidget;
 class UIActionGroupManager;
 class UICommandWidget;
-class UIBlockListWidget;
-class UIBlockSaveAs;
 class ApplicationPluginHostContext;
 class ApplicationWindowExtensionHost;
 class ExtensionManager;

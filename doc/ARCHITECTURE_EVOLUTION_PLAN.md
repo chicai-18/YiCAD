@@ -1651,6 +1651,45 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
 | `ActionSelectSingle.cpp` 的 `select.single` 工厂（7.7 节） | 视图没有事件处理器时 `getCurrentAction()` 返回 `nullptr`，随即被解引用 | 没有当前 Action 时不启动命令，返回 `nullptr`（单选必须挂在一个父 Action 之下，Esc/右键时交还给它） | `test_command_registry.cpp` 新增用例：无当前 Action 时返回 `nullptr`，有当前 Action 时照常建出单选 |
 | `UIDlgDimensionStyle.cpp`（7.10 节） | 字符串形式连接的 `lineTypeChanged(DM::LineType)` 不存在，信号实际是 `lineTypeChanged(DmLineType*)`，运行期连接失败，修改线型不生效 | 这两处改用函数指针形式的 `connect`，签名不符时编译期报错；同文件其余字符串连接逐一核对过签名，均匹配 | 无自动化用例：对话框依赖完整的应用上下文。GUI 下的手工验证尚未做 |
 
+### 9.3 业务对话框随扩展搬走，精简对话框工厂（2026-09-25 确认）
+
+**起因**：内置命令全部拆进扩展之后（`COMMAND_TOOL_MIGRATION_PLAN.md` 9.4 节），
+`GuiDialogFactoryInterface` 上的业务对话框方法大多只剩一个扩展在调用，窗体却还在
+`ui/forms/`，经 `UIDialogFactory` 转一道。标注样式对话框（7.10 节）与 `UIBlockDelete`
+已经是扩展里直接构造。
+
+**决策**
+
+- 调用方只在一个扩展里的对话框：删去工厂方法，由扩展直接构造，窗体（`.h`/`.cpp`/`.ui`）
+  与译文搬进扩展。
+- 实体属性对话框（`requestModifyEntityDialog`）：各扩展经 `IExtensionContext::registerEntityEditor`
+  登记编辑命令（多行文字已是这样），选择层双击与"修改实体属性"命令都按登记分派。点、线、
+  圆弧、圆、椭圆、样条、多段线、图片归 `ext.draw`（创建这类实体的扩展拥有它的属性对话框），
+  文字归 `ext.text`，填充归 `ext.hatch`，块参照与属性定义归 `ext.block`，标注文字归 `ext.dim`。
+- 接口里保留：内核调用的（`requestActiveDocument`、`requestUntitledDocumentName`、
+  `requestFileExport/Import`）、宿主界面反馈（`commandMessage`、`update*Widget`、
+  `setCommandWidget`、`setBottomWidget`）、选项条的挂载 `requestCommandOptions`、捕捉器的
+  `requestSnapMiddleOptions`，以及警告、确认、是/否/取消三个通用提示——测试夹具靠重写它们
+  预设回答。
+- 多个扩展共用的控件 `UIWidgetPen`，以及宿主与 `ui/` 自己用的窗体（线型、退出确认、捕捉中点）
+  留在 `ui/forms/`。
+- 分四批提交：①删死代码；②图层、选项、文字、填充与图片文件对话框改为直接构造，偏移选项条
+  改为随命令注册；③块；④属性对话框按登记分派。
+
+**提交①：删除死代码**
+
+- `requestSnapDistOptions` 与 `UISnapDistOptions`、`requestFileSaveAsDialog`：没有调用方。
+- `UISelectionWidget.ui`：没有对应的类，uic 生成的头文件没有文件包含。
+- `GuiDialogFactoryAdapter::requestNewDocument`：不是接口方法，没有调用方。
+- `UIDialogFactory`：`setActionHandle`/`m_pActionHandler`（只写不读）；`polylineEquidistantOptions`、
+  `m_pLineAngleOptions`、`m_pTableStyle`、`m_pTableStyleMgr` 与它们的前置声明（这些类早已不存在）；
+  重复的 include。
+- `ApplicationWindow.{h,cpp}` 对 `UIBlockListWidget`、`UIBlockSaveAs` 的 include 与前置声明。
+- 译文：`YiCAD_zh_cn.ts` 删去 `UISelectionWidget`、`Ui_SnapDistOptions` 两个上下文共 7 条。
+
+提交①验证：Release 构建通过；`ctest` 4 个测试程序通过（`test_interaction` 266 例，1 例跳过）；
+`check_layering.py` 通过；安装后程序能启动。
+
 ---
 
 ## 10. 回退策略

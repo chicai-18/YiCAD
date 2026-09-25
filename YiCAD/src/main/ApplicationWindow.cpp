@@ -75,8 +75,6 @@
 #include "UIBottomWidget.h"
 #include "UIActionHandler.h"
 #include "UICommandWidget.h"
-#include "UIBlockListWidget.h"
-#include "UIBlockSaveAs.h"
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
 
@@ -288,7 +286,6 @@ ApplicationWindow::ApplicationWindow(ExtensionRegistrar extensionRegistrar, QWid
 
 	m_pDialogFactory = new UIDialogFactory(this, pDialogBackWidget);
 	GuiDialogFactory::instance()->setFactoryObject(m_pDialogFactory);
-	m_pDialogFactory->setActionHandle(m_pActionHandler);
 	pDialogBackWidget->hide();
 
 	// 绘图区域选项卡

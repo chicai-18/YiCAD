@@ -174,11 +174,6 @@ public:
     /// @param update true 从命令获取数据，false 从配置文件获取数据
     virtual void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) = 0;
 
-    /// @brief 显示带距离选项的捕捉点控件
-    /// @param[out] dist 距离值，控件可直接修改
-    /// @param on true 打开控件，false 关闭控件
-    virtual void requestSnapDistOptions(double& dist, bool on) = 0;
-
     /// @brief 显示捕捉中点选项控件
     /// @param[out] middlePoints 中点数量
     /// @param on true 打开控件，false 关闭控件
@@ -217,15 +212,6 @@ public:
     /// @brief 显示绘图选项对话框
     /// @param document 当前文档
     virtual void requestOptionsDrawingDialog(DmDocument& document) = 0;
-
-
-    /// @brief 显示文件另存为对话框
-    /// @param caption 对话框标题
-    /// @param dir 默认目录
-    /// @param filter 文件过滤器
-    /// @param[out] selectedFilter 选中的过滤器
-    /// @return 用户选择的文件路径
-    virtual QString requestFileSaveAsDialog(const QString& caption = QString(), const QString& dir = QString(), const QString& filter = QString(), QString* selectedFilter = 0) = 0;
 
     /// @brief 更新坐标显示控件
     /// @details 每次鼠标位置变化时调用
