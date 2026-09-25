@@ -33,7 +33,7 @@ set(qrc_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/res/ribbon/ribbon_icon.qrc)
 # 不会出现「文件建好了但没进构建」（方案 P5）。
 #
 # 阶段 0 里全部分区喂给同一个 YiCadCore OBJECT 库，依赖方向尚未由构建
-# 系统强制。阶段 3 拆库时发现 RENDER/INTERACTION/UI/APP 四个分区之间存在
+# 系统强制。阶段 3 拆库时发现 RENDER/INTERACTION/UI/SHELL 四个分区之间存在
 # 真实的双向依赖（见下方各分区注释与 6.7 节），只有 MATH/MODEL/PERSISTENCE
 # 三个分区能拆成三个独立静态库，其余分区仍合编进 YiCadCore。
 # #####################################################
@@ -110,8 +110,8 @@ yicad_collect_sources(MODEL
 
 # 对应阶段 3 的 YiCadPersistence（依赖 YiCadModel）。
 #
-# kernel/fileio/ 不在此列——见下方 APP 分区的说明，FileIO 对插件运行时的
-# 依赖使它物理上只能归 APP。DmDocument 对具体读写的调用已改为经
+# kernel/fileio/ 不在此列——见下方 SHELL 分区的说明，FileIO 对插件运行时的
+# 依赖使它物理上只能归 SHELL。DmDocument 对具体读写的调用已改为经
 # GuiDialogFactoryInterface 注入，不再直接依赖本分区。
 yicad_collect_sources(PERSISTENCE
     src/kernel/persistence
@@ -130,7 +130,7 @@ yicad_collect_sources(PERSISTENCE
 #
 # 业务工具化第四步删除旧版 Action 栈 GuiEventHandler 后，本分区不再包含
 # INTERACTION 分区的头文件（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.4 节），主计划
-# 6.7 节记录的这处双向依赖解开；目前仍与 INTERACTION/UI/APP 一起编入 YiCadCore。
+# 6.7 节记录的这处双向依赖解开；目前仍与 INTERACTION/UI/SHELL 一起编入 YiCadCore。
 yicad_collect_sources(RENDER
     src/kernel/painters
     src/kernel/painters/opengl
@@ -148,7 +148,7 @@ yicad_collect_sources(RENDER
 #   src/cmd/                    keyconfig.xml 与命令行别名（Commands）；计划图未列出，
 #                               工具要调用 Commands::checkCommand，归此
 #
-# 本分区不包含 UI/APP 的头文件，也不包含交互视图 UIView（tools/check_layering.py
+# 本分区不包含 UI/SHELL 的头文件，也不包含交互视图 UIView（tools/check_layering.py
 # 检查）：命令与工具只经 IDocumentView/GuiDocumentView 认识视图。
 yicad_collect_sources(APPLICATION
     src/application
@@ -167,7 +167,7 @@ yicad_collect_sources(INTERACTION
 #
 # UI 组件里有多处（UIActionHandler、UIBottomWidget、UICurrentActivePen、
 # UILineTypeBox、UITabDrawWidget 等）直接调用 ApplicationWindow/MDIWindow
-# 取全局状态（当前文档、当前 MDI 标签），是与 APP 互相依赖的既有设计。
+# 取全局状态（当前文档、当前 MDI 标签），是与 SHELL 互相依赖的既有设计。
 #
 # src/ui/ribbon/ 是 Ribbon 注册表与装配器（UIRibbonRegistry/UIRibbonManager），
 # 内置类目与扩展共用。
@@ -176,7 +176,10 @@ yicad_collect_sources(UI
     src/ui/forms
     src/ui/ribbon)
 
-# 对应阶段 3 的 YiCadApp（可执行目标）。
+# 对应阶段 3 的 YiCadShell（可执行目标）：把各层组装成程序的外壳。
+#
+# 本分区原名 APP（目标库 YiCadApp），与 APPLICATION 分区、ApplicationWindow 容易混淆，
+# 2026-09-25 更名；更名前的文档执行记录保留原名。
 #
 # 计划图未列出 src/plugin_runtime/，它位于 UI 之上：
 #   plugin_runtime/   PluginUiAdapter 把插件命令与按钮登记进 CommandRegistry 与
@@ -189,10 +192,10 @@ yicad_collect_sources(UI
 #
 # kernel/fileio/（FileIO 门面类）归入本分区而非 PERSISTENCE：它的
 # getFilters() 之外还要 setPluginRuntime() 接入 plugin_runtime/ 的
-# PluginRegistry/PluginManager/HostApi，物理上依赖 APP 分区。这是已有
+# PluginRegistry/PluginManager/HostApi，物理上依赖 SHELL 分区。这是已有
 # 的、通过 setPluginRuntime() 显式注入的设计，不是本次拆库引入的问题；
 # 只是它决定了 Fileio.{h,cpp} 不能编进只应依赖 Model 的 YiCadPersistence。
-yicad_collect_sources(APP
+yicad_collect_sources(SHELL
     src/main
     src/plugin_runtime
     src/kernel/fileio)
@@ -233,7 +236,7 @@ foreach(_exe_only IN ITEMS "${YICAD_MAIN_ENTRY}" "${YICAD_BUILTIN_EXTENSIONS}")
     if(NOT EXISTS "${_exe_only}")
         message(FATAL_ERROR "未找到只编进可执行目标的源文件 ${_exe_only}")
     endif()
-    list(REMOVE_ITEM YICAD_APP_SOURCES "${_exe_only}")
+    list(REMOVE_ITEM YICAD_SHELL_SOURCES "${_exe_only}")
 endforeach()
 
 # #####################################################
@@ -351,7 +354,7 @@ set(YICAD_LUPDATE_SOURCES
     ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
     ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}          ${YICAD_UI_FORMS}
-    ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
+    ${YICAD_SHELL_HEADERS}       ${YICAD_SHELL_SOURCES}
     ${YICAD_MAIN_ENTRY})
 
 yicad_add_lupdate_job(YiCAD TS_FILES ${YICAD_TS_FILES} SOURCES ${YICAD_LUPDATE_SOURCES})
@@ -383,7 +386,7 @@ set_target_properties(TS_YiCAD PROPERTIES FOLDER "CMakePredefinedTargets")
 #
 # 阶段 3 把 MATH/MODEL/PERSISTENCE 三个分区拆成三个独立静态库，依赖方向由
 # CMake 强制：YiCadPersistence -> YiCadModel -> YiCadMath。RENDER/
-# INTERACTION/UI/APP 四个分区因 6.7 节所述的既有循环依赖，继续合编进
+# INTERACTION/UI/SHELL 四个分区因 6.7 节所述的既有循环依赖，继续合编进
 # YiCadCore（见下）。
 #
 # 用 STATIC 而非 OBJECT：这三层不含任何 Qt 元对象类（Q_OBJECT），没有
@@ -503,7 +506,7 @@ target_link_libraries(YiCadPersistence PUBLIC YiCadModel)
 # #####################################################
 # ==================== YiCadCore ======================
 #
-# RENDER + APPLICATION + INTERACTION + UI + APP 五个分区。可执行目标和测试二进制
+# RENDER + APPLICATION + INTERACTION + UI + SHELL 五个分区。可执行目标和测试二进制
 # 共享同一批目标文件，测试因此不必重新编译这部分代码，也不必为每个测试手工
 # 维护源文件子集。进程内扩展不在其中，各自是 OBJECT 库 YiCadExt_<扩展>（见下方），
 # YiCadCore 不引用任何扩展。
@@ -514,7 +517,7 @@ target_link_libraries(YiCadPersistence PUBLIC YiCadModel)
 # 这四个分区未按方案拆成四个独立静态库：见上方 RENDER/INTERACTION/UI 分区
 # 注释与 6.7 节，GuiDocumentView/GuiEventHandler（RENDER）与
 # ViewToolControl/PanZoomTool/SelectTool/LegacyActionTool/ActionInterface
-# （INTERACTION）互相持有对方的具体类型，UI 与 APP 之间同样存在大量
+# （INTERACTION）互相持有对方的具体类型，UI 与 SHELL 之间同样存在大量
 # ApplicationWindow/MDIWindow 互相调用，是阶段 1、2 与既有代码留下的真实
 # 双向依赖，不是本次拆库能靠移动文件解决的问题。
 # #####################################################
@@ -523,7 +526,7 @@ add_library(YiCadCore OBJECT
     ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
     ${YICAD_INTERACTION_HEADERS} ${YICAD_INTERACTION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
-    ${YICAD_APP_HEADERS}         ${YICAD_APP_SOURCES}
+    ${YICAD_SHELL_HEADERS}       ${YICAD_SHELL_SOURCES}
     ${YICAD_UI_FORMS}
     ${ui_FILES}
     ${qrc_FILES})
@@ -554,7 +557,7 @@ target_precompile_headers(YiCadCore PRIVATE
 # ---- YiCadCore 的依赖 ----
 # 全部用 PUBLIC：可执行目标与测试目标都需要这些库的头文件和符号。
 # YiCadMath/YiCadModel/YiCadPersistence 需要的第三方库已经在各自层级声明，
-# 经 PUBLIC 依赖链传播到这里，此处只声明 RENDER/INTERACTION/UI/APP
+# 经 PUBLIC 依赖链传播到这里，此处只声明 RENDER/INTERACTION/UI/SHELL
 # 自己新增的那些。
 
 target_link_libraries(YiCadCore PUBLIC YiCadPersistence)

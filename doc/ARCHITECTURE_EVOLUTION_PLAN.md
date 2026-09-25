@@ -563,7 +563,7 @@ ActionTool` 的转发范围是否要进一步收窄（见"与方案的偏差"表
 
 ```mermaid
 flowchart TB
-    App["YiCadApp<br/>exe: main/"]
+    Shell["YiCadShell<br/>exe: main/"]
     Ui["YiCadUi<br/>ui/, 49 个 .ui"]
     Inter["YiCadInteraction<br/>kernel/interaction/"]
     Appl["YiCadApplication<br/>application/, application/framework/,<br/>cmd/"]
@@ -572,8 +572,8 @@ flowchart TB
     Model["YiCadModel<br/>kernel/builder_model/, data_model/,<br/>history/, modification/, information/"]
     Math["YiCadMath<br/>kernel/math/, utility/"]
 
-    App --> Ui
-    App --> Inter
+    Shell --> Ui
+    Shell --> Inter
     Ui --> Inter
     Ui --> Appl
     Inter --> Appl
@@ -600,6 +600,10 @@ flowchart TB
 > 2026-09-25：每个扩展是独立的 OBJECT 库 `YiCadExt_<扩展>`（`extensions/<扩展>/`），位于
 > `YiCadUi`/`YiCadApplication` 之上、`YiCadApp` 之下，扩展之间互不依赖；扩展注册表
 > `main/BuiltinExtensions.cpp` 只编进可执行文件。见 7.11 节。
+>
+> 2026-09-25：`YiCadApp` 更名 `YiCadShell`，CMake 分区 `APP` 相应更名 `SHELL`：原名与
+> `YiCadApplication`、`ApplicationWindow` 容易混淆。它是把各层组装成程序的外壳，而
+> `YiCadApplication` 是其下的命令与工具机制。本文其余各节的执行记录保留原名 `APP`/`YiCadApp`。
 
 `YiCadRender` 在此仅作为一个层次边界存在，本方案**不改动其内部实现**。
 未来的渲染专项将在这个边界内进行，届时不会波及其它库。
