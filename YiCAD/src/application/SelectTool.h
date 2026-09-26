@@ -16,16 +16,13 @@
  */
 
 /// @file SelectTool.h
-/// @brief 选择工具：点选/框选/交叉选，以及拖拽实体与夹点
+/// @brief 选择工具：点选/框选/交叉选
 ///
 /// 从原 `ActionDefault` 抽出（阶段2 第5.4节第3项），吸收其
-/// `Neutral`/`Dragging`/`SetCorner2`/`Moving`/`MovingRef` 五个状态，
-/// 不是 QObject，可以单独构造与单测。
-///
-/// 未把 `Moving`/`MovingRef` 拆成独立的 `GripEditTool`：三者共享同一次
-/// 拖拽手势，鼠标刚按下时还不知道最终是框选还是拖动实体/夹点，要等
-/// `Dragging` 状态下移动超过阈值后才能判定，拆开需要在两个类之间转移
-/// 这次"未决"的拖拽状态。
+/// `Neutral`/`Dragging`/`SetCorner2` 三个状态，不是 QObject，可以单独构造与单测。
+/// 原先的 `MovingRef`（拖夹点）已拆到夹点编辑工具 `EditTool`（没有命令时在业务栈上），改为单击
+/// 夹点激活；按在夹点上的按下归它，本类收不到。`Moving`（空闲态拖动整个实体）已取消，在选中
+/// 实体上按住拖动与在空白处一样开始框选（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.6 节）。
 ///
 /// 由交互视图 `UIView`（kernel/interaction/UIView.h）持有（连同捕捉器与预览容器），注册为
 /// `ViewToolControl` 的选择层，业务工具不处理的事件落到本类
@@ -73,14 +70,12 @@ class SelectTool : public IViewTool
     Q_DECLARE_TR_FUNCTIONS(SelectTool)
 
 public:
-    /// @brief 内部状态，语义与原 `ActionDefault::Status` 完全一致
+    /// @brief 内部状态，语义与原 `ActionDefault::Status` 的前三个一致
     enum Status
     {
         Neutral,    ///< 初始状态
-        Dragging,   ///< 拖拽中（实体或选择窗口）
-        SetCorner2, ///< 设置选择窗口的第二个角点
-        Moving,     ///< 移动实体
-        MovingRef   ///< 移动选中实体的参考点
+        Dragging,   ///< 左键已按下，尚未判定是点选还是框选
+        SetCorner2  ///< 设置选择窗口的第二个角点
     };
 
     /// @brief 选择层之上正在活动的业务，决定本类是否更新提示、是否给出光标
@@ -107,7 +102,8 @@ public:
     /// @param doc 文档指针
     /// @param docView 文档视图指针
     /// @param snapService 非持有指针，由视图持有；空闲态的捕捉提示也读它
-    /// @param preview 非持有指针，由视图持有的预览容器
+    /// @param preview 非持有指针，由视图持有的预览容器；本类不往里画，只在选择完成、
+    ///                取消与挂起时清除它（与原 `ActionDefault` 相同）
     /// @param panTool 非持有指针，可为空；用于查询导航层是否正在平移中，
     ///                 为空时视为"从不平移"
     SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,

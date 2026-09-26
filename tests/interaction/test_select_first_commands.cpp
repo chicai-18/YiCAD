@@ -27,6 +27,7 @@
 #include "DmCircle.h"
 #include "DmDocument.h"
 #include "DmLine.h"
+#include "EditTool.h"
 #include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiDialogFactory.h"
@@ -108,8 +109,9 @@ struct SelectFirstFixture : ::testing::Test
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
+    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool, &editTool};
     /// @brief 创建块、编辑块在块扩展里（第三步⑥），其余先选后建命令在修改、编辑、查询扩展里
     ///        （第四步），用例期间启动它们
     yicad_test::FakeExtensionHost extensionHost;
@@ -122,6 +124,8 @@ struct SelectFirstFixture : ::testing::Test
         GuiDialogFactory::instance()->setFactoryObject(&ui);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
+        // 夹点编辑工具由总线放上、移出业务栈，这里只设它的可用查询（与 UIView 相同）
+        editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
         selectTool.setOverlayQuery([this]()
                                    {
                                        if (bus.hasActiveCommand())
@@ -358,11 +362,13 @@ TEST_F(SelectFirstFixture, 选择阶段拖动不拖夹点也不拖实体)
     line->setSelected(true);
     ASSERT_TRUE(start("ext.modify.delete"));
 
-    // 在端点上按下并拖动超过阈值：空闲态会进入 MovingRef，选择阶段直接框选
+    // 在端点上按下并拖动超过阈值：空闲态按下即归夹点编辑工具；选择阶段有命令在运行，
+    // 夹点编辑工具不在业务栈上，照常框选
     QMouseEvent press = makeMouse(QEvent::MouseButtonPress, 10, 10, Qt::LeftButton);
     QMouseEvent move = makeMouse(QEvent::MouseMove, 40, 40, Qt::NoButton);
     dispatch([&] { return control.mousePressEvent(&press); });
     dispatch([&] { return control.mouseMoveEvent(&move); });
+    EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
     EXPECT_EQ(selectTool.getStatus(), SelectTool::SetCorner2);
 }
 

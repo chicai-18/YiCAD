@@ -5,7 +5,7 @@
 ///   - 生命周期：启动、替换、结束、激活失败、激活期间就完成、延迟销毁；
 ///   - 结束前回调（5.1 节）：三种原因、否决与不否决、ViewClosing 忽略否决、
 ///     回调期间的重入请求被忽略；
-/// 以及选择阶段约束由总线清除、捕捉设置同步，
+/// 以及选择阶段约束由总线清除、夹点编辑工具随命令启停移出与放回业务栈、捕捉设置同步，
 /// 编辑模式（IEditMode）的进入、退出与结束全部时的征求同意。
 
 #include <gtest/gtest.h>
@@ -20,6 +20,9 @@
 
 #include "BaseExclusiveCommand.h"
 #include "DmDocument.h"
+#include "DmLine.h"
+#include "EditTool.h"
+#include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "IEditMode.h"
 #include "IViewTool.h"
@@ -142,7 +145,7 @@ public:
     }
 };
 
-/// @brief 与 UIView 相同的装配：导航层、选择层、工具控制器与总线
+/// @brief 与 UIView 相同的装配：导航层、选择层、夹点编辑工具、工具控制器与总线
 struct BusFixture : ::testing::Test
 {
     /// @brief 探针命令的记录。放在夹具里、声明在总线之前：用例结束时仍活动的命令
@@ -155,17 +158,40 @@ struct BusFixture : ::testing::Test
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
+    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool, &editTool};
 
     BusFixture()
     {
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
+        // 夹点编辑工具由总线放上、移出业务栈，这里只设它的可用查询（与 UIView 相同）
+        editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
     }
 
     /// @brief 新建一份探针命令的记录
     CommandLog& newLog() { return logs.emplace_back(); }
+
+    /// @brief 放一条选中的直线 (10,10)-(50,10)，两端是夹点
+    void addSelectedLine()
+    {
+        auto* line = new DmLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+        line->calculateBorders();
+        ASSERT_TRUE(doc.getEntityTable()->add_direct(line));
+        line->setSelected(true);
+    }
+
+    /// @brief 单击直线起点附近的夹点
+    void clickGrip()
+    {
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(12, 10), QPointF(12, 10), Qt::LeftButton,
+                          Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent release(QEvent::MouseButtonRelease, QPointF(12, 10), QPointF(12, 10), Qt::LeftButton,
+                            Qt::LeftButton, Qt::NoModifier);
+        control.mousePressEvent(&press);
+        control.mouseReleaseEvent(&release);
+    }
     /// @brief 新建一份编辑模式探针的记录
     ModeLog& newModeLog() { return modeLogs.emplace_back(); }
 
@@ -391,6 +417,54 @@ TEST_F(BusFixture, 命令结束时总线清除选择阶段约束)
     bus.end();
     EXPECT_FALSE(selectTool.inSelectionPhase());
     EXPECT_EQ(selectTool.getStatus(), SelectTool::Neutral);
+}
+
+TEST_F(BusFixture, 夹点编辑工具随命令启停移出与放回业务栈)
+{
+    // 与 DS-master 的 UIView::SyncEditActivation 相同：总线空闲时在栈上
+    EXPECT_TRUE(control.isActive(&editTool));
+
+    CommandLog& log = newLog();
+    ASSERT_TRUE(bus.start(makeCommand(log)));
+    EXPECT_FALSE(control.isActive(&editTool));
+
+    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
+    bus.end();
+    EXPECT_TRUE(control.isActive(&editTool));
+}
+
+TEST_F(BusFixture, 启动命令时取消激活的夹点)
+{
+    // 拆分出夹点编辑工具之前，启动命令只清除拖夹点的预览，命令结束后夹点接着跟随鼠标，
+    // 下一次单击会按命令改过的选择集落位（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.6 节）
+    addSelectedLine();
+    clickGrip();
+    ASSERT_EQ(editTool.getStatus(), EditTool::MovingRef);
+
+    CommandLog& log = newLog();
+    ASSERT_TRUE(bus.start(makeCommand(log)));
+    EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
+    EXPECT_FALSE(editTool.getCursor().has_value());
+}
+
+TEST_F(BusFixture, 夹点编辑工具在编辑模式的工具之上)
+{
+    ModeLog& modeLog = newModeLog();
+    bus.enterEditMode(std::make_unique<ProbeMode>(modeLog));
+    // 编辑模式里启动、结束一个命令，夹点编辑工具放回栈顶
+    CommandLog& log = newLog();
+    ASSERT_TRUE(bus.start(makeCommand(log)));
+    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
+    bus.end();
+
+    addSelectedLine();
+    clickGrip();
+    ASSERT_EQ(editTool.getStatus(), EditTool::MovingRef);
+    // 夹点激活时双击到夹点编辑工具为止；它若在模式之下，双击会先被模式接住
+    QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(12, 10), QPointF(12, 10), Qt::LeftButton,
+                    Qt::LeftButton, Qt::NoModifier);
+    EXPECT_EQ(control.mouseDoubleClickEvent(&dbl), ViewToolResult::Handled);
+    EXPECT_EQ(modeLog.doubleClicks, 0);
 }
 
 TEST_F(BusFixture, 析构时结束活动命令且不回调)

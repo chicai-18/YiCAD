@@ -43,9 +43,8 @@ QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button, Q
 /// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段1 4.6节"保留具体类型的例外"），
 /// 没有真实 GuiDocumentView 就没法把这层关联接上，传 &doc 会在构造期直接
 /// 空指针崩溃。这里的测试只覆盖 Neutral/Dragging/SetCorner2 与
-/// 键盘处理——它们都不触碰 m_preview；Moving/MovingRef（拖拽实体/夹点）
-/// 会调用 preview->addSelectionFromDocument() 等方法，这些需要一个真正
-/// 关联了文档的 Preview，本轮未覆盖，是本次测试的已知边界。
+/// 键盘处理——它们都不往 m_preview 里画。夹点编辑已拆到 EditTool，
+/// 由 test_edit_tool.cpp 覆盖（用的是带视图的 Preview）；空闲态拖动整个实体已取消。
 ///
 /// panTool 用真实的 PanZoomTool 构造（而非默认的 nullptr）：SelectTool
 /// 现在需要在导航层平移中时让路，这里的多数用例仍然从不触发平移，

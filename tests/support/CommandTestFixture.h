@@ -21,6 +21,7 @@
 #include "CommandRegistry.h"
 #include "DmDocument.h"
 #include "DmEntityContainer.h"
+#include "EditTool.h"
 #include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiCommandEvent.h"
@@ -87,14 +88,17 @@ struct CommandFixture : ::testing::Test
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool};
+    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool, &editTool};
 
     CommandFixture()
     {
         GuiDialogFactory::instance()->setFactoryObject(&ui);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
+        // 夹点编辑工具由总线放上、移出业务栈，这里只设它的可用查询（与 UIView 相同）
+        editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
         selectTool.setOverlayQuery([this]()
                                    {
                                        if (bus.hasActiveCommand())

@@ -117,7 +117,8 @@
 主计划阶段 2 引用的 `E:\dev\DS` 是同一套框架的较早副本：`IViewTool.h`、
 `ViewToolControl.h`、`IExclusiveCommand.h`、`BaseExclusiveCommand.h`、
 `ExclusiveCommandBus.h` 两边一致，`Select/SelectViewTool.h` 只多一个成员
-（2026-09-24 比对）。本方案以 DS-master 为准，路径相对 `DimX/Source/`。
+（2026-09-24 比对）。`Edit/EditTool.cpp` 两边不同：DS 按下只记起点、越过阈值才接管，
+DS-master 按下即接管（2026-09-26 比对）。本方案以 DS-master 为准，路径相对 `DimX/Source/`。
 
 - `Application/IExclusiveCommand.h`、`BaseExclusiveCommand.h`、`ExclusiveCommandBus.h`：
   - 命令接口：`CommandId`、`Activate(host)`、`Deactivate`、`IsActive`；
@@ -135,7 +136,11 @@
 - `Application/Select/SelectViewTool` + `SelectionService`：选择层写全局选择集；
   需要选择集的命令在启动前读取（`SelectedCoordTableCommand::PrepareFromSelection`）。
 - `View/UIView.cpp:204–219`：视图创建导航、选择两个兜底工具并注册；2D 模式下另把
-  `Application/Edit/EditTool`（夹点编辑）常驻激活在业务栈底部。
+  `Application/Edit/EditTool` 作为业务工具激活，此后由 `UIView::SyncEditActivation`
+  （`View/UIView.cpp:305`）在"有选择集且命令总线空闲"时激活、否则停用，由选择集变化与总线的
+  `signal_activeChanged` 驱动。`EditTool` 在按下时接管按在选中构件上的左键，整体移动选择集，
+  再按下落位；另有按构件类型登记的 `IEditBehavior`（双击、滚轮、按键）。`ViewToolControl`
+  没有给它单独的层（2026-09-26 复核；此前误记为"常驻激活在业务栈底部"）。
 
 DS 没有、YiCAD 需要保留的：
 - 命令行坐标与文本输入、选项条、鼠标按键提示、相对零点；
@@ -148,10 +153,10 @@ DS 没有、YiCAD 需要保留的：
 | 项 | 结论 | 说明 |
 |----|------|------|
 | 命令与工具 | 拆成两个对象，与 DS 一致 | 命令持有业务数据、预览、选项条与提交逻辑；工具只持有交互状态机与捕捉会话，通过回调驱动命令。即时命令没有工具 |
-| 命令并存 | 与 DS 一致：启动新命令即结束当前命令 | 两类例外不占总线：① 视图工具（平移、缩放）作为临时工具叠在业务栈顶，结束后当前命令照常继续；② 块编辑改为"编辑模式"，进入时在业务栈底部常驻一个块编辑工具（与 DS 的 `EditTool` 常驻用法相同），它负责右键询问是否保存并退出、其余事件让给选择层，编辑期间启动的命令叠在它上面，结束后回到块编辑。行为变化：被打断的普通命令不再恢复（与 AutoCAD 一致）。`isExclusive`/`isSubAction`/`canBeInterrupt`/`isViewAction` 全部删除 |
+| 命令并存 | 与 DS 一致：启动新命令即结束当前命令 | 两类例外不占总线：① 视图工具（平移、缩放）作为临时工具叠在业务栈顶，结束后当前命令照常继续；② 块编辑改为"编辑模式"，进入时在业务栈底部常驻一个块编辑工具，它负责右键询问是否保存并退出、其余事件让给选择层，编辑期间启动的命令叠在它上面，结束后回到块编辑。行为变化：被打断的普通命令不再恢复（与 AutoCAD 一致）。`isExclusive`/`isSubAction`/`canBeInterrupt`/`isViewAction` 全部删除 |
 | 结束前回调 | 命令被外部结束前，总线先回调命令，由命令保存、放弃或否决 | DS 没有这一环，是 YiCAD 的补充，见 5.1 节 |
 | 先选后建 | 保持现有交互：没有选择集时命令先进入"选择对象"阶段 | 该阶段命令的工具对鼠标事件返回 `NotHandled`，由兜底的 `SelectTool` 完成点选/框选。`SelectTool` 增加两项约束：实体类型过滤、禁用夹点拖拽，由当前命令设置，命令结束时由总线保证清除。确认、取消、提示文案与 `ActionModifyDelete` 的差异按第 3 节"选择阶段的现有交互"逐项保持（`ActionNoSelectCopyToLayer` 提示为空的缺陷照原样保留，不在迁移中顺手修） |
-| 夹点编辑 | 不拆出 `EditTool`，留在 `SelectTool` | 理由同主计划 5.7 节：框选与拖夹点在同一次拖拽的中途才分叉，共享未决状态 |
+| 夹点编辑 | 拆出 `EditTool`，与 DS-master 一样作为没有命令时的业务工具；夹点改为单击激活，空闲态不再拖动整个实体（2026-09-26 修订；原结论为不拆、留在 `SelectTool`） | 原理由同主计划 5.7 节：框选与拖夹点在同一次拖拽的中途才分叉，共享未决状态。改为单击夹点后，按下时就能判定是不是夹点，与选择层不再交接同一次手势；拖动整个实体按下时判定不了，取消。见 9.6 节 |
 | 命名 | DS 后缀式 | 命令 `XxxCommand`、工具 `XxxTool`、框架接口 `I*`，例如 `ActionDrawLine` → `DrawLineCommand` + `DrawLineTool`。框架类沿用 DS 名称（`ExclusiveCommandBus` 等）；方法名按 YiCAD 已有移植（`IViewTool`）的写法用小驼峰。`Action*` 只留给尚未迁移的旧类，不再新增。`AGENTS.md` 的命名规则已同步修改 |
 | 执行顺序 | 先于主计划阶段 4 任务⑤与阶段 5，分四步 | 见第 2 节与第 6 节 |
 | 第三步与扩展化（2026-09-24 确认） | 块、文字、填充在第三步直接做成扩展，文件、图层、选项也做成扩展 | 见 5.2 节 |
@@ -1402,3 +1407,56 @@ keyconfig.xml 被改写并备份。
 
 验证：Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction` 259 例，1 例因缺基准图纸
 跳过，与本次无关）；`check_layering.py` 通过；安装后程序能启动。
+
+### 9.6 第四步之后：夹点编辑拆为 EditTool，改为单击激活（2026-09-26）
+
+`SelectTool` 从 `ActionDefault` 吸收了五个状态，其中 `Moving`/`MovingRef`（按住拖动选中的实体、按住
+拖动选中实体的参考点）与点选、框选混在一个状态机里，两段处理几乎逐行重复。第 5 节曾决定不拆：按下时
+分不清是点选、框选还是拖动，要等移动超过阈值才分叉。先按 `E:\dev\DS` 旧版 `EditTool` 的做法试过
+"两边都记下按下、越过阈值时 `EditTool` 接管"，但这里的拖动分两段（拖过阈值后松开，再单击落位），
+选择层被接管后仍停在 `Dragging`，会把落位单击的释放当成点选，只能由 `EditTool` 回头通知它复位，两者
+又绑在一起。最后改了交互本身，让归属在按下时就能判定，这也是 DS-master 的 `EditTool` 现在的做法
+（第 4 节）。第 5 节"夹点编辑"一行随之修订。
+
+1. **夹点单击激活**（与 AutoCAD 相同）：左键按在选中实体的参考点 8 像素内，这次按下就归 `EditTool`，
+   选择层收不到；松开，或按住移动超过 10 像素时夹点激活，参考点跟随鼠标，再单击落位；右键或 Esc 取消。
+   其余的按下 `EditTool` 不处理，一切照旧归选择层。两者不交接同一次手势，也不共用拖拽阈值。
+2. **取消空闲态拖动整个实体**（原 `Moving`）：在选中实体的线身上按下，可能是单击（切换选中）也可能是
+   拖动，按下时分不清，保留它就得保留交接。DS-master 按在选中构件上即接管、整体移动，是因为它单击
+   选中构件不切换选中；YiCAD 单击线身要切换选中，所以只接管夹点。在线身上按住拖动现在与在空白处一样
+   开始框选，移动实体用移动命令。
+3. **`EditTool` 是业务工具**，与 DS-master 相同：`ViewToolControl` 不变，仍是业务栈、选择层、导航层
+   三层。没有活动命令时由命令总线放在业务栈上（总线构造时放上，`start()` 时移出，`finishActive()` 时
+   放回栈顶，析构时移出），对应 DS-master 的 `UIView::SyncEditActivation`。两点不同：
+   - DS-master 还要求有选择集，由选择集变化事件驱动。YiCAD 没有可靠的选择集变化通知（`Selection`、
+     命令里直接 `setSelected`、撤销都会改选择），改为按下时查 `getNearestSelectedRef`；
+   - YiCAD 的命令总线没有 `signal_activeChanged`，由总线在启停命令的地方直接放上、移出。
+
+   块编辑模式的工具用 `activateAtBottom()` 常驻栈底，`EditTool` 总在它之上；块编辑工具只接右键释放与
+   双击，其余让给下层，块编辑中的夹点编辑（B2）不受影响。`EditTool` 与选择层共用视图的捕捉器与预览容器。
+4. **`EditTool` 何时不接按下**：选择阶段有命令在运行，它不在业务栈上；框选时点第二个角点（选择层不在
+   `Neutral`），那次按下仍是框选的角点，由 `UIView` 装配时经 `EditTool::setEnabledQuery()` 告知，写法与
+   `SelectTool::setOverlayQuery()` 相同，`EditTool` 不认识 `SelectTool`；Ctrl/Meta+左键归导航层。中键与
+   平移中的移动、释放让给导航层，平移结束后夹点照旧。
+5. **`SelectTool`**：删去 `Moving`/`MovingRef`，`Dragging` 超过阈值一律转入框选。它仍在选择完成、取消与
+   挂起时清除预览容器，这部分行为不变。
+6. **其余行为变化**（交互回归清单第 7 节）：
+   - 夹点激活时启动命令，夹点取消（`EditTool` 移出业务栈时 `onDeactivate()` 取消）。原先只清除预览，
+     状态留在拖动，命令结束后夹点接着跟随鼠标，下一次单击会按命令改过的选择集落位；
+   - 夹点激活时右键取消，预览随之清除。原先回到 `Neutral` 但不清除预览，拖动的副本留在画布上，直到
+     下一次选择、Esc 或鼠标离开画布。
+
+   结束全部命令（空格、需要结束全部的即时命令）照旧取消夹点，由 `UIView::resetIdleTools()`（原
+   `resetSelectTool()`）同时复位 `EditTool` 与选择层。落位、预览与原 `MovingRef` 相同：相对零点移到
+   参考点，Shift 角度吸附在预览时取鼠标位置而落位时取捕捉点，落位后不清除捕捉标记。
+7. **测试**：新增 `test_edit_tool.cpp`（18 例），覆盖按在夹点上归 `EditTool`、单击与拖过阈值两种激活、
+   线身单击仍切换选中、线身拖动开始框选、未选中实体与框选第二个角点不激活、Ctrl+左键平移、Shift 引导线、
+   右键、Esc、中键平移、双击、离开画布、移出业务栈时取消，以及没有夹点时移出或取消都不清除别人的预览。
+   落位经撤销事务，默认构造的 `DmDocument` 走事务会崩溃，未覆盖。`test_exclusive_command_bus` 加 3 例：
+   随命令启停移出与放回业务栈、启动命令时取消激活的夹点、在编辑模式的工具之上；与 `UIView` 同装配的
+   三个夹具都把 `EditTool` 交给总线并设可用查询，"选择阶段拖动不拖夹点也不拖实体"改为同时断言
+   `EditTool` 没有接管。
+
+验证：Release 构建与安装通过；`ctest` 4 个测试程序全部通过（`test_interaction` 280 例，1 例因缺基准图纸
+跳过，与本次无关）；`check_layering.py` 通过；安装后程序能启动，画布正常绘制。夹点的手工核对（S2、S8–S10、
+S15–S18、B2）尚未进行。

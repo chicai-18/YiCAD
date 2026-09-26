@@ -26,12 +26,10 @@
 #include <QMouseEvent>
 
 #include "CommandRegistry.h"
-#include "DmLine.h"
 #include "DmMText.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
-#include "Modification.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "Selection.h"
@@ -40,10 +38,6 @@ namespace
 {
 /// @brief 拖拽判定的最小GUI距离（像素）
 constexpr double kDragThresholdGui = 10.0;
-/// @brief 参考点吸附的GUI距离（像素）
-constexpr double kRefSnapGuiDist = 8.0;
-/// @brief 角度吸附步进（度）
-constexpr double kAngleSnapStep = 15.0;
 }  // namespace
 
 SelectTool::SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
@@ -244,9 +238,6 @@ std::optional<DM::CursorType> SelectTool::cursorForStatus() const
     {
     case Neutral:
         return DM::ArrowCursor;
-    case Moving:
-    case MovingRef:
-        return DM::SelectCursor;
     default:
         return std::nullopt;
     }
@@ -330,89 +321,11 @@ ViewToolResult SelectTool::mouseMoveEvent(QMouseEvent* e)
     case Dragging:
         m_points.v2 = mouse;
 
+        // 超过阈值即开始框选：按在夹点上的按下归夹点编辑工具，到不了这里；空闲态不再拖动整个实体
         if (m_docView->toGuiDX(m_points.v1.distanceTo(m_points.v2)) > kDragThresholdGui)
         {
-            if (inSelectionPhase())
-            {
-                // 选择阶段不拖夹点、不拖实体，超过阈值即开始框选
-                setStatus(SetCorner2);
-                break;
-            }
-            // look for reference points to drag:
-            double dist;
-            DmVector ref = m_pDocument->getEntityTable()->getNearestSelectedRef(m_points.v1, &dist);
-            if (ref.valid && m_docView->toGuiDX(dist) < kRefSnapGuiDist)
-            {
-                setStatus(MovingRef);
-                m_points.v1 = ref;
-                m_docView->moveRelativeZero(m_points.v1);
-            }
-            else
-            {
-                // test for an entity to drag:
-                DmEntity* en = m_snapService->catchEntity(m_points.v1);
-                if (en && en->isSelected())
-                {
-                    setStatus(Moving);
-                    DmVector vp = en->getNearestRef(m_points.v1);
-                    if (vp.valid)
-                        m_points.v1 = vp;
-                }
-                // no entity found. start area selection:
-                else
-                {
-                    setStatus(SetCorner2);
-                }
-            }
+            setStatus(SetCorner2);
         }
-        break;
-
-    case MovingRef:
-        m_points.v2 = m_snapService->snapPoint(e);
-        GUIDIALOGFACTORY->updateCoordinateWidget(m_points.v2, m_points.v2 - m_docView->getRelativeZero());
-
-        if (e->modifiers() & Qt::ShiftModifier)
-        {
-            mouse = m_snapService->snapToAngle(mouse, m_points.v1, kAngleSnapStep);
-            m_points.v2 = mouse;
-        }
-
-        deletePreview();
-        m_preview->addSelectionFromDocument();
-        m_preview->moveRef(m_points.v1, m_points.v2 - m_points.v1);
-
-        if (e->modifiers() & Qt::ShiftModifier)
-        {
-            DmLine* line = new DmLine(nullptr, m_points.v1, mouse);
-            m_preview->addEntity(line);
-            line->setSelected(true);
-        }
-
-        drawPreview();
-        break;
-
-    case Moving:
-        m_points.v2 = m_snapService->snapPoint(e);
-        GUIDIALOGFACTORY->updateCoordinateWidget(m_points.v2, m_points.v2 - m_docView->getRelativeZero());
-
-        if (e->modifiers() & Qt::ShiftModifier)
-        {
-            mouse = m_snapService->snapToAngle(mouse, m_points.v1, kAngleSnapStep);
-            m_points.v2 = mouse;
-        }
-
-        deletePreview();
-        m_preview->addSelectionFromDocument();
-        m_preview->move(m_points.v2 - m_points.v1);
-
-        if (e->modifiers() & Qt::ShiftModifier)
-        {
-            DmLine* line = new DmLine(nullptr, m_points.v1, mouse);
-            m_preview->addEntity(line);
-            line->setSelected(true);
-        }
-
-        drawPreview();
         break;
 
     case SetCorner2:
@@ -453,41 +366,6 @@ ViewToolResult SelectTool::mousePressEvent(QMouseEvent* e)
             m_points.v1 = m_docView->toGraph(e->pos().x(), e->pos().y());
             setStatus(Dragging);
             break;
-
-        case Moving:
-        {
-            m_points.v2 = m_snapService->snapPoint(e);
-            if (e->modifiers() & Qt::ShiftModifier)
-            {
-                m_points.v2 = m_snapService->snapToAngle(m_points.v2, m_points.v1, kAngleSnapStep);
-            }
-            deletePreview();
-            Modification m(m_docView);
-            DmVector offset = m_points.v2 - m_points.v1;
-            m.move(offset);
-            setStatus(Neutral);
-            GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
-            m_snapService->deleteSnapper();
-        }
-        break;
-
-        case MovingRef:
-        {
-            m_points.v2 = m_snapService->snapPoint(e);
-            if (e->modifiers() & Qt::ShiftModifier)
-            {
-                m_points.v2 = m_snapService->snapToAngle(m_points.v2, m_points.v1, kAngleSnapStep);
-            }
-            deletePreview();
-            Modification m(m_docView);
-            MoveRefData data;
-            data.ref = m_points.v1;
-            data.offset = m_points.v2 - m_points.v1;
-            m.moveRef(data);
-            setStatus(Neutral);
-            GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
-        }
-        break;
 
         default:
             break;

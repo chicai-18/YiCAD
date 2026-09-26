@@ -21,9 +21,10 @@
 /// 对应 DS 的 UIView（DimX/Source/View/UIView.h）。DS 把渲染控件 HQWidget 与
 /// 交互组装 UIView 拆成基类与派生类，本类沿用这一拆法：GuiDocumentView 是
 /// 渲染层（YiCadRender）的画布，不认识交互层的具体类型；本类持有
-/// ViewToolControl 与导航（PanZoomTool）、选择（SelectTool）、业务
-/// （命令的工具与编辑模式）三层工具，以及命令总线 ExclusiveCommandBus，接收
-/// 画布的 Qt 输入事件交给 ViewToolControl 分发（doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
+/// ViewToolControl 与导航（PanZoomTool）、选择（SelectTool）、业务（命令的工具、
+/// 编辑模式，以及没有命令时的夹点编辑工具 EditTool）三层工具，以及命令总线
+/// ExclusiveCommandBus，接收画布的 Qt 输入事件交给 ViewToolControl 分发
+/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
 ///
 /// 放在 kernel/interaction/（YiCadInteraction 分区），不和画布同在
 /// kernel/view/（YiCadRender 分区）：一个目录归一个分区，渲染层不能依赖交互层。
@@ -48,6 +49,7 @@
 #include "CommandRegistry.h"
 #include "GuiDocumentView.h"
 
+class EditTool;
 class ExclusiveCommandBus;
 class IExclusiveCommand;
 class ISnapService;
@@ -138,19 +140,20 @@ private:
     /// @brief 命令总线上有活动命令或编辑模式
     bool hasBusinessOnBus() const;
 
-    /// @brief 结束全部命令后复位选择层（原先由旧 Action 栈的 killAllActions() 完成）
-    void resetSelectTool();
+    /// @brief 结束全部命令后复位夹点编辑工具与选择层（原先由旧 Action 栈的 killAllActions() 完成）
+    void resetIdleTools();
 
     // 注意声明顺序：成员按声明的逆序析构。m_pCommandBus 最后声明、最先析构
     // （析构函数里还会提前显式释放），结束活动命令时它的工具、选择层与
     // ViewToolControl 都还在；m_pViewToolControl 随后析构，向各层工具发
     // onDeactivate()，被它引用的工具此时都还在；工具之间的裸指针（SelectTool
-    // 引用 PanZoomTool、捕捉器与预览容器）也按被引用者在前排列。全部成员都在
+    // 与 EditTool 引用 PanZoomTool、捕捉器与预览容器）也按被引用者在前排列。全部成员都在
     // 基类析构之前析构，基类持有的预览容器这时仍然有效。
     std::unique_ptr<PanZoomTool>            m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
-    std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层的捕捉器，空闲态的捕捉提示也读它
-    std::unique_ptr<Preview>                m_pSelectPreview;       ///< 选择层拖动实体时的预览容器
+    std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层与夹点编辑工具的捕捉器，空闲态的捕捉提示也读它
+    std::unique_ptr<Preview>                m_pSelectPreview;       ///< 夹点编辑工具移动夹点时的预览容器，选择层选择完成时清除它
     std::unique_ptr<SelectTool>             m_pSelectTool;          ///< 选择层；没有文档时为空
+    std::unique_ptr<EditTool>               m_pEditTool;            ///< 夹点编辑工具，由命令总线放上、移出业务栈；没有文档时为空
     std::unique_ptr<ViewToolControl>        m_pViewToolControl;     ///< 交互层工具控制器
     std::unique_ptr<ExclusiveCommandBus>    m_pCommandBus;          ///< 命令总线；没有文档时为空
 };

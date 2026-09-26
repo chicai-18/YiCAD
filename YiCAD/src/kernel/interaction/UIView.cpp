@@ -27,6 +27,7 @@
 
 #include "DmDocument.h"
 #include "DmSettings.h"
+#include "EditTool.h"
 #include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiCommandEvent.h"
@@ -55,9 +56,18 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
         m_pSelectTool = std::make_unique<SelectTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
                                                      m_pPanZoomTool.get());
         m_pViewToolControl->setSelectionTool(m_pSelectTool.get());
+        // 夹点编辑工具与选择层共用捕捉器与预览容器：两者轮流使用，同一时刻只有一个在编辑夹点或选择。
+        // 它在业务栈上的去留由命令总线管理（没有活动命令时在栈上），选择阶段因此自然不激活夹点
+        m_pEditTool = std::make_unique<EditTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
+                                                 m_pPanZoomTool.get());
+        // 框选时点第二个角点不激活夹点，那次按下仍是框选的角点
+        m_pEditTool->setEnabledQuery([this]()
+        {
+            return m_pSelectTool->getStatus() == SelectTool::Neutral;
+        });
 
         m_pCommandBus = std::make_unique<ExclusiveCommandBus>(doc, this, m_pViewToolControl.get(),
-                                                              m_pSelectTool.get());
+                                                              m_pSelectTool.get(), m_pEditTool.get());
         // 选择层之上有命令时提示与光标归命令（选择阶段除外），有编辑模式时提示归模式
         m_pSelectTool->setOverlayQuery([this]()
         {
@@ -121,7 +131,7 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
             }
             m_pCommandBus->endAll();
         }
-        resetSelectTool();
+        resetIdleTools();
         return true;
 
     case InstantInterrupt::EndUninterruptible:
@@ -141,8 +151,12 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
     return true;
 }
 
-void UIView::resetSelectTool()
+void UIView::resetIdleTools()
 {
+    if (m_pEditTool)
+    {
+        m_pEditTool->cancel();
+    }
     if (m_pSelectTool)
     {
         m_pSelectTool->init();
@@ -220,7 +234,7 @@ bool UIView::killAllActions()
         }
         m_pCommandBus->endAll();
     }
-    resetSelectTool();
+    resetIdleTools();
     return true;
 }
 
@@ -232,7 +246,7 @@ void UIView::killAllActionsOnClose()
         m_pCommandBus->approveEndAll(CommandEndReason::ViewClosing);
         m_pCommandBus->endAll();
     }
-    resetSelectTool();
+    resetIdleTools();
 }
 
 bool UIView::hasActiveCommand() const
@@ -304,9 +318,9 @@ DmVector UIView::currentSnapSpot()
 
 void UIView::mousePressEvent(QMouseEvent* e)
 {
-    // 统一交给 ViewToolControl 分发：业务层（命令的工具）优先，不处理的事件
-    // 落到选择层（SelectTool）；中键与 Neutral 状态下的 Ctrl/Meta+左键再由
-    // 选择层让给导航层（PanZoomTool）。
+    // 统一交给 ViewToolControl 分发：业务层（命令的工具；没有命令时是夹点编辑工具
+    // EditTool，只处理按在夹点上的按下与激活的夹点）优先，不处理的事件落到选择层
+    // （SelectTool）；中键与 Neutral 状态下的 Ctrl/Meta+左键再由选择层让给导航层（PanZoomTool）。
     e->accept();
     DispatchScope scope(m_pCommandBus.get());
     m_pViewToolControl->mousePressEvent(e);

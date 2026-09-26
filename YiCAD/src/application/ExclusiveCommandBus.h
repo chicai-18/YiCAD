@@ -32,7 +32,10 @@
 ///     清除选择阶段的约束；
 ///   - 持有编辑模式（块编辑，见 IEditMode.h）：模式的工具常驻在业务栈底部，
 ///     命令叠在它上面；启动命令不影响模式，结束全部命令与视图关闭时先问命令、
-///     再问模式（approveEndAll()）。
+///     再问模式（approveEndAll()）；
+///   - 管理夹点编辑工具（EditTool）在业务栈上的去留：没有活动命令时在栈上，启动命令时
+///     移出（激活的夹点随之取消），命令结束时放回。对应 DS-master 的
+///     UIView::SyncEditActivation，DS 还要求有选择集，这里在按下时才查选择。
 
 #ifndef EXCLUSIVECOMMANDBUS_H
 #define EXCLUSIVECOMMANDBUS_H
@@ -47,6 +50,7 @@
 #include "IExclusiveCommand.h"
 
 class DmDocument;
+class EditTool;
 class IDocumentView;
 class IEditMode;
 class SelectTool;
@@ -80,8 +84,10 @@ public:
     /// @param view 视图
     /// @param tools 视图的工具控制器，命令在其业务栈上激活自己的工具
     /// @param selectTool 视图的选择层，可为空；选择阶段的约束设在它上面
-    ExclusiveCommandBus(DmDocument* doc, IDocumentView* view, ViewToolControl* tools, SelectTool* selectTool);
-    /// @brief 析构时结束活动命令，不回调 onEndRequested()
+    /// @param editTool 视图的夹点编辑工具，可为空；没有活动命令时由总线放在业务栈上
+    ExclusiveCommandBus(DmDocument* doc, IDocumentView* view, ViewToolControl* tools, SelectTool* selectTool,
+                        EditTool* editTool = nullptr);
+    /// @brief 析构时结束活动命令，不回调 onEndRequested()；夹点编辑工具移出业务栈
     ~ExclusiveCommandBus() override;
 
     ExclusiveCommandBus(const ExclusiveCommandBus&) = delete;
@@ -162,11 +168,14 @@ private:
     void finishActive();
     void enterScope();
     void leaveScope();
+    /// @brief 按有无活动命令把夹点编辑工具放上或移出业务栈
+    void syncEditTool();
 
     DmDocument* m_document = nullptr;
     IDocumentView* m_view = nullptr;
     ViewToolControl* m_tools = nullptr;
     SelectTool* m_selectTool = nullptr;
+    EditTool* m_editTool = nullptr;
 
     std::unique_ptr<IExclusiveCommand> m_active;
     std::unique_ptr<IEditMode> m_mode;
