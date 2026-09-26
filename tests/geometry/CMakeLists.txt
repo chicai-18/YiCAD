@@ -2,7 +2,8 @@
 #
 # 覆盖方案 3.2 第 2 条点名的 DmArc / DmCircle / DmEllipse 的求交、偏移、
 # 包围盒，以及它们共同依赖的 Information::getIntersection；另覆盖走空间
-# 搜索树的框选与虚拟交点查询（方案 9.1 节，P10）。
+# 搜索树的框选与虚拟交点查询（方案 9.1 节，P10），以及标注与引线从自己所属的
+# 文档取箭头块（分层重组 S4a）。
 
 yicad_add_test(geometry
     SOURCES
@@ -10,5 +11,6 @@ yicad_add_test(geometry
         test_geometry_arc.cpp
         test_geometry_intersection.cpp
         test_geometry_spatial_query.cpp
+        test_geometry_dimension.cpp
     LINK YiCadModel
     LABELS "geometry;unit")

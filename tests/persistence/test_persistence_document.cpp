@@ -11,8 +11,7 @@
 /// - 存盘策略：DmDocument::saveAs / save / open 这一层的 .bak 备份、外部修改检测与打开失败的处理。
 ///
 /// 宿主服务用 OcdHost 代替：文件读写直接交给 FilterOcdIO（与 FileIO 对 .ycd 的分派相同，
-/// 只是不查插件格式、不弹框），当前文档由用例指定——标注实体更新时经
-/// GUIDIALOGFACTORY->requestActiveDocument() 取箭头块（方案 L3），没有它会解空指针。
+/// 只是不查插件格式、不弹框）。
 /// 读回的文档按产品的做法构造：新建 DmDocument 再导入。
 ///
 /// ## 读回路径的缺陷
@@ -134,20 +133,17 @@ const QString kAttributeValue = QStringLiteral("M12");
 const QString kTextValue = QStringLiteral("单行文字 Text 123");
 const QString kMTextValue = QStringLiteral("多行文字");
 
-/// @brief 测试用宿主服务：当前文档由用例指定，文件读写直接交给 FilterOcdIO
+/// @brief 测试用宿主服务：文件读写直接交给 FilterOcdIO
 ///
 /// 与 FileIO 对原生格式的分派相同：导入按文件后缀、导出按格式名找过滤器。
 /// 过滤器抛出的异常原样向外传播，FileIO 也不捕获。
 class OcdHost : public GuiDialogFactoryAdapter
 {
 public:
-    DmDocument* active = nullptr;  ///< requestActiveDocument 的返回值
     bool confirmAnswer = false;    ///< 确认对话框的回答
     int confirmCount = 0;          ///< 确认对话框弹出的次数
     QStringList warnings;          ///< 警告对话框的内容
     QStringList messages;          ///< 命令行消息
-
-    DmDocument* requestActiveDocument() override { return active; }
 
     bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override
     {
@@ -493,17 +489,15 @@ struct OcdFixture : ::testing::Test
 
     QString path(const QString& name) const { return dir.filePath(name); }
 
-    /// @brief 构造样本文档（标注更新时当前文档须是它）
+    /// @brief 构造样本文档
     void build(DmDocument& doc)
     {
-        host.active = &doc;
         buildSample(doc);
     }
 
     /// @brief 经 FilterOcdIO 写出
     void exportTo(DmDocument& doc, const QString& file)
     {
-        host.active = &doc;
         FilterOcdIO filter;
         ASSERT_TRUE(filter.canExport(kOcdFormat));
         ASSERT_TRUE(filter.fileExport(doc, file, kOcdFormat));
@@ -513,7 +507,6 @@ struct OcdFixture : ::testing::Test
     /// @brief 经 FilterOcdIO 读入，读完与产品一样重新生成
     void importFrom(DmDocument& doc, const QString& file)
     {
-        host.active = &doc;
         FilterOcdIO filter;
         ASSERT_TRUE(filter.canImport(file));
         ASSERT_TRUE(filter.fileImport(doc, file));
@@ -1150,7 +1143,6 @@ TEST_F(OcdDocumentErrorPath, 空文件抛异常)
     const QString file = path(QStringLiteral("empty.ycd"));
     ASSERT_TRUE(writeBytes(file, QByteArray()));
     DmDocument doc;
-    host.active = &doc;
     FilterOcdIO filter;
     EXPECT_ANY_THROW(filter.fileImport(doc, file));
     EXPECT_EQ(doc.getEntityTable()->count(), 0);
@@ -1161,7 +1153,6 @@ TEST_F(OcdDocumentErrorPath, 不是压缩包的文件抛异常)
     const QString file = path(QStringLiteral("garbage.ycd"));
     ASSERT_TRUE(writeBytes(file, QByteArray(4096, 'x')));
     DmDocument doc;
-    host.active = &doc;
     FilterOcdIO filter;
     EXPECT_ANY_THROW(filter.fileImport(doc, file));
     EXPECT_EQ(doc.getEntityTable()->count(), 0);
@@ -1179,7 +1170,6 @@ TEST_F(OcdDocumentErrorPath, 截断的文件抛异常)
     const QString truncated = path(QStringLiteral("truncated.ycd"));
     ASSERT_TRUE(writeBytes(truncated, bytes.left(bytes.size() / 2)));
     DmDocument doc;
-    host.active = &doc;
     FilterOcdIO filter;
     EXPECT_ANY_THROW(filter.fileImport(doc, truncated));
 }
@@ -1187,7 +1177,6 @@ TEST_F(OcdDocumentErrorPath, 截断的文件抛异常)
 TEST_F(OcdDocumentErrorPath, 不存在的文件抛异常)
 {
     DmDocument doc;
-    host.active = &doc;
     FilterOcdIO filter;
     EXPECT_ANY_THROW(filter.fileImport(doc, path(QStringLiteral("missing.ycd"))));
 }
@@ -1276,7 +1265,6 @@ TEST_F(DocumentSavePolicy, 另存为后能打开且不算修改)
     ASSERT_TRUE(original.saveAs(file, kOcdFormat));
 
     DmDocument reopened;
-    host.active = &reopened;
     ASSERT_TRUE(reopened.open(file));
     EXPECT_EQ(reopened.getFilename(), file);
     EXPECT_FALSE(reopened.isModified());
@@ -1299,7 +1287,6 @@ TEST_F(DocumentSavePolicy, DISABLED_打开损坏文件时询问是否打开备�
 
     host.confirmAnswer = true;
     DmDocument reopened;
-    host.active = &reopened;
     EXPECT_TRUE(reopened.open(file));
     EXPECT_EQ(host.confirmCount, 1);
     EXPECT_NE(reopened.getBlockTable()->find(kBlockName), nullptr);
@@ -1312,7 +1299,6 @@ TEST_F(DocumentSavePolicy, DISABLED_打开损坏文件且没有备份时警告�
     ASSERT_TRUE(writeBytes(file, QByteArray(4096, 'x')));
 
     DmDocument doc;
-    host.active = &doc;
     EXPECT_FALSE(doc.open(file));
     EXPECT_EQ(host.confirmCount, 0);
     EXPECT_EQ(host.warnings, QStringList{QStringLiteral("Open failed, invalid file!")});

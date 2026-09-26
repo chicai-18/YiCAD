@@ -722,7 +722,55 @@ Model 包含 Render，这几条 CMake 已经保证，不会新增违规。另加
 
 ### 8.8 执行结果
 
-（未开始）
+2026-09-26 开始，基线 `560fb1d`（S3 之后）。开工前定下：
+
+- D5：放 Application。2.2 节目录与 8.4 节正文本来就这样写，第 12 节表格的状态没有随之更新，这次改为已定。
+- D9：做法 A。修 R4 不在 S4 的任务里（8.2–8.5 节没有这一项），不在本步做，两个 `DISABLED_` 用例继续保留。
+- 文档文件服务每份文档一个实例（S4c）。
+
+#### S4a：标注实体取自身文档
+
+**核实**（8.2 节第 2 项）：9 处先改成 `getDocument()`，另加 Debug 断言"它非空且等于 `requestActiveDocument()`"，
+Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `test_persistence`（读回含标注的文档），断言都没有触发；
+断言随后删除，没有提交。只有 `test_persistence` 能走到这几处：`test_interaction` 的对话框工厂不给当前文档，原代码在这里
+解空指针，所以那里没有用例更新这几种标注。界面上的路径没法在会话里走，逐条读代码核对，找到两条"所属文档不是当前文档"的路径：
+
+| 路径 | 原来 | 改后 | 处理 |
+|------|------|------|------|
+| 块插入 `BlockFileCommands::importBlocks`：文件先读进临时文档，块里的实体克隆进当前文档后 `setDocument(doc)`，不重新更新 | 箭头取当前文档的箭头块表 | 导入的标注，箭头块参照的 `blockSource` 仍指向临时文档的箭头块表，临时文档析构后悬空 | 只记录。箭头块参照只在创建时按 `blockSource` 找块（`DmBlockReference::getBlockForInsert`），标注以后一更新就按所属文档（已是当前文档）重建箭头；没有找到会再去访问它的代码。`DmDimAligned` 一直如此 |
+| 跨文档粘贴 `EditPasteCommand`：剪贴板里的实体、粘贴出的克隆都不改所属文档，仍是复制来源的图纸；粘贴时 `move` 会更新标注（`DmDimLinear.cpp:189`） | 箭头取当前文档的 | 从来源图纸取；来源图纸关闭后，粘贴或移动这些标注会访问已释放的文档 | 按 8.2 节"显式传入文档"：预览与提交时，先把标注与引线改归本文档再移动，图层与画笔放回原值（`DmEntity::setDocument` 会把它们换成本文档的当前值）。只改 `EditPasteCommand.cpp` 一个文件，开工中确认过范围 |
+
+**改动**：
+
+| 文件 | 改法 |
+|------|------|
+| `DmDimAngular`、`DmDimDiametric`、`DmDimLinear`、`DmDimRadial`（各 2 处）、`DmLeader`（1 处） | `requestActiveDocument()` 改为 `getDocument()`，删去 `GuiDialogFactory.h` |
+| `extensions/edit/commands/EditPasteCommand.cpp` | 新增 `adoptDimension`，`previewPaste`、`commitPaste` 在移动前调用 |
+| `tests/geometry/test_geometry_dimension.cpp`（新增，2 个） | 宿主的当前文档设成另一份文档，两份文档各有自己的标注样式：五种标注与引线的箭头块参照都指向自己文档的箭头块表；宿主没有当前文档时照常生成箭头 |
+| `tests/interaction/test_modify_commands.cpp`（1 个） | 从另一份文档复制线性标注，粘贴预览里的标注属于本文档、箭头取本文档的、图层不变 |
+| `tests/persistence/test_persistence_document.cpp` | `OcdHost` 删去 `active` 与 `requestActiveDocument`：它只是为了让标注找到箭头块 |
+
+**与 8.2 节原文的出入**：
+
+- 对齐标注早已取自身文档（`DmDimAligned.cpp:254`、`:436`），8.2 节只列了另外四种与引线。
+- 第 3 项写的是"取自己文档的样式表"。标注从文档取的只有箭头块表，样式本身在标注的数据里（`pDimStyle`），所以用例核对的是箭头块参照的来源表。
+- 跨文档粘贴的处理超出 8.2 节原列的文件，见上。
+
+**验收**：
+
+- Release、Debug 构建通过（Debug 先遇到 LNK1103，照 S0 的做法删掉 `.obj`、`.pdb` 后重建）；两种配置的 ctest 全部通过；
+  用例 484（启用 478，`DISABLED_` 6），比 S3 多新增的 3 个（`BASELINE.md` 7.2 节）。
+- 新用例能抓住旧行为：把 5 个标注文件与 `EditPasteCommand.cpp` 临时退回 S3 的版本，3 个新用例全部失败，恢复后通过。
+- `check_layering.py` 通过（11 处已登记的例外）。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应，关闭后以 0 退出。
+- 交互清单 6E 节（标注）没有在界面上手工走查；`commitPaste` 的改动没有运行期覆盖（夹具不走事务，见 `CommandTestFixture.h`）。
+
+**遗留**：
+
+- 跨文档粘贴的既有缺陷与 S4a 无关、未处理：粘贴出的所有实体仍属于来源图纸，图层指针也指向来源图纸的图层
+  （`Modification::copyEntity` 在来源图纸的图层表里按名找，`Modification.cpp:155`）；来源图纸关闭时图层随之释放
+  （`DmLayerTable.cpp:36`），这些指针悬空。块参照没有 `blockSource` 时也按所属文档找块，同样受影响。
+- 块插入导入的标注，箭头块参照的 `blockSource` 指向已析构的临时文档（见上表），目前没有代码访问它。
 
 ---
 
@@ -871,11 +919,11 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 | D2 | `Selection` 留在 Model 还是移到 Application | 留在 `model/edit/`。选中状态是实体上的 `FlagSelected` 位，Model 自己的 `Modification`、`EntityTable` 也读它；只移操作类、不移状态，分层上没有收益，还会让只链接 Model 的 `test_geometry`（5 个框选用例）改链 `YiCadCore`。选择集连同状态移到 Application 是另一件事（11.2 节） | 已定（2026-09-26） | — |
 | D3 | 上层库的类型 | Render、Application 用 STATIC，Ui、Shell 用 OBJECT；后续阶段除 Shell 外改为 SHARED（11.1 节） | 待定 | S6 开工前 |
 | D4 | 是否换 Ninja 生成器 | 以 S6 的实测数据定 | 待定 | S6 验收时 |
-| D5 | 存盘策略服务放 Application 还是 Shell | Application：扩展（块的写块与插入）也要用，且能在 `test_interaction` 里测 | 待定 | S4 开工前 |
+| D5 | 存盘策略服务放 Application 还是 Shell | Application：扩展（块的写块与插入）也要用，且能在 `test_interaction` 里测。2.2 节目录与 8.4 节正文已按此写 | 已定（2026-09-26） | — |
 | D6 | 第 2.2 节的新目录命名 | 按 2.2 节；`shell/` 下不建子目录 | 已定（2026-09-26），S2 已执行 | — |
 | D7 | 第三方自定义实体的接口 | C++ SDK（仿 ObjectARX），实施列为后续阶段（11.1 节） | 已定（2026-09-26） | — |
 | D8 | S0 查出的读回缺陷（4.5 节 R1–R9）何时修 | 先修 R1–R3、R5、R6、R9，在 S1 之前做（4.6 节，已完成）；R7、R8 并入 S4c（8.4 节第 5 项）；R4 见 D9 | 已定（2026-09-26） | — |
-| D9 | R4：读入 `.ycd` 时怎样处理新文档自带的默认条目（"0" 图层、"Standard" 文字样式、"ISO-25" 标注样式、箭头块） | 两种做法：读入前清空这些默认条目、完全以文件为准；或保留默认条目，文件里的同名条目覆盖其属性。前者简单，但要确认实体、标注样式在读入过程中不会先引用到默认条目；后者兼容缺少这些条目的文件。建议前者，缺条目时读完再补 | 待定 | S4 开工前 |
+| D9 | R4：读入 `.ycd` 时怎样处理新文档自带的默认条目（"0" 图层、"Standard" 文字样式、"ISO-25" 标注样式、箭头块） | 两种做法：读入前清空这些默认条目、完全以文件为准；或保留默认条目，文件里的同名条目覆盖其属性。前者简单，但要确认实体、标注样式在读入过程中不会先引用到默认条目；后者兼容缺少这些条目的文件。建议前者，缺条目时读完再补。定为前者；修 R4 不在 S4 的任务里，另行安排 | 已定（2026-09-26） | — |
 
 ---
 

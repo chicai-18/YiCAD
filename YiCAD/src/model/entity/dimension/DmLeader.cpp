@@ -31,7 +31,6 @@
 #include "DmSolid.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
-#include "GuiDialogFactory.h"
 #include "Math2d.h"
 
 TYPESYSTEM_SOURCE(DmLeader, DmEntity, 0);
@@ -91,7 +90,7 @@ void DmLeader::update()
 	//箭头
 	if (firstDist > data.arrowSize())
 	{
-		DmDocument* curDoc = static_cast<DmDocument*>(GUIDIALOGFACTORY->requestActiveDocument());
+		DmDocument* curDoc = getDocument();
 		DmBlockTable* arrowBlocks = curDoc->getDimStyleTable()->getArrowBlocks();
 		double arrowCutDist = DmDimensionStyle::getArrowCutDistance(data.leaderArrow()) * data.arrowSize();
 		DmVector arrowScale(data.arrowSize(), data.arrowSize());

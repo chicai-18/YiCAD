@@ -32,10 +32,12 @@
 #include "CommandPreview.h"
 #include "EditCommands.h"
 #include "DmClipboard.h"
+#include "DmDimension.h"
 #include "DmDocument.h"
 #include "DmEntityContainer.h"
 #include "DmLayer.h"
 #include "DmLayerTable.h"
+#include "DmLeader.h"
 #include "DmUnits.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
@@ -60,6 +62,10 @@ public:
         clipDoc->getEntityTable()->updateContainer();
         Preview& entities = preview().entities();
         entities.addAllFrom(*clipDoc->getEntityTable()->getEntityContainer());
+        for (DmEntity* e : *entities.getEntityContainer())
+        {
+            adoptDimension(e);
+        }
         entities.move(targetPoint);
         if (document())
         {
@@ -93,6 +99,7 @@ public:
             }
             DmEntity* clone = src->clone();
             clone->resetId();
+            adoptDimension(clone);
             clone->move(targetPoint);
             if (std::fabs(factor - 1.0) > DM_TOLERANCE)
             {
@@ -109,6 +116,24 @@ protected:
     std::unique_ptr<BasePlaceTool> createTool() override;
 
 private:
+    /// @brief 标注与引线改归本命令的文档，图层与画笔不变
+    ///
+    /// 剪贴板里的实体仍属于复制来源的图纸。标注与引线更新时（移动即更新）从所属文档取箭头块，
+    /// 不改归的话从来源图纸取，来源图纸关闭后就会访问已释放的文档。DmEntity::setDocument
+    /// 会把图层与画笔换成本文档的当前值，所以先存下再放回。其余实体的所属文档不在这里处理。
+    void adoptDimension(DmEntity* entity) const
+    {
+        if (!document() || !entity || (!dynamic_cast<DmDimension*>(entity) && !dynamic_cast<DmLeader*>(entity)))
+        {
+            return;
+        }
+        DmLayer* layer = entity->getLayer(false);
+        const DmPen pen = entity->getPen(false);
+        entity->setDocument(document());
+        entity->setLayer(layer);
+        entity->setPen(pen);
+    }
+
     /// @brief 把文档里没有的图层从剪贴板复制过来
     void pasteLayers(DmDocument* source)
     {

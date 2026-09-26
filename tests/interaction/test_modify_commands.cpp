@@ -7,12 +7,17 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
 #include "BaseExclusiveCommand.h"
 #include "CircleData.h"
+#include "DmBlockReference.h"
 #include "DmCircle.h"
+#include "DmClipboard.h"
+#include "DmDimLinear.h"
+#include "DmDimensionStyleTable.h"
 #include "DmLine.h"
 #include "DmPolyline.h"
 #include "LineData.h"
@@ -460,4 +465,56 @@ TEST_F(ModifyFixture, 粘贴剪贴板为空时指定参考点即结束)
     ASSERT_TRUE(start("ext.edit.paste"));
     typeCoordinate(0, 0);
     EXPECT_FALSE(bus.hasActiveCommand());
+}
+
+TEST_F(ModifyFixture, 粘贴别的图纸复制来的标注时标注改归本文档)
+{
+    // 分层重组 S4a：标注更新时从所属文档取箭头块。剪贴板里的实体仍属于复制来源的图纸
+    // （与 Modification::copyEntity 相同，只克隆、不改归），粘贴时标注改归本文档，箭头取
+    // 本文档的，图层与画笔不变。只测预览（移动即更新）：提交要走事务，见夹具说明。
+    DmDocument source;
+    auto* dim = new DmDimLinear(nullptr,
+                                DmDimensionData(DmVector(20.0, -10.0), DmVector(10.0, -10.0),
+                                                EMTextVertMode::kTextVertMid, EMTextHorzMode::kTextCenter, 1.0,
+                                                QString(), 0.0, source.getDimStyleTable()->getActive()),
+                                DmDimLinearData(DmVector(0.0, 0.0), DmVector(20.0, 0.0)));
+    dim->setDocument(&source);
+    dim->update();
+    ASSERT_TRUE(source.getEntityTable()->add_direct(dim));
+    DMCLIPBOARD->clear();
+    DMCLIPBOARD->addEntity(dim->clone());
+
+    ASSERT_TRUE(start("ext.edit.paste"));
+    move(10, 10);
+
+    DmDimLinear* pasted = nullptr;
+    for (DmEntity* e : *view.getPreviewContainer())
+    {
+        if (e->getEntityType() == DM::EntityDimLinear)
+        {
+            pasted = static_cast<DmDimLinear*>(e);
+        }
+    }
+    ASSERT_NE(pasted, nullptr);
+    EXPECT_EQ(pasted->getDocument(), &doc);
+    EXPECT_EQ(pasted->getLayer(false), dim->getLayer(false)) << "DmEntity::setDocument 改掉的图层要放回";
+    // getSubEntities() 把箭头块参照展开成图元，图元的父实体才是箭头块参照
+    std::vector<DmBlockReference*> arrows;
+    for (DmEntity* sub : pasted->getSubEntities())
+    {
+        DmEntity* parent = sub->getParent();
+        if (parent && parent != pasted && parent->getEntityType() == DM::EntityBlockReference &&
+            std::find(arrows.begin(), arrows.end(), parent) == arrows.end())
+        {
+            arrows.push_back(static_cast<DmBlockReference*>(parent));
+        }
+    }
+    ASSERT_EQ(arrows.size(), 2u);
+    for (DmBlockReference* arrow : arrows)
+    {
+        EXPECT_EQ(arrow->getData().blockSource, doc.getDimStyleTable()->getArrowBlocks());
+    }
+
+    endCommand();
+    DMCLIPBOARD->clear();
 }
