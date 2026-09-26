@@ -321,23 +321,64 @@ Visual Studio 2022 Developer PowerShell。可用以下命令诊断当前进程�
 
 ## 架构概览
 
-项目采用 **MVC + Action 模式** 架构：
+项目采用 **MVC + 命令** 架构：业务命令是由每个视图的命令总线运行的 `XxxCommand` 对象，事件由 `XxxTool` 视图工具处理，所有命令都放在进程内扩展里。
 
 | 层次 | 路径 | 说明 |
 |------|------|------|
 | **数据模型** | `YiCAD/src/kernel/data_model/` | Dm* 类 — CAD 实体数据 |
 | **视图** | `YiCAD/src/kernel/view/` | QOpenGLWidget 子类，4 层渲染 |
-| **动作** | `YiCAD/src/actions/` | ~75 个 Action 类处理用户交互 |
-| **命令** | `YiCAD/src/cmd/` | 命令行输入解析与分发 |
+| **应用** | `YiCAD/src/application/` | 命令与视图工具机制（命令总线、注册表、选择、捕捉）及扩展框架 |
+| **扩展** | `YiCAD/src/extensions/` | 业务命令（绘图、修改、测量、编辑、视图、标注、块、文字、填充……） |
+| **命令行** | `YiCAD/src/cmd/` | 命令行别名（`keyconfig.xml`） |
 | **Undo/Redo** | `YiCAD/src/kernel/history/` | 命令栈、事务、宏命令 |
 | **数学计算** | `YiCAD/src/kernel/math/` | 计算几何、KD树、R树、Delaunay三角剖分 |
 | **渲染** | `YiCAD/src/kernel/painters/` | OpenGL 绘制抽象层 |
 | **持久化** | `YiCAD/src/kernel/persistence/` | XML 序列化 (pugixml) |
 
+### 模块依赖
+
+箭头从使用方指向被依赖方。各分区即 `YiCAD/CMakeLists.txt` 中的 `yicad_collect_sources` 调用。
+
+```mermaid
+flowchart TB
+    Exe["YiCAD.exe<br/>main/Main.cpp, main/BuiltinExtensions.cpp"]
+    Ext["YiCadExt_*（每个扩展一个）<br/>extensions/*/"]
+    subgraph Core["YiCadCore（OBJECT 库）"]
+        Shell["Shell<br/>main/, plugin_runtime/, kernel/fileio/"]
+        Ui["UI<br/>ui/"]
+        Inter["Interaction<br/>kernel/interaction/"]
+        Appl["Application<br/>application/, cmd/"]
+        Render["Render<br/>kernel/painters/, kernel/view/"]
+    end
+    Persist["YiCadPersistence<br/>kernel/persistence/, kernel/filters/"]
+    Model["YiCadModel<br/>kernel/data_model/, builder_model/, history/, ..."]
+    Math["YiCadMath<br/>kernel/math/, utility/, debug/"]
+
+    Exe --> Ext
+    Exe --> Shell
+    Ext --> Ui
+    Shell --> Ui
+    Shell --> Persist
+    Ui -. 既有双向依赖 .-> Shell
+    Ui --> Inter
+    Inter --> Appl
+    Appl --> Render
+    Render --> Model
+    Persist --> Model
+    Model --> Math
+```
+
+- 依赖可以传递：模块也可以使用它沿箭头能到达的模块，例如 Application 使用 Render、Model 与 Math。除虚线外没有向上的箭头。
+- `YiCadMath`、`YiCadModel`、`YiCadPersistence` 是独立的静态库，依赖方向由 CMake 的 include 路径物理保证：Math 看不到 Model，Model 看不到持久化、渲染与界面。
+- Render、Application、Interaction、UI、Shell 合编进 `YiCadCore`，由 CI 中的 `tools/check_layering.py` 检查：`kernel/` 与 `application/` 不得包含 `ui/`、`main/` 与扩展的头文件；`application/` 也不得包含 `kernel/interaction/`，命令与工具只经 `IDocumentView`/`GuiDocumentView` 认识视图。
+- 每个扩展是链接 `YiCadCore` 的独立 OBJECT 库，只看得到自己的头文件，因此不能包含别的扩展，也不得包含 `main/`。`YiCadCore` 不引用任何扩展，只有编进可执行文件的 `main/BuiltinExtensions.cpp` 引用它们。
+- UI 与 Shell 互相依赖（虚线）：`UIActionHandler`、`UIBottomWidget` 等部件直接调用 `ApplicationWindow`/`MDIWindow` 取当前文档等全局状态。
+- 只有 Shell 使用持久化（`kernel/fileio/` 与插件的文件读写适配）；数据模型经 `GuiDialogFactoryInterface` 访问文件读写。
+
 ## 开发
 
 - **代码规范**: UTF-8 with BOM 编码
-- **命名约定**: `Dm*` (数据模型), `Action*` (交互命令), `UI*` (界面组件), `GL*` (OpenGL), `Meta*` (序列化), `Filter*` (文件格式)
+- **命名约定**: `Dm*` (数据模型), `XxxCommand`/`XxxTool` (交互命令与视图工具), `UI*` (界面组件), `GL*` (OpenGL), `Meta*` (序列化), `Filter*` (文件格式)
 
 ## 许可证
 

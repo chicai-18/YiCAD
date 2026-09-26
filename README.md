@@ -345,6 +345,46 @@ The project uses an **MVC + command** architecture: business commands are `XxxCo
 | **Rendering** | `YiCAD/src/kernel/painters/` | OpenGL drawing abstraction layer |
 | **Persistence** | `YiCAD/src/kernel/persistence/` | XML serialization (pugixml) |
 
+### Module Dependencies
+
+Arrows point from a module to the modules it uses. The partitions are the `yicad_collect_sources` calls in `YiCAD/CMakeLists.txt`.
+
+```mermaid
+flowchart TB
+    Exe["YiCAD.exe<br/>main/Main.cpp, main/BuiltinExtensions.cpp"]
+    Ext["YiCadExt_* (one per extension)<br/>extensions/*/"]
+    subgraph Core["YiCadCore (OBJECT library)"]
+        Shell["Shell<br/>main/, plugin_runtime/, kernel/fileio/"]
+        Ui["UI<br/>ui/"]
+        Inter["Interaction<br/>kernel/interaction/"]
+        Appl["Application<br/>application/, cmd/"]
+        Render["Render<br/>kernel/painters/, kernel/view/"]
+    end
+    Persist["YiCadPersistence<br/>kernel/persistence/, kernel/filters/"]
+    Model["YiCadModel<br/>kernel/data_model/, builder_model/, history/, ..."]
+    Math["YiCadMath<br/>kernel/math/, utility/, debug/"]
+
+    Exe --> Ext
+    Exe --> Shell
+    Ext --> Ui
+    Shell --> Ui
+    Shell --> Persist
+    Ui -. legacy .-> Shell
+    Ui --> Inter
+    Inter --> Appl
+    Appl --> Render
+    Render --> Model
+    Persist --> Model
+    Model --> Math
+```
+
+- Dependencies are transitive: a module may also use whatever its arrows reach, so Application uses Render, Model and Math. Apart from the dashed edge, nothing points upward.
+- `YiCadMath`, `YiCadModel` and `YiCadPersistence` are separate static libraries, so CMake include paths enforce their direction: Math cannot see Model, and Model cannot see persistence, rendering or UI.
+- Render, Application, Interaction, UI and Shell compile together into `YiCadCore`. `tools/check_layering.py` (run in CI) keeps `kernel/` and `application/` from including `ui/`, `main/` or extension headers, and keeps `application/` from including `kernel/interaction/`: commands and tools know the view only through `IDocumentView`/`GuiDocumentView`.
+- Each extension is its own OBJECT library linking `YiCadCore`. It sees only its own headers, so it cannot include another extension, and it must not include `main/`. `YiCadCore` never references an extension; only `main/BuiltinExtensions.cpp`, compiled into the executable, does.
+- UI and Shell depend on each other (dashed edge): widgets such as `UIActionHandler` and `UIBottomWidget` call `ApplicationWindow`/`MDIWindow` for global state such as the current document.
+- Only Shell uses persistence (`kernel/fileio/` and the plugin file adapter); the data model reaches file I/O through `GuiDialogFactoryInterface`.
+
 ## Development
 
 - **Code style**: UTF-8 with BOM encoding

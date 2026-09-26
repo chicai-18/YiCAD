@@ -514,12 +514,11 @@ target_link_libraries(YiCadPersistence PUBLIC YiCadModel)
 # 选 OBJECT 而非 STATIC：静态库的符号剥离会丢掉 Qt 的静态注册（资源初始化、
 # 插件注册宏等自动注册符号没有显式引用），OBJECT 库没有这个问题。
 #
-# 这四个分区未按方案拆成四个独立静态库：见上方 RENDER/INTERACTION/UI 分区
-# 注释与 6.7 节，GuiDocumentView/GuiEventHandler（RENDER）与
-# ViewToolControl/PanZoomTool/SelectTool/LegacyActionTool/ActionInterface
-# （INTERACTION）互相持有对方的具体类型，UI 与 SHELL 之间同样存在大量
-# ApplicationWindow/MDIWindow 互相调用，是阶段 1、2 与既有代码留下的真实
-# 双向依赖，不是本次拆库能靠移动文件解决的问题。
+# 这五个分区未按方案拆成独立静态库。RENDER 与交互层之间原有的双向依赖
+# （GuiDocumentView 持有 ViewToolControl 等工具的具体类型）已在业务工具化第四步
+# 解开（见上方 RENDER 分区注释与 6.7 节），现在 INTERACTION -> APPLICATION -> RENDER
+# 是单向依赖，只是尚未拆库；UI 与 SHELL 之间仍有大量 ApplicationWindow/MDIWindow
+# 互相调用，是既有代码留下的真实双向依赖，不是靠移动文件能解决的问题。
 # #####################################################
 add_library(YiCadCore OBJECT
     ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
