@@ -266,7 +266,7 @@ void EditTool::commit(QMouseEvent* e)
     }
     clearPreview();
 
-    Modification m(m_docView);
+    Modification m(m_pDocument);
     MoveRefData data;
     data.ref = m_base;
     data.offset = target - m_base;

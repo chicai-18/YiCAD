@@ -692,7 +692,7 @@ void ApplicationWindow::slotKillAllActions()
 			return;
 		}
 
-		Selection s(m_pCurrentMdiWin->getDocument(), gv);
+		Selection s(m_pCurrentMdiWin->getDocument());
 		s.selectAll(false);
 		m_pCurrentMdiWin->getDocumentView()->emitSelectedChanged();
 		GUIDIALOGFACTORY->updateSelectionWidget(m_pCurrentMdiWin->getDocument()->getEntityTable()->countSelect());

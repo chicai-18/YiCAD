@@ -27,17 +27,6 @@
 #include "DmSettings.h"
 #include "DmDocument.h"
 
-Preview::Preview(DmDocument* pDocument)
-    : m_pDocument(pDocument)
-    , m_pPreviewContainer(nullptr)
-{
-    if (m_pDocument)
-    {
-        auto docView = m_pDocument->getDocumentView();
-        m_pPreviewContainer = docView->getPreviewContainer();
-    }
-}
-
 Preview::Preview(DmDocument* pDocument, IDocumentView* view)
     : m_pDocument(pDocument)
     , m_pView(view)
@@ -127,10 +116,9 @@ void Preview::clear()
 
 void Preview::setModelOffset(const DmVector& offset)
 {
-    if (m_pDocument)
+    if (m_pView)
     {
-        auto docView = m_pDocument->getDocumentView();
-        docView->setPreviewModelOffset(offset);
+        m_pView->setPreviewModelOffset(offset);
     }
 }
 
@@ -162,13 +150,11 @@ DmEntityContainer* Preview::getEntityContainer()
     return m_pPreviewContainer;
 }
 
-/// @brief 通知文档视图预览内容已修改，触发重绘
+/// @brief 通知视图预览内容已修改，触发重绘
 void Preview::specifyPreviewModified()
 {
-    // 只给了文档时，每次按文档当前关联的视图通知（原有行为）
-    IDocumentView* docView = m_pView ? m_pView : (m_pDocument ? m_pDocument->getDocumentView() : nullptr);
-    if (docView)
+    if (m_pView)
     {
-        docView->specifyPreviewModified();
+        m_pView->specifyPreviewModified();
     }
 }

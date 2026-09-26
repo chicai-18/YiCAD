@@ -36,15 +36,10 @@ QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button, Q
 
 /// @brief 测试夹具：把 SelectTool 依赖的一整套对象串起来
 ///
-/// 注意 Preview 用 nullptr 构造，不是 &doc：Preview::Preview(DmDocument*)
-/// 一旦文档指针非空就无条件调用 `pDocument->getDocumentView()->
-/// getPreviewContainer()`，而 `DmDocument::setDocumentView` 只接受具体的
-/// `GuiDocumentView*`（阶段1就已经记录的既有限制，见
-/// doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段1 4.6节"保留具体类型的例外"），
-/// 没有真实 GuiDocumentView 就没法把这层关联接上，传 &doc 会在构造期直接
-/// 空指针崩溃。这里的测试只覆盖 Neutral/Dragging/SetCorner2 与
-/// 键盘处理——它们都不往 m_preview 里画。夹点编辑已拆到 EditTool，
-/// 由 test_edit_tool.cpp 覆盖（用的是带视图的 Preview）；空闲态拖动整个实体已取消。
+/// 注意 Preview 不带文档与视图，没有预览容器：这里的测试只覆盖
+/// Neutral/Dragging/SetCorner2 与键盘处理——它们都不往 m_preview 里画。
+/// 夹点编辑已拆到 EditTool，由 test_edit_tool.cpp 覆盖（用的是带视图的
+/// Preview）；空闲态拖动整个实体已取消。
 ///
 /// panTool 用真实的 PanZoomTool 构造（而非默认的 nullptr）：SelectTool
 /// 现在需要在导航层平移中时让路，这里的多数用例仍然从不触发平移，
@@ -53,7 +48,7 @@ struct SelectToolFixture : ::testing::Test
 {
     DmDocument doc;
     FakeDocumentView view;
-    Preview preview{nullptr};
+    Preview preview{nullptr, nullptr};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     SelectTool tool{&doc, &view, &snapper, &preview, &panTool};
@@ -290,7 +285,7 @@ struct IdleDispatchFixture : ::testing::Test
 {
     DmDocument doc;
     FakeDocumentView view;
-    Preview preview{nullptr};
+    Preview preview{nullptr, nullptr};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
     DispatchSelectTool tool{&doc, &view, &snapper, &preview, &panTool};

@@ -36,6 +36,7 @@
 #include <QString>
 #include <memory>
 
+#include "DmDocumentListener.h"
 #include "DmRect.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
@@ -58,9 +59,10 @@ class GLPainter;
 
 /// @brief 文档的画布
 /// @details 包括4层：背景层，文档层，预览层，前景层。本类只负责渲染与视图状态，
-///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（kernel/interaction/UIView.h）
+///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（application/view/UIView.h）
 ///          接收并交给 ViewToolControl 分发，对应 DS 的 HQWidget 与 UIView 之分。
-class GuiDocumentView : public QOpenGLWidget, public IDocumentView
+///          关联文档时注册为它的监听者，析构时注销，因此必须先于文档析构。
+class GuiDocumentView : public QOpenGLWidget, public IDocumentView, public DmDocumentListener
 {
     Q_OBJECT
 
@@ -87,8 +89,8 @@ public:
     void setSelectedColor(const QColor& c);
     /// @brief 设置高亮颜色
     void setHighlightColor(const QColor& c);
-    /// @brief 设置文档对象
-    /// @param pDoc 文档对象指针
+    /// @brief 设置文档对象：从原文档注销监听，在新文档注册
+    /// @param pDoc 文档对象指针，可为空
     void setDocument(DmDocument* pDoc);
     /// @brief 获取缩放因子
     /// @return 单位设备坐标对应的世界坐标
@@ -234,7 +236,15 @@ public:
     /// @brief 指定预览模型矩阵的偏移量
     void setPreviewModelOffset(const DmVector& offset) override;
     /// @brief 切换文档画笔的实体容器（用于块编辑）
-    void setDocumentPainterContainer(DmEntityContainer* container) override;
+    void setDocumentPainterContainer(DmEntityContainer* container);
+
+    // ---- DmDocumentListener ----
+    /// @brief 文档已修改：同 specifyDocumentModified()
+    void documentModified() override;
+    /// @brief 文档请求重绘：同 redraw()
+    void redrawRequested() override;
+    /// @brief 文档切换了要绘制的实体容器：同 setDocumentPainterContainer()
+    void paintContainerChanged(DmEntityContainer* container) override;
 
     /// @brief 获得视图范围（世界坐标）
     DmRect getViewRect() override;

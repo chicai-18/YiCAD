@@ -125,7 +125,7 @@ void ModifyTrimTool::trigger()
 {
     if ((m_seleltedEnts.size() > 0) && (m_entToTrim != nullptr))
     {
-        Modification m(view());
+        Modification m(document());
         bool res = m.trim(m_seleltedEnts, m_entToTrim, m_trimPt);
 
         if (res)

@@ -85,7 +85,6 @@ public:
     void specifyPreviewModified() override {}
     void specifyDocumentModified() override {}
     void setPreviewModelOffset(const DmVector&) override {}
-    void setDocumentPainterContainer(DmEntityContainer*) override {}
 
     DmRect getViewRect() override { return DmRect(); }
 

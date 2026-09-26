@@ -69,7 +69,7 @@ void UIActionHandler::slotEditKillAllActions()
 			return;
 		}
 
-		Selection s(m_pDocument, m_pView);
+		Selection s(m_pDocument);
 		s.selectAll(false);
 		GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
 	}

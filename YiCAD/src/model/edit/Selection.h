@@ -22,16 +22,16 @@
 #define SELECTION_H
 
 #include "DmDocument.h"
-#include "IDocumentView.h"
 
 /// @brief 选择文档实体的类
+///
+/// 选中状态改变后经文档通知监听者（标记修改并重绘）。
 class Selection
 {
 public:
 	/// @brief 构造函数
 	/// @param doc 文档指针
-	/// @param docView 文档视图指针，可为空
-	Selection(DmDocument* doc, IDocumentView* docView = nullptr);
+	explicit Selection(DmDocument* doc);
 
 	/// @brief 切换单个实体的选中状态
 	/// @param e 实体指针
@@ -60,7 +60,6 @@ public:
 
 protected:
 	DmDocument* pDocument = nullptr;       ///< 关联的文档
-	IDocumentView* docView = nullptr;      ///< 关联的文档视图
 };
 
 #endif

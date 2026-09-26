@@ -25,6 +25,8 @@
 #ifndef DMDOCUMENT_H
 #define DMDOCUMENT_H
 
+#include <vector>
+
 #include <QDateTime>
 #include <QTimer>
 
@@ -44,7 +46,7 @@ class DmVariableDict;
 class DmTextStyle;
 class DmLineTypeTable;
 class DmCacheDrawData;
-class IDocumentView;
+class DmDocumentListener;
 
 constexpr const char* DOCDEFAULTFORMAT = "Drawing Exchange YCD 2023 (*.ycd)";
 
@@ -159,13 +161,19 @@ public:
     /// @param saveMinute 自动保存间隔（分钟）
     void enableAutoSave(bool enableAutoSave, int saveMinute);
 
-    /// @brief 给文档设置画布
-    /// @param docView 画布视图指针
-    void setDocumentView(IDocumentView* docView);
+    /// @brief 注册监听者；已注册或为空时不做任何事
+    /// @param listener 监听者，文档不拥有它
+    void addListener(DmDocumentListener* listener);
 
-    /// @brief 获取文档的画布
-    /// @return 画布视图指针
-    IDocumentView* getDocumentView();
+    /// @brief 注销监听者；未注册时不做任何事
+    /// @param listener 监听者
+    void removeListener(DmDocumentListener* listener);
+
+    /// @brief 通知监听者文档内容已修改
+    void notifyDocumentModified();
+
+    /// @brief 请求监听者重绘
+    void requestRedraw();
 
     /// @brief 获取文档当前画笔
     /// @return 当前画笔
@@ -274,7 +282,7 @@ private:
     size_t                              m_savedUndoCount = 0; ///< 保存时的 undo 栈大小，用于判断文档是否需要保存
     bool                                m_bHasAutoSaved = false; ///< 是否已自动保存
     std::shared_ptr<QTimer>             m_timer; ///< 用于自动保存文件的定时器   //不能用unique_ptr，否则编译不过
-    IDocumentView*                      m_documentView = nullptr; ///< 这个文档对应的画布
+    std::vector<DmDocumentListener*>    m_listeners; ///< 监听者（如画布），不拥有
     DmPen                               m_activePen; ///< 文档当前的画笔
     QString                             m_filename; ///< 文档保存路径
     QString                             m_formatType; ///< 保存格式名

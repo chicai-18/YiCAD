@@ -117,7 +117,7 @@ private:
             cutEntity->setHighlighted(false);
             view()->redraw();
 
-            Modification m(view());
+            Modification m(document());
             m.cut(cutCoord, cutEntity);
 
             cutEntity = nullptr;
@@ -182,7 +182,7 @@ private:
             cutEntity->setVisible(true);
             view()->redraw();
 
-            Modification m(view());
+            Modification m(document());
             m.cut2P(firstCoord, secondCoord, cutEntity);
 
             cutEntity = nullptr;

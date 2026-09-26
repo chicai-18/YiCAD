@@ -902,7 +902,6 @@ YiCadResult YICAD_PLUGIN_CALL HostApi::documentRegen(
             return YICAD_FAILURE;
         }
 
-        document->setDocumentView(view);
         document->regenerate();
         return YICAD_SUCCESS;
     }

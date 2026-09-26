@@ -113,9 +113,6 @@ public:
     /// @brief 指定预览模型矩阵的偏移量
     virtual void setPreviewModelOffset(const DmVector& offset) = 0;
 
-    /// @brief 替换文档画布当前绘制的实体容器（如切换到块编辑态）并触发重绘
-    virtual void setDocumentPainterContainer(DmEntityContainer* container) = 0;
-
     /// @brief 获得视图范围（世界坐标）
     virtual DmRect getViewRect() = 0;
 

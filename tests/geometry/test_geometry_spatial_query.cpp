@@ -132,7 +132,7 @@ TEST(SpatialQueryTest, 窗选只选完全落在窗口内的实体)
     addLine(doc, DmVector(1.0, 1.0), DmVector(10.0, 1.0));      // 跨出窗口
     addLine(doc, DmVector(100.0, 100.0), DmVector(101.0, 101.0));  // 远离窗口
 
-    Selection(&doc, nullptr).selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), true, false);
+    Selection(&doc).selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), true, false);
 
     EXPECT_EQ(selectedEntities(doc), std::set<DmEntity*>{inside});
 }
@@ -146,7 +146,7 @@ TEST(SpatialQueryTest, 交叉选按几何相交而非包围盒重叠判定)
     addLine(doc, DmVector(4.0, 10.0), DmVector(10.0, 4.0));
     addLine(doc, DmVector(100.0, 100.0), DmVector(101.0, 101.0));
 
-    Selection(&doc, nullptr).selectWindow(DmVector(5.0, 5.0), DmVector(0.0, 0.0), true, true);
+    Selection(&doc).selectWindow(DmVector(5.0, 5.0), DmVector(0.0, 0.0), true, true);
 
     EXPECT_EQ(selectedEntities(doc), (std::set<DmEntity*>{inside, crossing}));
 }
@@ -158,7 +158,7 @@ TEST(SpatialQueryTest, 框选跳过不可见实体且可反选)
     DmLine* hidden = addLine(doc, DmVector(2.0, 2.0), DmVector(3.0, 3.0));
     hidden->setVisible(false);
 
-    Selection selection(&doc, nullptr);
+    Selection selection(&doc);
     selection.selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), true, false);
     EXPECT_EQ(selectedEntities(doc), std::set<DmEntity*>{visible});
 
@@ -185,7 +185,7 @@ TEST(SpatialQueryTest, 盖住全部实体的框选与局部框选结果一致)
     expectPoint(allMin, -5.0, -6.0);
     expectPoint(allMax, 22.0, 3.0);
 
-    Selection selection(&doc, nullptr);
+    Selection selection(&doc);
     // 恰好等于全部包围框的窗口（盖住全部）与只差一点的窗口（走树），窗选结果一致。
     selection.selectWindow(allMin, allMax, true, false);
     EXPECT_EQ(selectedEntities(doc), (std::set<DmEntity*>{a, b, c}));
@@ -378,7 +378,7 @@ TEST(SpatialQueryTest, 随机图纸上与原全量扫描结果一致)
     // 防止比对退化成"两边都原样返回查询点"。
     EXPECT_GT(nonTrivial, 100);
 
-    Selection selection(&doc, nullptr);
+    Selection selection(&doc);
     for (int i = 0; i < 100; ++i)
     {
         DmVector v1 = randomPoint();

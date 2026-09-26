@@ -30,10 +30,9 @@
 #include "DmSolid.h"
 #include "DmTriangle.h"
 
-Selection::Selection(DmDocument* doc, IDocumentView* docView)
+Selection::Selection(DmDocument* doc)
 {
 	this->pDocument = doc;
-	this->docView = docView;
 }
 
 /// @brief 切换单个实体的选中状态
@@ -44,10 +43,10 @@ void Selection::selectSingle(DmEntity* e)
 	{
 		e->toggleSelected();
 
-		if (docView)
+		if (pDocument)
 		{
-			docView->specifyDocumentModified();
-			docView->redraw();
+			pDocument->notifyDocumentModified();
+			pDocument->requestRedraw();
 		}
 	}
 }
@@ -65,11 +64,8 @@ void Selection::selectAll(bool select)
 		}
 	}
 
-	if (docView)
-	{
-		docView->specifyDocumentModified();
-		docView->redraw();
-	}
+	pDocument->notifyDocumentModified();
+	pDocument->requestRedraw();
 }
 
 namespace
@@ -221,11 +217,8 @@ void Selection::selectWindow(const DmVector& v1, const DmVector& v2, bool select
 		}
 	}
 
-	if (docView)
-	{
-		docView->specifyDocumentModified();
-		docView->redraw();
-	}
+	pDocument->notifyDocumentModified();
+	pDocument->requestRedraw();
 }
 
 /// @brief 选中/取消选中指定图层的所有实体
@@ -247,11 +240,8 @@ void Selection::selectLayer(const QString& layerName, bool select)
 		}
 	}
 
-	if (docView)
-	{
-		docView->specifyDocumentModified();
-		docView->redraw();
-	}
+	pDocument->notifyDocumentModified();
+	pDocument->requestRedraw();
 }
 
 /// @brief 取消选中指定图层的所有实体

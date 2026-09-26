@@ -30,7 +30,6 @@
 #include "DmEllipse.h"
 #include "DmLine.h"
 #include "DmSpline.h"
-#include "IDocumentView.h"
 #include "DmClipboard.h"
 #include "DmDocument.h"
 #include "Information.h"
@@ -66,13 +65,9 @@ PasteData::PasteData(DmVector _insertionPoint, double _factor, double _angle, bo
 {
 }
 
-Modification::Modification(IDocumentView* docView)
+Modification::Modification(DmDocument* doc)
 {
-	this->docView = docView;
-	if (docView)
-	{
-		document = docView->getDocument();
-	}
+	document = doc;
 }
 
 void Modification::remove()
@@ -162,10 +157,10 @@ void Modification::copyEntity(DmEntity* e, const DmVector& ref)
 	c->setLayer(e->getLayer()->getName());
 
 	e->setSelected(false);
-	if (docView)
+	if (document)
 	{
-		docView->specifyDocumentModified();
-		docView->redraw();
+		document->notifyDocumentModified();
+		document->requestRedraw();
 	}
 }
 

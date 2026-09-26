@@ -71,17 +71,20 @@ MDIWindow::MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags)
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 }
 
-/// @brief 析构函数，删除与此窗口关联的文档
+/// @brief 析构函数，先释放视图，再删除与此窗口关联的文档
+///
+/// 视图是文档的监听者，析构时从文档注销，必须先于文档释放。它是本窗口的子控件，
+/// 不在这里删就要等基类析构时才释放，那时文档已经删除。
 MDIWindow::~MDIWindow()
 {
-    if (!(docView && docView->isCleanUp()))
+    delete docView;
+    docView = nullptr;
+
+    if (owner && document)
     {
-        if (owner == true && document)
-        {
-            delete document;
-        }
-        document = nullptr;
+        delete document;
     }
+    document = nullptr;
 }
 
 GuiDocumentView* MDIWindow::getDocumentView() const
@@ -182,7 +185,6 @@ bool MDIWindow::slotFileSave(bool& cancelled, bool isAutoSave)
 
     if (document)
     {
-        document->setDocumentView(docView);
         if (isAutoSave)
         {
             ret = document->save(true);
@@ -224,7 +226,6 @@ bool MDIWindow::slotFileSaveAs(bool& cancelled)
     if (document && !fn.isEmpty())
     {
         QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-        document->setDocumentView(docView);
         ret = document->saveAs(fn, formatType, true);
         QApplication::restoreOverrideCursor();
     }

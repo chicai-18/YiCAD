@@ -24,6 +24,7 @@
 
 #include "DmDocument.h"
 
+#include <algorithm>
 #include <iostream>
 #include <cmath>
 #include <QDir>
@@ -31,7 +32,7 @@
 #include <unordered_map>
 
 #include "GuiDialogFactory.h"
-#include "IDocumentView.h"
+#include "DmDocumentListener.h"
 #include "Debug.h"
 #include "Math2d.h"
 #include "DmUnits.h"
@@ -92,7 +93,6 @@ DmDocument::DmDocument()
     DMSETTINGS->endGroup();
     enableAutoSave(isAutoSave, min);
 
-    m_documentView = nullptr;
     //QObject::connect(&m_cmdManager, SIGNAL(signalCmdCommitted(bool , const std::string& , bool , const std::string&)), )
 }
 
@@ -169,18 +169,12 @@ void DmDocument::searchEntities(const DmVector& min, const DmVector& max, std::v
 void DmDocument::specifyModifiedEntity(DmEntity* modifiedEnt)
 {
     getEntityTable()->notifyEntityModified(modifiedEnt);
-    if (m_documentView)
-    {
-        m_documentView->specifyDocumentModified();
-    }
+    notifyDocumentModified();
 }
 
 void DmDocument::specifyPenModified()
 {
-    if (m_documentView)
-    {
-        m_documentView->specifyDocumentModified();
-    }
+    notifyDocumentModified();
 }
 
 void DmDocument::initDoc()
@@ -429,14 +423,33 @@ void DmDocument::enableAutoSave(bool enableAutoSave, int saveMinute)
     }
 }
 
-void DmDocument::setDocumentView(IDocumentView* docView)
+void DmDocument::addListener(DmDocumentListener* listener)
 {
-    m_documentView = docView;
+    if (listener && std::find(m_listeners.begin(), m_listeners.end(), listener) == m_listeners.end())
+    {
+        m_listeners.push_back(listener);
+    }
 }
 
-IDocumentView* DmDocument::getDocumentView()
+void DmDocument::removeListener(DmDocumentListener* listener)
 {
-    return m_documentView;
+    m_listeners.erase(std::remove(m_listeners.begin(), m_listeners.end(), listener), m_listeners.end());
+}
+
+void DmDocument::notifyDocumentModified()
+{
+    for (DmDocumentListener* listener : m_listeners)
+    {
+        listener->documentModified();
+    }
+}
+
+void DmDocument::requestRedraw()
+{
+    for (DmDocumentListener* listener : m_listeners)
+    {
+        listener->redrawRequested();
+    }
 }
 
 DmPen DmDocument::getActivePen() const
@@ -458,14 +471,14 @@ void DmDocument::setEditBlock(DmBlock* block)
 {
     DmBlock* prev = m_editingBlock;
     m_editingBlock = block;
-    if (prev != block && m_documentView)
+    if (prev != block)
     {
-        if (block)
-            m_documentView->setDocumentPainterContainer(
-                block->getEntityTable().getEntityContainer());
-        else
-            m_documentView->setDocumentPainterContainer(
-                m_entityTable->getEntityContainer());
+        DmEntityContainer* container = block ? block->getEntityTable().getEntityContainer()
+                                             : m_entityTable->getEntityContainer();
+        for (DmDocumentListener* listener : m_listeners)
+        {
+            listener->paintContainerChanged(container);
+        }
     }
 }
 
@@ -757,11 +770,8 @@ void DmDocument::regenerate() {
     {
         m_entityTable->updateContainer();
     }
-    if (m_documentView)
-    {
-        m_documentView->specifyDocumentModified();
-        m_documentView->redraw();
-    }
+    notifyDocumentModified();
+    requestRedraw();
 }
 
 EntityTable *DmDocument::getEntityTable() {

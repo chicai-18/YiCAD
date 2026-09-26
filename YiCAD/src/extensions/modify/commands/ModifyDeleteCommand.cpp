@@ -41,7 +41,7 @@ void ModifyDeleteCommand::deleteSelection(DmDocument* doc, IDocumentView* view)
     {
         return;
     }
-    Modification m(view);
+    Modification m(doc);
     m.remove();
     GUIDIALOGFACTORY->updateSelectionWidget(doc->getEntityTable()->countSelect());
 }

@@ -29,10 +29,7 @@ class IDocumentView;
 class Preview : public DmFlags
 {
 public:
-    /// @brief 预览到文档所在视图的预览容器
-    /// @param pDocument 文档；为空时没有预览容器
-    Preview(DmDocument* pDocument);
-    /// @brief 预览到指定视图的预览容器（命令用；视图可以是测试替身）
+    /// @brief 预览到指定视图的预览容器（视图可以是测试替身）
     /// @param pDocument 文档，addSelectionFromDocument() 从它取选择集
     /// @param view 视图；为空时没有预览容器
     Preview(DmDocument* pDocument, IDocumentView* view);
@@ -71,7 +68,7 @@ private:
 
 private:
     DmDocument*         m_pDocument = nullptr;          ///< 关联的文档指针
-    IDocumentView*      m_pView = nullptr;              ///< 指定的视图；为空时按文档关联的视图
+    IDocumentView*      m_pView = nullptr;              ///< 预览所在的视图
     DmEntityContainer*  m_pPreviewContainer = nullptr;  ///< 预览容器指针
 };
 

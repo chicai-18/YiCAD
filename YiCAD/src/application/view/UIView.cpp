@@ -50,9 +50,8 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
 
     if (doc)
     {
-        // 基类构造时已把文档关联到本视图，Preview 的构造依赖这一点。
         m_pSelectSnapper = std::make_unique<Snapper>(doc, this);
-        m_pSelectPreview = std::make_unique<Preview>(doc);
+        m_pSelectPreview = std::make_unique<Preview>(doc, this);
         m_pSelectTool = std::make_unique<SelectTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
                                                      m_pPanZoomTool.get());
         m_pViewToolControl->setSelectionTool(m_pSelectTool.get());

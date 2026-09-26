@@ -187,7 +187,7 @@ void ModifyMoveCommand::clearPreview()
 
 void ModifyMoveCommand::commitMove(const DmVector& reference, const DmVector& target)
 {
-    Modification m(view());
+    Modification m(document());
     m.move(target - reference);
 
     GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());

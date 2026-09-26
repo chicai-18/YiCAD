@@ -164,7 +164,7 @@ DmEntity* SelectTool::pickAt(int guiX, int guiY)
     DmEntity* en = m_snapService->catchEntity(DmVector(m_docView->toGraphX(guiX), m_docView->toGraphY(guiY)));
     if (en)
     {
-        Selection s(m_pDocument, m_docView);
+        Selection s(m_pDocument);
         s.selectSingle(en);
         GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
     }
@@ -275,7 +275,7 @@ ViewToolResult SelectTool::keyPressEvent(QKeyEvent* e)
         deletePreview();
         m_snapService->deleteSnapper();
         setStatus(Neutral);
-        Selection s(m_pDocument, m_docView);
+        Selection s(m_pDocument);
         s.selectAll(false);
         e->accept();
         break;
@@ -404,7 +404,7 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
             {
                 deletePreview();
 
-                Selection s(m_pDocument, m_docView);
+                Selection s(m_pDocument);
                 s.selectSingle(en);
                 notifySelectionChanged();
                 e->accept();
@@ -424,7 +424,7 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
             deletePreview();
 
             bool cross = (m_points.v1.x > m_points.v2.x);
-            Selection s(m_pDocument, m_docView);
+            Selection s(m_pDocument);
             bool select = (e->modifiers() & Qt::ShiftModifier) ? false : true;
             s.selectWindow(m_points.v1, m_points.v2, select, cross,
                            m_phase ? m_phase->entityTypes : EntityTypeList{});

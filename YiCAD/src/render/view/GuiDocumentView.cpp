@@ -97,7 +97,6 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     if (doc)
     {
         setDocument(doc);
-        doc->setDocumentView(this);
     }
 
     DMSETTINGS->beginGroup("Colors");
@@ -129,6 +128,7 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
 
 GuiDocumentView::~GuiDocumentView()
 {
+    setDocument(nullptr);
     cleanUp();
     qDeleteAll(m_overlayEntities);
     deletePainters();
@@ -146,10 +146,18 @@ void GuiDocumentView::cleanUp()
     m_bIsCleanUp = true;
 }
 
-/// @brief 设置文档对象
+/// @brief 设置文档对象，并把本画布从原文档的监听者中移到新文档
 void GuiDocumentView::setDocument(DmDocument* pDoc)
 {
+    if (pDocument)
+    {
+        pDocument->removeListener(this);
+    }
     this->pDocument = pDoc;
+    if (pDocument)
+    {
+        pDocument->addListener(this);
+    }
 }
 
 /// @brief 检查网格是否开启
@@ -1004,6 +1012,21 @@ void GuiDocumentView::setDocumentPainterContainer(DmEntityContainer* container)
     m_pDocumentPainter->addContainer(container);
     m_pDocumentPainter->specifyModified();
     redraw();
+}
+
+void GuiDocumentView::documentModified()
+{
+    specifyDocumentModified();
+}
+
+void GuiDocumentView::redrawRequested()
+{
+    redraw();
+}
+
+void GuiDocumentView::paintContainerChanged(DmEntityContainer* container)
+{
+    setDocumentPainterContainer(container);
 }
 
 DmRect GuiDocumentView::getViewRect()

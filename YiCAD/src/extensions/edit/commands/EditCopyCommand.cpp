@@ -109,7 +109,7 @@ bool EditCopyCommand::onSelectionReady()
 
 void EditCopyCommand::commitCopy(const DmVector& referencePoint)
 {
-    Modification m(view());
+    Modification m(document());
     m.copy(referencePoint, !m_copy);
 
     finish();

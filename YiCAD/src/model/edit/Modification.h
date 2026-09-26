@@ -33,7 +33,6 @@ class DmMText;
 class DmText;
 class DmPolyline;
 class DmDocument;
-class IDocumentView;
 class DmLine;
 class DmCircle;
 class DmArc;
@@ -136,8 +135,8 @@ public:
 	Modification() = delete;
 
 	/// @brief 构造函数
-	/// @param docView 文档视图指针
-	Modification(IDocumentView* docView);
+	/// @param doc 要修改的文档
+	explicit Modification(DmDocument* doc);
 
 	/// @brief 删除选中的实体
 	void remove();
@@ -283,7 +282,6 @@ private:
 
 protected:
 	DmDocument* document = nullptr;       ///< 关联的文档
-	IDocumentView* docView = nullptr;     ///< 关联的文档视图
 };
 
 #endif
