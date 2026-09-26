@@ -574,7 +574,75 @@ Model 包含 Render，这几条 CMake 已经保证，不会新增违规。另加
 
 ### 7.5 执行结果
 
-（未开始）
+2026-09-26 完成，基线 `d1dce99`（S2 之后）。开工前定下：`MDIWindow` 先删视图、再删文档（见下文"销毁顺序"）；
+`IDocumentView` 删去 `setDocumentPainterContainer`。
+
+**提交**：
+
+| 提交 | 内容 |
+|------|------|
+| `d8ae3df` | 代码与测试。`IDocumentView.h`、`ISnapService.h` 仍在 `model/host/`，但 Model 已不再包含它们 |
+| 随后一个 | 两个头文件 `git mv` 到 `render/view/`，只改头部说明（git 识别为重命名）；CMake 注释、`AGENTS.md`、`README.md`/`README_zh.md` 里 `model/host/` 的一句、本节与 `BASELINE.md` |
+
+搬移放在后面：先搬的话 Model 还包含 `IDocumentView.h`，而 `render/view/` 不在 `YiCadModel` 的 include 路径上，
+那个提交单独构建不过；这样排，两个提交都能单独构建。
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | 新增 `model/document/DmDocumentListener.h`，三个纯虚方法，文档不拥有监听者 |
+| 2 | `DmDocument` 的视图指针改为 `std::vector<DmDocumentListener*>`；`addListener`（忽略空指针与重复注册）、`removeListener`、`notifyDocumentModified`、`requestRedraw`；`setEditBlock` 在编辑块变化时逐个通知 `paintContainerChanged`；`specifyModifiedEntity`、`specifyPenModified`、`regenerate` 改调通知方法；删除 `setDocumentView`/`getDocumentView` |
+| 3 | `GuiDocumentView` 实现监听接口，三个回调分别转调 `specifyDocumentModified()`、`redraw()`、`setDocumentPainterContainer()`；`setDocument` 从原文档注销、在新文档注册，析构时先 `setDocument(nullptr)`。删去 `MDIWindow` 保存与另存为前、`HostApi::documentRegen` 重生成前补设视图的调用（`documentRegen` 仍要求视图非空，返回值不变） |
+| 4 | `Selection(DmDocument*)`；`selectSingle` 在文档非空时通知，其余三处本来就解引用文档。调用方：`SelectTool` 4 处，`UIActionHandler`、`ApplicationWindow` 各 1 处，`test_geometry_spatial_query` 5 处 |
+| 5 | `Modification(DmDocument*)`，`copyEntity` 的通知改走文档。调用方：`EditTool` 1 处；扩展里 `Modification m(view())` 改为 `Modification m(document())`，edit 1 个文件、modify 4 个文件共 5 处。`ModifyDeleteCommand::deleteSelection` 保留视图形参与"视图为空什么也不做"的判断，行为不变 |
+| 6 | 删除 `Preview(DmDocument*)`；`setModelOffset`、`specifyPreviewModified` 改用构造时传入的视图；`UIView` 传 `(doc, this)`；`test_select_tool` 的 `Preview{nullptr}` 改为 `{nullptr, nullptr}` |
+| 7 | `git mv` 两个头文件，改写头部"为什么放在这里"的说明 |
+| 8 | `FakeDocumentView` 删去 `setDocumentPainterContainer`；新增 `tests/interaction/test_document_listener.cpp`（9 个）：注册与注销、重复注册、`regenerate` 通知全部监听者、画笔与实体修改只通知"已修改"、`Selection` 四种选择、`Modification::copy`、块编辑进入与退出切换绘制容器（直接执行 `BlockEditEnterCmd`/`BlockEditExitCmd`，不经事务）、编辑块不变时不通知；另用真实的 `GuiDocumentView` 验证关联文档时注册、换文档与析构时注销 |
+| 追加 | `IDocumentView` 删去 `setDocumentPainterContainer`：唯一调用方是 `DmDocument`，改完后只有画布自己的监听回调调用它，不再是命令与工具需要的能力 |
+
+**与 7.2 节原文的出入**：
+
+- 第 4 项列了 `UITabDrawWidget.cpp`，它只包含 `Selection.h`，没有构造 `Selection`，未改；测试里另有 5 处构造，方案未列。
+- 第 5 项的"9 个文件"是包含 `Modification.h` 的文件数，其中构造它的只有 5 个；`ModifyBevelCommand`、`ModifyRoundCommand`、
+  `ModifyExtendCommand` 只调静态函数，`ModifyRotateCommand` 只包含头文件。
+- 第 3 项没有考虑销毁顺序，见下。
+
+**销毁顺序**：`~MDIWindow` 原先先删文档，作为子控件的视图要等基类析构时才释放；视图析构时注销就会访问已释放的文档。
+改为 `~MDIWindow` 先 `delete docView`，再删文档。原来包在外面的 `if (!(docView && docView->isCleanUp()))` 一并删除：
+`isCleanUp()` 只在 `~GuiDocumentView` 里置真，那时 `docView` 已经不能访问，这个条件实际恒真。附带的好处：原先 `UIView`
+析构时（命令总线、选择层、夹点编辑工具随之析构）文档已经删除，它们手里的文档指针是悬空的；现在析构期间文档仍在。
+
+**行为**：
+
+- 程序里文档与视图一一对应（`UITabDrawWidget::createMdiWindow` 是 `MDIWindow` 唯一的构造点，总是新建文档），
+  "通知指定的视图"改为"通知全部监听者"，结果不变。
+- 测试里 `FakeDocumentView::getDocument()` 返回空，`Modification` 原先在用例里拿不到文档、是空操作，现在拿到测试文档。
+  现有用例刻意不走提交，结果不变。
+- `Preview::setModelOffset` 原先经文档找视图，测试替身下文档没有关联视图会解引用空指针；现在用构造时的视图。没有用例调到它。
+
+**验收**：
+
+- Release、Debug 构建通过（Debug 又遇到 `ARCHITECTURE_EVOLUTION_PLAN.md` 8.6 节遗留问题 1 的 LNK1103，照 S0 的做法删掉
+  `.obj`、`.pdb` 后重建）；两种配置的 ctest 全部通过；用例 481（启用 475，`DISABLED_` 6），比 S2 多新增的 9 个
+  （`BASELINE.md` 7.2 节）。
+- `check_layering.py` 通过（11 处已登记的例外）。
+- 编译期保证：在 `Selection.cpp` 临时包含 `IDocumentView.h`，构建 `YiCadModel` 报 C1083（找不到头文件）。
+- 新用例能抓住漏注销：临时删去 `~GuiDocumentView` 里的 `setDocument(nullptr)`，Debug 下 `test_interaction` 只有
+  "画布析构时从文档注销"失败（访问冲突 0xc0000005），恢复后通过。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应；再向主窗口发关闭消息，启动时的空白图纸经
+  `closeTab` 删除 `MDIWindow`（走新的析构顺序），进程以 0 退出。
+- 交互清单第 1、3、4 节未在界面上手工走查（会话里无法安全驱动界面，S0 以来同样的限制）。选择与块编辑的通知由新用例覆盖；
+  真实画布上的容器切换（`setDocumentPainterContainer` 要在 GL 初始化、画笔建立之后才能调）没有运行期覆盖。
+
+**遗留**：
+
+- `model/host/` 只剩 `GuiDialogFactory*`，S4d 搬走后删除。
+- 扩展里仍有 40 余处直接调 `view()->specifyDocumentModified()`（命令改完实体后刷新画布），绕过文档通知，只刷新发起命令的视图。
+  一文档一视图时没有差别；将来做多视口要改走文档。
+- `SnapMode` 随 `ISnapService.h` 声明在 `render/view/`，成员函数（`clear`、`toInt`、`fromInt`、`operator==`）却定义在
+  `application/Snapper.cpp`。Render 目前只按值使用它，S6 把 Render 拆成独立库时不会缺符号；若 Render 以后调用这些成员函数，
+  要先把定义挪下来。
 
 ---
 

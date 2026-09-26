@@ -286,13 +286,13 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 |
-|------------|--------------------:|---:|---:|---:|---:|
-| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
-| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） |
-| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） |
-| `test_interaction` | 282 | 282 | 282 | 282 | 282 |
-| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） |
+| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 |
+|------------|--------------------:|---:|---:|---:|---:|---:|
+| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
+| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） |
+| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） |
+| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 |
+| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） |
 
 S0 新增的 19 个 `DISABLED_` 对应读回路径的缺陷 R1–R9（`LAYER_RESTRUCTURE_PLAN.md` 4.5 节，
 `tests/persistence/test_persistence_document.cpp` 文件头部），修复后去掉前缀即为验收。
@@ -300,3 +300,4 @@ D8 修复步（同文档 4.6 节）修好 R1–R3、R5、R6、R9，启用其中 
 按修订号读回的 5 个与当前线型的 1 个；剩下的 4 个依赖 R4、R7、R8。
 S1 删除 `Persistence::dumpToStream`/`restoreFromStream` 时连同 `DISABLED_压缩流往返` 一起删掉，启用数不变。
 S2 只搬目录、改构建脚本，用例不变；`test_persistence` 改链 `YiCadModel`（原 `YiCadPersistence` 已并入）。
+S3 新增 `test_interaction` 的 `test_document_listener.cpp`（9 个）：文档经监听接口通知画布。

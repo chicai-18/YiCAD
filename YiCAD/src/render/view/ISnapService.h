@@ -26,9 +26,9 @@
 /// 一并迁到这里：它们是接口契约的一部分，且不依赖 DmDocument.h。
 /// 见 doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段2 第5.4节第5项。
 ///
-/// 阶段 3 从 kernel/actions/ 移到本目录：IDocumentView（同批移动）的
-/// setDefaultSnapMode/setSnapRestriction 用到 SnapMode/DM::SnapRestriction，
-/// 而 IDocumentView 又是 Model 分区需要的接口，故本文件与它一起下沉。
+/// 与 IDocumentView 放在一起（render/view/）：后者的 setDefaultSnapMode/
+/// setSnapRestriction 用到 SnapMode/DM::SnapRestriction。两者曾一起下沉到 Model，
+/// 分层重组 S3 之后 Model 不再需要它们，一起回到这里。
 
 #ifndef ISNAPSERVICE_H
 #define ISNAPSERVICE_H

@@ -366,7 +366,7 @@ flowchart TB
 - Render、Application、UI、Shell 合编进 `YiCadCore`，由 CI 中的 `tools/check_layering.py` 按目录检查：下层不得包含上层的头文件；`application/view/` 以外不得包含交互视图 `UIView`，命令与工具只经 `IDocumentView`/`GuiDocumentView` 认识视图。
 - 每个扩展是链接 `YiCadCore` 的独立 OBJECT 库，只看得到自己的头文件，因此不能包含别的扩展，也不得包含 `shell/`。`YiCadCore` 不引用任何扩展，只有编进可执行文件的 `shell/BuiltinExtensions.cpp` 引用它们。
 - UI 与 Shell 互相依赖（虚线）：`UIActionHandler`、`UIBottomWidget` 等部件直接调用 `ApplicationWindow`/`MDIWindow` 取当前文档等全局状态，这些 include 登记在 `check_layering.py` 的白名单里。
-- 原生格式的读写代码在 `model/io/`，但文档存盘与打开仍经 `GuiDialogFactoryInterface` 绕到 Shell 的 `shell/fileio/`（`FileIO`）分派。Model 对视图与宿主的遗留依赖集中在过渡目录 `model/host/`；`doc/LAYER_RESTRUCTURE_PLAN.md` 记录了解开它们、把 `YiCadCore` 拆成四个库的步骤。
+- 原生格式的读写代码在 `model/io/`，但文档存盘与打开仍经 `GuiDialogFactoryInterface` 绕到 Shell 的 `shell/fileio/`（`FileIO`）分派。Model 已不认识视图（文档经 `DmDocumentListener` 通知它），对宿主的遗留依赖集中在过渡目录 `model/host/`；`doc/LAYER_RESTRUCTURE_PLAN.md` 记录了解开它们、把 `YiCadCore` 拆成四个库的步骤。
 
 ## 开发
 

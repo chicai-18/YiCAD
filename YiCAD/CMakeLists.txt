@@ -86,9 +86,9 @@ yicad_collect_sources(BASE
 #   src/model/io/           原生格式 FilterOcdIO、.bak 备份、迁移基类；meta/ 是各类型的
 #                           Meta* 容器。原是独立的 YiCadPersistence 库，它本来就只依赖
 #                           Model 与 Base，分层重组 S2 并入本库
-#   src/model/host/         过渡目录：IDocumentView、ISnapService 与 GuiDialogFactory*，
-#                           即 Model 对视图与宿主的遗留依赖。分层重组 S3、S4 把它们搬到
-#                           render/view/ 与 application/ 后删除本目录
+#   src/model/host/         过渡目录：GuiDialogFactory*，即 Model 对宿主的遗留依赖。
+#                           分层重组 S4 把它们搬到 application/ 后删除本目录（对视图的
+#                           依赖 S3 已解开，IDocumentView、ISnapService 已搬到 render/view/）
 yicad_collect_sources(MODEL
     src/model/document
     src/model/property
@@ -109,9 +109,11 @@ yicad_collect_sources(MODEL
 # 对应 YiCadRender。
 #   src/render/painter/  绘制抽象（Painter/PainterCreator）
 #   src/render/opengl/   OpenGL 实现（GL*）
-#   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter
+#   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter，
+#                        以及命令与工具眼中的视图接口 IDocumentView、捕捉接口 ISnapService
 #
 # 画布不认识命令与视图工具；装配工具的交互视图 UIView 在 application/view/。
+# 文档经 DmDocumentListener 通知画布，Model 不认识本分区。
 # 本分区的内部实现不在分层重组方案的排期内（渲染专项另行规划）。
 yicad_collect_sources(RENDER
     src/render/painter

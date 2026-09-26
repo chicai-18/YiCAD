@@ -27,10 +27,9 @@
 /// 命令总线只经 hasActiveCommand()/activeCommandId() 两个只读查询暴露；启动、
 /// 结束命令由交互视图 UIView 负责（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第四步）。
 ///
-/// 阶段 3 从 kernel/actions/ 移到本目录：kernel/modification/（Selection、
-/// Modification）与 kernel/history/BlockEditCmd 同样持有 IDocumentView*，
-/// 二者物理位于 Model 分区，接口必须与最低的消费方同层或更低，
-/// 因此下沉到 Model。
+/// 放在实现它的 Render 层（render/view/）。它曾因 Model 的 DmDocument、Selection、
+/// Modification 持有视图而下沉到 Model；分层重组 S3 让文档改经 DmDocumentListener
+/// 通知视图，Model 不再认识本接口，它随之回到这里（doc/LAYER_RESTRUCTURE_PLAN.md 第 7 节）。
 
 #ifndef IDOCUMENTVIEW_H
 #define IDOCUMENTVIEW_H
