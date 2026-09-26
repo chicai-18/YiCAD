@@ -251,7 +251,69 @@ S4 会改动文档读写路径，这是数据丢失风险最高的地方，而�
 
 ### 4.5 执行结果
 
-（未开始）
+2026-09-26 完成，基线 `17aaeb5`。
+
+**新增用例**：`tests/persistence/test_persistence_document.cpp`，31 个，分四组。样本文档含 4.2 节列的全部内容，
+另加点、射线、构造线、二维实体（Solid）：
+
+| 组 | 个数 | 内容 |
+|----|-----:|------|
+| `OcdDocumentWrite` | 4（启用） | 样本构造；压缩包的条目顺序与各条目是否有数据；用 `QXmlStreamReader` 独立解析 `Document.xml`，核对各表与各类实体的 `Count`、当前图层与样式、图层名（base64）；覆盖已有文件时 `FilterOcdIO` 自带的编号备份（`<文件名>1`） |
+| `OcdDocumentRoundTrip` | 16（全部 `DISABLED_`） | 各类实体的数量与关键几何、图层与画笔、文字、五种标注与引线、填充、块定义与块引用（含属性）、图层表、线型、文字样式与标注样式、中文路径、再存再读的稳定性 |
+| `OcdDocumentErrorPath` | 4（启用） | 空文件、非压缩包、截断、不存在：过滤器一律抛异常（断言现状，S4c 改为结果码后随之改写） |
+| `DocumentSavePolicy` | 7（4 启用、3 `DISABLED_`） | 另存为经 `.tmp` 写出、再次保存生成 `.bak`、后缀与格式不符拒绝保存、外部修改检测；打开刚保存的文件、打开损坏文件时询问备份、没有备份时警告 |
+
+宿主服务用测试里的 `OcdHost` 代替（`GuiDialogFactoryAdapter` 派生，按后缀与格式名分派到 `FilterOcdIO`，与 `FileIO`
+对 `.ycd` 的分派相同）。用例总数 425 → 456（启用 422 → 434，`DISABLED_` 3 → 22）；Debug、Release 的 ctest 全部通过。
+
+**偏差：读回路径整体不可用。** 按 4.3 节，缺陷以 `DISABLED_` 保留、本步不修。4.1 节设想 S0 为 S4 兜底，但 YiCAD
+目前读不回自己写出的任何 `.ycd`，往返用例一个也启用不了。共查出 9 处，机理、位置与可达性写在测试文件头部：
+
+| 编号 | 位置 | 现象 |
+|------|------|------|
+| R1 | `FilterOcdIO.cpp:154` | 打开压缩包后没有先 `nextEntry()` 就把流交给 `XMLReader`，解析到空流，抛异常。与 `test_persistence_roundtrip.cpp` 里 `Persistence::restoreFromStream` 的缺陷同一机理 |
+| R2 | `Reader.cpp:152`–`:280` | `XMLReader` 在 pugixml 的 DOM 上模拟 SAX 读取器，`readEndElement` 实际向后找下一个同名"开始"标签，`readElement` 会重复读当前节点；`restoreXML` 读到线型数据后走到文档末尾，抛异常 |
+| R3 | `DmPoint.cpp:233`、`DmRay.cpp:344`、`DmXline.cpp:242` | 先调的 `DmAtomicEntity::restoreStream(reader, revs)` 在当前格式分支什么也不读，实体头（id、图层、画笔）没读出，余下字节被当成更多实体：1 个点读回 6 个，射线、构造线各 4 个，每存开一次还会增多 |
+| R4 | `MetaLayers.cpp:114` 等四处 | 新文档自带的 "0" 图层、"Standard" 文字样式、"ISO-25" 标注样式与 19 个箭头块，读入时又各加一份；按名字查找取到默认那份，文件里的同名条目被忽略；箭头块每存开一次多 19 个 |
+| R5 | `MetaLineTypes.cpp:86` | 当前线型按"有没有 active 属性"判断，而每个线型都写了该属性，最后一个自定义线型成为当前线型 |
+| R6 | `MetaLineTypes.cpp:96` | `QString::replace` 原地修改线型说明，读回的说明丢掉字母、数字与括号 |
+| R7 | `DmDocument.cpp:544`、`:589`、`:597` | 过滤器的异常穿出 `DmDocument::open`，调用链上无人捕获；"是否打开备份"的询问与打开失败的警告都走不到 |
+| R8 | `DmDocument.cpp:589` | 改开 `.bak` 仍按后缀选过滤器，`FilterOcdIO::canImport` 只认 `ycd`，`.bak` 永远打不开 |
+| R9 | `DmXline.cpp:91` | `setBasePoint` 赋值给 `getBasePoint()` 返回的临时对象，读回的构造线基点停在原点 |
+
+核对方法：在本地逐处临时修补（未提交），加 `--gtest_also_run_disabled_tests` 运行。只补 R1、R2 时，注明"依赖 R1、R2"
+的 11 个用例全部通过，其余 8 个失败；再补 R3、R5–R9，只剩依赖 R4 的 2 个失败。R4 的修法有语义选择（读入时覆盖同名
+默认条目，还是先清空默认表），未做探查修补。
+
+影响：
+
+- 写出一侧今天就锁住了 S4 必须保持的东西：压缩包的条目与顺序、`Document.xml` 的结构与计数、`.tmp`/`.bak`/编号备份、
+  外部修改检测、格式不符的拒绝。
+- 读回一侧在 R1、R2 修好之前没有回归保护，S4c 要搬的"打开失败询问备份"也无从验证（R7、R8）。是否以及何时修复，见 12 节 D8。
+- 产品：交互清单 W6（打开 `.ycd`）在修好前必然失败；按代码推断异常会穿过 Qt 事件循环使程序退出，未实测。
+
+**迁移**：仓库里没有旧版本的 `.ycd` 样本；全仓没有 `DmMigratorBase` 的派生类，也没有 `addMigrator` 调用，
+`DmMigrateContext::postRestore` 恒为真；各持久化类型的修订号都是 0，`restoreStreamWithRev` 的旧版本分支都是空实现。
+迁移路径是空的，本步无从覆盖。
+
+**交互清单**：`INTERACTION_CHECKLIST.md` 新增 6G 节（W1–W10），覆盖 4.2 节第 3 项列的全部场景，期望按现有代码写，
+已知缺陷标"既有"并引用 R 编号。另记一处既有行为：自动保存每个文档只做一次（`DmDocument.cpp:194`、`:223`，W5）。
+
+**构建基线**（`BASELINE.md` 第 7 节）：Release 全量构建 203.2 秒；改 `DmArc.cpp`、`GuiDocumentView.h`、`Datamodel.h`
+后的增量分别 10.9、21.5、163.4 秒。`measure_build.ps1` 测全量时会删掉并重配构建目录，而它不重放 `CMAKE_PREFIX_PATH`，
+所以改在单独的 `build/measure-s0` 里测，做法写在 `BASELINE.md` 7.1 节，S2、S6 照此复测。
+
+**通用验收**：Debug、Release 构建通过（Debug 增量构建又遇到 `ARCHITECTURE_EVOLUTION_PLAN.md` 8.6 节遗留问题 1 的
+LNK1103，删掉 `build/Debug/YiCAD/*.dir/Debug` 下的 `.obj`、`.pdb` 后重建通过）；两种配置的 ctest 全部通过；
+`check_layering.py` 通过；`cmake --install` 后启动 `YiCAD.exe`，10 秒后进程仍在运行、主窗口有响应。
+交互清单未手工走查；新增的 6G 节供 S4 前后使用。
+
+**其他观察**（不影响用例，未处理）：
+
+- `OneException::what()`（`Tools.h:289`）不是 `std::exception::what()` 的覆盖（非 const），按 `std::exception` 捕获只能拿到
+  "Unknown exception"；`XMLReader::readFiles` 抛出的消息指向已析构的局部字符串。R7 修复时应一并考虑错误信息怎么传出。
+- 半径、直径标注构造并 `update()` 之后，`getDefinitionPoint()` 变成了箭头点，与 `DmDimRadial.h` 注释"definitionPoint 是圆弧中心"
+  不符；与读写无关，用例按写出前的值比对。
 
 ---
 
@@ -617,6 +679,7 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 | D5 | 存盘策略服务放 Application 还是 Shell | Application：扩展（块的写块与插入）也要用，且能在 `test_interaction` 里测 | 待定 | S4 开工前 |
 | D6 | 第 2.2 节的新目录命名 | 按 2.2 节；`shell/` 下不建子目录 | 待定 | S2 开工前 |
 | D7 | 第三方自定义实体的接口 | C++ SDK（仿 ObjectARX），实施列为后续阶段（11.1 节） | 已定（2026-09-26） | — |
+| D8 | S0 查出的读回缺陷（4.5 节 R1–R9）何时修 | 在 S4 之前单列一步修复 R1–R3、R5、R6、R9（均为局部修改，修好即可去掉对应用例的 `DISABLED_`）；R7、R8 与 S4c 的存盘策略搬移重叠，并入 S4c；R4 先定语义再修。放在 S2 之后，改动落在最终路径上 | 待定 | S2 开工前 |
 
 ---
 

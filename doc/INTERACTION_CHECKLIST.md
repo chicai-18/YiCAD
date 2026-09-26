@@ -229,6 +229,30 @@
 | F3 | "绘图"类目里逐个点开直线、曲线、多段线、圆、椭圆、其他、修改、测量面板的按钮 | 都能启动对应命令，选项条（直线、多段线、正多边形、角平分线、圆弧、相切圆弧、两切圆、样条、云线、插入图片、倒角、圆角）照常显示；多段线面板里节点按钮排在云线按钮之后 |
 | F4 | 快速访问栏的撤销、重做；Ctrl+Z/Y、Ctrl+X/C/V、Delete 键；图层面板的"复制到图层" | 与原先相同 |
 
+## 6G. 文件读写（分层重组 S0 起）
+
+`LAYER_RESTRUCTURE_PLAN.md` 的 S4 改动文档读写路径（原生格式下沉到 Model，存盘策略移出
+`DmDocument`），本节在 S4 的每个子步骤前后各走一遍。自动化覆盖见
+`tests/persistence/test_persistence_document.cpp`，文件头部列出的 R1–R9 是 S0 查出的读写缺陷，
+下表引用同一编号。
+
+准备：一个可写的空目录；一份含中文图层与中文文字的 DXF；选项 → 系统设置里把自动保存间隔设为
+1 分钟。下文"临时目录"指 `QStandardPaths::TempLocation`（通常是 `%TEMP%`），
+"副本名"指 `<基名>_<文件全路径 MD5 的前 8 位>.ycd`（未命名图纸用标签名代替基名与路径）。
+
+| 编号 | 操作 | 期望 |
+|------|------|------|
+| W1 | 新建图纸，画几条线，Ctrl+S | 弹出另存为对话框；选 .ycd 保存后命令行显示 "File saved: <路径>"；目录里只有该 .ycd，没有 .tmp 与 .bak |
+| W2 | 接着不做修改按 Ctrl+S；再画一条线按 Ctrl+S；再画一条再按 | 未修改时不写盘；之后每次保存都把旧文件改名为 `<基名>.bak`（替换已有的 .bak），目录里始终是一个 .ycd 加一个 .bak |
+| W3 | 另存为到另一个文件名 | 写出新文件，文档改用新文件名；原文件与原 .bak 不动；临时目录里原文件名对应的自动保存副本被删除 |
+| W4 | 用别的程序改动 W1 的文件（或改它的修改时间），回到 YiCAD 修改图纸后 Ctrl+S | 命令行提示 "File on disk modified. Please save to another file to avoid data loss! ..."，不写盘；另存为可以正常保存 |
+| W5 | 修改图纸后等自动保存触发；继续修改再等一个间隔 | 第一次：命令行显示 "Auto saving file: <临时目录>/<副本名>"，原文件不变。（既有）之后不再自动保存：`autoSave` 置位 `m_bHasAutoSaved`（`DmDocument.cpp:194`），`save` 见到它直接返回（`:223`），每个文档只自动保存一次 |
+| W6 | 打开 W1 保存的 .ycd | （既有，R1、R2）读不回：`FilterOcdIO::fileImport` 抛异常，`DmDocument::open`、`MDIWindow::slotFileOpen`、`UITabDrawWidget::slotFileOpen` 都不捕获，异常进入 Qt 事件循环；由代码推断程序异常退出，未实测。R1、R2 修好前本条预期失败，不要在有未保存图纸时核对 |
+| W7 | 把 W2 的 .ycd 换成任意内容（保留 .bak），打开它；分别在询问里点"是"和"否" | 设计上：询问 "Open failed, try to open backup file?"，点"是"先开 .bak 与自动保存副本中较新的一份、失败再开另一份，打开的那份复制为 `<备份基名>_<时间戳>.ycd` 并作为文档的文件名；点"否"或都打不开时警告 "Open failed, invalid file!"。（既有，R7、R8）过滤器的异常穿出 `DmDocument::open`，询问与警告都不出现，表现同 W6；R7 修好后 .bak 仍因后缀找不到过滤器而打不开，只有自动保存副本能打开 |
+| W8 | 打开 DXF | 图层与文字的中文正确；实体与 DXF 一致（`test_dxf_encoding` 覆盖同一插件路径） |
+| W9 | 接着按 Ctrl+S | 命令行提示 "File format mismatch. Please use 'Save As' to choose a compatible format."，不写盘（打开不改文档的格式类型，文件名后缀是 .dxf） |
+| W10 | 另存为选 DXF 格式，再打开导出的文件 | 插件写出 R2013 DXF；再打开内容与导出前一致，中文正确 |
+
 ## 7. 已知的有意行为变化
 
 | 步骤 | 变化 | 影响的条目 |

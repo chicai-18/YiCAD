@@ -240,3 +240,56 @@ python tools/check_layering.py
 grep -rl 'GuiDocumentView\.h' --include=*.h --include=*.cpp YiCAD/src | wc -l
 grep -c 'case ' YiCAD/src/ui/UIActionHandler.cpp
 ```
+
+---
+
+## 7. 分层重组方案（`LAYER_RESTRUCTURE_PLAN.md`）
+
+S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）与 S6（`YiCadCore` 拆成四个库）之后各追加一列。
+同样不要覆盖旧列。
+
+### 7.1 构建指标
+
+采集环境：Windows 11 Pro 22621，16 逻辑核，MSVC 19.38.33139（v143 工具集），Visual Studio 17 2022 生成器，
+`/MP` 加 `cmake --build ... -- -m`，Release 配置，CMake 4.1.2（CLion 自带）
+采集日期：2026-09-26（S0）
+提交：`17aaeb5` 加 S0 的测试（产品代码与 `17aaeb5` 相同）
+
+| 指标 | S0（起点） | S2 | S6 |
+|------|----------:|---:|---:|
+| 全量构建耗时 (Release, 秒) | 203.2 | | |
+| 改 `DmArc.cpp` 后增量 (秒) | 10.9 | | |
+| 改 `GuiDocumentView.h` 后增量 (秒) | 21.5 | | |
+| 改 `Datamodel.h` 后增量 (秒) | 163.4 | | |
+
+测法与第 5 节不同的地方：
+
+- 在单独的构建目录 `build/measure-s0` 里测，没有用默认的 `build/Release`：
+  `tools/measure_build.ps1` 测全量构建时会删掉整个构建目录再按缓存重新配置，而它重放的变量里没有
+  `CMAKE_PREFIX_PATH`（本机的 Qt 6 靠它找到），也不指定 CMake 可执行文件。测之前先用与 `build/Release` 相同的
+  生成器、工具链与变量配置好 `build/measure-s0`，再在同一个 PowerShell 里把 CLion 的 CMake 放到 `PATH` 最前、
+  设好环境变量 `CMAKE_PREFIX_PATH`，然后运行：
+
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File tools/measure_build.ps1 -BuildDir build/measure-s0
+  ```
+
+  S2、S6 复测照此办理，否则数字不可比。
+- 与第 5 节阶段 3 的数字（179.2 / 9.7 / 18.7 / 141.2）相比全面变慢，但两者之间代码已经大变：阶段 4 把命令拆进
+  13 个扩展（各自一个 OBJECT 库）、阶段 5 切到 Qt 6，`test_interaction` 从 35 个用例涨到 282 个。这一列只作为本方案的起点，
+  不用来评价阶段 3 之后的改动。
+
+### 7.2 自动化测试用例数
+
+`<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
+
+| 测试二进制 | S0 之前（`17aaeb5`） | S0 |
+|------------|--------------------:|---:|
+| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） |
+| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） |
+| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） |
+| `test_interaction` | 282 | 282 |
+| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） |
+
+S0 新增的 19 个 `DISABLED_` 对应读回路径的缺陷 R1–R9（`LAYER_RESTRUCTURE_PLAN.md` 4.5 节，
+`tests/persistence/test_persistence_document.cpp` 文件头部），修复后去掉前缀即为验收。
