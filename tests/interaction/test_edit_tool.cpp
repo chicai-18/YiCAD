@@ -54,7 +54,7 @@ struct EditToolFixture : ::testing::Test
     {
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
-        // UIView 里由命令总线放上业务栈，这里没有总线，直接放
+        // 与 UIView 构造时相同，直接放上业务栈（这里没有命令，不接总线）
         control.activate(&editTool);
         editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
     }

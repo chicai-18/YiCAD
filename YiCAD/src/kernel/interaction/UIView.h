@@ -24,7 +24,8 @@
 /// ViewToolControl 与导航（PanZoomTool）、选择（SelectTool）、业务（命令的工具、
 /// 编辑模式，以及没有命令时的夹点编辑工具 EditTool）三层工具，以及命令总线
 /// ExclusiveCommandBus，接收画布的 Qt 输入事件交给 ViewToolControl 分发
-/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。
+/// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。夹点编辑工具与选择层是空闲态的工具：
+/// 总线通知命令即将启动、已经结束时，由本类让出、收回它们（DS 的 SyncEditActivation）。
 ///
 /// 放在 kernel/interaction/（YiCadInteraction 分区），不和画布同在
 /// kernel/view/（YiCadRender 分区）：一个目录归一个分区，渲染层不能依赖交互层。
@@ -33,7 +34,8 @@
 /// 命令与工具只能经 IDocumentView/GuiDocumentView 认识视图，不能反过来依赖
 /// 本类：内核禁止包含 UI* 头文件（tools/check_layering.py），白名单只放行
 /// UIView.cpp 包含自身头文件。这一点与 DS 不同：DS 的 EditTool、
-/// ExclusiveCommandBus 以 UIView* 构造；这里命令经总线拿到宿主能力。
+/// ExclusiveCommandBus 以 UIView* 构造，命令激活时也拿到 UIView*；这里本类实现
+/// ICommandHost，命令与总线只认识接口。
 ///
 /// 启动命令时先按 5.1 节请当前命令让位；即时命令不碰命令总线，执行前按
 /// InstantInterrupt 处理正在运行的命令（见 prepareInstantCommand()）。
@@ -48,6 +50,7 @@
 
 #include "CommandRegistry.h"
 #include "GuiDocumentView.h"
+#include "ICommandHost.h"
 
 class EditTool;
 class ExclusiveCommandBus;
@@ -60,7 +63,7 @@ class Snapper;
 class ViewToolControl;
 
 /// @brief 交互视图：画布加交互层工具栈与命令总线
-class UIView : public GuiDocumentView
+class UIView : public GuiDocumentView, public ICommandHost
 {
     Q_OBJECT
 
@@ -86,7 +89,7 @@ public:
     bool prepareInstantCommand(InstantInterrupt interrupt = InstantInterrupt::EndUninterruptible);
 
     /// @brief 命令总线；没有文档时为空
-    ExclusiveCommandBus* commandBus() const { return m_pCommandBus.get(); }
+    ExclusiveCommandBus* commandBus() override { return m_pCommandBus.get(); }
 
     /// @brief 活动命令的 ID（命令总线上的）；没有时返回空串
     QString activeCommandId() const override;
@@ -131,6 +134,18 @@ protected:
     DmVector currentSnapSpot() override;
 
 private:
+    // ---- ICommandHost：命令与总线经接口调用 ----
+    DmDocument* document() override { return getDocument(); }
+    IDocumentView* view() override { return this; }
+    ViewToolControl* viewToolControl() override { return m_pViewToolControl.get(); }
+    void beginSelectionPhase(const EntityTypeList& entityTypes) override;
+    void endSelectionPhase() override;
+
+    /// @brief 命令即将激活：夹点编辑工具移出业务栈，挂起选择层
+    void onCommandStarting();
+    /// @brief 命令已结束：清除残留的选择阶段约束，恢复选择层，夹点编辑工具放回业务栈顶
+    void onCommandFinished();
+
     /// @brief 活动命令的捕捉器：不在选择阶段且有捕捉器时返回它
     ISnapService* commandSnapService() const;
 
@@ -153,7 +168,7 @@ private:
     std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层与夹点编辑工具的捕捉器，空闲态的捕捉提示也读它
     std::unique_ptr<Preview>                m_pSelectPreview;       ///< 夹点编辑工具移动夹点时的预览容器，选择层选择完成时清除它
     std::unique_ptr<SelectTool>             m_pSelectTool;          ///< 选择层；没有文档时为空
-    std::unique_ptr<EditTool>               m_pEditTool;            ///< 夹点编辑工具，由命令总线放上、移出业务栈；没有文档时为空
+    std::unique_ptr<EditTool>               m_pEditTool;            ///< 夹点编辑工具，没有命令时在业务栈上；没有文档时为空
     std::unique_ptr<ViewToolControl>        m_pViewToolControl;     ///< 交互层工具控制器
     std::unique_ptr<ExclusiveCommandBus>    m_pCommandBus;          ///< 命令总线；没有文档时为空
 };

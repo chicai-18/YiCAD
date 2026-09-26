@@ -24,18 +24,18 @@
 
 #include "CommandRegistry.h"
 #include "ExclusiveCommandBus.h"
+#include "ICommandHost.h"
 #include "IDocumentView.h"
-#include "SelectTool.h"
 
-bool BaseExclusiveCommand::activate(ExclusiveCommandBus& bus)
+bool BaseExclusiveCommand::activate(ICommandHost& host)
 {
-    m_bus = &bus;
+    m_host = &host;
     // 先置为活动：onActivate() 里即可请求结束（已有选择集时直接完成的命令）
     m_active = true;
     if (!onActivate())
     {
         m_active = false;
-        m_bus = nullptr;
+        m_host = nullptr;
     }
     return m_active;
 }
@@ -48,14 +48,14 @@ void BaseExclusiveCommand::deactivate()
     }
     onDeactivate();
     m_active = false;
-    m_bus = nullptr;
+    m_host = nullptr;
 }
 
 void BaseExclusiveCommand::finish()
 {
-    if (m_active && m_bus)
+    if (ExclusiveCommandBus* commandBus = m_active ? bus() : nullptr)
     {
-        m_bus->requestFinish(this);
+        commandBus->requestFinish(this);
     }
 }
 
@@ -66,56 +66,40 @@ void BaseExclusiveCommand::replaceWith(const QString& commandId)
 
 void BaseExclusiveCommand::replaceWith(const QString& commandId, DmEntity* entity, const DmVector& point)
 {
-    if (!m_active || !m_bus)
+    ExclusiveCommandBus* commandBus = m_active ? bus() : nullptr;
+    if (!commandBus)
     {
         return;
     }
     if (std::unique_ptr<IExclusiveCommand> next = CommandRegistry::instance().createCommand(
             commandId, CommandContext{document(), view(), nullptr, entity, point}))
     {
-        m_bus->start(std::move(next));
+        commandBus->start(std::move(next));
     }
+}
+
+ExclusiveCommandBus* BaseExclusiveCommand::bus() const
+{
+    return m_host ? m_host->commandBus() : nullptr;
 }
 
 DmDocument* BaseExclusiveCommand::document() const
 {
-    return m_bus ? m_bus->document() : nullptr;
+    return m_host ? m_host->document() : nullptr;
 }
 
 IDocumentView* BaseExclusiveCommand::view() const
 {
-    return m_bus ? m_bus->view() : nullptr;
+    return m_host ? m_host->view() : nullptr;
 }
 
 ViewToolControl* BaseExclusiveCommand::viewToolControl() const
 {
-    return m_bus ? m_bus->viewToolControl() : nullptr;
+    return m_host ? m_host->viewToolControl() : nullptr;
 }
 
 QWidget* BaseExclusiveCommand::dialogParentOf(IDocumentView* view)
 {
     QWidget* canvas = view ? qobject_cast<QWidget*>(view->asQObject()) : nullptr;
     return canvas ? canvas->window() : nullptr;
-}
-
-void BaseExclusiveCommand::enterSelectionPhase(const EntityTypeList& entityTypes)
-{
-    if (SelectTool* selectTool = m_bus ? m_bus->selectTool() : nullptr)
-    {
-        selectTool->beginSelectionPhase(SelectTool::SelectionPhase{entityTypes});
-    }
-}
-
-void BaseExclusiveCommand::leaveSelectionPhase()
-{
-    if (SelectTool* selectTool = m_bus ? m_bus->selectTool() : nullptr)
-    {
-        selectTool->endSelectionPhase();
-    }
-}
-
-bool BaseExclusiveCommand::inSelectionPhase() const
-{
-    SelectTool* selectTool = m_bus ? m_bus->selectTool() : nullptr;
-    return selectTool && selectTool->inSelectionPhase();
 }

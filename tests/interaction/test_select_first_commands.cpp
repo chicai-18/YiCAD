@@ -42,6 +42,7 @@
 #include "Snapper.h"
 #include "ViewToolControl.h"
 #include "support/FakeDocumentView.h"
+#include "support/TestCommandHost.h"
 
 namespace
 {
@@ -111,7 +112,8 @@ struct SelectFirstFixture : ::testing::Test
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
     EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool, &editTool};
+    yicad_test::TestCommandHost host{doc, view, control, selectTool, &editTool};
+    ExclusiveCommandBus bus{host};
     /// @brief 创建块、编辑块在块扩展里（第三步⑥），其余先选后建命令在修改、编辑、查询扩展里
     ///        （第四步），用例期间启动它们
     yicad_test::FakeExtensionHost extensionHost;
@@ -124,7 +126,8 @@ struct SelectFirstFixture : ::testing::Test
         GuiDialogFactory::instance()->setFactoryObject(&ui);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
-        // 夹点编辑工具由总线放上、移出业务栈，这里只设它的可用查询（与 UIView 相同）
+        // 夹点编辑工具没有命令时在业务栈上，随命令启停移出、放回（与 UIView 相同）
+        host.attach(bus);
         editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
         selectTool.setOverlayQuery([this]()
                                    {
@@ -203,7 +206,7 @@ struct SelectFirstFixture : ::testing::Test
     /// @brief 进入块编辑模式（文档本身不进入块编辑：不跑事务，退出时也不改动文档）
     BlockEditTool* enterBlockEdit()
     {
-        auto mode = std::make_unique<BlockEditTool>(bus);
+        auto mode = std::make_unique<BlockEditTool>(host);
         BlockEditTool* raw = mode.get();
         bus.enterEditMode(std::move(mode));
         return raw;

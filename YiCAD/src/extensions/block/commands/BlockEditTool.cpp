@@ -35,6 +35,7 @@
 #include "DmBlockTable.h"
 #include "DmDocument.h"
 #include "ExclusiveCommandBus.h"
+#include "ICommandHost.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "Transaction.h"
@@ -42,10 +43,10 @@
 #include "UIDialogRunner.h"
 #include "UINestedBlockSelectDialog.h"
 
-BlockEditTool::BlockEditTool(ExclusiveCommandBus& bus)
-    : m_bus(bus)
-    , m_document(bus.document())
-    , m_view(bus.view())
+BlockEditTool::BlockEditTool(ICommandHost& host)
+    : m_host(host)
+    , m_document(host.document())
+    , m_view(host.view())
 {
 }
 
@@ -133,7 +134,7 @@ bool BlockEditTool::hasModifications() const
 void BlockEditTool::completeEditing(bool save)
 {
     m_exitDecision = save ? ExitDecision::Save : ExitDecision::Discard;
-    m_bus.requestExitEditMode(this);
+    m_host.commandBus()->requestExitEditMode(this);
 }
 
 bool BlockEditTool::askSaveAndExit()
@@ -222,7 +223,7 @@ ViewToolResult BlockEditTool::mouseReleaseEvent(QMouseEvent* e)
     }
     if (askSaveAndExit())
     {
-        m_bus.requestExitEditMode(this);
+        m_host.commandBus()->requestExitEditMode(this);
     }
     return ViewToolResult::Handled;
 }

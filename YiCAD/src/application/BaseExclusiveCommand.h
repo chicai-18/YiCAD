@@ -18,9 +18,8 @@
 /// @file BaseExclusiveCommand.h
 /// @brief 命令的通用基类，对应 DS 的 Application/BaseExclusiveCommand.h
 ///
-/// 封装活动状态与所在总线，提供请求结束（DS 的 RequestCancel）、宿主能力的
-/// 取用，以及进入、退出选择阶段的辅助方法（doc/COMMAND_TOOL_MIGRATION_PLAN.md
-/// 第二步第 4 项）。
+/// 封装活动状态与所在视图（宿主 ICommandHost），提供请求结束（DS 的 RequestCancel）
+/// 与宿主能力的取用。
 
 #ifndef BASEEXCLUSIVECOMMAND_H
 #define BASEEXCLUSIVECOMMAND_H
@@ -31,6 +30,8 @@
 
 class DmDocument;
 class DmEntity;
+class ExclusiveCommandBus;
+class ICommandHost;
 class IDocumentView;
 class QWidget;
 class ViewToolControl;
@@ -48,8 +49,8 @@ public:
     const QString& commandId() const override { return m_commandId; }
     void setCommandId(const QString& commandId) override { m_commandId = commandId; }
 
-    /// @brief 记下总线后调用 onActivate()
-    bool activate(ExclusiveCommandBus& bus) override;
+    /// @brief 记下宿主后调用 onActivate()
+    bool activate(ICommandHost& host) override;
     /// @brief 活动时调用 onDeactivate()；激活失败的命令不调用
     void deactivate() override;
     bool isActive() const override { return m_active; }
@@ -79,8 +80,10 @@ protected:
     /// @brief 离开活动态时的命令逻辑：停用工具、清除预览等
     virtual void onDeactivate() = 0;
 
-    /// @brief 所在总线；只在活动期间有效
-    ExclusiveCommandBus* bus() const { return m_bus; }
+    /// @brief 所在视图；只在活动期间有效
+    ICommandHost* host() const { return m_host; }
+    /// @brief 所在视图的命令总线；只在活动期间有效
+    ExclusiveCommandBus* bus() const;
     /// @brief 视图的文档
     DmDocument* document() const;
     /// @brief 视图
@@ -90,17 +93,8 @@ protected:
     /// @brief 弹出对话框时的父窗口，见 dialogParentOf()
     QWidget* dialogParent() const { return dialogParentOf(view()); }
 
-    /// @brief 进入选择阶段：选择层按先选后建的约束完成点选与框选
-    /// @param entityTypes 可选的实体类型；为空表示不限
-    /// @note 命令结束时总线保证清除约束，命令不必在 onDeactivate() 里退出
-    void enterSelectionPhase(const EntityTypeList& entityTypes = {});
-    /// @brief 退出选择阶段
-    void leaveSelectionPhase();
-    /// @brief 视图的选择层是否处于选择阶段
-    bool inSelectionPhase() const;
-
 private:
-    ExclusiveCommandBus* m_bus = nullptr;
+    ICommandHost* m_host = nullptr;
     bool m_active = false;
     QString m_commandId;
 };

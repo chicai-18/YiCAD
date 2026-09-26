@@ -5,8 +5,11 @@
 ///   - 生命周期：启动、替换、结束、激活失败、激活期间就完成、延迟销毁；
 ///   - 结束前回调（5.1 节）：三种原因、否决与不否决、ViewClosing 忽略否决、
 ///     回调期间的重入请求被忽略；
-/// 以及选择阶段约束由总线清除、夹点编辑工具随命令启停移出与放回业务栈、捕捉设置同步，
-/// 编辑模式（IEditMode）的进入、退出与结束全部时的征求同意。
+/// 以及命令启停的通知（commandStarting/commandFinished）、捕捉设置同步，编辑模式
+/// （IEditMode）的进入、退出与结束全部时的征求同意。
+///
+/// 夹点编辑工具随命令启停移出与放回业务栈、命令结束时清除选择阶段约束，由视图响应这两个
+/// 通知完成；UIView 不在单测里构造，这里经 TestCommandHost（与 UIView 相同的做法）一并验证。
 
 #include <gtest/gtest.h>
 
@@ -24,6 +27,7 @@
 #include "EditTool.h"
 #include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
+#include "ICommandHost.h"
 #include "IEditMode.h"
 #include "IViewTool.h"
 #include "PanZoomTool.h"
@@ -32,6 +36,7 @@
 #include "Snapper.h"
 #include "ViewToolControl.h"
 #include "support/FakeDocumentView.h"
+#include "support/TestCommandHost.h"
 
 namespace
 {
@@ -78,7 +83,7 @@ protected:
         ++m_log.activated;
         if (selectOnActivate)
         {
-            enterSelectionPhase();
+            host()->beginSelectionPhase({});
         }
         if (finishOnActivate)
         {
@@ -145,13 +150,15 @@ public:
     }
 };
 
-/// @brief 与 UIView 相同的装配：导航层、选择层、夹点编辑工具、工具控制器与总线
+/// @brief 与 UIView 相同的装配：导航层、选择层、夹点编辑工具、工具控制器、宿主与总线
 struct BusFixture : ::testing::Test
 {
     /// @brief 探针命令的记录。放在夹具里、声明在总线之前：用例结束时仍活动的命令
     ///        由夹具析构总线时销毁，那时用例体里的局部变量已经不在了
     std::deque<CommandLog> logs;
     std::deque<ModeLog> modeLogs;
+    int startingCount = 0; ///< commandStarting() 的次数
+    int finishedCount = 0; ///< commandFinished() 的次数
     DmDocument doc;
     FakeDocumentView view;
     Preview preview{&doc, &view};
@@ -160,14 +167,18 @@ struct BusFixture : ::testing::Test
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
     EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool, &editTool};
+    yicad_test::TestCommandHost host{doc, view, control, selectTool, &editTool};
+    ExclusiveCommandBus bus{host};
 
     BusFixture()
     {
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
-        // 夹点编辑工具由总线放上、移出业务栈，这里只设它的可用查询（与 UIView 相同）
+        // 夹点编辑工具没有命令时在业务栈上，随命令启停移出、放回（与 UIView 相同）
+        host.attach(bus);
         editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
+        QObject::connect(&bus, &ExclusiveCommandBus::commandStarting, [this]() { ++startingCount; });
+        QObject::connect(&bus, &ExclusiveCommandBus::commandFinished, [this]() { ++finishedCount; });
     }
 
     /// @brief 新建一份探针命令的记录
@@ -403,9 +414,62 @@ TEST_F(BusFixture, 激活失败的命令被销毁且不调用onDeactivate)
     EXPECT_EQ(log.activated, 1);
     EXPECT_EQ(log.deactivated, 0);
     EXPECT_EQ(log.destroyed, 1);
+    // 视图照常收回空闲态的工具
+    EXPECT_EQ(startingCount, 1);
+    EXPECT_EQ(finishedCount, 1);
 }
 
-TEST_F(BusFixture, 命令结束时总线清除选择阶段约束)
+TEST_F(BusFixture, 命令即将激活时通知且它已是活动命令)
+{
+    CommandLog& log = newLog();
+    auto command = makeCommand(log);
+    ProbeCommand* raw = command.get();
+    bool activeAtNotice = false;
+    int activatedAtNotice = -1;
+    QObject probe;
+    QObject::connect(&bus, &ExclusiveCommandBus::commandStarting, &probe, [&]()
+    {
+        activeAtNotice = bus.activeCommand() == raw;
+        activatedAtNotice = log.activated;
+    });
+
+    ASSERT_TRUE(bus.start(std::move(command)));
+    EXPECT_TRUE(activeAtNotice);
+    // 早于 activate()：激活的夹点要在命令改动选择集或实体之前取消
+    EXPECT_EQ(activatedAtNotice, 0);
+    EXPECT_EQ(startingCount, 1);
+    EXPECT_EQ(finishedCount, 0);
+}
+
+TEST_F(BusFixture, 命令结束后通知且早于恢复编辑模式)
+{
+    ModeLog& modeLog = newModeLog();
+    bus.enterEditMode(std::make_unique<ProbeMode>(modeLog));
+    CommandLog& log = newLog();
+    ASSERT_TRUE(bus.start(makeCommand(log)));
+
+    bool activeAtNotice = true;
+    int deactivatedAtNotice = -1;
+    int resumedAtNotice = -1;
+    QObject probe;
+    QObject::connect(&bus, &ExclusiveCommandBus::commandFinished, &probe, [&]()
+    {
+        activeAtNotice = bus.hasActiveCommand();
+        deactivatedAtNotice = log.deactivated;
+        resumedAtNotice = modeLog.resumed;
+    });
+    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
+    bus.end();
+
+    EXPECT_FALSE(activeAtNotice);
+    EXPECT_EQ(deactivatedAtNotice, 1);
+    // 进入模式时恢复过一次；通知时这次还没恢复
+    EXPECT_EQ(resumedAtNotice, 1);
+    EXPECT_EQ(modeLog.resumed, 2);
+    EXPECT_EQ(finishedCount, 1);
+}
+
+TEST_F(BusFixture, 命令结束时视图清除选择阶段约束)
 {
     CommandLog& log = newLog();
     auto command = makeCommand(log);
@@ -421,7 +485,7 @@ TEST_F(BusFixture, 命令结束时总线清除选择阶段约束)
 
 TEST_F(BusFixture, 夹点编辑工具随命令启停移出与放回业务栈)
 {
-    // 与 DS-master 的 UIView::SyncEditActivation 相同：总线空闲时在栈上
+    // 与 DS-master 的 UIView::SyncEditActivation 相同：没有活动命令时在栈上
     EXPECT_TRUE(control.isActive(&editTool));
 
     CommandLog& log = newLog();
@@ -470,13 +534,19 @@ TEST_F(BusFixture, 夹点编辑工具在编辑模式的工具之上)
 TEST_F(BusFixture, 析构时结束活动命令且不回调)
 {
     CommandLog& log = newLog();
+    int finished = 0;
     {
-        ExclusiveCommandBus local{&doc, &view, &control, &selectTool};
+        yicad_test::TestCommandHost localHost{doc, view, control, selectTool};
+        ExclusiveCommandBus local{localHost};
+        localHost.attach(local);
+        QObject::connect(&local, &ExclusiveCommandBus::commandFinished, [&finished]() { ++finished; });
         ASSERT_TRUE(local.start(makeCommand(log)));
     }
     EXPECT_TRUE(log.endRequests.empty());
     EXPECT_EQ(log.deactivated, 1);
     EXPECT_EQ(log.destroyed, 1);
+    // 仍然通知：UIView 析构时总线先于各层工具释放，各层工具照常收回
+    EXPECT_EQ(finished, 1);
 }
 
 TEST_F(BusFixture, 捕捉设置同步给活动命令的捕捉器)

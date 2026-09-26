@@ -26,6 +26,7 @@
 #include "BasePlaceTool.h"
 #include "DmDocument.h"
 #include "EntityTable.h"
+#include "ICommandHost.h"
 #include "IViewTool.h"
 #include "ViewToolControl.h"
 
@@ -104,7 +105,7 @@ bool SelectFirstCommand::onActivate()
     if (m_entry == SelectionEntry::Always || !hasSelection)
     {
         m_selecting = true;
-        enterSelectionPhase();
+        host()->beginSelectionPhase({});
         m_selectionTool = std::make_unique<SelectionPhaseTool>(*this);
         viewToolControl()->activate(m_selectionTool.get());
         return true;
@@ -129,7 +130,7 @@ void SelectFirstCommand::onDeactivate()
     {
         m_selecting = false;
         viewToolControl()->deactivate(m_selectionTool.get());
-        leaveSelectionPhase();
+        host()->endSelectionPhase();
     }
 }
 
@@ -142,7 +143,7 @@ bool SelectFirstCommand::confirmSelection()
     m_selecting = false;
     // 选择阶段工具可能正在调用栈上（回车），只停用、不释放
     viewToolControl()->deactivate(m_selectionTool.get());
-    leaveSelectionPhase();
+    host()->endSelectionPhase();
     if (!startWork())
     {
         finish();

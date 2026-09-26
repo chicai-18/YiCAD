@@ -27,15 +27,13 @@
 ///     结束时机确定。分发之外的请求，如选项条按钮，仍经 0 毫秒定时器）；
 ///   - 外部结束前先回调命令（5.1 节）：approveEnd() 只问不改，调用方全部征得
 ///     同意后再 end()；回调期间的启动与结束请求一律忽略；
-///   - 总线就是命令的宿主：命令经它拿到文档、视图、工具控制器与选择层
-///     （命令不能认识 UIView，见 IExclusiveCommand.h），并由它保证命令结束时
-///     清除选择阶段的约束；
+///   - 以宿主 ICommandHost 构造（DS 是 UIView），命令激活时拿到的也是它；
 ///   - 持有编辑模式（块编辑，见 IEditMode.h）：模式的工具常驻在业务栈底部，
 ///     命令叠在它上面；启动命令不影响模式，结束全部命令与视图关闭时先问命令、
 ///     再问模式（approveEndAll()）；
-///   - 管理夹点编辑工具（EditTool）在业务栈上的去留：没有活动命令时在栈上，启动命令时
-///     移出（激活的夹点随之取消），命令结束时放回。对应 DS-master 的
-///     UIView::SyncEditActivation，DS 还要求有选择集，这里在按下时才查选择。
+///   - 命令启停经 commandStarting()/commandFinished() 通知视图，视图据此让出、收回
+///     空闲态的工具（夹点编辑工具、选择层）。DS 只有一个 signal_activeChanged，在激活
+///     之后发；这里让出要早于激活，所以分成两个。
 
 #ifndef EXCLUSIVECOMMANDBUS_H
 #define EXCLUSIVECOMMANDBUS_H
@@ -49,12 +47,8 @@
 #include "Datamodel.h"
 #include "IExclusiveCommand.h"
 
-class DmDocument;
-class EditTool;
-class IDocumentView;
+class ICommandHost;
 class IEditMode;
-class SelectTool;
-class ViewToolControl;
 struct SnapMode;
 
 /// @brief 视图作用域的命令总线
@@ -80,26 +74,13 @@ public:
         ExclusiveCommandBus* m_bus;
     };
 
-    /// @param doc 视图的文档
-    /// @param view 视图
-    /// @param tools 视图的工具控制器，命令在其业务栈上激活自己的工具
-    /// @param selectTool 视图的选择层，可为空；选择阶段的约束设在它上面
-    /// @param editTool 视图的夹点编辑工具，可为空；没有活动命令时由总线放在业务栈上
-    ExclusiveCommandBus(DmDocument* doc, IDocumentView* view, ViewToolControl* tools, SelectTool* selectTool,
-                        EditTool* editTool = nullptr);
-    /// @brief 析构时结束活动命令，不回调 onEndRequested()；夹点编辑工具移出业务栈
+    /// @param host 所在视图：命令激活时拿到它，编辑模式的工具经它的工具控制器常驻栈底
+    explicit ExclusiveCommandBus(ICommandHost& host);
+    /// @brief 析构时结束活动命令（不回调 onEndRequested()，照常发 commandFinished()）并退出编辑模式
     ~ExclusiveCommandBus() override;
 
     ExclusiveCommandBus(const ExclusiveCommandBus&) = delete;
     ExclusiveCommandBus& operator=(const ExclusiveCommandBus&) = delete;
-
-    // ---- 命令的宿主能力 ----
-
-    DmDocument* document() const { return m_document; }
-    IDocumentView* view() const { return m_view; }
-    ViewToolControl* viewToolControl() const { return m_tools; }
-    /// @brief 选择层；可为空
-    SelectTool* selectTool() const { return m_selectTool; }
 
     // ---- 命令生命周期 ----
 
@@ -163,19 +144,21 @@ public:
     /// @brief 视图的捕捉限制变化时同步给活动命令的捕捉器
     void setSnapRestriction(DM::SnapRestriction restriction);
 
+signals:
+    /// @brief 命令即将激活：它已是活动命令，activate() 尚未调用
+    /// @note 视图在这里让出空闲态的工具：激活的夹点要在命令改动选择集或实体之前取消
+    void commandStarting();
+    /// @brief 命令已结束：deactivate() 已调用，它已不是活动命令
+    /// @note 视图在这里清除残留的选择阶段约束、恢复选择层、把夹点编辑工具放回业务栈
+    void commandFinished();
+
 private:
-    /// @brief 结束活动命令：deactivate()，清除选择阶段约束，恢复选择层，销毁命令
+    /// @brief 结束活动命令：deactivate()，发 commandFinished()，恢复编辑模式，销毁命令
     void finishActive();
     void enterScope();
     void leaveScope();
-    /// @brief 按有无活动命令把夹点编辑工具放上或移出业务栈
-    void syncEditTool();
 
-    DmDocument* m_document = nullptr;
-    IDocumentView* m_view = nullptr;
-    ViewToolControl* m_tools = nullptr;
-    SelectTool* m_selectTool = nullptr;
-    EditTool* m_editTool = nullptr;
+    ICommandHost& m_host;
 
     std::unique_ptr<IExclusiveCommand> m_active;
     std::unique_ptr<IEditMode> m_mode;

@@ -1460,3 +1460,35 @@ keyconfig.xml 被改写并备份。
 验证：Release 构建与安装通过；`ctest` 4 个测试程序全部通过（`test_interaction` 280 例，1 例因缺基准图纸
 跳过，与本次无关）；`check_layering.py` 通过；安装后程序能启动，画布正常绘制。夹点的手工核对（S2、S8–S10、
 S15–S18、B2）尚未进行。
+
+### 9.7 第四步之后：命令总线只管命令（2026-09-26）
+
+命令总线拆出第二步时兼做了几件本不属于它的事：它是命令的宿主（向命令提供文档、视图、工具控制器与
+选择层），又替视图管着空闲态的工具（夹点编辑工具在业务栈上的去留、选择层的挂起与恢复、命令结束时
+清除选择阶段约束），`BaseExclusiveCommand` 上也挂着只有个别子类用的辅助函数。对照 DS-master：它的
+总线只认识命令与作为宿主的 `UIView`，状态变化经 `signal_activeChanged` 通知，夹点编辑工具的去留
+由 `UIView::SyncEditActivation` 响应；`BaseExclusiveCommand` 只有生命周期。这里按"每个类只做职责
+内的事"收回去，分三次提交。
+
+1. **宿主与空闲态的工具**：
+   - 新增 `ICommandHost`（`application/`）：文档、视图、工具控制器、命令总线，以及选择阶段的进入与
+     退出，由 `UIView` 实现，对应 DS 里命令与总线用到的 `UIView*`（`application/` 不能认识 `UIView`）。
+     `IExclusiveCommand::activate()` 与 `ExclusiveCommandBus` 的构造改为接收 `ICommandHost&`，总线
+     去掉 `document()`/`view()`/`viewToolControl()`/`selectTool()`，也不再持有 `EditTool`、`SelectTool`；
+   - 总线改发两个信号：`commandStarting()`（已是活动命令、`activate()` 之前）与 `commandFinished()`
+     （`deactivate()` 之后、恢复编辑模式之前）。DS 只有一个在激活之后发的信号；这里要在激活之前让出，
+     激活的夹点要在命令改动选择集或实体之前取消，所以分成两个。`UIView` 构造时把 `EditTool` 放上业务栈
+     （同 DS），响应这两个信号移出与放回 `EditTool`、挂起与恢复选择层、清除残留的选择阶段约束。时序与
+     原先相同，只有"放回 `EditTool`"与"恢复编辑模式"对调：模式的工具常驻栈底、`resumeMode()` 不碰工具栈，
+     结果不变。总线析构时仍发 `commandFinished()`，`UIView` 的响应因此不访问 `m_pCommandBus`（`reset()`
+     先把它置空）；
+   - 选择阶段只有 `SelectFirstCommand` 用：`BaseExclusiveCommand::enterSelectionPhase`/`leaveSelectionPhase`/
+     `inSelectionPhase` 删除，`SelectFirstCommand` 直接经宿主进入、退出。第 6 节第二步第 4 项与 9.2 节
+     "总线在命令结束时清除约束"改由视图完成，`SelectFirstCommand::onDeactivate()` 自己会退出，那里是兜底；
+   - 块编辑模式另行整体重做（编辑模式挂在总线上并不合适），这次只做最小适配：`BlockEditTool` 改由
+     `ICommandHost&` 构造。
+
+测试：`tests/support/TestCommandHost.h` 像 `UIView` 一样实现宿主并响应两个信号（`UIView` 是
+`QOpenGLWidget`，单测不构造它，改动 `UIView` 的这部分时要同步），`CommandFixture`、`BusFixture`、
+`SelectFirstFixture` 共用。`test_exclusive_command_bus` 加 2 例锁定两个信号的时机；激活失败与析构的
+两例补断言照常通知；"命令结束时总线清除选择阶段约束"改名为"视图清除"。

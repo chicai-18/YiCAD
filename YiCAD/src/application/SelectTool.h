@@ -42,7 +42,7 @@
 /// 命令没有选择集时，由本类完成点选与框选，行为复刻原 `ActionSelectMultiple`：
 /// 按实体类型过滤、不拖夹点也不拖实体、Ctrl+左键不让给平移、选中后只刷新
 /// 选择计数而不发 `selectedChanged`、提示与光标取原 `ActionSelectMultiple` 的。
-/// 约束由命令设置，命令结束时由命令总线保证清除。
+/// 约束由命令经宿主（ICommandHost）设置，命令结束时由视图保证清除。
 
 #ifndef SELECTTOOL_H
 #define SELECTTOOL_H

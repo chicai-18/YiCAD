@@ -57,7 +57,7 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
                                                      m_pPanZoomTool.get());
         m_pViewToolControl->setSelectionTool(m_pSelectTool.get());
         // 夹点编辑工具与选择层共用捕捉器与预览容器：两者轮流使用，同一时刻只有一个在编辑夹点或选择。
-        // 它在业务栈上的去留由命令总线管理（没有活动命令时在栈上），选择阶段因此自然不激活夹点
+        // 没有活动命令时它在业务栈上（onCommandStarting()/onCommandFinished()），选择阶段因此自然不激活夹点
         m_pEditTool = std::make_unique<EditTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
                                                  m_pPanZoomTool.get());
         // 框选时点第二个角点不激活夹点，那次按下仍是框选的角点
@@ -65,9 +65,12 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
         {
             return m_pSelectTool->getStatus() == SelectTool::Neutral;
         });
+        // 与 DS 的 UIView 构造时 Activate(m_editTool) 相同
+        m_pViewToolControl->activate(m_pEditTool.get());
 
-        m_pCommandBus = std::make_unique<ExclusiveCommandBus>(doc, this, m_pViewToolControl.get(),
-                                                              m_pSelectTool.get(), m_pEditTool.get());
+        m_pCommandBus = std::make_unique<ExclusiveCommandBus>(*this);
+        connect(m_pCommandBus.get(), &ExclusiveCommandBus::commandStarting, this, &UIView::onCommandStarting);
+        connect(m_pCommandBus.get(), &ExclusiveCommandBus::commandFinished, this, &UIView::onCommandFinished);
         // 选择层之上有命令时提示与光标归命令（选择阶段除外），有编辑模式时提示归模式
         m_pSelectTool->setOverlayQuery([this]()
         {
@@ -96,6 +99,40 @@ UIView::~UIView()
 {
     // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
+}
+
+void UIView::beginSelectionPhase(const EntityTypeList& entityTypes)
+{
+    m_pSelectTool->beginSelectionPhase(SelectTool::SelectionPhase{entityTypes});
+}
+
+void UIView::endSelectionPhase()
+{
+    m_pSelectTool->endSelectionPhase();
+}
+
+// 下面两个函数不访问 m_pCommandBus：析构函数里 reset() 先把它置空、再析构总线，
+// 总线析构时结束活动命令，仍会发 commandFinished()
+void UIView::onCommandStarting()
+{
+    // 夹点编辑工具移出业务栈，激活的夹点随之取消（EditTool::onDeactivate）。拆分前只清除它的
+    // 预览，命令结束后夹点接着跟随鼠标，下一次单击会按命令改过的选择集落位（迁移计划 9.6 节）
+    m_pViewToolControl->deactivate(m_pEditTool.get());
+    // 挂起选择层（清除它的预览与捕捉标记），与原先 Action 从空闲态启动时一致
+    m_pSelectTool->suspend();
+}
+
+void UIView::onCommandFinished()
+{
+    // 命令没有退出选择阶段就结束时，由视图清除约束（SelectFirstCommand 自己会退出，这里是兜底）
+    if (m_pSelectTool->inSelectionPhase())
+    {
+        m_pSelectTool->endSelectionPhase();
+    }
+    // 恢复选择层（刷新提示，重绘预览与捕捉标记），与原先 Action 栈清空时一致
+    m_pSelectTool->resume();
+    // 夹点编辑工具放回业务栈顶，在编辑模式的工具之上（模式的工具常驻栈底）
+    m_pViewToolControl->activate(m_pEditTool.get());
 }
 
 bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)

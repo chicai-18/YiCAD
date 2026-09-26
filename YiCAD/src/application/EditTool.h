@@ -20,9 +20,9 @@
 ///
 /// 从 `SelectTool` 拆出，对应 DS-master 的 `Application/Edit/EditTool`
 /// （doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.6 节）。由交互视图 `UIView` 持有，与 DS-master 一样是
-/// 业务工具：没有活动命令时由命令总线放在业务栈上（在编辑模式的工具之上），启动命令时移出、
-/// 命令结束时放回（`ExclusiveCommandBus`）。注意与块编辑的"编辑模式"（`IEditMode`，常驻在业务栈
-/// 底部）不是一回事。
+/// 业务工具：没有活动命令时由视图放在业务栈上（在编辑模式的工具之上），命令总线通知命令即将
+/// 启动时移出、命令结束时放回（`UIView::onCommandStarting`/`onCommandFinished`）。注意与块编辑的
+/// "编辑模式"（`IEditMode`，常驻在业务栈底部）不是一回事。
 ///
 /// 交互与 AutoCAD 的夹点相同：左键按在选中实体的参考点（夹点）附近，这次按下就归本类；松开，
 /// 或按住拖过阈值时夹点激活，参考点跟随鼠标，再单击落位；右键或 Esc 取消。是不是按在夹点上，

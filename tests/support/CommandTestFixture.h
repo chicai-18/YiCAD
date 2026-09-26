@@ -36,6 +36,7 @@
 #include "support/CommandExtensions.h"
 #include "support/DialogRecorder.h"
 #include "support/FakeDocumentView.h"
+#include "support/TestCommandHost.h"
 
 namespace yicad_test
 {
@@ -90,14 +91,16 @@ struct CommandFixture : ::testing::Test
     SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
     EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    ExclusiveCommandBus bus{&doc, &view, &control, &selectTool, &editTool};
+    TestCommandHost host{doc, view, control, selectTool, &editTool};
+    ExclusiveCommandBus bus{host};
 
     CommandFixture()
     {
         GuiDialogFactory::instance()->setFactoryObject(&ui);
         control.setNavigationTool(&panTool);
         control.setSelectionTool(&selectTool);
-        // 夹点编辑工具由总线放上、移出业务栈，这里只设它的可用查询（与 UIView 相同）
+        // 夹点编辑工具没有命令时在业务栈上，随命令启停移出、放回（与 UIView 相同）
+        host.attach(bus);
         editTool.setEnabledQuery([this]() { return selectTool.getStatus() == SelectTool::Neutral; });
         selectTool.setOverlayQuery([this]()
                                    {

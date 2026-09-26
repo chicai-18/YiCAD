@@ -23,9 +23,8 @@
 /// ExclusiveCommandBus 管理（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第 1 节）。
 ///
 /// 与 DS 的差异：
-///   - activate() 拿到的是命令总线而不是 UIView：命令与工具只能经
-///     IDocumentView 认识视图（tools/check_layering.py），总线向命令提供
-///     文档、视图、工具控制器与选择层；
+///   - activate() 拿到的是宿主 ICommandHost 而不是 UIView：命令与工具只能经
+///     IDocumentView 认识视图（tools/check_layering.py），UIView 实现 ICommandHost；
 ///   - 总线持有命令（CommandRegistry 每次启动都新建实例）；
 ///   - 增加 onEndRequested()：命令被外部结束前的回调（5.1 节）。
 ///
@@ -37,7 +36,7 @@
 
 #include <QString>
 
-class ExclusiveCommandBus;
+class ICommandHost;
 class ISnapService;
 
 /// @brief 命令被外部结束的原因（doc/COMMAND_TOOL_MIGRATION_PLAN.md 5.1 节）
@@ -63,11 +62,11 @@ public:
     virtual void setCommandId(const QString& commandId) = 0;
 
     /// @brief 进入活动态
-    /// @param bus 所在视图的命令总线
+    /// @param host 所在视图
     /// @return false 表示启动失败，总线随即调用 deactivate() 并销毁命令
     /// @note 允许在激活期间直接完成（如已有选择集时的分解）：命令请求结束后
     ///       返回 true，总线在激活返回后结束它
-    virtual bool activate(ExclusiveCommandBus& bus) = 0;
+    virtual bool activate(ICommandHost& host) = 0;
     /// @brief 离开活动态，由总线在任一结束路径上调用
     virtual void deactivate() = 0;
     /// @brief 是否处于活动态

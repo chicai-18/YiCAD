@@ -44,7 +44,7 @@
 class DmBlock;
 class DmBlockReference;
 class DmDocument;
-class ExclusiveCommandBus;
+class ICommandHost;
 class IDocumentView;
 
 /// @brief 块编辑模式
@@ -53,8 +53,8 @@ class BlockEditTool : public IEditMode
     Q_DECLARE_TR_FUNCTIONS(BlockEditTool)
 
 public:
-    /// @param bus 视图的命令总线；模式退出自己时经它请求
-    explicit BlockEditTool(ExclusiveCommandBus& bus);
+    /// @param host 所在视图；模式退出自己时经它的命令总线请求
+    explicit BlockEditTool(ICommandHost& host);
     ~BlockEditTool() override;
 
     /// @brief 正常进入的第一步：确定要编辑的块（块里嵌套了别的块时让用户选择）
@@ -119,7 +119,7 @@ private:
     /// @brief 在宿主的选项条区域显示或收起块编辑选项条（UIBlockEditOptions）
     void showOptions(bool on);
 
-    ExclusiveCommandBus& m_bus;
+    ICommandHost& m_host;
     DmDocument* m_document = nullptr;
     IDocumentView* m_view = nullptr;
     QString m_blockName;              ///< 编辑的块名称

@@ -34,6 +34,7 @@
 #include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiDialogFactory.h"
+#include "ICommandHost.h"
 
 bool BlocksEditCommand::onSelectionReady()
 {
@@ -52,7 +53,7 @@ bool BlocksEditCommand::onSelectionReady()
         return false;
     }
 
-    auto mode = std::make_unique<BlockEditTool>(*bus());
+    auto mode = std::make_unique<BlockEditTool>(*host());
     if (!mode->prepare(selectedRef))
     {
         return false;

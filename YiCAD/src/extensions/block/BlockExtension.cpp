@@ -62,7 +62,7 @@ void reenterBlockEdit(const CommandContext& ctx)
     {
         return;
     }
-    auto mode = std::make_unique<BlockEditTool>(*bus);
+    auto mode = std::make_unique<BlockEditTool>(*view);
     BlockEditTool* blockEdit = mode.get();
     bus->enterEditMode(std::move(mode));
     blockEdit->reenter(editingBlock);

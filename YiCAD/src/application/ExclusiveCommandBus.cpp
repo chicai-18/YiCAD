@@ -22,10 +22,9 @@
 
 #include <QTimer>
 
-#include "EditTool.h"
+#include "ICommandHost.h"
 #include "IEditMode.h"
 #include "ISnapService.h"
-#include "SelectTool.h"
 #include "ViewToolControl.h"
 
 ExclusiveCommandBus::DispatchScope::DispatchScope(ExclusiveCommandBus* bus)
@@ -45,15 +44,9 @@ ExclusiveCommandBus::DispatchScope::~DispatchScope()
     }
 }
 
-ExclusiveCommandBus::ExclusiveCommandBus(DmDocument* doc, IDocumentView* view, ViewToolControl* tools,
-                                         SelectTool* selectTool, EditTool* editTool)
-    : m_document(doc)
-    , m_view(view)
-    , m_tools(tools)
-    , m_selectTool(selectTool)
-    , m_editTool(editTool)
+ExclusiveCommandBus::ExclusiveCommandBus(ICommandHost& host)
+    : m_host(host)
 {
-    syncEditTool();
 }
 
 ExclusiveCommandBus::~ExclusiveCommandBus()
@@ -63,10 +56,6 @@ ExclusiveCommandBus::~ExclusiveCommandBus()
     exitEditMode();
     m_retired.clear();
     m_retiredModes.clear();
-    if (m_tools && m_editTool)
-    {
-        m_tools->deactivate(m_editTool);
-    }
 }
 
 QString ExclusiveCommandBus::activeCommandId() const
@@ -92,14 +81,7 @@ bool ExclusiveCommandBus::start(std::unique_ptr<IExclusiveCommand> command)
     m_active = std::move(command);
     m_finishPending = false;
     ++m_generation;
-    // 夹点编辑工具移出业务栈，激活的夹点随之取消。拆分前只清除它的预览，命令结束后夹点
-    // 接着跟随鼠标，下一次单击会按命令改过的选择集落位（doc/COMMAND_TOOL_MIGRATION_PLAN.md 9.6 节）
-    syncEditTool();
-    // 先挂起选择层（清除它的预览与捕捉标记），与原先 Action 从空闲态启动时一致
-    if (m_selectTool)
-    {
-        m_selectTool->suspend();
-    }
+    emit commandStarting();
     // 编辑模式里启动的命令叠在模式之上：收起模式的界面，命令结束后恢复
     if (m_mode)
     {
@@ -108,7 +90,7 @@ bool ExclusiveCommandBus::start(std::unique_ptr<IExclusiveCommand> command)
 
     // 激活期间请求的结束（已有选择集时直接完成的命令）延迟到激活返回后
     enterScope();
-    const bool activated = m_active->activate(*this) && m_active->isActive();
+    const bool activated = m_active->activate(m_host) && m_active->isActive();
     if (!activated)
     {
         m_finishPending = true;
@@ -215,7 +197,7 @@ void ExclusiveCommandBus::enterEditMode(std::unique_ptr<IEditMode> mode)
     exitEditMode();
     m_mode = std::move(mode);
     m_exitModePending = false;
-    m_tools->activateAtBottom(m_mode.get());
+    m_host.viewToolControl()->activateAtBottom(m_mode.get());
     if (!m_active)
     {
         m_mode->resumeMode();
@@ -251,7 +233,7 @@ void ExclusiveCommandBus::exitEditMode()
         return;
     }
     std::unique_ptr<IEditMode> mode = std::move(m_mode);
-    m_tools->deactivate(mode.get());
+    m_host.viewToolControl()->deactivate(mode.get());
     mode->onExit();
     if (m_scopeDepth > 0)
     {
@@ -286,45 +268,17 @@ void ExclusiveCommandBus::finishActive()
     // 先把 m_active 移出再 deactivate()：回调里查询总线时它已不是活动命令
     std::unique_ptr<IExclusiveCommand> command = std::move(m_active);
     command->deactivate();
-
-    if (m_selectTool)
-    {
-        // 命令没有退出选择阶段就结束时，由总线清除约束（第二步第 4 项）
-        if (m_selectTool->inSelectionPhase())
-        {
-            m_selectTool->endSelectionPhase();
-        }
-        // 恢复选择层（刷新提示，重绘预览与捕捉标记），与原先 Action 栈清空时一致
-        m_selectTool->resume();
-    }
+    emit commandFinished();
     // 回到编辑模式
     if (m_mode)
     {
         m_mode->resumeMode();
     }
-    // 夹点编辑工具放回业务栈顶，在编辑模式的工具之上
-    syncEditTool();
 
     if (m_scopeDepth > 0)
     {
         // 它的工具可能还在这次分发的调用栈上，范围结束时再销毁
         m_retired.push_back(std::move(command));
-    }
-}
-
-void ExclusiveCommandBus::syncEditTool()
-{
-    if (!m_tools || !m_editTool)
-    {
-        return;
-    }
-    if (m_active)
-    {
-        m_tools->deactivate(m_editTool);
-    }
-    else
-    {
-        m_tools->activate(m_editTool);
     }
 }
 
