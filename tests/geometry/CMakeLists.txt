@@ -12,5 +12,6 @@ yicad_add_test(geometry
         test_geometry_intersection.cpp
         test_geometry_spatial_query.cpp
         test_geometry_dimension.cpp
+        test_geometry_document_transfer.cpp
     LINK YiCadModel
     LABELS "geometry;unit")

@@ -22,15 +22,16 @@
 /// @file DmClipboard.cpp
 /// @brief 剪贴板实现
 
-#include <iostream>
 #include "DmClipboard.h"
-#include "DmBlock.h"
-#include "DmLayer.h"
+
+#include "DmDocumentTransfer.h"
 #include "DmEntity.h"
+#include "EntityTable.h"
 
 DmClipboard* DmClipboard::uniqueInstance = nullptr;
 
 DmClipboard::DmClipboard()
+    : m_pDocument(std::make_unique<DmDocument>())
 {
 }
 
@@ -45,69 +46,27 @@ DmClipboard* DmClipboard::instance()
 
 void DmClipboard::clear()
 {
-    pDocument.getEntityTable()->clear_direct();
-
-    auto layerTable = pDocument.getLayerTable();
-    if (layerTable)
-    {
-        std::vector<DmLayer*> layers;
-        for (auto it = layerTable->begin(); it != layerTable->end(); ++it)
-        {
-            layers.push_back(*it);
-        }
-        for (auto l : layers)
-        {
-            layerTable->remove_direct(l);
-        }
-    }
-}
-
-void DmClipboard::addBlock(DmBlock* b)
-{
-    if (b)
-    {
-        pDocument.getBlockTable()->add_direct(b);
-    }
-}
-
-bool DmClipboard::hasBlock(const QString& name)
-{
-    return (pDocument.getBlockTable()->find(name) != nullptr);
-}
-
-int DmClipboard::countBlocks()
-{
-    return pDocument.getBlockTable()->count();
-}
-
-void DmClipboard::addLayer(DmLayer* l)
-{
-    if (l)
-    {
-        pDocument.getLayerTable()->add_direct(l);
-    }
-}
-
-bool DmClipboard::hasLayer(const QString& name)
-{
-    return (pDocument.getLayerTable()->find(name) != nullptr);
+    // 换新文档而不是逐表清空：新文档的表只有默认条目，上次复制进来的同名样式、块不会留下来被下次复制取到
+    m_pDocument = std::make_unique<DmDocument>();
 }
 
 void DmClipboard::addEntity(DmEntity* e)
 {
     if (e)
     {
-        pDocument.getEntityTable()->add_direct(e);
-        pDocument.getEntityTable()->updateContainer();
+        DmDocumentTransfer transfer(*m_pDocument, DmDocumentTransfer::Missing::AddDirect);
+        e->transferTo(transfer);
+        m_pDocument->getEntityTable()->add_direct(e);
+        m_pDocument->getEntityTable()->updateContainer();
     }
 }
 
 unsigned DmClipboard::count()
 {
-    return pDocument.getEntityTable()->count();
+    return m_pDocument->getEntityTable()->count();
 }
 
 DmDocument* DmClipboard::getDocument()
 {
-    return &pDocument;
+    return m_pDocument.get();
 }

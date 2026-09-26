@@ -171,6 +171,14 @@ DmRegionPtr DmHatch::getBoundary() const
     return data.getBoundary();
 }
 
+void DmHatch::transferReferences(DmDocumentTransfer& transfer)
+{
+    if (DmRegionPtr boundary = data.getBoundary())
+    {
+        boundary->transferTo(transfer);
+    }
+}
+
 DmEntityContainerPtr DmHatch::getFilledEntities() const
 {
     return m_filledEntities;

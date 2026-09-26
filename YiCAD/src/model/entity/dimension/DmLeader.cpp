@@ -31,6 +31,7 @@
 #include "DmSolid.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "Math2d.h"
 
 TYPESYSTEM_SOURCE(DmLeader, DmEntity, 0);
@@ -154,6 +155,12 @@ DmLeaderData DmLeader::getData() const
 DmLeaderData& DmLeader::getDataRef()
 {
 	return data;
+}
+
+void DmLeader::transferReferences(DmDocumentTransfer& transfer)
+{
+	data.pStyle = transfer.dimStyle(data.pStyle);
+	data.setTextStyle(transfer.textStyle(data.textStyle()));
 }
 
 DmVectorSolutions DmLeader::getRefPoints() const

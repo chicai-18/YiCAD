@@ -286,13 +286,13 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b | S4c | S4d | R4 修复 |
-|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
-| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） |
-| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） | 65（2 DISABLED） | 65（2 DISABLED） | 68 |
-| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 | 305 | 305 | 305 |
-| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） | 499（495 启用 + 4 DISABLED） | 499（495 启用 + 4 DISABLED） | 502（500 启用 + 2 DISABLED） |
+| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b | S4c | S4d | R4 修复 | 跨文档粘贴 |
+|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
+| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 50（1 DISABLED） |
+| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） | 65（2 DISABLED） | 65（2 DISABLED） | 68 | 68 |
+| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 | 305 | 305 | 305 | 306 |
+| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） | 499（495 启用 + 4 DISABLED） | 499（495 启用 + 4 DISABLED） | 502（500 启用 + 2 DISABLED） | 507（505 启用 + 2 DISABLED） |
 
 S0 新增的 19 个 `DISABLED_` 对应读回路径的缺陷 R1–R9（`LAYER_RESTRUCTURE_PLAN.md` 4.5 节，
 `tests/persistence/test_persistence_document.cpp` 文件头部），修复后去掉前缀即为验收。
@@ -310,3 +310,6 @@ S4c 把存盘策略的 7 个用例从 `test_persistence` 搬到 `test_interactio
 S4d 把 `test_geometry_dimension.cpp` 里依赖宿主当前文档的写法改为只涉及文档，用例数不变。
 R4 修复（`LAYER_RESTRUCTURE_PLAN.md` 4.7 节）启用 `test_persistence_document.cpp` 里依赖 R4 的 2 个，另加 3 个：默认条目按文件里的属性读回、
 文件缺少的默认条目读完补上、读进已有内容的文档时以文件为准。剩下的 2 个 `DISABLED_` 是 `test_math`、`test_geometry` 的既有数值缺陷，与读写无关。
+跨文档粘贴修复（`LAYER_RESTRUCTURE_PLAN.md` 8.9 节）新增 `test_geometry` 的 `test_geometry_document_transfer.cpp`（4 个）：复制到剪贴板后与来源图纸无关、
+粘贴时同名条目用目标文档的缺的才复制、粘贴预览不改动目标文档、复制进来的条目随事务撤销；`test_interaction` 的 `test_modify_commands.cpp` 新增 1 个：
+粘贴提交只复制用到的图层并随撤销移除，原有的"粘贴别的图纸复制来的标注"改为来源图纸先关闭、图层与标注样式取本文档的。

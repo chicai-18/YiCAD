@@ -34,6 +34,7 @@
 #include "DmTextStyle.h"
 #include "DmPen.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "Math2d.h"
 #include "DmMTextContentCmd.h"
 #include <cmath>
@@ -1876,6 +1877,11 @@ DmTextStyle* DmMText::getTextStyle() const
 void DmMText::setTextStyle(DmTextStyle* style)
 {
     m_data->setTextStyle(style);
+}
+
+void DmMText::transferReferences(DmDocumentTransfer& transfer)
+{
+    m_data->setTextStyle(transfer.textStyle(m_data->getTextStyle()));
 }
 
 double DmMText::getLineSpacingFactor() const

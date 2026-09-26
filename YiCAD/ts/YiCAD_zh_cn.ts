@@ -501,27 +501,27 @@
         <translation>删除实体</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="491"/>
+        <location filename="../src/model/edit/Modification.cpp" line="416"/>
         <source>Move</source>
         <translation>移动</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="587"/>
+        <location filename="../src/model/edit/Modification.cpp" line="512"/>
         <source>Trim</source>
         <translation>修剪</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="860"/>
+        <location filename="../src/model/edit/Modification.cpp" line="785"/>
         <source>cut entity</source>
         <translation>单点打断</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="945"/>
+        <location filename="../src/model/edit/Modification.cpp" line="870"/>
         <source>cut entity 2P</source>
         <translation>2点打断</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="1415"/>
+        <location filename="../src/model/edit/Modification.cpp" line="1340"/>
         <source>move ref</source>
         <translation>移动引用点</translation>
     </message>

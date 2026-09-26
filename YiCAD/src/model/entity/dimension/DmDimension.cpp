@@ -36,6 +36,7 @@
 #include "DmTextStyle.h"
 #include "DmTextStyleTable.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "DmDimensionStyle.h"
 
 #include "Math2d.h"
@@ -201,6 +202,12 @@ DmDimensionStyle* DmDimension::getStyle()
 DmDimensionStyle* DmDimension::getStyle() const
 {
 	return data.pDimStyle;
+}
+
+void DmDimension::transferReferences(DmDocumentTransfer& transfer)
+{
+	data.pDimStyle = transfer.dimStyle(data.pDimStyle);
+	data.setTextStyle(transfer.textStyle(data.textStyle()));
 }
 
 double DmDimension::getAngle()

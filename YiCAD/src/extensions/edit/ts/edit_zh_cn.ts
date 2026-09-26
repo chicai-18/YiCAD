@@ -17,17 +17,17 @@
 <context>
     <name>EditPasteCommand</name>
     <message>
-        <location filename="../commands/EditPasteCommand.cpp" line="88"/>
+        <location filename="../commands/EditPasteCommand.cpp" line="92"/>
         <source>Paste</source>
         <translation>粘贴</translation>
     </message>
     <message>
-        <location filename="../commands/EditPasteCommand.cpp" line="178"/>
+        <location filename="../commands/EditPasteCommand.cpp" line="141"/>
         <source>Set reference point</source>
         <translation>设置引用点</translation>
     </message>
     <message>
-        <location filename="../commands/EditPasteCommand.cpp" line="179"/>
+        <location filename="../commands/EditPasteCommand.cpp" line="142"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>

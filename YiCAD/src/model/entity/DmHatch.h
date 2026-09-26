@@ -172,6 +172,9 @@ public:
     virtual void restoreStream(InputStream& rdr) override;
 
 protected:
+    /// @brief 边界随之改归目标文档；填充生成的实体在 update() 时重新生成
+    void transferReferences(DmDocumentTransfer& transfer) override;
+
     HatchData data;                          ///< 填充数据
     DmEntityContainerPtr m_filledEntities;   ///< 填充生成的实体容器
 };

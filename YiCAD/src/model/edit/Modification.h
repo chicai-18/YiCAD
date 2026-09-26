@@ -147,19 +147,10 @@ public:
 	void copy(const DmVector& ref, const bool cut);
 
 private:
-	/// @brief 复制单个实体到剪贴板
+	/// @brief 复制单个实体到剪贴板；实体引用的图层、样式与块由剪贴板随实体复制（DmClipboard::addEntity）
 	/// @param e 实体指针
 	/// @param ref 参考点
-	/// @param cut true表示剪切
 	void copyEntity(DmEntity* e, const DmVector& ref);
-
-	/// @brief 复制实体关联的图层到剪贴板
-	/// @param e 实体指针
-	void copyLayers(DmEntity* e);
-
-	/// @brief 复制实体关联的块到剪贴板
-	/// @param e 实体指针
-	void copyBlocks(DmEntity* e);
 
 	// TODO: Modification 废弃，块相关代码已注释
 	//bool pasteLayers(DmDocument* source);

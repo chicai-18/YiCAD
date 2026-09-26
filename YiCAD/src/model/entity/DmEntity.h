@@ -38,6 +38,7 @@ class DmBlock;
 class DmCircle;
 class DmEntityContainer;
 class DmDocument;
+class DmDocumentTransfer;
 class DmIdManager;
 class GuiDocumentView;
 class DmBlockReference;
@@ -101,6 +102,12 @@ public:
     /// @brief 实体创建要添加到画布必须设置此属性
     /// @param pDoc 文档指针
     void setDocument(DmDocument* pDoc) override;
+
+    /// @brief 改归 transfer 的目标文档
+    /// @details 与 setDocument 不同，图层与画笔不换成目标文档的当前值：图层、线型以及派生类引用的
+    ///          样式与块换成目标文档里的同名条目，目标文档没有时按 transfer 的约定处理
+    ///          （见 DmDocumentTransfer）。最后 update()，按目标文档重新生成子实体
+    void transferTo(DmDocumentTransfer& transfer);
 
     void setLayer(const QString& name);
     void setLayer(DmLayer* l);
@@ -236,6 +243,10 @@ public:
     virtual void restoreStream(InputStream& rdr) override;
 
 protected:
+    /// @brief 派生类改归自己引用的样式、块以及自己持有的子实体；默认什么也不做
+    /// @details 由 transferTo 在改动所属文档之前调用，这时实体仍属于原来的文档
+    virtual void transferReferences(DmDocumentTransfer& transfer);
+
     DmEntity*                       parent = nullptr;              ///< 该实体的父实体
     DmVector                        minV;                           ///< 实体的最小坐标
     DmVector                        maxV;                           ///< 实体的最大坐标

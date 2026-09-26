@@ -179,6 +179,9 @@ public:
     virtual void restoreStream(InputStream& rdr) override;
 
 protected:
+    /// @brief 文字样式换成目标文档的
+    void transferReferences(DmDocumentTransfer& transfer) override;
+
     /// @brief 根据文字内容添加实体
     void addEntitiesOfText(const QString& text);
 

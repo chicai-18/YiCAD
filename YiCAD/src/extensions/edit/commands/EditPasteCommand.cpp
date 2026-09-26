@@ -20,7 +20,7 @@
 
 /// @file EditPasteCommand.cpp
 /// @brief 粘贴命令 ext.edit.paste，取代原 ActionEditPaste：指定参考点，把剪贴板的实体
-///        （连同缺少的图层，按单位换算）放进文档，然后结束
+///        （连同文档里缺少的、实体用到的图层、线型、样式与块，按单位换算）放进文档，然后结束
 
 #include <cmath>
 #include <memory>
@@ -32,12 +32,9 @@
 #include "CommandPreview.h"
 #include "EditCommands.h"
 #include "DmClipboard.h"
-#include "DmDimension.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "DmEntityContainer.h"
-#include "DmLayer.h"
-#include "DmLayerTable.h"
-#include "DmLeader.h"
 #include "DmUnits.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
@@ -55,6 +52,9 @@ class EditPasteCommand : public PlaceCommand
 
 public:
     /// @brief 预览剪贴板内容放在参考点处
+    ///
+    /// 预览改归本文档，同名的图层、样式与块用本文档的，与提交的结果一致；本文档没有的仍用剪贴板里的，
+    /// 预览不能往文档里加东西
     void previewPaste(const DmVector& targetPoint)
     {
         preview().clear();
@@ -62,9 +62,13 @@ public:
         clipDoc->getEntityTable()->updateContainer();
         Preview& entities = preview().entities();
         entities.addAllFrom(*clipDoc->getEntityTable()->getEntityContainer());
-        for (DmEntity* e : *entities.getEntityContainer())
+        if (document())
         {
-            adoptDimension(e);
+            DmDocumentTransfer transfer(*document(), DmDocumentTransfer::Missing::KeepSource);
+            for (DmEntity* e : *entities.getEntityContainer())
+            {
+                e->transferTo(transfer);
+            }
         }
         entities.move(targetPoint);
         if (document())
@@ -90,7 +94,8 @@ public:
         auto entTable = document()->getEntityTable();
         DmDocument* clipDoc = DMCLIPBOARD->getDocument();
         double factor = DmUnits::convert(1.0, clipDoc->getUnit(), document()->getUnit());
-        pasteLayers(clipDoc);
+        // 同名的图层、样式与块用本文档的，不改动它们；本文档没有的，只把粘贴的实体用到的复制进来，随事务撤销
+        DmDocumentTransfer transfer(*document(), DmDocumentTransfer::Missing::AddWithUndo);
         for (auto src : *clipDoc->getEntityTable())
         {
             if (!src || src->isErased())
@@ -99,7 +104,7 @@ public:
             }
             DmEntity* clone = src->clone();
             clone->resetId();
-            adoptDimension(clone);
+            clone->transferTo(transfer);
             clone->move(targetPoint);
             if (std::fabs(factor - 1.0) > DM_TOLERANCE)
             {
@@ -114,48 +119,6 @@ public:
 
 protected:
     std::unique_ptr<BasePlaceTool> createTool() override;
-
-private:
-    /// @brief 标注与引线改归本命令的文档，图层与画笔不变
-    ///
-    /// 剪贴板里的实体仍属于复制来源的图纸。标注与引线更新时（移动即更新）从所属文档取箭头块，
-    /// 不改归的话从来源图纸取，来源图纸关闭后就会访问已释放的文档。DmEntity::setDocument
-    /// 会把图层与画笔换成本文档的当前值，所以先存下再放回。其余实体的所属文档不在这里处理。
-    void adoptDimension(DmEntity* entity) const
-    {
-        if (!document() || !entity || (!dynamic_cast<DmDimension*>(entity) && !dynamic_cast<DmLeader*>(entity)))
-        {
-            return;
-        }
-        DmLayer* layer = entity->getLayer(false);
-        const DmPen pen = entity->getPen(false);
-        entity->setDocument(document());
-        entity->setLayer(layer);
-        entity->setPen(pen);
-    }
-
-    /// @brief 把文档里没有的图层从剪贴板复制过来
-    void pasteLayers(DmDocument* source)
-    {
-        if (!source)
-        {
-            return;
-        }
-        auto srcLayerTable = source->getLayerTable();
-        auto dstLayerTable = document()->getLayerTable();
-        if (!srcLayerTable || !dstLayerTable)
-        {
-            return;
-        }
-        for (auto it = srcLayerTable->begin(); it != srcLayerTable->end(); ++it)
-        {
-            DmLayer* srcLayer = *it;
-            if (srcLayer && !dstLayerTable->find(srcLayer->getName()))
-            {
-                dstLayerTable->add(srcLayer->clone());
-            }
-        }
-    }
 };
 
 /// @brief 粘贴工具：只有一步

@@ -25,18 +25,18 @@
 #ifndef DMCLIPBOARD_H
 #define DMCLIPBOARD_H
 
-#include <iosfwd>
+#include <memory>
 
 #include "DmDocument.h"
 
 #define DMCLIPBOARD DmClipboard::instance()
 
-class DmBlock;
-class DmLayer;
 class DmEntity;
 
 // YiCAD internal clipboard. We don't use the system clipboard for better portaility.
 // Implemented as singleton.
+/// @details 剪贴板有自己的文档。放进来的实体改归这份文档，实体引用的图层、线型、样式与块也复制进来，
+///          与复制来源的图纸不再有关联，来源图纸关闭后照样能粘贴
 class DmClipboard
 {
 protected:
@@ -47,32 +47,12 @@ public:
     /// @return 剪贴板实例指针
     static DmClipboard* instance();
 
-    /// @brief 清空剪贴板
+    /// @brief 清空剪贴板：换一份新文档，上次放进来的实体与表项随旧文档释放
     void clear();
 
-    /// @brief 添加块到剪贴板
-    /// @param b 块指针
-    void addBlock(DmBlock* b);
-
-    /// @brief 检查剪贴板是否包含指定名称的块
-    /// @param name 块名称
-    /// @return 如果包含则返回true
-    bool hasBlock(const QString& name);
-
-    /// @brief 获取剪贴板中的块数量
-    /// @return 块数量
-    int countBlocks();
-
-    /// @brief 添加图层到剪贴板
-    /// @param l 图层指针
-    void addLayer(DmLayer* l);
-
-    /// @brief 检查剪贴板是否包含指定名称的图层
-    /// @param name 图层名称
-    /// @return 如果包含则返回true
-    bool hasLayer(const QString& name);
-
-    /// @brief 添加实体到剪贴板
+    /// @brief 添加实体到剪贴板，剪贴板取得所有权
+    /// @details 实体改归剪贴板的文档（DmEntity::transferTo）：引用的图层、线型、样式与块按名字取
+    ///          剪贴板文档里的，没有的复制一份进来
     /// @param e 实体指针
     void addEntity(DmEntity* e);
 
@@ -81,13 +61,12 @@ public:
     unsigned count();
 
     /// @brief 获取剪贴板文档
-    /// @return 文档指针
+    /// @return 文档指针；clear() 之后是另一份文档，不要跨 clear() 持有
     DmDocument* getDocument();
 
 protected:
-    static DmClipboard* uniqueInstance; ///< 单例实例
-
-    DmDocument pDocument; ///< 剪贴板文档
+    static DmClipboard* uniqueInstance;         ///< 单例实例
+    std::unique_ptr<DmDocument> m_pDocument;    ///< 剪贴板文档
 };
 
 #endif

@@ -82,6 +82,9 @@ public:
     virtual void restoreStream(InputStream& rdr) override;
 
 protected:
+    /// @brief 外边界与孔洞随之改归目标文档
+    void transferReferences(DmDocumentTransfer& transfer) override;
+
     RegionData data;
 
 };

@@ -94,6 +94,9 @@ public:
     virtual void restoreStream(InputStream& rdr) override;
 
 protected:
+	/// @brief 标注样式与替代属性里的文字样式换成目标文档的；箭头块在 update() 时从所属文档取
+	void transferReferences(DmDocumentTransfer& transfer) override;
+
 	DmLeaderData	data;
 	bool			empty;
 	DmEntityContainer* container;

@@ -31,6 +31,7 @@
 #include "EntityTable.h"
 
 class DmAttributeDefinition;
+class DmDocumentTransfer;
 
 /// @brief 图块定义数据结构
 struct DmBlockData
@@ -71,6 +72,11 @@ public:
 
     DmBlock* clone() const;
     void setDocument(DmDocument* pDoc) override;
+
+    /// @brief 在 transfer 的目标文档里复制一份本块定义
+    /// @details 新块属于目标文档，块内图元逐个克隆、换新 id 并改归目标文档（嵌套的块随之复制进目标文档）。
+    ///          与 clone() 不同，新块不与本块共用图元。返回的块还没有放进目标文档的块表
+    DmBlock* copyInto(DmDocumentTransfer& transfer) const;
 
     QString getPath() const;
     void setPath(const QString& path);

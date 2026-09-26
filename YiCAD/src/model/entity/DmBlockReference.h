@@ -142,6 +142,9 @@ public:
     virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;
 
 protected:
+    /// @brief 块定义与属性换成目标文档的；其余子实体在 update() 时按目标文档里的块重新展开
+    void transferReferences(DmDocumentTransfer& transfer) override;
+
     DmBlockReferenceData        data;
     mutable DmBlock*    block = nullptr; ///< 缓存关联的块定义指针
 

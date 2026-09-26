@@ -31,6 +31,7 @@
 #include "DmBlock.h"
 #include "DmCircle.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "DmBlockReference.h"
 #include "DmLayer.h"
 #include "DmLine.h"
@@ -379,6 +380,20 @@ void DmEntity::setDocument(DmDocument* pDoc)
     // 初始化实体属性
     this->setLayer(pDoc->getLayerTable()->getActive());
     this->setPen(pDoc->getActivePen());
+}
+
+void DmEntity::transferTo(DmDocumentTransfer& transfer)
+{
+    // 派生类先按原来的文档解析自己的引用（例如块参照经所属文档找块），再改所属文档
+    transferReferences(transfer);
+    m_pDocument = &transfer.target();
+    layer = transfer.layer(layer);
+    pen.setLineType(transfer.lineType(pen.getLineType()));
+    update();
+}
+
+void DmEntity::transferReferences(DmDocumentTransfer& /*transfer*/)
+{
 }
 
 Quadratic DmEntity::getQuadratic() const

@@ -136,6 +136,9 @@ public:
     std::list<DmEntity*> getSubEntities() const override;
 
 protected:
+    /// @brief 容器里的实体逐个改归目标文档
+    void transferReferences(DmDocumentTransfer& transfer) override;
+
     QList<DmEntity*>            entities;               ///< 容器里的实体集
 
 private:

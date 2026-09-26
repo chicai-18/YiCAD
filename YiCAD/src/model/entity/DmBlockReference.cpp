@@ -33,6 +33,7 @@
 #include "DmEllipse.h"
 #include "DmBlock.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "DmLayer.h"
 #include "Math2d.h"
 #include "Debug.h"
@@ -500,6 +501,23 @@ DmBlock* DmBlockReference::getBlockForInsert() const
 void DmBlockReference::setBlock(DmBlock* blc)
 {
     block = blc;
+}
+
+void DmBlockReference::transferReferences(DmDocumentTransfer& transfer)
+{
+    for (DmEntity* e : m_subEntities)
+    {
+        if (e->getEntityType() == DM::EntityAttribute)
+        {
+            e->transferTo(transfer);
+        }
+    }
+    // 这时仍属于原来的文档，getBlockForInsert 找到的是原来的块
+    DmBlock* target = transfer.block(getBlockForInsert());
+    block = nullptr;
+    // 目标文档没有这个块且不复制时（粘贴预览），target 仍是原来的块，从它所在的块表取
+    DmDocument* blockDoc = target ? target->getDocument() : nullptr;
+    data.blockSource = blockDoc ? blockDoc->getBlockTable() : nullptr;
 }
 
 QList<DmEntity*>& DmBlockReference::getEntityList()

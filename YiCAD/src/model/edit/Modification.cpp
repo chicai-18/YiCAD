@@ -148,89 +148,14 @@ void Modification::copyEntity(DmEntity* e, const DmVector& ref)
 	DmEntity* c = e->clone();
 	c->move(-ref);
 
+	// 剪贴板把克隆改归自己的文档，连同它引用的图层、线型、样式与块
 	DMCLIPBOARD->addEntity(c);
-	copyLayers(e);
-	copyBlocks(e);
-
-	// set layer to the layer clone:
-	c->setLayer(e->getLayer()->getName());
 
 	e->setSelected(false);
 	if (document)
 	{
 		document->notifyDocumentModified();
 		document->requestRedraw();
-	}
-}
-
-// Copies all layers of the given entity to the clipboard.
-void Modification::copyLayers(DmEntity* e)
-{
-	if (!e)
-	{
-		return;
-	}
-
-	// add layer(s) of the entity insert can also be into any layer
-	DmLayer* l = e->getLayer();
-	if (!l)
-	{
-		return;
-	}
-
-	if (!DMCLIPBOARD->hasLayer(l->getName()))
-	{
-		DMCLIPBOARD->addLayer(l->clone());
-	}
-
-	// special handling of inserts:
-	if (e->getEntityType() == DM::EntityBlockReference)
-	{
-		DmBlock* b = ((DmBlockReference*)e)->getBlockForInsert();
-		if (!b)
-		{
-			return;
-		}
-		for (auto e2 : b->getEntityTable())
-		{
-			copyLayers(e2);
-		}
-	}
-}
-
-// Copies all blocks of the given entity to the clipboard.
-void Modification::copyBlocks(DmEntity* e)
-{
-	if (!e)
-	{
-		return;
-	}
-
-	// add block of the entity only if it's an insert
-	if (e->getEntityType() != DM::EntityBlockReference)
-	{
-		return;
-	}
-
-	DmBlock* b = ((DmBlockReference*)e)->getBlockForInsert();
-	if (!b)
-	{
-		return;
-	}
-	// add block of an insert
-	QString bn = b->getName();
-	if (!DMCLIPBOARD->hasBlock(bn))
-	{
-		DMCLIPBOARD->addBlock((DmBlock*)b->clone());
-	}
-	// find insert into insert
-	for (auto e2 : b->getEntityTable())
-	{
-		// call copyBlocks only if entity are insert
-		if (e2->getEntityType() == DM::EntityBlockReference)
-		{
-			copyBlocks(e2);
-		}
 	}
 }
 

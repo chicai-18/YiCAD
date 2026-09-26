@@ -13,12 +13,16 @@
 
 #include "BaseExclusiveCommand.h"
 #include "CircleData.h"
+#include "CmdManager.h"
 #include "DmBlockReference.h"
 #include "DmCircle.h"
 #include "DmClipboard.h"
 #include "DmDimLinear.h"
 #include "DmDimensionStyleTable.h"
+#include "DmLayer.h"
+#include "DmLayerTable.h"
 #include "DmLine.h"
+#include "DmLineTypeTable.h"
 #include "DmPolyline.h"
 #include "LineData.h"
 #include "ModifyBevelCommand.h"
@@ -469,20 +473,22 @@ TEST_F(ModifyFixture, 粘贴剪贴板为空时指定参考点即结束)
 
 TEST_F(ModifyFixture, 粘贴别的图纸复制来的标注时标注改归本文档)
 {
-    // 分层重组 S4a：标注更新时从所属文档取箭头块。剪贴板里的实体仍属于复制来源的图纸
-    // （与 Modification::copyEntity 相同，只克隆、不改归），粘贴时标注改归本文档，箭头取
-    // 本文档的，图层与画笔不变。只测预览（移动即更新）：提交要走事务，见夹具说明。
-    DmDocument source;
-    auto* dim = new DmDimLinear(nullptr,
-                                DmDimensionData(DmVector(20.0, -10.0), DmVector(10.0, -10.0),
-                                                EMTextVertMode::kTextVertMid, EMTextHorzMode::kTextCenter, 1.0,
-                                                QString(), 0.0, source.getDimStyleTable()->getActive()),
-                                DmDimLinearData(DmVector(0.0, 0.0), DmVector(20.0, 0.0)));
-    dim->setDocument(&source);
-    dim->update();
-    ASSERT_TRUE(source.getEntityTable()->add_direct(dim));
-    DMCLIPBOARD->clear();
-    DMCLIPBOARD->addEntity(dim->clone());
+    // 剪贴板把放进来的实体改归自己的文档（DmClipboard::addEntity），复制来源的图纸先关闭也能粘贴。
+    // 粘贴预览改归本文档：同名的图层、标注样式用本文档的；标注更新时从所属文档取箭头块（S4a），
+    // 箭头也取本文档的。这里只测预览（移动即更新），提交见下一个用例。
+    {
+        DmDocument source;
+        auto* dim = new DmDimLinear(nullptr,
+                                    DmDimensionData(DmVector(20.0, -10.0), DmVector(10.0, -10.0),
+                                                    EMTextVertMode::kTextVertMid, EMTextHorzMode::kTextCenter, 1.0,
+                                                    QString(), 0.0, source.getDimStyleTable()->getActive()),
+                                    DmDimLinearData(DmVector(0.0, 0.0), DmVector(20.0, 0.0)));
+        dim->setDocument(&source);
+        dim->update();
+        ASSERT_TRUE(source.getEntityTable()->add_direct(dim));
+        DMCLIPBOARD->clear();
+        DMCLIPBOARD->addEntity(dim->clone());
+    }  // 来源图纸在粘贴之前关闭
 
     ASSERT_TRUE(start("ext.edit.paste"));
     move(10, 10);
@@ -497,7 +503,8 @@ TEST_F(ModifyFixture, 粘贴别的图纸复制来的标注时标注改归本文�
     }
     ASSERT_NE(pasted, nullptr);
     EXPECT_EQ(pasted->getDocument(), &doc);
-    EXPECT_EQ(pasted->getLayer(false), dim->getLayer(false)) << "DmEntity::setDocument 改掉的图层要放回";
+    EXPECT_EQ(pasted->getLayer(false), doc.getLayerTable()->find(QStringLiteral("0"))) << "同名图层用本文档的";
+    EXPECT_EQ(pasted->getStyle(), doc.getDimStyleTable()->find(QStringLiteral("ISO-25"))) << "同名标注样式用本文档的";
     // getSubEntities() 把箭头块参照展开成图元，图元的父实体才是箭头块参照
     std::vector<DmBlockReference*> arrows;
     for (DmEntity* sub : pasted->getSubEntities())
@@ -516,5 +523,52 @@ TEST_F(ModifyFixture, 粘贴别的图纸复制来的标注时标注改归本文�
     }
 
     endCommand();
+    DMCLIPBOARD->clear();
+}
+
+TEST_F(ModifyFixture, 粘贴提交时只复制用到的图层并随撤销移除)
+{
+    // 来源图纸有两个图层，只把其中一个图层上的直线放进剪贴板，来源图纸随后关闭。粘贴提交后本文档
+    // 只多出这个图层，直线属于本文档、挂在它上面；撤销把直线与图层一起撤掉（图层经命令加入事务）。
+    // 与夹具说明不同，这里走了事务：Transaction 先 start 再 add 没有问题，崩溃的是不开事务直接
+    // 调 add()（CmdManager 没有当前命令，test_geometry_spatial_query 的情形）
+    {
+        DmDocument source;
+        auto addLayer = [&source](const QString& name) {
+            auto* layer = new DmLayer();
+            layer->setDocument(&source);
+            layer->setData(
+                DmLayerData(name, DmPen(DmColor(255, 0, 0), DM::Width05, DmLineTypeTable::Continuous), false, false));
+            EXPECT_TRUE(source.getLayerTable()->add_direct(layer));
+            return layer;
+        };
+        DmLayer* used = addLayer(QStringLiteral("用到"));
+        addLayer(QStringLiteral("没用到"));
+        auto* line = new DmLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0));
+        line->setDocument(&source);
+        line->setLayer(used);
+        ASSERT_TRUE(source.getEntityTable()->add_direct(line));
+        DMCLIPBOARD->clear();
+        DMCLIPBOARD->addEntity(line->clone());
+    }
+
+    ASSERT_TRUE(start("ext.edit.paste"));
+    typeCoordinate(5, 5);
+    EXPECT_FALSE(bus.hasActiveCommand());
+
+    ASSERT_EQ(doc.getEntityTable()->count(), 1);
+    DmLayer* pastedLayer = doc.getLayerTable()->find(QStringLiteral("用到"));
+    ASSERT_NE(pastedLayer, nullptr);
+    EXPECT_EQ(pastedLayer->getPen().getColor().red(), 255);
+    EXPECT_EQ(doc.getLayerTable()->find(QStringLiteral("没用到")), nullptr);
+    DmEntity* pasted = *doc.getEntityTable()->begin();
+    EXPECT_EQ(pasted->getDocument(), &doc);
+    EXPECT_EQ(pasted->getLayer(false), pastedLayer);
+    EXPECT_NEAR(pasted->getStartpoint().x, 5.0, 1e-9);
+    EXPECT_NEAR(pasted->getStartpoint().y, 5.0, 1e-9);
+
+    doc.getCmdManager()->undo();
+    EXPECT_EQ(doc.getEntityTable()->count(), 0);
+    EXPECT_EQ(doc.getLayerTable()->find(QStringLiteral("用到")), nullptr);
     DMCLIPBOARD->clear();
 }

@@ -476,6 +476,14 @@ void DmEntityContainer::update()
     adjustBorders();
 }
 
+void DmEntityContainer::transferReferences(DmDocumentTransfer& transfer)
+{
+    for (DmEntity* e : entities)
+    {
+        e->transferTo(transfer);
+    }
+}
+
 void DmEntityContainer::addRectangle(DmVector const& v0, DmVector const& v1)
 {
     addEntity(new DmLine(this, v0, { v1.x, v0.y }));

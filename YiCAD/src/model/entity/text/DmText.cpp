@@ -34,6 +34,7 @@
 #include "DmTextStyle.h"
 #include "DmTextStyleTable.h"
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "DmCharTemplate.h"
 #include "DmChar.h"
 
@@ -114,6 +115,11 @@ QString DmText::getText() const
 void DmText::setStyle(DmTextStyle* style)
 {
     m_data->setTextStyle(style);
+}
+
+void DmText::transferReferences(DmDocumentTransfer& transfer)
+{
+    m_data->setTextStyle(transfer.textStyle(m_data->getTextStyle()));
 }
 
 DmTextStyle* DmText::getStyle() const

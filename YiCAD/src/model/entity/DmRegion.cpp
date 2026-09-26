@@ -127,6 +127,21 @@ void DmRegion::update()
     calculateBorders();
 }
 
+void DmRegion::transferReferences(DmDocumentTransfer& transfer)
+{
+    if (DmEntityContainerPtr boundary = data.getBoundary())
+    {
+        boundary->transferTo(transfer);
+    }
+    for (const DmEntityContainerPtr& hole : data.getHoles())
+    {
+        if (hole)
+        {
+            hole->transferTo(transfer);
+        }
+    }
+}
+
 bool DmRegion::isPointInside(const DmVector& point, bool* onBoundary) const
 {
     if (!data.getBoundary())

@@ -818,7 +818,7 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
 
 **遗留**：
 
-- 跨文档粘贴的既有缺陷与 S4a 无关、未处理：粘贴出的所有实体仍属于来源图纸，图层指针也指向来源图纸的图层
+- 跨文档粘贴的既有缺陷与 S4a 无关、未处理（已在 8.9 节修复）：粘贴出的所有实体仍属于来源图纸，图层指针也指向来源图纸的图层
   （`Modification::copyEntity` 在来源图纸的图层表里按名找，`Modification.cpp:155`）；来源图纸关闭时图层随之释放
   （`DmLayerTable.cpp:36`），这些指针悬空。块参照没有 `blockSource` 时也按所属文档找块，同样受影响。
 - 块插入导入的标注，箭头块参照的 `blockSource` 指向已析构的临时文档（见上表），目前没有代码访问它。
@@ -934,10 +934,72 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
 **S4 的遗留**：
 
 - R4 未修（D9 已定为做法 A），`test_persistence_document.cpp` 的 2 个 `DISABLED_` 用例留作验收。（已在 4.7 节修复。）
-- 跨文档粘贴的既有缺陷（粘贴出的实体仍属于来源图纸、图层指针指向来源图纸），见 S4a 遗留。
+- 跨文档粘贴的既有缺陷（粘贴出的实体仍属于来源图纸、图层指针指向来源图纸），见 S4a 遗留。（已在 8.9 节修复。）
 - 块插入导入的标注，箭头块参照的 `blockSource` 指向已析构的临时文档，目前没有代码访问它，见 S4a。
 - `requestUntitledDocumentName` 仍在宿主服务接口里，S5 并入 `IDocumentManager`；`UIDialogFactory` 实现它仍要包含 `ApplicationWindow.h`（白名单里的一条）。
 - `DmSystem` 的"当前格式"（恒为 `ycd`）只剩文件对话框选默认过滤串一个用途，没有动。
+
+### 8.9 S4 遗留修复：跨文档粘贴
+
+2026-09-27 完成，基线 `d5e05b5`（S4 之后，与 4.7 节的 R4 修复同一批）。修 S4a 遗留的第一条：粘贴出的实体仍属于来源图纸，
+图层指针指向来源图纸的图层，来源图纸关闭后悬空。
+
+**核实范围**：比遗留里写的大。
+
+- 复制时 `Modification::copyEntity` 克隆出的实体仍属于来源图纸，图层在来源图纸里按名字找，剪贴板本身就依赖来源图纸：
+  来源图纸关闭后再粘贴，同样会访问已释放的对象；
+- 实体还持有来源图纸的线型（画笔；固定线型也是每份文档各一份，只有 `DmLineTypeTable` 的静态线型是全局的）、文字样式
+  （单行文字、多行文字、属性）、标注样式与替代属性里的文字样式（标注、引线）；
+- 粘贴只补图层，不补块定义；块参照经来源图纸找块（`DmBlockReference::getBlockForInsert`），粘贴后存盘再打开就找不到块；
+- `test_modify_commands.cpp` 的"粘贴别的图纸复制来的标注"断言粘贴出的标注图层指针等于来源图纸的，锁住的正是缺陷行为。
+
+**开工前定下**（用户确认）：剪贴板持有自己的一份，复制时实体连同引用的条目改归剪贴板的文档，粘贴时改归本文档；
+同名的样式与图层（线型、块同理）用粘贴处文档的，不改动它们，没有才新建，且只复制对应实体用到的；各实体类自己负责改归自己持有的引用。
+
+**改动**（产品代码 27 个文件，其中新增 2 个）：
+
+| 文件 | 改法 |
+|------|------|
+| `model/document/DmDocumentTransfer`（新增） | 按名字在目标文档里找图层、线型、文字样式、标注样式与块；找不到时按约定处理：`KeepSource` 仍用来源的（粘贴预览，不能改动文档），`AddDirect` 复制一份直接放入（剪贴板），`AddWithUndo` 复制一份经表的命令放入（粘贴，随事务撤销）。复制图层时画笔的线型、复制标注样式时它的文字样式一并解析；静态线型原样返回 |
+| `DmEntity` | 新增 `transferTo(transfer)`：先调虚函数 `transferReferences`（派生类这时仍属于原来的文档，块参照要经它找块），再换所属文档、图层与画笔的线型，最后 `update()` 按目标文档重新生成子实体（标注的箭头、块参照展开的图元、文字的字形）。与 `setDocument` 不同，不把图层与画笔换成当前值 |
+| `DmText`（含属性、属性定义）、`DmMText` | `transferReferences` 换文字样式 |
+| `DmDimension`、`DmLeader` | 换标注样式与替代属性里的文字样式；箭头块在 `update()` 时从所属文档取（S4a） |
+| `DmBlockReference` | 属性逐个改归；块定义换成目标文档的，`blockSource` 指向块所在的块表，清掉块缓存；其余子实体由 `update()` 按新块重新展开 |
+| `DmHatch`、`DmRegion`、`DmEntityContainer` | 边界与孔洞里的实体随之改归（这几类克隆时深拷贝边界，不影响原实体） |
+| `DmBlock` | 新增 `copyInto(transfer)`：在目标文档新建同名块，块内图元逐个克隆、换 id、改归，嵌套的块随之复制。`clone()` 是浅拷贝、与原块共用图元，不能用 |
+| `DmClipboard` | 文档改为 `unique_ptr`，`clear()` 换一份新文档：逐表清空会留下上次复制进来的同名样式与块，下次复制同名条目会取到旧的。`addEntity` 按 `AddDirect` 把实体改归剪贴板的文档。删去已无调用方的 `addBlock`、`hasBlock`、`countBlocks`、`addLayer`、`hasLayer` |
+| `Modification` | `copyEntity` 只克隆、移动、交给剪贴板；删去 `copyLayers`、`copyBlocks` 与按名字改图层的一行 |
+| `EditPasteCommand` | 预览按 `KeepSource` 改归本文档，同名条目取本文档的，与提交的结果一致；提交按 `AddWithUndo`。删去 S4a 加的 `adoptDimension` 与 `pasteLayers` |
+
+**行为变化**：
+
+- 同一图纸内复制粘贴：同名条目都在，结果与原先相同。
+- 复制后在来源图纸里给图层改名再粘贴：原先实体仍挂在来源图纸那个已改名的图层上，另补一个旧名的空图层；现在挂在按复制时的名字新建的图层上。
+- 粘贴时复制进来的线型、样式与块随粘贴一起撤销；原先补图层也经命令，其余都不补。
+
+**测试**：新增 `tests/geometry/test_geometry_document_transfer.cpp`（4 个，只链接 `YiCadModel`，样本用 `OcdSampleDocument.h`）：
+复制到剪贴板后关闭来源图纸，剪贴板里的实体、图层、线型、样式、块都是剪贴板文档的，没有实体用到的图层与样式不复制；粘贴时同名图层用目标文档的
+且不改动，缺的才复制，新文档自带的条目不重复；预览不改动目标文档的表；经 `Transaction` 粘贴后撤销，实体与复制进来的条目一起消失。
+`test_modify_commands.cpp` 原有的粘贴标注用例改为来源图纸先关闭、断言图层与标注样式取本文档的；新增 1 个：经命令提交粘贴，本文档只多出
+用到的图层，撤销后一起消失。用例 507（启用 505，`DISABLED_` 2），比 R4 修复多 5 个（`BASELINE.md` 7.2 节）。
+
+新用例能抓住旧行为：临时去掉 `DmClipboard::addEntity` 里的改归，`test_geometry` 与 `test_interaction` 在来源图纸关闭后访问已释放的内存，
+进程以 0xC0000374（堆损坏）退出；提交改用 `KeepSource`，"粘贴提交只复制用到的图层并随撤销移除"失败。恢复后都通过。
+
+**验收**：Release、Debug 构建通过（Debug 照 S0 的做法删 `.obj`、`.pdb` 后重建；改了 `tests/geometry/CMakeLists.txt`，构建目录归 CLion 的 CMake 4.1，
+用它构建）；两种配置的 ctest 全部通过；`check_layering.py` 通过（9 处已登记的例外）；`update_translations` 只改 `edit_zh_cn.ts`、`YiCAD_zh_cn.ts`
+的 `<location>` 行（`EditPasteCommand.cpp`、`Modification.cpp` 的行号），译文不变；Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、
+主窗口有响应，关闭后以 0 退出。交互清单新增 D33a（跨图纸复制、关闭来源、粘贴、撤销），第 7 节补一条有意的行为变化；D33、D33a 没有在界面上手工走查。
+
+**遗留**：
+
+- 块插入 `BlockFileCommands::importBlocks` 同样把临时文档里的块与实体带进当前文档，仍用浅拷贝的 `DmBlock::clone` 与 `setDocument`
+  （S4a 表里记的 `blockSource` 指向已析构的临时文档）。可以改用 `DmDocumentTransfer`，本次未动。
+- `CommandTestFixture.h` 等 4 个测试文件写着"默认构造的 DmDocument 走事务会崩溃"。本次两个用例经 `Transaction` 提交、撤销都正常，
+  崩溃的实际是不开事务直接调 `add()`（`CmdManager` 没有当前命令）。那几处说明没有改，新用例的注释里写明了。
+- 粘贴预览每次移动鼠标都对每个实体 `transferTo`，多一次 `update()`；剪贴板内容很多时的卡顿没有测过。
+- 剪贴板 `clear()` 换新文档时，旧文档里复制进来的块不释放：`~DmBlockTable` 是默认析构（4.7 节其他观察）。原先剪贴板里的块从不移除，
+  一直留在表里、下次复制同名块时还会被找到；现在只是泄漏，不再被找到。
 
 ---
 

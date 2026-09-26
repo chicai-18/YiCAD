@@ -312,6 +312,9 @@ private:
     DmMTextParagraph* getPrePostParagraph(int paraIdx, bool getPre);
 
 protected:
+    /// @brief 文字样式换成目标文档的
+    void transferReferences(DmDocumentTransfer& transfer) override;
+
     std::vector<DmMTextParagraph*> paragraphs; ///< 段落列表
     std::shared_ptr<MTextData> m_data; ///< 多行文字数据
 };

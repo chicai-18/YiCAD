@@ -26,6 +26,7 @@
 #include "DmBlock.h"
 
 #include "DmDocument.h"
+#include "DmDocumentTransfer.h"
 #include "DmBlockTable.h"
 #include "DmBlockReference.h"
 #include "DmLine.h"
@@ -91,6 +92,19 @@ void DmBlock::setDocument(DmDocument* pDoc)
 {
     DmObject::setDocument(pDoc);
     m_entityTable.setDocument(pDoc);
+}
+
+DmBlock* DmBlock::copyInto(DmDocumentTransfer& transfer) const
+{
+    auto* copy = new DmBlock(&transfer.target(), data);
+    for (DmEntity* e : m_entityTable)
+    {
+        DmEntity* c = e->clone();
+        c->resetId();
+        c->transferTo(transfer);
+        copy->m_entityTable.add_direct(c);
+    }
+    return copy;
 }
 
 QString DmBlock::getName() const
