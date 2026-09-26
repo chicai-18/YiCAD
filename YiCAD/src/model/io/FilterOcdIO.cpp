@@ -68,9 +68,43 @@
 #include "MetaHatchs.h"
 
 #include "DmBlock.h"
+#include "DmBlockTable.h"
+#include "DmDimensionStyleTable.h"
+#include "DmDocument.h"
+#include "DmLayerTable.h"
+#include "DmTextStyleTable.h"
+#include "EntityTable.h"
 
 #define IMPORTTYPE "ycd"
 #define EXPORTTYPE "Drawing Exchange YCD 2023 (*.ycd)"
+
+namespace
+{
+/// @brief 读入前清空文档：实体、块、标注样式、文字样式与图层都以文件为准
+///
+/// 新建的文档里这些表只有自带的默认条目（"0" 图层、"Standard"、"ISO-25"、标注箭头块），文件里也有，
+/// 不清空就各有两份，按名字查找取到默认那份（分层重组方案 4.5 节 R4，做法见 12 节 D9）。读失败后
+/// DocumentFileService 会把备份读进同一份文档，这时文档里还有读了一半的内容，一并清掉。
+/// 线型表不动：固定线型读入时已存在则跳过（MetaLineTypes）。按引用关系从上往下删，与 ~DmDocument 同序。
+void clearForImport(DmDocument& document)
+{
+    document.getEntityTable()->clear_direct();
+    document.getDimStyleTable()->clear_direct();
+    document.getBlockTable()->clear_direct();
+    document.getTextStyleTable()->clear_direct();
+    document.getLayerTable()->clear_direct();
+}
+
+/// @brief 读完（或读失败）后补上文件里缺少的默认条目，并保证各表有当前项
+///
+/// 标注样式表补 "ISO-25" 时要取 "Standard" 文字样式，所以放在文字样式表之后
+void addMissingDefaults(DmDocument& document)
+{
+    document.getLayerTable()->addMissingDefaults();
+    document.getTextStyleTable()->addMissingDefaults();
+    document.getDimStyleTable()->addMissingDefaults();
+}
+}  // namespace
 
 FilterOcdIO::FilterOcdIO()
     : m_pDocument(nullptr)
@@ -165,25 +199,35 @@ bool FilterOcdIO::fileImport(DmDocument& g, const QString& filename)
         throw OneException("Error reading compression file");
     }
 
-    //restore xml files
-    initPersist(*m_pDocument);
-    restoreXML(reader);
+    clearForImport(*m_pDocument);
+    try
+    {
+        //restore xml files
+        initPersist(*m_pDocument);
+        restoreXML(reader);
 
-    //restore separate files
-    reader.readFiles(archive);
+        //restore separate files
+        reader.readFiles(archive);
 
-    //Post Restore
-    auto bMigration = DmMigrateContext::GetInstance()->postRestore();
-	if (!bMigration)
-	{        
-        auto msgs = DmMigrateContext::GetInstance()->errMsgs();
-        if (!msgs.empty())
+        //Post Restore
+        auto bMigration = DmMigrateContext::GetInstance()->postRestore();
+        if (!bMigration)
         {
-			std::string errMsgs = std::accumulate(msgs.begin(), msgs.end(), std::string(""));
-			throw OneException(errMsgs.c_str());
+            auto msgs = DmMigrateContext::GetInstance()->errMsgs();
+            if (!msgs.empty())
+            {
+                std::string errMsgs = std::accumulate(msgs.begin(), msgs.end(), std::string(""));
+                throw OneException(errMsgs.c_str());
+            }
         }
-
-	}
+    }
+    catch (...)
+    {
+        // 读了一半的文档也要有当前图层与样式，调用方可能还要显示它或再读备份
+        addMissingDefaults(*m_pDocument);
+        throw;
+    }
+    addMissingDefaults(*m_pDocument);
     return true;
 }
 

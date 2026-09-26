@@ -19,14 +19,12 @@
 ///
 /// S0 查出读回路径 R1–R9 九处缺陷，编号与机理见 doc/LAYER_RESTRUCTURE_PLAN.md 4.5 节。
 /// R1–R3、R5、R6、R9 已在 D8 修复步修复（同文档 4.6 节），R7、R8 在 S4c 修复（同文档 8.8 节），
-/// 对应用例已启用。仍未修的一处，相关用例保留 DISABLED_ 前缀，修好即可去掉前缀，用例就是修复的验收：
+/// R4 按 12 节 D9 的做法 A 修复，对应用例都已启用。
 ///
-/// - R4 MetaLayers.cpp:114、MetaTextStyles.cpp:114、MetaDimensionStyles.cpp:116、
-///   MetaBlockTableRecords.cpp:129：新建的 DmDocument 在各表的 setDocument 里已经放好
-///   "0" 图层、"Standard" 文字样式、"ISO-25" 标注样式与 19 个标注箭头块，读入时又原样
-///   add_direct 一份，同名条目各有两份；按名字查找（实体的图层、标注的样式）取到的是默认
-///   那份，文件里这些条目自己的属性被忽略；箭头块每存一次、开一次多 19 个。
-///   修法已定为读入前清空默认条目、缺条目时读完再补（方案 12 节 D9），修复另行安排。
+/// R4：新建的 DmDocument 在各表的 setDocument 里已经放好 "0" 图层、"Standard" 文字样式、
+/// "ISO-25" 标注样式与 19 个标注箭头块，读入时又原样 add_direct 一份，同名条目各有两份。
+/// 现在 FilterOcdIO::fileImport 读入前清空实体、块、标注样式、文字样式与图层，读完再补上
+/// 文件里缺少的默认条目。
 
 #include <gtest/gtest.h>
 
@@ -762,8 +760,7 @@ TEST_F(OcdDocumentRoundTrip, 文字样式与标注样式表内容不变)
     EXPECT_EQ(restored.getDimStyleTable()->getActive()->getName(), kDimStyleName);
 }
 
-// 依赖 R4。
-TEST_F(OcdDocumentRoundTrip, DISABLED_读回不重复新文档自带的条目)
+TEST_F(OcdDocumentRoundTrip, 读回不重复新文档自带的条目)
 {
     DmDocument original;
     DmDocument restored;
@@ -787,8 +784,7 @@ TEST_F(OcdDocumentRoundTrip, 中文路径往返)
     EXPECT_EQ(text->getText(), kTextValue);
 }
 
-// 依赖 R4。
-TEST_F(OcdDocumentRoundTrip, DISABLED_写出读回再写出保持稳定)
+TEST_F(OcdDocumentRoundTrip, 写出读回再写出保持稳定)
 {
     // 读回的文档再存、再读，内容必须与第一次读回的相同，否则说明读写不对称
     DmDocument original;
@@ -804,6 +800,137 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_写出读回再写出保持稳定)
     DmBlock* block = twice.getBlockTable()->find(kBlockName);
     ASSERT_NE(block, nullptr);
     EXPECT_EQ(block->getEntityTable().count(), 3);
+}
+
+TEST_F(OcdDocumentRoundTrip, 默认条目按文件里的属性读回)
+{
+    // R4 修复前实体取到的是新文档自带的 "0" 图层、"Standard"、"ISO-25"，文件里改过的属性不生效
+    DmDocument original;
+    ASSERT_NO_FATAL_FAILURE(build(original));
+    DmLayer* layer0 = original.getLayerTable()->find(QStringLiteral("0"));
+    ASSERT_NE(layer0, nullptr);
+    layer0->setPen(DmPen(DmColor(0, 255, 0), DM::Width05, DmLineTypeTable::Continuous));
+    layer0->lock(true);
+    DmTextStyle* standard = original.getTextStyleTable()->find(QStringLiteral("Standard"));
+    ASSERT_NE(standard, nullptr);
+    DmTextStyleData standardData = standard->getData();
+    standardData.defaultHeight = 5.0;
+    standard->setData(standardData);
+    DmDimensionStyle* iso = original.getDimStyleTable()->find(QStringLiteral("ISO-25"));
+    ASSERT_NE(iso, nullptr);
+    iso->getDataRef().setArrowSize(4.0);
+    const QString file = path(QStringLiteral("defaults.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(original, file));
+
+    DmDocument restored;
+    const DmId builtinLayer0 = restored.getLayerTable()->find(QStringLiteral("0"))->getId();
+    ASSERT_NO_FATAL_FAILURE(importFrom(restored, file));
+
+    DmLayer* restoredLayer0 = restored.getLayerTable()->find(QStringLiteral("0"));
+    ASSERT_NE(restoredLayer0, nullptr);
+    EXPECT_EQ(restoredLayer0->getId().asString(), layer0->getId().asString()) << "应是文件里的 \"0\" 图层";
+    EXPECT_EQ(restored.findObject(builtinLayer0), nullptr) << "新文档自带的 \"0\" 图层应已删除并注销 id";
+    EXPECT_EQ(restoredLayer0->getPen().getColor().green(), 255);
+    EXPECT_EQ(restoredLayer0->getPen().getColor().red(), 0);
+    EXPECT_TRUE(restoredLayer0->isLocked());
+    auto* point = first<DmPoint>(*restored.getEntityTable(), DM::EntityPoint);
+    ASSERT_NE(point, nullptr);
+    EXPECT_EQ(point->getLayer(false), restoredLayer0) << "样本里的点在 \"0\" 图层上";
+
+    DmTextStyle* restoredStandard = restored.getTextStyleTable()->find(QStringLiteral("Standard"));
+    ASSERT_NE(restoredStandard, nullptr);
+    EXPECT_NEAR(restoredStandard->getData().defaultHeight, 5.0, kTol);
+    DmDimensionStyle* restoredIso = restored.getDimStyleTable()->find(QStringLiteral("ISO-25"));
+    ASSERT_NE(restoredIso, nullptr);
+    EXPECT_NEAR(restoredIso->getDataConstRef().arrowSize(), 4.0, kTol);
+    EXPECT_EQ(restoredIso->getDataConstRef().textStyle(), restoredStandard);
+}
+
+TEST_F(OcdDocumentRoundTrip, 文件缺少的默认条目读完补上)
+{
+    // 默认条目改名、删去一个箭头块后写出，文件里就没有 "0"、"Standard"、"ISO-25" 与那个箭头块
+    DmDocument original;
+    ASSERT_NO_FATAL_FAILURE(build(original));
+    original.getLayerTable()->find(QStringLiteral("0"))->setName(QStringLiteral("底图"));
+    original.getTextStyleTable()->find(QStringLiteral("Standard"))->setName(QStringLiteral("仿宋"));
+    original.getDimStyleTable()->find(QStringLiteral("ISO-25"))->setName(QStringLiteral("国标"));
+    const QString dotName = DmDimensionStyle::getArrowBlockName(DM::ArrowType::Dot);
+    DmBlock* dot = original.getBlockTable()->find(dotName);
+    ASSERT_NE(dot, nullptr);
+    original.getBlockTable()->remove_direct(dot);  // 只从表里拿掉，不删除对象
+    dot->getEntityTable().clear_direct();
+    original.getIdManager()->removeID(dot->getId());
+    delete dot;
+    const QString file = path(QStringLiteral("no_defaults.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(original, file));
+
+    DmDocument restored;
+    ASSERT_NO_FATAL_FAILURE(importFrom(restored, file));
+
+    // 文件里的条目都在，缺的默认条目各补一个
+    EXPECT_NE(restored.getLayerTable()->find(QStringLiteral("底图")), nullptr);
+    EXPECT_EQ(countNamed(restored.getLayerTable(), QStringLiteral("0")), 1);
+    EXPECT_NE(restored.getTextStyleTable()->find(QStringLiteral("仿宋")), nullptr);
+    EXPECT_EQ(countNamed(restored.getTextStyleTable(), QStringLiteral("Standard")), 1);
+    EXPECT_NE(restored.getDimStyleTable()->find(QStringLiteral("国标")), nullptr);
+    EXPECT_EQ(countNamed(restored.getDimStyleTable(), QStringLiteral("ISO-25")), 1);
+    EXPECT_NE(restored.getBlockTable()->find(dotName), nullptr);
+    EXPECT_EQ(restored.getBlockTable()->count(), static_cast<unsigned int>(kArrowBlocks + 1));
+
+    // 补上的 "ISO-25" 用补上的 "Standard"
+    DmDimensionStyle* iso = restored.getDimStyleTable()->find(QStringLiteral("ISO-25"));
+    ASSERT_NE(iso, nullptr);
+    EXPECT_EQ(iso->getDataConstRef().textStyle(), restored.getTextStyleTable()->find(QStringLiteral("Standard")));
+
+    // 文件有当前项，补默认条目不改动它们
+    ASSERT_NE(restored.getLayerTable()->getActive(), nullptr);
+    EXPECT_EQ(restored.getLayerTable()->getActive()->getName(), kLayerOutline);
+    ASSERT_NE(restored.getTextStyleTable()->getActive(), nullptr);
+    EXPECT_EQ(restored.getTextStyleTable()->getActive()->getName(), kTextStyleName);
+    ASSERT_NE(restored.getDimStyleTable()->getActive(), nullptr);
+    EXPECT_EQ(restored.getDimStyleTable()->getActive()->getName(), kDimStyleName);
+}
+
+TEST_F(OcdDocumentRoundTrip, 读进已有内容的文档时以文件为准)
+{
+    // DocumentFileService::open 读失败后把备份读进同一份文档，文档里可能还有读了一半的内容。
+    // 读入前清空实体、块、标注样式、文字样式与图层，读完只剩文件里的
+    DmDocument sample;
+    ASSERT_NO_FATAL_FAILURE(build(sample));
+    const QString sampleFile = path(QStringLiteral("sample.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(sample, sampleFile));
+
+    DmDocument simple;
+    auto* onlyLayer = new DmLayer();
+    onlyLayer->setDocument(&simple);
+    onlyLayer->setData(DmLayerData(QStringLiteral("唯一"), DmPen(DmColor(0, 0, 255), DM::Width05,
+                                                                  DmLineTypeTable::Continuous),
+                                   false, false));
+    ASSERT_TRUE(simple.getLayerTable()->add_direct(onlyLayer));
+    addTo(*simple.getEntityTable(), simple, new DmLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0)), onlyLayer);
+    const QString simpleFile = path(QStringLiteral("simple.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(simple, simpleFile));
+
+    DmDocument doc;
+    ASSERT_NO_FATAL_FAILURE(importFrom(doc, sampleFile));
+    const DmId hiddenId = doc.getLayerTable()->find(kLayerHidden)->getId();
+    ASSERT_NO_FATAL_FAILURE(importFrom(doc, simpleFile));
+
+    EXPECT_EQ(countByType(*doc.getEntityTable()), (std::map<DM::EntityType, int>{{DM::EntityLine, 1}}));
+    EXPECT_EQ(doc.getLayerTable()->count(), 2u);
+    EXPECT_EQ(doc.getLayerTable()->find(kLayerOutline), nullptr);
+    EXPECT_EQ(doc.findObject(hiddenId), nullptr) << "清掉的图层应已注销 id";
+    EXPECT_EQ(doc.getTextStyleTable()->find(kTextStyleName), nullptr);
+    EXPECT_EQ(doc.getDimStyleTable()->find(kDimStyleName), nullptr);
+    EXPECT_EQ(doc.getBlockTable()->find(kBlockName), nullptr);
+    EXPECT_EQ(doc.getBlockTable()->count(), static_cast<unsigned int>(kArrowBlocks));
+    auto* line = first<DmLine>(*doc.getEntityTable(), DM::EntityLine);
+    ASSERT_NE(line, nullptr);
+    EXPECT_EQ(line->getLayer(false), doc.getLayerTable()->find(QStringLiteral("唯一")));
+    ASSERT_NE(doc.getLayerTable()->getActive(), nullptr);
+    EXPECT_EQ(doc.getLayerTable()->getActive()->getName(), QStringLiteral("0"));
+    // 线型表读入前不清空（固定线型读入时已存在则跳过），第一次读入的自定义线型留着
+    EXPECT_NE(doc.getLineTypeTable()->find(kLineTypeName), nullptr);
 }
 
 // ---------------------------------------------------------------------------

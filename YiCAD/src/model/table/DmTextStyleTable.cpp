@@ -77,11 +77,36 @@ DmTextStyle* DmTextStyleTable::getActive()
 void DmTextStyleTable::setDocument(DmDocument* pDoc)
 {
     ITable::setDocument(pDoc);
-    // 做一些初始化操作，添加 "Standard" 文字样式
-    DmTextStyle* pStandardStyle = new DmTextStyle(DEFAULT_TEXTSTYLE_NAME);
-    pStandardStyle->setDocument(pDoc);
-    add_direct(pStandardStyle);
-    m_pActiveStyle = pStandardStyle;
+    addMissingDefaults();
+}
+
+/// @brief 补上缺少的 "Standard" 文字样式；没有当前文字样式时以它为当前
+void DmTextStyleTable::addMissingDefaults()
+{
+    DmTextStyle* pStandardStyle = find(DEFAULT_TEXTSTYLE_NAME);
+    if (!pStandardStyle)
+    {
+        pStandardStyle = new DmTextStyle(DEFAULT_TEXTSTYLE_NAME);
+        pStandardStyle->setDocument(m_pDoc);
+        add_direct(pStandardStyle);
+    }
+    if (!m_pActiveStyle)
+    {
+        m_pActiveStyle = pStandardStyle;
+    }
+}
+
+/// @brief 直接删除全部文字样式（不产生命令），当前文字样式随之置空
+void DmTextStyleTable::clear_direct()
+{
+    for (DmTextStyle* style : m_styles)
+    {
+        m_pDoc->getIdManager()->removeID(style->getId());
+        delete style;
+    }
+    m_styles.clear();
+    m_textStyleMap.clear();
+    m_pActiveStyle = nullptr;
 }
 
 /// @brief 获得默认文字样式

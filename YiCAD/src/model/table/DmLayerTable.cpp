@@ -193,9 +193,34 @@ DmLayer *DmLayerTable::find(const DmId &id)
 void DmLayerTable::setDocument(DmDocument *pDoc)
 {
     ITable::setDocument(pDoc);
-    // 做一些初始化操作，添加 "0" 图层
-    DmLayer* newLayer = new DmLayer("0");
-    newLayer->setDocument(pDoc);
-    add_direct(newLayer);
-    m_pActiveLayer = newLayer;
+    addMissingDefaults();
+}
+
+/// @brief 补上缺少的 "0" 图层；没有当前图层时以它为当前
+void DmLayerTable::addMissingDefaults()
+{
+    DmLayer* layer0 = find(QStringLiteral("0"));
+    if (!layer0)
+    {
+        layer0 = new DmLayer("0");
+        layer0->setDocument(m_pDoc);
+        add_direct(layer0);
+    }
+    if (!m_pActiveLayer)
+    {
+        m_pActiveLayer = layer0;
+    }
+}
+
+/// @brief 直接删除全部图层（不产生命令），当前图层随之置空
+void DmLayerTable::clear_direct()
+{
+    for (DmLayer* layer : m_layers)
+    {
+        m_pDoc->getIdManager()->removeID(layer->getId());
+        delete layer;
+    }
+    m_layers.clear();
+    m_layerMap.clear();
+    m_pActiveLayer = nullptr;
 }

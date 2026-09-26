@@ -38,6 +38,14 @@ public:
     void setDocument(DmDocument *pDoc) override;
 
     void startModify(DmObject* e) override;
+
+    /// @brief 补上新文档自带而表里缺少的 "0" 图层
+    /// @details 已有的同名图层不动；没有当前图层时以 "0" 为当前
+    void addMissingDefaults();
+
+    /// @brief 直接删除全部图层（不产生命令），当前图层随之置空
+    void clear_direct();
+
     /// @brief 添加图层
     void add(DmLayer* e);
     /// @brief 通过 id 移除图层
@@ -72,7 +80,7 @@ public:
 private:
     std::unordered_map<DmId, DmLayer*>  m_layerMap;     ///< 图层字典（包含已删除但未清理的图层）
     std::vector<DmLayer*>               m_layers;       ///< 图层列表（包含已删除但未清理的图层）
-    DmLayer*                            m_pActiveLayer; ///< 当前激活的图层
+    DmLayer*                            m_pActiveLayer = nullptr; ///< 当前激活的图层
 };
 
 #endif

@@ -51,9 +51,16 @@ void DmBlockTable::startModify(DmObject* e)
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
 }
 
-// 清空块表中的所有块。
-void DmBlockTable::clear()
+/// @brief 直接删除全部块与块内图元（不产生命令）
+void DmBlockTable::clear_direct()
 {
+    for (DmBlock* block : m_blocks)
+    {
+        // 块内图元加入时在文档登记了 id，EntityTable 的析构不注销，先清空再删块
+        block->getEntityTable().clear_direct();
+        m_pDoc->getIdManager()->removeID(block->getId());
+        delete block;
+    }
     m_blocks.clear();
     m_blockMap.clear();
     m_pActiveBlock = nullptr;

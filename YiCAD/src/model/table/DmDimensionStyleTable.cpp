@@ -42,13 +42,38 @@ DmDimensionStyleTable::~DmDimensionStyleTable()
 void DmDimensionStyleTable::setDocument(DmDocument* pDocument)
 {
     ITable::setDocument(pDocument);
-    // 做一些初始化操作，初始化箭头块，添加一个标注样式
+    addMissingDefaults();
+}
+
+/// @brief 补上缺少的箭头块与 "ISO-25" 标注样式；没有当前标注样式时以 "ISO-25" 为当前
+void DmDimensionStyleTable::addMissingDefaults()
+{
     initArrowBlocks();
-    auto pStandardStyle = pDocument->getTextStyleTable()->find(DEFAULT_TEXTSTYLE_NAME);
-    auto dimStyle = new DmDimensionStyle(DEFAULT_DIMSTYLE_NAME, pStandardStyle);
-    dimStyle->setDocument(pDocument);
-    add_direct(dimStyle);
-    m_pActiveStyle = dimStyle;
+    DmDimensionStyle* defaultStyle = find(DEFAULT_DIMSTYLE_NAME);
+    if (!defaultStyle)
+    {
+        auto pStandardStyle = m_pDoc->getTextStyleTable()->find(DEFAULT_TEXTSTYLE_NAME);
+        defaultStyle = new DmDimensionStyle(DEFAULT_DIMSTYLE_NAME, pStandardStyle);
+        defaultStyle->setDocument(m_pDoc);
+        add_direct(defaultStyle);
+    }
+    if (!m_pActiveStyle)
+    {
+        m_pActiveStyle = defaultStyle;
+    }
+}
+
+/// @brief 直接删除全部标注样式（不产生命令），当前标注样式随之置空
+void DmDimensionStyleTable::clear_direct()
+{
+    for (DmDimensionStyle* style : m_styles)
+    {
+        m_pDoc->getIdManager()->removeID(style->getId());
+        delete style;
+    }
+    m_styles.clear();
+    m_dimStyleMap.clear();
+    m_pActiveStyle = nullptr;
 }
 
 /// @brief 开始修改标注样式
@@ -211,12 +236,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmSolid* solid = new DmSolid(nullptr, solidData);
         solid->setPen(pen);
         blk->getEntityTable().add_direct(solid);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -233,12 +253,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->getEntityTable().add_direct(line1);
         blk->getEntityTable().add_direct(line2);
         blk->getEntityTable().add_direct(line3);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -255,12 +270,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->getEntityTable().add_direct(line1);
         blk->getEntityTable().add_direct(line2);
         blk->getEntityTable().add_direct(line3);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -270,12 +280,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->setDocument(m_pDoc);
         double r = 0.5;
         createFillCircle(blk, pen, DmVector(0.0, 0.0), r);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -297,12 +302,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmSolid* solid = new DmSolid(nullptr, solidData);
         solid->setPen(pen);
         blk->getEntityTable().add_direct(solid);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -316,12 +316,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmLine* line = new DmLine(slashStartPt, slashEndPt);
         line->setPen(pen);
         blk->getEntityTable().add_direct(line);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -335,12 +330,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->getEntityTable().add_direct(line3);
         line1->setPen(pen);
         line3->setPen(pen);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -352,12 +342,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmCircle* circle = new DmCircle(nullptr, cdata);
         circle->setPen(pen);
         blk->getEntityTable().add_direct(circle);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -373,12 +358,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmCircle* circle2 = new DmCircle(nullptr, cdata2);
         circle2->setPen(pen);
         blk->getEntityTable().add_direct(circle2);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -392,12 +372,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         line3->setPen(pen);
         blk->getEntityTable().add_direct(line1);
         blk->getEntityTable().add_direct(line3);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -411,12 +386,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         line3->setPen(pen);
         blk->getEntityTable().add_direct(line1);
         blk->getEntityTable().add_direct(line3);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -426,12 +396,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->setDocument(m_pDoc);
         double r = 0.3;
         createFillCircle(blk, pen, DmVector(0.0, 0.0), r);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -443,12 +408,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmCircle* circle = new DmCircle(nullptr, cdata);
         circle->setPen(pen);
         blk->getEntityTable().add_direct(circle);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -460,12 +420,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmCircle* circle = new DmCircle(nullptr, cdata);
         circle->setPen(pen);
         blk->getEntityTable().add_direct(circle);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -485,12 +440,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->getEntityTable().add_direct(line2);
         blk->getEntityTable().add_direct(line3);
         blk->getEntityTable().add_direct(line4);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -503,12 +453,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmSolid* solid = new DmSolid(nullptr, solidData);
         solid->setPen(pen);
         blk->getEntityTable().add_direct(solid);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -526,12 +471,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         blk->getEntityTable().add_direct(line1);
         blk->getEntityTable().add_direct(line2);
         blk->getEntityTable().add_direct(line3);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -545,12 +485,7 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmSolid* solid = new DmSolid(nullptr, solidData);
         solid->setPen(pen);
         blk->getEntityTable().add_direct(solid);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
 
     {
@@ -567,13 +502,22 @@ void DmDimensionStyleTable::initArrowBlocks()
         DmArc* arc2 = new DmArc(nullptr, data2);
         arc2->setPen(pen);
         blk->getEntityTable().add_direct(arc2);
-        if (!m_pDoc->getBlockTable()->find(blk->getName())) {
-            m_pDoc->getIdManager()->assignID(blk);
-            m_pDoc->getBlockTable()->add_direct(blk);
-        } else {
-            delete blk;
-        }
+        addArrowBlock(blk);
     }
+}
+
+/// @brief 把箭头块放进块表；块表里已有同名的块时丢弃它
+void DmDimensionStyleTable::addArrowBlock(DmBlock* blk)
+{
+    if (m_pDoc->getBlockTable()->find(blk->getName()))
+    {
+        // 块内图元加入时已在文档登记了 id，先注销再删除
+        blk->getEntityTable().clear_direct();
+        delete blk;
+        return;
+    }
+    m_pDoc->getIdManager()->assignID(blk);
+    m_pDoc->getBlockTable()->add_direct(blk);
 }
 
 /// @brief 创建填充圆（用三角形拼合）

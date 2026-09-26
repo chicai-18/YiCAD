@@ -55,7 +55,8 @@ public:
     void setDocument(DmDocument* pDoc) override;
     void startModify(DmObject* e) override;
 
-    void clear();
+    /// @brief 直接删除全部块与块内图元（不产生命令），并从文档注销它们的 id；当前块随之置空
+    void clear_direct();
     /// @return 当前未删除的块数量
     unsigned int count() const;
 

@@ -44,6 +44,14 @@ public:
 
     void setDocument(DmDocument *pDoc) override;
     void startModify(DmObject* e) override;
+
+    /// @brief 补上新文档自带而表里缺少的条目：标注箭头块与 "ISO-25" 标注样式
+    /// @details 已有的同名条目不动；没有当前标注样式时以 "ISO-25" 为当前。"ISO-25" 取
+    ///          "Standard" 文字样式，所以要在文字样式表补齐之后调用
+    void addMissingDefaults();
+
+    /// @brief 直接删除全部标注样式（不产生命令），当前标注样式随之置空；箭头块在块表里，不在此处理
+    void clear_direct();
     /// @brief 添加标注样式
     void add(DmDimensionStyle* e);
     /// @brief 通过 id 移除标注样式
@@ -75,15 +83,17 @@ public:
     /// @brief 获取箭头块表
     DmBlockTable* getArrowBlocks();
 private:
-    /// @brief 初始化箭头块
+    /// @brief 初始化箭头块（块表里已有的同名块保留）
     void initArrowBlocks();
+    /// @brief 把箭头块放进块表；块表里已有同名的块时丢弃它
+    void addArrowBlock(DmBlock* blk);
     /// @brief 创建填充圆
     void createFillCircle(DmBlock* blk, const DmPen& pen, const DmVector& center, double r);
 
 private:
     std::unordered_map<DmId, DmDimensionStyle*>    m_dimStyleMap;      ///< 标注样式字典
     std::vector<DmDimensionStyle*>                  m_styles;           ///< 标注样式列表
-    DmDimensionStyle*                               m_pActiveStyle;     ///< 当前激活的标注样式
+    DmDimensionStyle*                               m_pActiveStyle = nullptr; ///< 当前激活的标注样式
 
 };
 #endif

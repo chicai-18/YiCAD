@@ -41,6 +41,14 @@ public:
 
     void setDocument(DmDocument *pDoc) override;
     void startModify(DmObject* e) override;
+
+    /// @brief 补上新文档自带而表里缺少的 "Standard" 文字样式
+    /// @details 已有的同名样式不动；没有当前文字样式时以 "Standard" 为当前
+    void addMissingDefaults();
+
+    /// @brief 直接删除全部文字样式（不产生命令），当前文字样式随之置空
+    void clear_direct();
+
     /// @brief 添加文字样式
     void add(DmTextStyle* e);
     /// @brief 通过 id 移除文字样式
@@ -78,7 +86,7 @@ public:
 private:
     std::unordered_map<DmId, DmTextStyle*> m_textStyleMap;       ///< 文字样式字典
     std::vector<DmTextStyle*>              m_styles;             ///< 文字样式列表
-    DmTextStyle*                           m_pActiveStyle;       ///< 当前激活的文字样式
+    DmTextStyle*                           m_pActiveStyle = nullptr; ///< 当前激活的文字样式
 
     /// 用来绘制未知符号 "?" 的文字样式
     static std::unique_ptr<DmTextStyle>    g_defaultStyle;
