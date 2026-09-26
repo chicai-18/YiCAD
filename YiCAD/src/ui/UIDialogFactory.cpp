@@ -23,14 +23,11 @@
 #include <QMessageBox>
 #include <QString>
 
-#include "ApplicationWindow.h"
-#include "DmDocument.h"
 #include "DmVector.h"
 #include "IExclusiveCommand.h"
 #include "UIBottomWidget.h"
 #include "UICommandWidget.h"
 #include "UISnapMiddleOptions.h"
-#include "UITabDrawWidget.h"
 
 /// @brief Constructor
 /// @param parent Pointer to parent widget which can host dialogs.
@@ -84,12 +81,6 @@ DialogAnswer UIDialogFactory::requestYesNoCancelDialog(const QString& title, con
 	default:
 		return DialogAnswer::Cancel;
 	}
-}
-
-QString UIDialogFactory::requestUntitledDocumentName(DmDocument* document)
-{
-	SingleTabDrawDataRibbon* drawData = ApplicationWindow::getAppWindow()->getTabDrawWidget()->getTabDrawDataOfDocument(document);
-	return drawData ? drawData->name : QString();
 }
 
 void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on, bool update)

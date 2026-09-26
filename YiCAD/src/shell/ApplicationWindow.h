@@ -56,6 +56,7 @@ class UITabDrawWidget;
 class UIActionGroupManager;
 class UICommandWidget;
 class ApplicationPluginHostContext;
+class ApplicationWindowDocumentManager;
 class ApplicationWindowExtensionHost;
 class ExtensionManager;
 class UIRibbonManager;
@@ -345,6 +346,10 @@ private:
 
     // 注册进程内扩展的函数，构造时传入，由 registerExtensions() 调用。
     ExtensionRegistrar                              m_extensionRegistrar;
+
+    // 打开的图纸（IDocumentManager 的实现，委托给 m_pTabDrawWidget），构造函数最先创建：
+    // 第一张图纸的文档文件服务与画笔栏在创建选项卡时就要用它。扩展宿主引用它，声明在其前。
+    std::unique_ptr<ApplicationWindowDocumentManager> m_documentManager;
 
     // 进程内扩展的宿主服务（阶段4）；引用 m_ribbonRegistry，声明在其后以先于它析构。
     std::unique_ptr<ApplicationWindowExtensionHost> m_extensionHost;

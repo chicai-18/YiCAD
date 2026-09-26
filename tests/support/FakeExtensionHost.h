@@ -35,7 +35,7 @@ public:
     QWidget* mainWindow() override { return nullptr; }
     DmDocument* currentDocument() const override { return nullptr; }
     GuiDocumentView* currentDocumentView() const override { return nullptr; }
-    UITabDrawWidget* tabDrawWidget() override { return nullptr; }
+    IDocumentManager* documentManager() override { return documents; }
 
     bool registerSettingsPage(const QString& id, const QString&, const QString&,
                               std::function<void()>) override
@@ -51,6 +51,7 @@ public:
     }
 
     UIRibbonRegistry ribbon;
+    IDocumentManager* documents = nullptr;  ///< documentManager() 的返回值，默认没有
     std::vector<QString> settingsPages;
     std::vector<QString> activated;
 

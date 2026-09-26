@@ -2,7 +2,8 @@
 /// @brief 文件、图层、选项扩展（业务工具化第三步第⑤批）的单元测试
 ///
 /// 覆盖：三个扩展注册的即时命令与打断方式、原内置 ID 不再存在、按钮挂进宿主
-/// 占位的面板、没有宿主标签页或文档时命令什么也不做、Shutdown 后命令注销；图层与设置
+/// 占位的面板、文件命令经宿主管理的打开图纸执行、没有打开的图纸或文档时命令什么也不做、
+/// Shutdown 后命令注销；图层与设置
 /// 命令弹出各自的对话框（扩展直接构造，经 DialogRecorder 记录并视为取消）；图层下拉框
 /// 每行按钮记着图层名。命令对文档的修改要走事务，默认构造的 DmDocument 走事务会崩溃
 /// （见 CommandTestFixture.h），因此不执行修改。
@@ -30,9 +31,11 @@
 #include "OptionsExtension.h"
 #include "UIRibbonRegistry.h"
 #include "support/DialogRecorder.h"
+#include "support/FakeDocumentManager.h"
 #include "support/FakeExtensionHost.h"
 
 using yicad_test::DialogRecorder;
+using yicad_test::FakeDocumentManager;
 using yicad_test::FakeExtensionHost;
 
 namespace
@@ -104,11 +107,26 @@ TEST(HostExtensionsTest, 按钮挂进宿主占位的面板)
     EXPECT_EQ(extensions.host.ribbon.entriesOf(kPanelOptionsSettings).size(), 2u);
 }
 
-TEST(HostExtensionsTest, 没有标签页或文档时命令什么也不做)
+TEST(HostExtensionsTest, 文件命令经宿主管理的打开图纸执行)
+{
+    HostExtensions extensions;
+    FakeDocumentManager documents;
+    extensions.host.documents = &documents;
+    const CommandRegistry& registry = CommandRegistry::instance();
+    for (const char* id : kFileCommands)
+    {
+        SCOPED_TRACE(id);
+        EXPECT_TRUE(registry.runInstant(QString::fromLatin1(id), CommandContext{}));
+    }
+    EXPECT_EQ(documents.calls, (QStringList{QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("save"),
+                                            QStringLiteral("saveAs"), QStringLiteral("exportImage")}));
+}
+
+TEST(HostExtensionsTest, 没有打开的图纸或文档时命令什么也不做)
 {
     HostExtensions extensions;
     const CommandRegistry& registry = CommandRegistry::instance();
-    // 假宿主没有图纸标签页
+    // 假宿主不管理图纸（documentManager() 为空）
     EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.file.save"), CommandContext{}));
     EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.options.drawing"), CommandContext{}));
     // 没有文档，也没有触发的按钮

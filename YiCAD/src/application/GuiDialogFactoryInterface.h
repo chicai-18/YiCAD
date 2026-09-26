@@ -21,14 +21,14 @@
 /// 名字沿用"对话框工厂"，内容已不是业务对话框：业务对话框由扩展直接构造
 /// （doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）。留下的是
 ///   - 通用提示：警告、确认、是/否/取消（测试夹具重写它们预设回答）；
-///   - 未命名文档的名字（DocumentFileService 自动保存时用，分层重组 S5 并入 IDocumentManager）；
 ///   - 选项条的摆放：命令的（CommandInfo::commandOptionsFactory）、编辑模式的、捕捉中点的；
 ///   - 状态栏与命令行的反馈：坐标、按键提示、选中数量、命令消息。
 /// 由主窗口经 GuiDialogFactory::setFactoryObject 装入实现（UIDialogFactory），没有装入时用
 /// 什么也不做的 GuiDialogFactoryAdapter。
 ///
 /// 放在 application/：分层重组 S2 之前在 Model 里，标注实体经它取当前文档、文档经它读写文件与
-/// 提示；S4 把这些调用移出 Model 后搬到这里（doc/LAYER_RESTRUCTURE_PLAN.md 8.5 节）。
+/// 提示；S4 把这些调用移出 Model 后搬到这里（doc/LAYER_RESTRUCTURE_PLAN.md 8.5 节）。原先还有
+/// 未命名文档的名字，S5 并入 IDocumentManager。
 
 #ifndef GUIDIALOGFACTORYINTERFACE_H
 #define GUIDIALOGFACTORYINTERFACE_H
@@ -39,7 +39,6 @@
 
 #include "Datamodel.h"
 
-class DmDocument;
 class DmVector;
 class IExclusiveCommand;
 class QWidget;
@@ -75,12 +74,6 @@ public:
     /// @param message 提问文本
     /// @return 用户的回答；关闭对话框视为取消
     virtual DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) = 0;
-
-    /// @brief 为从未保存过的文档请求一个用于自动保存的默认名称
-    /// @details 默认实现里这个名称通常来自文档所在的界面标签页标题
-    /// @param document 待命名的文档
-    /// @return 建议的名称，无法获取时返回空字符串
-    virtual QString requestUntitledDocumentName(DmDocument* document) = 0;
 
     /// @brief 显示交互命令的选项条（CommandInfo::commandOptionsFactory 注册的控件）
     /// @param command 需要选项的命令

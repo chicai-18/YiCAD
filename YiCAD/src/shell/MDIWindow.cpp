@@ -44,9 +44,10 @@ int MDIWindow::idCounter = 0;
 
 /// @brief MDIWindow构造函数
 /// @param [in] doc 已有文档指针，若为nullptr则创建新文档
+/// @param [in] documents 宿主管理的打开图纸，交给文档文件服务取未命名文档的名字；必须比本窗口活得久
 /// @param [in] parent 父窗口QMdiArea实例
 /// @param [in] wflags 窗口标志
-MDIWindow::MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags)
+MDIWindow::MDIWindow(DmDocument* doc, const IDocumentManager& documents, QWidget* parent, Qt::WindowFlags wflags)
     : QMdiSubWindow(parent, wflags)
 {
     setAttribute(Qt::WA_DeleteOnClose);
@@ -62,7 +63,7 @@ MDIWindow::MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags)
         document = doc;
         owner = false;
     }
-    fileService = std::make_unique<DocumentFileService>(*document);
+    fileService = std::make_unique<DocumentFileService>(*document, &documents);
 
     docView = new UIView(this, Qt::WindowFlags(), document);
     docView->setObjectName("documentview");

@@ -19,7 +19,7 @@
 /// @brief AI 助手扩展（src/extensions/ai/）的入口。
 ///
 /// 阶段4第二阶段的试点扩展（doc/ARCHITECTURE_EVOLUTION_PLAN.md 阶段4
-/// §7.4任务④）：把原先硬编码在 ApplicationWindow 构造函数里的 AI 按钮
+/// §7.4任务④）：把原先硬编码在主窗口构造函数里的 AI 按钮
 /// 创建、`LLMSettingsService::init()` 调用、以及新增的设置页入口注册，
 /// 都收进这一个 `IExtension` 实现里。
 

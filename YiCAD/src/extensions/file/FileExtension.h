@@ -20,9 +20,8 @@
 ///
 /// 业务工具化第三步第⑤批（doc/COMMAND_TOOL_MIGRATION_PLAN.md 5.2 节）：新建、打开、
 /// 保存、另存为、导出图片五条即时命令与"文件"类目里的按钮。图纸的新建、读写与导出
-/// 本身仍由宿主的图纸标签页（UITabDrawWidget）完成，命令经
-/// IExtensionContext::tabDrawWidget() 调用它。宿主的快速访问栏、Ctrl+N/O/S 与标签栏的
-/// "+"按钮也按 ID 启动这里的命令。
+/// 本身仍由宿主完成，命令经 IExtensionContext::documentManager() 调用它。宿主的快速
+/// 访问栏、Ctrl+N/O/S 与标签栏的"+"按钮也按 ID 启动这里的命令。
 
 #ifndef FILEEXTENSION_H
 #define FILEEXTENSION_H

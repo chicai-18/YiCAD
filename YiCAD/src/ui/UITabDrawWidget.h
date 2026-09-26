@@ -32,6 +32,7 @@ class QPushButton;
 class MDIWindow;
 class DmDocument;
 class GuiDocumentView;
+class IDocumentManager;
 class UIActionHandler;
 class UIBottomWindow;
 class UICurrentActivePen;
@@ -57,7 +58,9 @@ class UITabDrawWidget : public QWidget
 	Q_OBJECT
 
 public:
-	UITabDrawWidget(QWidget* parent);
+	/// @param parent 主窗口，选项卡底板与画笔栏挂在它上面
+	/// @param documents 宿主管理的打开图纸，交给图纸窗口与当前画笔栏；必须比本对象活得久
+	UITabDrawWidget(QWidget* parent, const IDocumentManager& documents);
 	~UITabDrawWidget();
 
 public:
@@ -183,6 +186,7 @@ public:
 
 private:
 	QWidget*									m_pWidget = nullptr;
+	const IDocumentManager&						m_documents;						///< 宿主管理的打开图纸
 	MDIWindow*									m_currentMdiWindow = nullptr;		///< 当前绘图画布
 	std::vector<SingleTabDrawDataRibbon*>*		m_pTabDrawList = nullptr;			///< 选项卡和绘图区域集合
 	QWidget*									m_pBackTabDrawWidget = nullptr;		///< 选项卡底板

@@ -33,7 +33,7 @@ class AIPipeline;
 ///
 /// 封装 AI 对话框（AIDialog）与 AI 总调度器（AIPipeline）的
 /// 懒初始化、信号连接、配置对话框等业务逻辑。
-/// ApplicationWindow 仅需创建实例并通过 show() 委托即可。
+/// 使用方（AIExtension）仅需创建实例并通过 show() 委托即可。
 class AIAssistant : public QObject
 {
     Q_OBJECT

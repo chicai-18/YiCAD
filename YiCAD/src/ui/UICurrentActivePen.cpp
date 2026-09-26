@@ -28,13 +28,14 @@
 #include "UILineTypeBox.h"
 #include "UIColorBox.h"
 #include "UIWidthBox.h"
-#include "ApplicationWindow.h"
 #include "DmDocument.h"
+#include "IDocumentManager.h"
 #include "DocumentCmd.h"
 #include "Transaction.h"
 
-UICurrentActivePen::UICurrentActivePen(QWidget* parent)
+UICurrentActivePen::UICurrentActivePen(QWidget* parent, const IDocumentManager& documents)
 	: QWidget(parent)
+	, m_documents(documents)
 {
 	setMinimumWidth(560);
 	setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -114,7 +115,7 @@ void UICurrentActivePen::update(DmDocument* doc)
 void UICurrentActivePen::slotSelectChanged()
 {
 	//修改当前文档的当前pen
-	DmDocument* doc = ApplicationWindow::getAppWindow()->getDocument();
+	DmDocument* doc = m_documents.currentDocument();
 	DmPen pen(getColor(), getLineWidth(), getLineType());
     DmPen originPen = doc->getActivePen();
     

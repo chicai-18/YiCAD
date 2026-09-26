@@ -39,17 +39,14 @@ SRC = os.path.join(REPO, 'YiCAD', 'src')
 #
 # 全部是 ui/ 对 shell/ 的既有依赖（分层重组 S2 新增"ui/ 不得包含 shell/"时登记，
 # doc/LAYER_RESTRUCTURE_PLAN.md 1.2 节 L4）：ApplicationWindow.h、MDIWindow.h，
-# S5 新增 IDocumentManager、把壳层部件搬进 shell/ 时清除。原有的 Fileio.h 两条已随
-# S4b 删除 FileIO 清除。
+# S5 把壳层部件搬进 shell/ 时清除。原有的 Fileio.h 两条已随 S4b 删除 FileIO 清除；
+# UICurrentActivePen、UILineTypeBox、UIDialogFactory 三条已随 S5 新增 IDocumentManager 清除。
 WHITELIST = {
     'ui/UIActionHandler.cpp': {'MDIWindow.h'},
     'ui/UIActionHandler.h': {'MDIWindow.h'},
     'ui/UIBottomWidget.cpp': {'MDIWindow.h'},
     'ui/UIBottomWidget.h': {'ApplicationWindow.h'},
     'ui/UICommandWidget.h': {'MDIWindow.h'},
-    'ui/UICurrentActivePen.cpp': {'ApplicationWindow.h'},
-    'ui/UIDialogFactory.cpp': {'ApplicationWindow.h'},
-    'ui/UILineTypeBox.cpp': {'ApplicationWindow.h'},
     'ui/UITabDrawWidget.cpp': {'MDIWindow.h'},
 }
 

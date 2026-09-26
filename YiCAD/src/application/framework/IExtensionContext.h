@@ -16,7 +16,7 @@
  */
 
 /// @file IExtensionContext.h
-/// @brief 扩展拿到的上下文：Ribbon 注册、命令注册与启动、设置页、当前文档。
+/// @brief 扩展拿到的上下文：Ribbon 注册、命令注册与启动、设置页、当前文档与打开的图纸。
 ///
 /// 刻意保持精简（对齐 DS 的 IExtensionContext 设计），不暴露整个
 /// ApplicationWindow。每个扩展拿到的是 ExtensionManager 为它单独构造的
@@ -36,9 +36,9 @@
 
 class DmDocument;
 class GuiDocumentView;
+class IDocumentManager;
 class QWidget;
 class UIRibbonRegistrar;
-class UITabDrawWidget;
 
 /// @brief 扩展的上下文。
 /// @note 本对象由 ExtensionManager 持有，从该扩展的 OnRegister 开始有效，
@@ -63,9 +63,10 @@ public:
     /// @brief 当前活动文档视图；无打开文档时为 nullptr。
     virtual GuiDocumentView* currentDocumentView() const = 0;
 
-    /// @brief 宿主的图纸标签页：新建、打开、保存、导出图纸与遍历全部视图都经它，
-    /// 供依赖主窗口的扩展（ext.file、ext.options）使用。类型在 ui/ 里，扩展可以包含。
-    virtual UITabDrawWidget* tabDrawWidget() = 0;
+    /// @brief 宿主管理的打开图纸：新建、打开、保存、导出图纸与遍历全部文档、视图都经它
+    /// （如 ext.file、ext.options）。宿主持有，与本上下文同样有效。
+    /// @return 宿主不管理图纸时（如单测）为 nullptr
+    virtual IDocumentManager* documentManager() = 0;
 
     /// @brief 在"设置"类目里加一个设置页入口。
     /// @param id 必须在本扩展的命名空间内

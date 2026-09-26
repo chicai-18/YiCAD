@@ -31,6 +31,7 @@
 class GuiDocumentView;
 class DmDocument;
 class DocumentFileService;
+class IDocumentManager;
 class DmPen;
 class QMdiArea;
 class QCloseEvent;
@@ -41,7 +42,8 @@ class MDIWindow : public QMdiSubWindow
     Q_OBJECT
 
 public:
-    MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags = Qt::WindowType::Widget);
+    MDIWindow(DmDocument* doc, const IDocumentManager& documents, QWidget* parent,
+              Qt::WindowFlags wflags = Qt::WindowType::Widget);
     ~MDIWindow();
 
 public slots:

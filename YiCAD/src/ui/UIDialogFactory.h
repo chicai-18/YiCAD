@@ -16,8 +16,7 @@
  */
 
 /// @file UIDialogFactory.h
-/// @brief GuiDialogFactoryInterface 的 Qt 实现：通用提示、选项条的摆放、状态栏与命令行反馈，
-///        以及内核经它取的活动文档与文件读写
+/// @brief GuiDialogFactoryInterface 的 Qt 实现：通用提示、选项条的摆放、状态栏与命令行反馈
 ///
 /// 业务对话框不在这里：由扩展直接构造（doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）。
 
@@ -32,7 +31,6 @@ class QWidget;
 
 class UIBottomWindow;
 class UICommandWidget;
-class DmDocument;
 class DmVector;
 
 #define UIDIALOGFACTORY (GuiDialogFactory::instance()->getFactoryObject())
@@ -52,7 +50,6 @@ public:
 
 	void requestWarningDialog(const QString& warning) override;
 	bool requestConfirmDialog(const QString& title, const QString& message) override;
-	QString requestUntitledDocumentName(DmDocument* document) override;
 
 	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
 	void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) override;

@@ -7,7 +7,8 @@
 /// doc.save/saveAs/open 改成经服务调用；其中两个原先依赖 R7、R8 而保留 DISABLED_ 前缀，
 /// S4c 修好后启用。样本文档与文件工具见 tests/support/OcdSampleDocument.h。
 ///
-/// 宿主服务用 FileServiceHost 代替，记录提示与命令行消息、预设确认对话框的回答。
+/// 宿主服务用 FileServiceHost 代替，记录提示与命令行消息、预设确认对话框的回答；未命名文档的名字
+/// 由宿主管理的打开图纸给出（S5 从宿主服务并入 IDocumentManager），用 FakeDocumentManager 代替。
 
 #include <gtest/gtest.h>
 
@@ -26,13 +27,14 @@
 #include "GuiDialogFactory.h"
 #include "GuiDialogFactoryAdapter.h"
 #include "MD5.h"
+#include "support/FakeDocumentManager.h"
 #include "support/OcdSampleDocument.h"
 
 using namespace yicad_test;
 
 namespace
 {
-/// @brief 测试用宿主服务：记录提示，确认对话框按预设回答，给未命名文档一个名字
+/// @brief 测试用宿主服务：记录提示，确认对话框按预设回答
 class FileServiceHost : public GuiDialogFactoryAdapter
 {
 public:
@@ -40,7 +42,6 @@ public:
     int confirmCount = 0;        ///< 确认对话框弹出的次数
     QStringList warnings;        ///< 警告对话框的内容
     QStringList messages;        ///< 命令行消息
-    QString untitledName;        ///< requestUntitledDocumentName 的返回值
 
     bool requestConfirmDialog(const QString&, const QString&) override
     {
@@ -51,8 +52,6 @@ public:
     void requestWarningDialog(const QString& warning) override { warnings.append(warning); }
 
     void commandMessage(const QString& message) override { messages.append(message); }
-
-    QString requestUntitledDocumentName(DmDocument*) override { return untitledName; }
 };
 
 /// @brief 用例夹具：装上 FileServiceHost，提供临时目录
@@ -256,14 +255,16 @@ TEST_F(DocumentFileServiceTest, 拒绝打开备份时警告并返回失败)
 
 TEST_F(DocumentFileServiceTest, 未命名文档自动保存到临时目录的副本)
 {
-    // 未命名文档用宿主给的名字（标签页名）；只写原生格式，不改文档的文件名与"已修改"状态
-    host.untitledName = QStringLiteral("S4cUntitled_%1").arg(QDateTime::currentMSecsSinceEpoch());
-    const QString copy = autoSaveCopy(host.untitledName, host.untitledName);
+    // 未命名文档用宿主管理的打开图纸给的名字（标签页名）；只写原生格式，不改文档的文件名与"已修改"状态
+    const QString name = QStringLiteral("S4cUntitled_%1").arg(QDateTime::currentMSecsSinceEpoch());
+    const QString copy = autoSaveCopy(name, name);
     QFile::remove(copy);
 
     DmDocument doc;
     ASSERT_NO_FATAL_FAILURE(build(doc));
-    DocumentFileService files(doc);
+    FakeDocumentManager documents;
+    documents.untitledNames[&doc] = name;
+    DocumentFileService files(doc, &documents);
     ASSERT_TRUE(files.save(true, true));
     EXPECT_TRUE(QFileInfo::exists(copy));
     EXPECT_FALSE(QFileInfo::exists(copy + QStringLiteral(".tmp")));
@@ -278,12 +279,14 @@ TEST_F(DocumentFileServiceTest, 每份文档只自动保存一次)
 {
     // 交互清单 W5 记录的既有行为：autoSave() 之后 hasAutoSaved() 为真，此后的自动保存直接返回成功。
     // 样本文档不经撤销栈构造，isModified() 为假，第一次 autoSave() 也不写盘
-    host.untitledName = QStringLiteral("S4cOnce_%1").arg(QDateTime::currentMSecsSinceEpoch());
-    const QString copy = autoSaveCopy(host.untitledName, host.untitledName);
+    const QString name = QStringLiteral("S4cOnce_%1").arg(QDateTime::currentMSecsSinceEpoch());
+    const QString copy = autoSaveCopy(name, name);
 
     DmDocument doc;
     ASSERT_NO_FATAL_FAILURE(build(doc));
-    DocumentFileService files(doc);
+    FakeDocumentManager documents;
+    documents.untitledNames[&doc] = name;
+    DocumentFileService files(doc, &documents);
     EXPECT_FALSE(files.hasAutoSaved());
     files.autoSave();
     EXPECT_TRUE(files.hasAutoSaved());
@@ -292,6 +295,22 @@ TEST_F(DocumentFileServiceTest, 每份文档只自动保存一次)
     EXPECT_TRUE(files.save(true, true));
     EXPECT_TRUE(host.messages.isEmpty());
     EXPECT_FALSE(QFileInfo::exists(copy));
+}
+
+TEST_F(DocumentFileServiceTest, 没有打开的图纸时未命名文档的副本名为空)
+{
+    // 块命令读写的临时文档不交给宿主管理（BlockFileCommands 构造服务时不传），自动保存时名字为空，
+    // 副本是 <临时目录>/_<空串的 MD5 前 8 位>.ycd。原先宿主服务的空实现同样返回空名字
+    const QString copy = autoSaveCopy(QString(), QString());
+    QFile::remove(copy);
+
+    DmDocument doc;
+    ASSERT_NO_FATAL_FAILURE(build(doc));
+    DocumentFileService files(doc);
+    ASSERT_TRUE(files.save(true, true));
+    EXPECT_TRUE(QFileInfo::exists(copy));
+    EXPECT_EQ(host.messages.value(0), QStringLiteral("Auto saving file: %1").arg(copy));
+    QFile::remove(copy);
 }
 
 TEST_F(DocumentFileServiceTest, 按文档找到服务析构后找不到)

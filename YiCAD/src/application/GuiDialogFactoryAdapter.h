@@ -47,13 +47,6 @@ public:
         return DialogAnswer::Cancel;
     }
 
-    /// @brief 请求未命名文档的默认名称
-    /// @return 始终返回空字符串
-    QString requestUntitledDocumentName(DmDocument*) override
-    {
-        return {};
-    }
-
     /// @brief 请求操作选项（空操作）
     void requestCommandOptions(IExclusiveCommand*, bool, bool) override
     {

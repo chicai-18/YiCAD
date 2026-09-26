@@ -30,25 +30,25 @@
 #include "DmSystem.h"
 #include "GuiDialogFactory.h"
 #include "GuiDocumentView.h"
+#include "IDocumentManager.h"
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
 #include "UIDialogRunner.h"
 #include "UIDlgOptionsDrawing.h"
 #include "UIDlgOptionsGeneral.h"
 #include "UIRibbonRegistry.h"
-#include "UITabDrawWidget.h"
 
 namespace
 {
 /// @brief 系统设置：弹出对话框，再把设置里的颜色应用到全部打开的视图
 void openGeneralOptions(IExtensionContext& ctx)
 {
-    UITabDrawWidget* tabs = ctx.tabDrawWidget();
+    IDocumentManager* documents = ctx.documentManager();
     {
         UIDlgOptionsGeneral dlg(ctx.mainWindow());
-        if (tabs)
+        if (documents)
         {
-            dlg.setDocuments(tabs->getDocuments());
+            dlg.setDocuments(documents->documents());
         }
         UIDialogRunner::exec(dlg);
     }
@@ -61,11 +61,11 @@ void openGeneralOptions(IExtensionContext& ctx)
     const QColor highlightColor(DMSETTINGS->readEntry("/highlight", Colors::HIGHLIGHT));
     DMSETTINGS->endGroup();
 
-    if (!tabs)
+    if (!documents)
     {
         return;
     }
-    for (GuiDocumentView* view : tabs->getDocumentViews())
+    for (GuiDocumentView* view : documents->documentViews())
     {
         view->setBackground(background);
         view->setGridColor(gridColor);

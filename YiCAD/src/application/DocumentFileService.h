@@ -23,7 +23,7 @@
 /// 8.4 节。代码从 DmDocument 的 save/saveAs/open 整段搬来，提示经 GuiDialogFactoryInterface
 /// 输出，文字与时机不变：
 ///   - 自动保存：按设置启动定时器，只写原生格式，写到临时目录的副本（<基名>_<路径 MD5 前 8 位>.ycd，
-///     未命名文档用宿主给的名字）；每份文档只自动保存一次；
+///     未命名文档用 IDocumentManager 给的名字）；每份文档只自动保存一次；
 ///   - 手动保存：后缀与保存格式不符时拒绝；磁盘上的文件被别的程序改过时拒绝；先写 <文件名>.tmp，
 ///     成功后把旧文件改名为 <基名>.bak，再把 .tmp 改名为目标文件，删掉自动保存的副本；
 ///   - 打开：失败时（文件损坏等）询问是否打开 .bak 或自动保存的副本，按原生格式读，读到的副本复制成
@@ -40,6 +40,7 @@
 #include <QTimer>
 
 class DmDocument;
+class IDocumentManager;
 
 /// @brief 文档文件服务，见文件说明
 class DocumentFileService
@@ -47,7 +48,9 @@ class DocumentFileService
 public:
     /// @brief 接管一份文档的存盘策略，按设置启动自动保存
     /// @param document 文档；它必须比本对象活得久
-    explicit DocumentFileService(DmDocument& document);
+    /// @param documents 宿主管理的打开图纸，自动保存未命名文档时从它取名字；可为空（如块命令读写的
+    ///        临时文档），这时名字为空。不为空时必须比本对象活得久
+    explicit DocumentFileService(DmDocument& document, const IDocumentManager* documents = nullptr);
     ~DocumentFileService();
 
     DocumentFileService(const DocumentFileService&) = delete;
@@ -101,11 +104,12 @@ private:
     /// @brief 按原生格式读入备份
     bool readNativeFile(const QString& file);
 
-    DmDocument&     m_document;                ///< 所管理的文档
-    QTimer          m_timer;                   ///< 用于自动保存文件的定时器
-    bool            m_bHasAutoSaved = false;   ///< 是否已自动保存
-    QDateTime       m_modifiedTime;            ///< 上次保存或打开时文件在磁盘上的修改时间
-    QString         m_strCurrentFileName;      ///< 保存文件名副本，用于检测外部修改
+    DmDocument&             m_document;                ///< 所管理的文档
+    const IDocumentManager* m_documents;               ///< 宿主管理的打开图纸，取未命名文档的名字；可为空
+    QTimer                  m_timer;                   ///< 用于自动保存文件的定时器
+    bool                    m_bHasAutoSaved = false;   ///< 是否已自动保存
+    QDateTime               m_modifiedTime;            ///< 上次保存或打开时文件在磁盘上的修改时间
+    QString                 m_strCurrentFileName;      ///< 保存文件名副本，用于检测外部修改
 };
 
 #endif

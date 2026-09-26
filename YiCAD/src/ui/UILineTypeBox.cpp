@@ -24,15 +24,20 @@
 
 #include "UIDialogRunner.h"
 #include "UIDlgLineType.h"
-#include "ApplicationWindow.h"
 #include "DmDocument.h"
-
-class Document;
-class MDIWindow;
+#include "IDocumentManager.h"
 
 namespace
 {
     constexpr int kLineTypePreviewWidth = 10;
+
+    /// 宿主管理的打开图纸，新建的线型框默认取它的当前文档（见 setDocumentManager）
+    const IDocumentManager* documentManager = nullptr;
+}
+
+void UILineTypeBox::setDocumentManager(const IDocumentManager* documents)
+{
+    documentManager = documents;
 }
 
 UILineTypeBox::UILineTypeBox(QWidget* parent)
@@ -42,10 +47,9 @@ UILineTypeBox::UILineTypeBox(QWidget* parent)
 {
     m_isShowByLayer = false;
 
-    // 默认用当前文档的线型表。没有主窗口时（单测里构造含画笔控件的对话框）为空，这时
-    // 下拉框只有"自定义"一项，选中也什么都不做
-    ApplicationWindow* appWindow = ApplicationWindow::getAppWindow();
-    m_document = appWindow ? static_cast<DmDocument*>(appWindow->getDocument()) : nullptr;
+    // 默认用当前文档的线型表。没有装入打开的图纸时（单测里构造含画笔控件的对话框）为空，
+    // 这时下拉框只有"自定义"一项，选中也什么都不做
+    m_document = documentManager ? documentManager->currentDocument() : nullptr;
     m_LineTypeTable = m_document ? m_document->getLineTypeTable() : nullptr;
 }
 

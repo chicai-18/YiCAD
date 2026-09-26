@@ -28,9 +28,9 @@
 
 #include "CommandRegistry.h"
 #include "DmSystem.h"
+#include "IDocumentManager.h"
 #include "IExtensionContext.h"
 #include "UIRibbonRegistry.h"
-#include "UITabDrawWidget.h"
 
 namespace
 {
@@ -44,7 +44,7 @@ struct FileCommand
     const char* iconPath;
     const char* panelId;
     bool needsDocument;
-    std::function<void(UITabDrawWidget&)> run;
+    std::function<void(IDocumentManager&)> run;
 };
 }  // namespace
 
@@ -56,29 +56,29 @@ void FileExtension::OnRegister(IExtensionContext& ctx)
     using namespace UIRibbonIds;
     const FileCommand commands[] = {
         {"ext.file.new", QT_TRANSLATE_NOOP("FileExtension", "new"), ":/ribbon/file/new.svg", kPanelFileFile, false,
-         [](UITabDrawWidget& tabs) { tabs.slotFileNew(QString()); }},
+         [](IDocumentManager& documents) { documents.newDocument(); }},
         {"ext.file.open", QT_TRANSLATE_NOOP("FileExtension", "open"), ":/ribbon/file/open.svg", kPanelFileFile, false,
-         [](UITabDrawWidget& tabs)
+         [](IDocumentManager& documents)
          {
              DMSYSTEM->setCurrentFormatType(YCD_FORMAT_TYPE);
-             tabs.slotFileOpen();
+             documents.openDocument();
          }},
         {"ext.file.save", QT_TRANSLATE_NOOP("FileExtension", "save"), ":/ribbon/file/save.svg", kPanelFileFile, true,
-         [](UITabDrawWidget& tabs)
+         [](IDocumentManager& documents)
          {
              DMSYSTEM->setCurrentFormatType(YCD_FORMAT_TYPE);
-             tabs.slotFileSave();
+             documents.saveDocument();
          }},
         {"ext.file.save_as", QT_TRANSLATE_NOOP("FileExtension", "save as"), ":/ribbon/file/save_as.svg",
          kPanelFileFile, true,
-         [](UITabDrawWidget& tabs)
+         [](IDocumentManager& documents)
          {
              DMSYSTEM->setCurrentFormatType(YCD_FORMAT_TYPE);
-             tabs.slotFileSaveAs();
+             documents.saveDocumentAs();
          }},
         {"ext.file.export_image", QT_TRANSLATE_NOOP("FileExtension", "Export Image"),
          ":/ribbon/file/export_image.svg", kPanelFileExport, false,
-         [](UITabDrawWidget& tabs) { tabs.slotFileExportImage(); }},
+         [](IDocumentManager& documents) { documents.exportImage(); }},
     };
 
     // 上下文有效到 OnShutdown 返回，命令在那之后才注销（IExtension.h 的契约）
@@ -92,9 +92,9 @@ void FileExtension::OnRegister(IExtensionContext& ctx)
             command.id,
             [context, run = command.run](const CommandContext&)
             {
-                if (UITabDrawWidget* tabs = context->tabDrawWidget())
+                if (IDocumentManager* documents = context->documentManager())
                 {
-                    run(*tabs);
+                    run(*documents);
                 }
             },
             {.description = text, .instantInterrupt = InstantInterrupt::EndAll});

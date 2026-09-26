@@ -31,6 +31,7 @@ class UIWidthBox;
 class DmDocument;
 class DmPen;
 class DmColor;
+class IDocumentManager;
 
 /// @brief 当前文档激活的画笔UI（显示当前文档激活的画笔颜色、线型、线宽）
 class UICurrentActivePen : public QWidget
@@ -38,7 +39,9 @@ class UICurrentActivePen : public QWidget
     Q_OBJECT
 
 public:
-    UICurrentActivePen(QWidget* parent);
+    /// @param parent 父控件
+    /// @param documents 宿主管理的打开图纸，改画笔时改它的当前文档；必须比本控件活得久
+    UICurrentActivePen(QWidget* parent, const IDocumentManager& documents);
     ~UICurrentActivePen();
 
 public:
@@ -58,6 +61,7 @@ private:
     UIColorBox*     m_pCurrentColor = nullptr;       ///< 当前文档活动的颜色
     UIWidthBox*     m_pCurrentWidth = nullptr;       ///< 当前文档活动的线宽
     DmDocument*     m_document = nullptr;            ///< doc
+    const IDocumentManager& m_documents;             ///< 宿主管理的打开图纸
 };
 
 #endif

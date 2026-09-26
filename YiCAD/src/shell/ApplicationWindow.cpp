@@ -77,9 +77,11 @@
 #include "UICommandWidget.h"
 #include "UIDialogFactory.h"
 #include "UICurrentActivePen.h"
+#include "UILineTypeBox.h"
 
 #include "CommandRegistry.h"
 #include "ExtensionManager.h"
+#include "IDocumentManager.h"
 #include "IExtensionHost.h"
 #include "UIRibbonManager.h"
 #include "UIRibbonRegistry.h"
@@ -164,6 +166,103 @@ private:
     ApplicationWindow& m_window;
 };
 
+/// @brief 宿主管理的打开图纸：IDocumentManager 的实现，全部委托给图纸选项卡。
+///
+/// 在主窗口构造函数的最开头创建，比选项卡早（第一张图纸的文档文件服务与画笔栏在创建选项卡时就要它），
+/// 所以持有主窗口、每次经 getTabDrawWidget() 取选项卡；选项卡还没建好时如同没有打开的图纸。
+///
+/// 不放进匿名命名空间：要与 ApplicationWindow.h 里的前置声明是同一个类型
+/// （与 ApplicationPluginHostContext 同一做法）。
+class ApplicationWindowDocumentManager final : public IDocumentManager
+{
+public:
+    explicit ApplicationWindowDocumentManager(const ApplicationWindow& window) noexcept
+        : m_window(window)
+    {
+    }
+
+    DmDocument* currentDocument() const override
+    {
+        MDIWindow* window = currentWindow();
+        return window ? window->getDocument() : nullptr;
+    }
+
+    GuiDocumentView* currentDocumentView() const override
+    {
+        MDIWindow* window = currentWindow();
+        return window ? window->getDocumentView() : nullptr;
+    }
+
+    std::vector<DmDocument*> documents() const override
+    {
+        UITabDrawWidget* tabs = m_window.getTabDrawWidget();
+        return tabs ? tabs->getDocuments() : std::vector<DmDocument*>();
+    }
+
+    std::vector<GuiDocumentView*> documentViews() const override
+    {
+        UITabDrawWidget* tabs = m_window.getTabDrawWidget();
+        return tabs ? tabs->getDocumentViews() : std::vector<GuiDocumentView*>();
+    }
+
+    void newDocument() override
+    {
+        if (UITabDrawWidget* tabs = m_window.getTabDrawWidget())
+        {
+            tabs->slotFileNew(QString());
+        }
+    }
+
+    void openDocument() override
+    {
+        if (UITabDrawWidget* tabs = m_window.getTabDrawWidget())
+        {
+            tabs->slotFileOpen();
+        }
+    }
+
+    void saveDocument() override
+    {
+        if (UITabDrawWidget* tabs = m_window.getTabDrawWidget())
+        {
+            tabs->slotFileSave();
+        }
+    }
+
+    void saveDocumentAs() override
+    {
+        if (UITabDrawWidget* tabs = m_window.getTabDrawWidget())
+        {
+            tabs->slotFileSaveAs();
+        }
+    }
+
+    void exportImage() override
+    {
+        if (UITabDrawWidget* tabs = m_window.getTabDrawWidget())
+        {
+            tabs->slotFileExportImage();
+        }
+    }
+
+    QString untitledDocumentName(const DmDocument* document) const override
+    {
+        UITabDrawWidget* tabs = m_window.getTabDrawWidget();
+        SingleTabDrawDataRibbon* tab = tabs ? tabs->getTabDrawDataOfDocument(document) : nullptr;
+        return tab ? tab->name : QString();
+    }
+
+private:
+    /// @brief 当前图纸窗口；选项卡还没建好或没有打开的图纸时为空
+    MDIWindow* currentWindow() const
+    {
+        UITabDrawWidget* tabs = m_window.getTabDrawWidget();
+        return tabs ? tabs->getCurrentMdiWindow() : nullptr;
+    }
+
+    const ApplicationWindow& m_window;
+};
+
 /// @brief ApplicationWindow 侧的扩展宿主服务。
 ///
 /// 作为 ApplicationWindow 的成员，存活到 ExtensionManager::Shutdown() 之后。
@@ -175,8 +274,8 @@ private:
 class ApplicationWindowExtensionHost final : public IExtensionHost
 {
 public:
-    ApplicationWindowExtensionHost(UIRibbonRegistry& ribbon, ApplicationWindow& window)
-        : m_ribbon(ribbon), m_window(window)
+    ApplicationWindowExtensionHost(UIRibbonRegistry& ribbon, ApplicationWindow& window, IDocumentManager& documents)
+        : m_ribbon(ribbon), m_window(window), m_documents(documents)
     {
     }
 
@@ -193,7 +292,7 @@ public:
     QWidget* mainWindow() override { return &m_window; }
     DmDocument* currentDocument() const override { return m_window.getDocument(); }
     GuiDocumentView* currentDocumentView() const override { return m_window.getDocumentView(); }
-    UITabDrawWidget* tabDrawWidget() override { return m_window.getTabDrawWidget(); }
+    IDocumentManager* documentManager() override { return &m_documents; }
 
     bool registerSettingsPage(const QString& id, const QString& title, const QString& iconPath,
                               std::function<void()> open) override
@@ -220,6 +319,7 @@ public:
 private:
     UIRibbonRegistry& m_ribbon;
     ApplicationWindow& m_window;
+    IDocumentManager& m_documents;
     std::map<std::string, std::unique_ptr<UIRibbonScopedRegistrar>> m_scopedRibbons;
 };
 
@@ -267,6 +367,9 @@ ApplicationWindow::ApplicationWindow(ExtensionRegistrar extensionRegistrar, QWid
 	, m_extensionRegistrar(std::move(extensionRegistrar))
 {
 	appWindow = this;
+	// 打开的图纸：选项卡的图纸窗口、画笔栏与此后构造的线型框都经它取当前文档
+	m_documentManager = std::make_unique<ApplicationWindowDocumentManager>(*this);
+	UILineTypeBox::setDocumentManager(m_documentManager.get());
 	PRINT_COST_START();
 	SAFramelessHelper* helper = framelessHelper();
 	helper->setRubberBandOnResize(false);
@@ -289,7 +392,7 @@ ApplicationWindow::ApplicationWindow(ExtensionRegistrar extensionRegistrar, QWid
 	pDialogBackWidget->hide();
 
 	// 绘图区域选项卡
-	m_pTabDrawWidget = new UITabDrawWidget(this);
+	m_pTabDrawWidget = new UITabDrawWidget(this, *m_documentManager);
 	m_pTabDrawWidget->createTabDrawWidget(m_pDrawingArea, m_pActionHandler, m_pBottomWidget);
 	// 获取当前绘图画布
 	m_pCurrentMdiWin = m_pTabDrawWidget->getCurrentMdiWindow();
@@ -391,7 +494,7 @@ void ApplicationWindow::loadPlugins()
 /// 主计划 7.11 节）：扩展是各自独立的库，主窗口不引用任何扩展。注册顺序即启动顺序、关闭的反序。
 void ApplicationWindow::registerExtensions()
 {
-	m_extensionHost = std::make_unique<ApplicationWindowExtensionHost>(*m_ribbonRegistry, *this);
+	m_extensionHost = std::make_unique<ApplicationWindowExtensionHost>(*m_ribbonRegistry, *this, *m_documentManager);
 	if (m_extensionRegistrar)
 	{
 		m_extensionRegistrar(ExtensionManager::instance());
@@ -1063,6 +1166,9 @@ ApplicationWindow::~ApplicationWindow()
     m_pluginHostApi.reset();
     m_pluginRegistry.reset();
     m_pluginHostContext.reset();
+
+    // 线型框不再取当前文档；m_documentManager 在析构函数体之后才释放
+    UILineTypeBox::setDocumentManager(nullptr);
 
 	COMMANDS->deleteCommands();
 	DMSETTINGS->deleteDmStettings();

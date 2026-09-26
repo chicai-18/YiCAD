@@ -29,6 +29,7 @@
 
 class DmLineTypeTable;
 class DmLineType;
+class IDocumentManager;
 
 /// @brief 线型下拉列表框
 class UILineTypeBox : public QComboBox 
@@ -37,6 +38,12 @@ class UILineTypeBox : public QComboBox
 public:
 	UILineTypeBox(QWidget* parent = nullptr);
 	virtual ~UILineTypeBox();
+
+	/// @brief 装入宿主管理的打开图纸：此后构造的线型框默认用它的当前文档的线型表
+	/// @details 线型框多由 uic 按表单构造，没法在构造时传入，所以由主窗口在构造时装入、析构时清空。
+	///          没有装入时（如单测）默认没有线型表，下拉框只有"自定义"一项
+	/// @param documents 宿主管理的打开图纸；传空即清空
+	static void setDocumentManager(const IDocumentManager* documents);
 
 	DmLineType* getLineType();
 	void setLineType(DmLineType* t);

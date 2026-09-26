@@ -33,6 +33,7 @@
 #include "DmDocument.h"
 #include "DmSettings.h"
 #include "GuiDialogFactory.h"
+#include "IDocumentManager.h"
 #include "MD5.h"
 #include "YiCadLog.h"
 
@@ -56,8 +57,9 @@ void logFailure(const char* what, const QString& file, const DmFileResult& resul
 }
 }  // namespace
 
-DocumentFileService::DocumentFileService(DmDocument& document)
+DocumentFileService::DocumentFileService(DmDocument& document, const IDocumentManager* documents)
     : m_document(document)
+    , m_documents(documents)
 {
     QObject::connect(&m_timer, &QTimer::timeout, [this]() { this->autoSave(); });
     DMSETTINGS->beginGroup("/Defaults");
@@ -128,7 +130,7 @@ bool DocumentFileService::save(bool isAutoSave, bool force)
         if (filename.isEmpty())   //从未保存过的文件
         {
             //获得选项卡的名字
-            QString tabName = GUIDIALOGFACTORY->requestUntitledDocumentName(&m_document);
+            QString tabName = m_documents ? m_documents->untitledDocumentName(&m_document) : QString();
             QString sName = QString::fromStdString(MD5::getMD5(tabName.toStdString())).left(8);
             actualName = QDir::cleanPath(tmpDir + QDir::separator() + tabName + "_" + sName + ".ycd");
         }

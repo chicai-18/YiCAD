@@ -69,8 +69,9 @@ constexpr int kTabCloseIconSize = 12;
 constexpr int kTabCloseButtonRightMargin = 4;
 }
 
-UITabDrawWidget::UITabDrawWidget(QWidget* parent)
+UITabDrawWidget::UITabDrawWidget(QWidget* parent, const IDocumentManager& documents)
 	: m_pWidget(parent)
+	, m_documents(documents)
 	, m_currentMdiWindow(nullptr)
 	, m_pTabDrawList(new std::vector<SingleTabDrawDataRibbon*>())
 	, m_pBackTabDrawWidget(nullptr)
@@ -136,7 +137,7 @@ QWidget* UITabDrawWidget::createTabDrawWidget(QMdiArea* drawBackWidget, UIAction
 	QHBoxLayout* penLayout = new QHBoxLayout(m_pPenWidget);
 	penLayout->setContentsMargins(0, 0, 0, 0);
 	penLayout->setSpacing(0);
- 	m_pCurrentActivePen = new UICurrentActivePen(m_pPenWidget);
+ 	m_pCurrentActivePen = new UICurrentActivePen(m_pPenWidget, m_documents);
 	penLayout->addWidget(m_pCurrentActivePen, 0, Qt::AlignLeft | Qt::AlignVCenter);
 	penLayout->addStretch();
 	m_pCurrentActivePen->setPen(m_currentMdiWindow->getDocument());
@@ -461,7 +462,7 @@ void UITabDrawWidget::closeTab(SingleTabDrawDataRibbon* newTab)
 
 MDIWindow* UITabDrawWidget::createMdiWindow()
 {
-	MDIWindow* w = new MDIWindow(nullptr, m_pDrawBackWidget, Qt::WindowType::Widget);
+	MDIWindow* w = new MDIWindow(nullptr, m_documents, m_pDrawBackWidget, Qt::WindowType::Widget);
 	GuiDocumentView* view = w->getDocumentView();
 	connect(view, SIGNAL(selectedChanged()), m_pActionHandler, SLOT(slotSecectedChanged()));
     connect(view, SIGNAL(selectedChanged()), ApplicationWindow::getAppWindow(), SLOT(updateLayerTable()));

@@ -48,7 +48,7 @@ public:
     QWidget* mainWindow() override { return m_host.mainWindow(); }
     DmDocument* currentDocument() const override { return m_host.currentDocument(); }
     GuiDocumentView* currentDocumentView() const override { return m_host.currentDocumentView(); }
-    UITabDrawWidget* tabDrawWidget() override { return m_host.tabDrawWidget(); }
+    IDocumentManager* documentManager() override { return m_host.documentManager(); }
 
     bool registerSettingsPage(const QString& id, const QString& title, const QString& iconPath,
                               std::function<void()> open) override
