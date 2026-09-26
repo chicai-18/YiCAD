@@ -16,16 +16,19 @@
  */
 
 /// @file GuiDialogFactoryInterface.h
-/// @brief 界面服务接口：内核、命令机制与扩展经它使用宿主界面
+/// @brief 界面服务接口：命令机制、文档文件服务与扩展经它使用宿主界面
 ///
 /// 名字沿用"对话框工厂"，内容已不是业务对话框：业务对话框由扩展直接构造
 /// （doc/ARCHITECTURE_EVOLUTION_PLAN.md 9.3 节）。留下的是
 ///   - 通用提示：警告、确认、是/否/取消（测试夹具重写它们预设回答）；
-///   - 内核反向要的：当前活动文档、未命名文档的名字、文件读写；
+///   - 未命名文档的名字（DocumentFileService 自动保存时用，分层重组 S5 并入 IDocumentManager）；
 ///   - 选项条的摆放：命令的（CommandInfo::commandOptionsFactory）、编辑模式的、捕捉中点的；
 ///   - 状态栏与命令行的反馈：坐标、按键提示、选中数量、命令消息。
 /// 由主窗口经 GuiDialogFactory::setFactoryObject 装入实现（UIDialogFactory），没有装入时用
 /// 什么也不做的 GuiDialogFactoryAdapter。
+///
+/// 放在 application/：分层重组 S2 之前在 Model 里，标注实体经它取当前文档、文档经它读写文件与
+/// 提示；S4 把这些调用移出 Model 后搬到这里（doc/LAYER_RESTRUCTURE_PLAN.md 8.5 节）。
 
 #ifndef GUIDIALOGFACTORYINTERFACE_H
 #define GUIDIALOGFACTORYINTERFACE_H
@@ -73,30 +76,11 @@ public:
     /// @return 用户的回答；关闭对话框视为取消
     virtual DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) = 0;
 
-    /// @brief 获取当前活动文档
-    /// @details Model 层部分实体（如标注）在缺少自身文档上下文时，需要落回
-    /// 应用当前活动文档；该概念由 App/UI 层维护，此处仅做接口注入。
-    /// @return 当前活动文档指针，无则返回 nullptr
-    virtual DmDocument* requestActiveDocument() = 0;
-
     /// @brief 为从未保存过的文档请求一个用于自动保存的默认名称
     /// @details 默认实现里这个名称通常来自文档所在的界面标签页标题
     /// @param document 待命名的文档
     /// @return 建议的名称，无法获取时返回空字符串
     virtual QString requestUntitledDocumentName(DmDocument* document) = 0;
-
-    /// @brief 请求执行文件导出（写盘）
-    /// @param document 待导出的文档
-    /// @param file 目标文件路径
-    /// @param formatType 导出格式
-    /// @return 导出是否成功
-    virtual bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) = 0;
-
-    /// @brief 请求执行文件导入（读盘）
-    /// @param document 承接导入内容的文档
-    /// @param file 源文件路径
-    /// @return 导入是否成功
-    virtual bool requestFileImport(DmDocument& document, const QString& file) = 0;
 
     /// @brief 显示交互命令的选项条（CommandInfo::commandOptionsFactory 注册的控件）
     /// @param command 需要选项的命令

@@ -87,9 +87,10 @@ yicad_collect_sources(BASE
 #                           编号备份、迁移基类；meta/ 是各类型的
 #                           Meta* 容器。原是独立的 YiCadPersistence 库，它本来就只依赖
 #                           Model 与 Base，分层重组 S2 并入本库
-#   src/model/host/         过渡目录：GuiDialogFactory*，即 Model 对宿主的遗留依赖。
-#                           分层重组 S4 把它们搬到 application/ 后删除本目录（对视图的
-#                           依赖 S3 已解开，IDocumentView、ISnapService 已搬到 render/view/）
+#
+# Model 不认识视图与宿主：文档经 DmDocumentListener 通知画布（分层重组 S3），读写文件经
+# model/io/ 的格式注册表，存盘策略与宿主服务接口在 application/（S4）。原先的过渡目录
+# model/host/ 已删除。
 yicad_collect_sources(MODEL
     src/model/document
     src/model/property
@@ -104,8 +105,7 @@ yicad_collect_sources(MODEL
     src/model/edit
     src/model/algorithm
     src/model/io
-    src/model/io/meta
-    src/model/host)
+    src/model/io/meta)
 
 # 对应 YiCadRender。
 #   src/render/painter/  绘制抽象（Painter/PainterCreator）
@@ -127,7 +127,9 @@ yicad_collect_sources(RENDER
 #                               后建的基类）、视图工具框架（IViewTool/ViewToolControl/
 #                               PanZoomTool）、选择层 SelectTool、捕捉器 Snapper、预览、
 #                               keyconfig.xml 与命令行别名（Commands）、文档的存盘策略
-#                               DocumentFileService（自动保存、备份、打开失败的处理）
+#                               DocumentFileService（自动保存、备份、打开失败的处理）、
+#                               宿主服务接口 GuiDialogFactoryInterface（实现在 ui/ 的
+#                               UIDialogFactory）
 #   src/application/framework/  进程内扩展框架（IExtension/IExtensionContext/
 #                               IExtensionHost/ExtensionManager），对应 DS 的
 #                               Application/Framework/
@@ -438,8 +440,7 @@ target_include_directories(YiCadModel PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/edit
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/algorithm
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/io
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/model/io/meta
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/model/host)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/model/io/meta)
 
 target_link_libraries(YiCadModel PUBLIC YiCadBase)
 

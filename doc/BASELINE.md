@@ -286,13 +286,13 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b | S4c |
-|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
-| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） |
-| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） | 65（2 DISABLED） |
-| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 | 305 |
-| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） | 499（495 启用 + 4 DISABLED） |
+| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b | S4c | S4d |
+|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
+| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） |
+| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） | 65（2 DISABLED） | 65（2 DISABLED） |
+| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 | 305 | 305 |
+| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） | 499（495 启用 + 4 DISABLED） | 499（495 启用 + 4 DISABLED） |
 
 S0 新增的 19 个 `DISABLED_` 对应读回路径的缺陷 R1–R9（`LAYER_RESTRUCTURE_PLAN.md` 4.5 节，
 `tests/persistence/test_persistence_document.cpp` 文件头部），修复后去掉前缀即为验收。
@@ -307,3 +307,4 @@ S4b 新增 `test_persistence` 的 `test_persistence_filter_registry.cpp`（5 个
 新增 1 个：插件格式登记进格式注册表、卸载前注销。
 S4c 把存盘策略的 7 个用例从 `test_persistence` 搬到 `test_interaction` 的 `test_document_file_service.cpp`，其中依赖 R7、R8 的
 2 个启用，另加 5 个；`test_persistence` 另加 4 个（异常路径 1 个、只链接 Model 的读写 3 个）。
+S4d 把 `test_geometry_dimension.cpp` 里依赖宿主当前文档的写法改为只涉及文档，用例数不变。

@@ -722,7 +722,8 @@ Model 包含 Render，这几条 CMake 已经保证，不会新增违规。另加
 
 ### 8.8 执行结果
 
-2026-09-26 开始，基线 `560fb1d`（S3 之后）。开工前定下：
+2026-09-26 完成，基线 `560fb1d`（S3 之后），四个子步骤各一个提交：S4a `fe1209b`、S4b `325f350`、S4c `5fb7740`、S4d 随后一个。
+开工前定下：
 
 - D5：放 Application。2.2 节目录与 8.4 节正文本来就这样写，第 12 节表格的状态没有随之更新，这次改为已定。
 - D9：做法 A。修 R4 不在 S4 的任务里（8.2–8.5 节没有这一项），不在本步做，两个 `DISABLED_` 用例继续保留。
@@ -848,6 +849,45 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
   `block`、`options`、`text` 三个扩展的 `.ts` 是改动文件的行号变化。
 - Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应；关闭时启动的空白图纸按新顺序析构，进程以 0 退出。
 - 交互清单 6G 节（W1–W10）没有在界面上手工走查；W5、W7 的期望随本步改写，第 7 节补了两条有意的行为变化。
+
+#### S4d：宿主服务接口移到 Application
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | `git mv` `GuiDialogFactory.{h,cpp}`、`GuiDialogFactoryAdapter.h`、`GuiDialogFactoryInterface.h` 到 `application/`，删除 `model/host/`；CMake 的 MODEL 分区与 `YiCadModel` 的 include 目录删去它，注释改写。`Modification.cpp` 里没有用到的 `#include "GuiDialogFactory.h"` 一并删去（它是 Model 里最后一处） |
+| 2 | 接口与空实现删去 `requestActiveDocument`、`requestFileExport`、`requestFileImport`，`UIDialogFactory` 同步删去实现（连同 S4b 暂放在那里的 `QMessageBox::critical`，它已随写文件移到 `DocumentFileService`）。接口说明改写："内核反向要的"只剩 `requestUntitledDocumentName`，S5 并入 `IDocumentManager` |
+
+**测试**：`test_geometry_dimension.cpp` 原先把宿主的当前文档设成另一份文档（S4a）。`test_geometry` 只链接 `YiCadModel`，看不到搬走的
+接口，而且接口里已没有"当前文档"，两个用例改为只涉及文档：五种标注与引线取自己文档的箭头块（另有一份文档在场），以及两份文档里的线性
+标注各取自己文档的箭头块。用例数不变，499（启用 495，`DISABLED_` 4）。
+
+**验收**：
+
+- Release、Debug 构建通过（Debug 先删 `.obj`、`.pdb`）；两种配置的 ctest 全部通过；`check_layering.py` 通过（9 处已登记的例外）。
+- 编译期保证：在 `Selection.cpp` 临时包含 `GuiDialogFactory.h`、`IDocumentView.h`，构建 `YiCadModel` 都报 C1083（找不到头文件），恢复后通过。
+  `YiCAD/src/model/`、`src/base/` 里不再出现 `GUIDIALOGFACTORY`、`GuiDialogFactory`、`IDocumentView`。
+- `update_translations` 只改 `<location>` 行（`UIDialogFactory.cpp` 删去实现后的行号变化）。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应，关闭后以 0 退出。
+
+#### S4 总验收（8.6 节）
+
+| 条目 | 结果 |
+|------|------|
+| 通用验收 | 四个子步骤各自通过：Release、Debug 构建，ctest，`check_layering.py`，安装后启动。用例 481 → 499，`DISABLED_` 6 → 4 |
+| S0 的整文档往返与异常路径用例全部通过 | 通过；仍为 `DISABLED_` 的 2 个依赖 R4（D9 已定，修复不在 S4 排期）。存盘策略的用例随代码搬到 `tests/interaction`，依赖 R7、R8 的 2 个已启用 |
+| S0 新增的"文件读写"清单全部走一遍 | **未做**：会话里无法安全驱动界面（S0 以来同样的限制）。6G 节 W1–W10 与 6E 节（标注）需要手工走查，W5、W7 的期望已按本步改写 |
+| `YiCadModel` 源码里不再出现 `GUIDIALOGFACTORY`、`IDocumentView` | 通过，编译期保证（见 S4d 验收） |
+| 只链接 `YiCadModel` 的小用例：不起界面读写一份 OCD 文件 | `test_persistence` 的 `DocumentReadWrite.不起界面写出再读回整份文档`；L1 已解决 |
+
+**S4 的遗留**：
+
+- R4 未修（D9 已定为做法 A），`test_persistence_document.cpp` 的 2 个 `DISABLED_` 用例留作验收。
+- 跨文档粘贴的既有缺陷（粘贴出的实体仍属于来源图纸、图层指针指向来源图纸），见 S4a 遗留。
+- 块插入导入的标注，箭头块参照的 `blockSource` 指向已析构的临时文档，目前没有代码访问它，见 S4a。
+- `requestUntitledDocumentName` 仍在宿主服务接口里，S5 并入 `IDocumentManager`；`UIDialogFactory` 实现它仍要包含 `ApplicationWindow.h`（白名单里的一条）。
+- `DmSystem` 的"当前格式"（恒为 `ycd`）只剩文件对话框选默认过滤串一个用途，没有动。
 
 ---
 

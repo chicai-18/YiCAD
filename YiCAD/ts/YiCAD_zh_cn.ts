@@ -42,7 +42,7 @@
 <context>
     <name>QMessageBox</name>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="69"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="67"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
@@ -496,32 +496,32 @@
         <translation>正交</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="80"/>
+        <location filename="../src/model/edit/Modification.cpp" line="79"/>
         <source>Delete Entities</source>
         <translation>删除实体</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="492"/>
+        <location filename="../src/model/edit/Modification.cpp" line="491"/>
         <source>Move</source>
         <translation>移动</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="588"/>
+        <location filename="../src/model/edit/Modification.cpp" line="587"/>
         <source>Trim</source>
         <translation>修剪</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="861"/>
+        <location filename="../src/model/edit/Modification.cpp" line="860"/>
         <source>cut entity</source>
         <translation>单点打断</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="946"/>
+        <location filename="../src/model/edit/Modification.cpp" line="945"/>
         <source>cut entity 2P</source>
         <translation>2点打断</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="1416"/>
+        <location filename="../src/model/edit/Modification.cpp" line="1415"/>
         <source>move ref</source>
         <translation>移动引用点</translation>
     </message>
@@ -657,7 +657,7 @@
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="113"/>
+        <location filename="../src/model/edit/Modification.cpp" line="112"/>
         <source>Cut</source>
         <translation>剪切</translation>
     </message>
@@ -713,112 +713,112 @@
         <translation>无法备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="239"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="215"/>
         <source>Windows Bitmap</source>
         <translation>BMP</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="255"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="231"/>
         <source>Portable Bit Map</source>
         <translation>PBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="259"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="235"/>
         <source>Portable Grey Map</source>
         <translation>PGM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="267"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="243"/>
         <source>Portable Pixel Map</source>
         <translation>PPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="271"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="247"/>
         <source>X Bitmap Format</source>
         <translation>XBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="275"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="251"/>
         <source>X Pixel Map</source>
         <translation>XPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="243"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="219"/>
         <source>Joint Photo document Experts Group</source>
         <translation>JPEG 图像格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="247"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="223"/>
         <source>Documents Interchange Format</source>
         <translation>文档交换格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="251"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="227"/>
         <source>Multiple-image Network Documents</source>
         <translation>多图像网络文档</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="263"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="239"/>
         <source>Portable Network Document</source>
         <translation>便携式网络图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="279"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="255"/>
         <source>Scalable Vector Documents</source>
         <translation>可缩放矢量图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="283"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="259"/>
         <source>SGI Black &amp; White</source>
         <translation>BW</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="287"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="263"/>
         <source>Encapsulated PostScript</source>
         <translation>EPS</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="291"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="267"/>
         <source>Encapsulated PostScript Format</source>
         <translation>EPSF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="295"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="271"/>
         <source>Encapsulated PostScript Interchange</source>
         <translation>EPSI</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="299"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="275"/>
         <source>Windows Icon</source>
         <translation>ICO</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="303"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="279"/>
         <source>JPEG 2000</source>
         <translation>JPEG 2000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="307"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="283"/>
         <source>ZSoft Paintbrush</source>
         <translation>PCX</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="311"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="287"/>
         <source>PC Paint</source>
         <translation>PIC</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="315"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="291"/>
         <source>SGI-Bilddatei</source>
         <translation>SGI-Bilddatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="319"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="295"/>
         <source>Targa Image File</source>
         <translation>TGA</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="323"/>
+        <location filename="../src/ui/UIDialogFactory.cpp" line="299"/>
         <source>Tagged Image File Format</source>
         <translation>TIF/TIFF</translation>
     </message>
@@ -989,13 +989,11 @@
     </message>
     <message>
         <location filename="../src/application/DocumentFileService.cpp" line="412"/>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="107"/>
         <source>ToolTips</source>
         <translation>工具提示</translation>
     </message>
     <message>
         <location filename="../src/application/DocumentFileService.cpp" line="412"/>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="107"/>
         <source>Unsupported file format, please use another format to export!</source>
         <translation>不支持的文件格式，请使用其他格式导出！</translation>
     </message>

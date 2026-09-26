@@ -49,7 +49,6 @@
 #include "Math2d.h"
 #include "GeometryMethods.h"
 #include "Debug.h"
-#include "GuiDialogFactory.h"
 #include "DmEntityContainer.h"
 #include "Transaction.h"
 

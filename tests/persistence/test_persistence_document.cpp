@@ -876,7 +876,7 @@ TEST_F(OcdDocumentErrorPath, 过滤器本身仍然抛异常)
 // 只链接 YiCadModel 读写整份文档（方案 8.6 节：L1 已解决）
 // ---------------------------------------------------------------------------
 //
-// 本二进制不链接宿主，夹具也不装 GuiDialogFactory 的实现：DmDocument 读写文件只经格式注册表
+// 本二进制只链接 YiCadModel，看不到宿主服务接口（它在 Application）：DmDocument 读写文件只经格式注册表
 // （原生格式在 DmSystem::init 时登记），不弹框、不输出命令行消息、不改文件名。
 
 TEST_F(DocumentReadWrite, 不起界面写出再读回整份文档)

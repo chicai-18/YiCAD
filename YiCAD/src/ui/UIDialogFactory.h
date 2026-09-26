@@ -52,10 +52,7 @@ public:
 
 	void requestWarningDialog(const QString& warning) override;
 	bool requestConfirmDialog(const QString& title, const QString& message) override;
-	DmDocument* requestActiveDocument() override;
 	QString requestUntitledDocumentName(DmDocument* document) override;
-	bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override;
-	bool requestFileImport(DmDocument& document, const QString& file) override;
 
 	DialogAnswer requestYesNoCancelDialog(const QString& title, const QString& message) override;
 	void requestCommandOptions(IExclusiveCommand* command, bool on, bool update = false) override;
