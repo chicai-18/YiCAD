@@ -27,10 +27,6 @@
 #include <cassert>
 
 #include "Base64.h"
-#include "Reader.h"
-#include "Writer.h"
-#include "MinizipNgArchive.h"
-#include <Tools.h>
 //**************************************************************************
 // Construction/Destruction
 TYPESYSTEM_SOURCE_ABSTRACT(Persistence, MetaType, 0) //use abstract macro means this class cannot be initialized independent
@@ -97,42 +93,6 @@ std::string Persistence::encodeAttribute(const std::string& str)
     }
 
     return tmp;
-}
-
-void Persistence::dumpToStream(std::ostream& stream, int compression)
-{
-    //we need to close the zipstream to get a good result, the only way to do this is to delete the ZipWriter.
-    //Hence the scope...
-    {
-        //create the writer
-        ZipWriter writer(stream);
-        writer.setLevel(compression);
-        writer.putNextEntry("Persistence.xml");
-        writer.setMode("BinaryBrep");
-
-        //save the content (we need to encapsulte it with xml tags to be able to read single element xmls like happen for properties)
-        writer.Stream() << "<Content>" << std::endl;
-        OutputStream str(writer.Stream());
-        saveStream(str);
-        writer.Stream() << "</Content>";
-        writer.writeFiles();
-        writer.close();
-    }
-}
-
-void Persistence::restoreFromStream(std::istream& stream)
-{
-    MinizipNgArchiveReader archive(stream);
-    XMLReader reader("", archive.stream());
-
-    if (!reader.isValid())
-        throw OneException("Unable to construct reader");
-
-    reader.readElement("Content");
-    InputStream str(archive.stream());
-    restoreStream(str);
-    reader.readFiles(archive);
-    restoreFinished();
 }
 
 int Persistence::getRevisionId(const std::string& type, const std::vector<PAIR>& revs)

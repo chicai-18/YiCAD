@@ -46,7 +46,6 @@
 #include "DmText.h"
 #include "DmBlockReference.h"
 #include "DmSettings.h"
-#include "GuiDialogFactory.h"
 #include "DmLayer.h"
 #include "Math2d.h"
 #include "Debug.h"

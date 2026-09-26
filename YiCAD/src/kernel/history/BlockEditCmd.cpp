@@ -27,7 +27,6 @@
 #include "DmBlockTable.h"
 #include "DmBlockReference.h"
 #include "EntityTable.h"
-#include "IDocumentView.h"
 
 // ============================================================================
 // 辅助函数：查找编辑指定块后会受影响的所有块名称
@@ -72,11 +71,9 @@ static QSet<QString> getAllAffectedBlockNames(DmDocument* doc, const QString& ed
 // BlockEditEnterCmd：进入块编辑命令
 // ============================================================================
 
-BlockEditEnterCmd::BlockEditEnterCmd(DmDocument* doc, const QString& blockName,
-                                     IDocumentView* docView)
+BlockEditEnterCmd::BlockEditEnterCmd(DmDocument* doc, const QString& blockName)
     : m_pDocument(doc)
     , m_blockName(blockName)
-    , m_pDocView(docView)
 {
 }
 
@@ -171,11 +168,9 @@ void BlockEditEnterCmd::updateBlockRefs()
 // BlockEditExitCmd：退出块编辑命令
 // ============================================================================
 
-BlockEditExitCmd::BlockEditExitCmd(DmDocument* doc, const QString& blockName,
-                                   IDocumentView* docView, bool save)
+BlockEditExitCmd::BlockEditExitCmd(DmDocument* doc, const QString& blockName, bool save)
     : m_pDocument(doc)
     , m_blockName(blockName)
-    , m_pDocView(docView)
     , m_save(save)
 {
 }

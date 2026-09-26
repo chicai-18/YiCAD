@@ -9,12 +9,6 @@
 /// saveStream / restoreStream 真正使用的那一层，不落盘，因而测试可并行、
 /// 无需清理临时文件。
 ///
-/// 没有走 Persistence::dumpToStream / restoreFromStream：那一对接口全仓
-/// 没有任何调用点，且 restoreFromStream 违反了 Archive.h 为 ArchiveReader
-/// 写明的契约——「nextEntry() 必须在读取第一个条目之前调用一次」，而它
-/// 拿到 MinizipNgArchiveReader 后直接取 stream()，读到的是空流。详见本文件
-/// 末尾的 DISABLED_ 用例。
-///
 /// 阶段 5 迁移 Qt 6 时，DXF 代码页相关的编码回归也要靠这一类测试兜底。
 
 #include <gtest/gtest.h>
@@ -357,41 +351,4 @@ TEST(PersistenceRoundTrip, 连续两次往返结果稳定)
     EXPECT_DOUBLE_EQ(second.getRadius(), first.getRadius());
     EXPECT_DOUBLE_EQ(second.getStartAngle(), first.getStartAngle());
     EXPECT_DOUBLE_EQ(second.getEndAngle(), first.getEndAngle());
-}
-
-// ---------------------------------------------------------------------------
-// 已知缺陷：Persistence 的压缩流往返接口不可用
-// ---------------------------------------------------------------------------
-
-// Persistence::dumpToStream（Persistence.cpp）把内容写成一个含
-// "Persistence.xml" 条目的 zip；restoreFromStream 反过来读：
-//
-//     MinizipNgArchiveReader archive(stream);
-//     XMLReader reader("", archive.stream());
-//
-// 但 Archive.h 为 ArchiveReader 写明的契约是
-// 「nextEntry() 必须在读取第一个条目之前调用一次」，
-// 且 stream() 「仅在 nextEntry() 与下一次 nextEntry()/closeEntry() 之间有效」。
-// restoreFromStream 跳过了 nextEntry()，于是拿到的是空流，
-// XMLReader 报 "No document element found at offset 0" 并抛异常。
-//
-// 这对接口全仓没有任何调用点，所以缺陷一直没有暴露。产品的文档读写走的是
-// FilterOcdIO（kernel/filters/），与这条链路无关。
-//
-// 修复属于行为变更，不在阶段 0 范围内。两种收尾方式二选一：
-// 补上 nextEntry() 让接口可用，或者连同这对死接口一起删掉。
-TEST(PersistenceRoundTrip, DISABLED_压缩流往返)
-{
-    CircleData data(DmVector(1.0, 2.0), 3.0);
-    DmCircle original(nullptr, data);
-    original.calculateBorders();
-
-    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    original.dumpToStream(buffer, 1);
-    buffer.seekg(0, std::ios::beg);
-
-    DmCircle restored;
-    EXPECT_NO_THROW(restored.restoreFromStream(buffer));
-    expectVectorEq(restored.getCenter(), original.getCenter());
-    EXPECT_NEAR(restored.getRadius(), original.getRadius(), 1e-9);
 }

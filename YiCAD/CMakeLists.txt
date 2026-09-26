@@ -81,8 +81,6 @@ yicad_collect_sources(MATH
 
 # 对应阶段 3 的 YiCadModel（不得依赖 YiCadUi 或 YiCadRender）。
 #
-# 计划图未列出的 solver/、generators/ 按依赖方向归此。
-#
 # 改用逐分区 GLOB 时发现，原先的 file(GLOB) 里还列着四个早已不存在的目录：
 # builder_model/array、temp/entity_builders、temp/entity_data、temp/geometry。
 # GLOB 对不存在的目录静默返回空，所以一直没人察觉。这里已经删掉，
@@ -104,9 +102,7 @@ yicad_collect_sources(MODEL
     src/kernel/data_model/text
     src/kernel/history
     src/kernel/modification
-    src/kernel/information
-    src/kernel/solver
-    src/kernel/generators)
+    src/kernel/information)
 
 # 对应阶段 3 的 YiCadPersistence（依赖 YiCadModel）。
 #
@@ -470,9 +466,7 @@ target_include_directories(YiCadModel PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/data_model/text
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/history
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/modification
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/information
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/solver
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/generators)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/information)
 
 target_link_libraries(YiCadModel PUBLIC YiCadMath)
 

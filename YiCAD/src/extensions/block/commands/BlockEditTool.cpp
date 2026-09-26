@@ -109,7 +109,7 @@ void BlockEditTool::beginEditing(DmBlockReference* blockRef)
     // 使用 addToCurrentCmd()，不要使用 addAndExecuteCmd()，避免重复执行
     Transaction t("Block Edit Begin", m_document);
     t.start();
-    auto* enterCmd = new BlockEditEnterCmd(m_document, m_blockName, m_view);
+    auto* enterCmd = new BlockEditEnterCmd(m_document, m_blockName);
     m_document->getCmdManager()->addToCurrentCmd(enterCmd);
     t.commit();
 
@@ -172,7 +172,7 @@ void BlockEditTool::onExit()
         Transaction t("Block Edit End", m_document);
         t.start();
         auto* exitCmd =
-            new BlockEditExitCmd(m_document, m_blockName, m_view, m_exitDecision == ExitDecision::Save);
+            new BlockEditExitCmd(m_document, m_blockName, m_exitDecision == ExitDecision::Save);
         m_document->getCmdManager()->addToCurrentCmd(exitCmd);
         t.commit();
     }

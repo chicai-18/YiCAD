@@ -76,12 +76,6 @@ public:
 	/// Encodes an attribute upon saving.
 	static std::string encodeAttribute(const std::string&);
 
-	//dump the binary persistence data into into the stream
-	void dumpToStream(std::ostream& stream, int compression);
-
-	//restore the binary persistence data from a stream. Must have the format used by dumpToStream
-	void restoreFromStream(std::istream& stream);
-
 	/// @brief 获取指定类型保存时的版本号
 	int getRevisionId(const std::string& type, const std::vector<PAIR>& revs);
 
@@ -91,14 +85,6 @@ public:
 	std::string encode(const std::string& str) const;
 	/// @brief base64解码
 	std::string decode(const std::string& str) const;
-
-private:
-	/** This method is used at the end of restoreFromStream()
-	 * after all data files have been read in.
-	 * A subclass can set up some internals. The default
-	 * implementation does nothing.
-	 */
-	virtual void restoreFinished() {}
 
 private:
 	bool isBase64 = true;

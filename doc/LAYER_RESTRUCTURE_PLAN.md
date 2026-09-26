@@ -348,7 +348,7 @@ D8 于 2026-09-26 定下：先修 R1、R2、R3、R5、R6、R9；R7、R8 并入 S
 
 - R4、R7、R8 未修。其中 R7 现在更容易碰到：正常的 `.ycd` 能打开了，只有损坏的文件还会让异常穿出 `DmDocument::open`。
 - `test_persistence_roundtrip.cpp` 的 `DISABLED_压缩流往返` 仍失败：`Persistence::dumpToStream`/`restoreFromStream` 有与 R1
-  相同的漏调，但这对接口全仓没有调用方，建议在 S1 的死代码清理中一并删除，不修。
+  相同的漏调，但这对接口全仓没有调用方，建议在 S1 的死代码清理中一并删除，不修。（S1 已删除，见 5.5 节。）
 
 ---
 
@@ -381,7 +381,39 @@ D8 于 2026-09-26 定下：先修 R1、R2、R3、R5、R6、R9；R7、R8 并入 S
 
 ### 5.5 执行结果
 
-（未开始）
+2026-09-26 完成，基线 `5dbc0c7`（D8 修复步之后）。D1 于开工前定下：按建议删除。
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | `git rm` `kernel/solver/`（2 个文件，61 行）、`kernel/generators/`（3 个文件，168 行）；`CMakeLists.txt` 的 MODEL 分区与 `YiCadModel` 的 include 目录删去这两项，连同分区注释里"计划图未列出的 solver/、generators/ 按依赖方向归此"一句 |
+| 2 | `git rm` `FilterJsonIO.{h,cpp}`（2,338 行）；`.ts` 里没有它的词条 |
+| 3 | `BlockEditEnterCmd`、`BlockEditExitCmd` 删去 `IDocumentView*` 形参、`m_pDocView` 成员与对应的 `@param`；`BlockEditCmd.h` 的 `IDocumentView` 前置声明与 `BlockEditCmd.cpp` 的 `#include "IDocumentView.h"` 随之成为死代码，一并删除；`BlockEditTool.cpp` 两处构造改为不传视图 |
+| 4 | 删去 `GuiDocumentView.cpp` 的 `#include "GuiDialogFactory.h"` |
+| 5 | `git mv "DmObject .cpp" DmObject.cpp`；仓库里没有脚本或 `.ts` 引用旧文件名 |
+| 追加 | 按 4.6 节遗留的建议，删除 `Persistence::dumpToStream`/`restoreFromStream`，连同只被 `restoreFromStream` 调用的私有虚函数 `restoreFinished()`（全仓无覆盖）与 `Persistence.cpp` 里只为这两个函数服务的 `Reader.h`、`Writer.h`、`MinizipNgArchive.h`、`Tools.h` 四个 include；删除 `test_persistence_roundtrip.cpp` 的 `DISABLED_压缩流往返` 与文件头部对它的说明。开工前确认过 |
+
+`Persistence` 少了一个虚函数，虚表布局变化，几乎所有目标文件都要重编；插件 C ABI 不暴露 C++ 类，不受影响。
+
+**用例**：472（启用 466，`DISABLED_` 6）。与 D8 修复步相比只少了被删的 `DISABLED_压缩流往返`，启用数不变
+（`BASELINE.md` 7.2 节）。
+
+**验收**：
+
+- Release、Debug 构建通过，两种配置的 ctest 全部通过；`check_layering.py` 通过；Release `cmake --install` 后启动
+  `YiCAD.exe`，10 秒后进程仍在运行、主窗口有响应。
+- 任务 3 没有运行期覆盖：`test_interaction` 的块编辑用例（`test_select_first_commands.cpp` 的 `enterBlockEdit()`）
+  特意不跑事务，不构造 `BlockEditEnterCmd`/`BlockEditExitCmd`；块编辑（交互清单 B 系列）也未在界面上手工走查。
+  被删的成员从未被读取，编译通过即说明没有遗漏的使用处。S3 为块编辑进入与退出补的用例（7.2 节第 8 项）会覆盖这两个命令。
+- `grep` 全仓：`SolverInterface`、`XMLWriterQXmlStreamWriter`、`XmlWriterInterface`、`FilterJsonIO`、`dumpToStream`、
+  `restoreFromStream` 在源码、构建脚本、测试与 `.ts` 里都不再出现；剩下的只在本文档的任务描述与
+  `ARCHITECTURE_EVOLUTION_PLAN.md` 的历史记录里。
+
+**遗留**：`nlohmann_json` 已无使用者——`FilterJsonIO` 是它唯一的包含方。按开工前的确认本步不动，移除要同步
+`conanfile.py`、`conan.lock`、`cmake/dependencies.cmake`、`cmake/conan_helpers.cmake`、`YiCAD/CMakeLists.txt`
+（`YiCadMath` 的链接）、`README.md`、`README_zh.md`、`LICENSE` 与 `licenses/nlohmann-json-mit.txt`，并重跑 `conan install`
+验证，另行处理。
 
 ---
 
@@ -710,7 +742,7 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 
 | 编号 | 决策 | 建议或结论 | 状态 | 何时定 |
 |------|------|-----------|------|--------|
-| D1 | 删除 `kernel/solver/`、`kernel/generators/`、`FilterJsonIO` | 删除。若要保留 JSON 导出，改做扩展，在 S4 注册进 `FilterRegistry` | 待定 | S1 开工前 |
+| D1 | 删除 `kernel/solver/`、`kernel/generators/`、`FilterJsonIO` | 删除。若要保留 JSON 导出，改做扩展，在 S4 注册进 `FilterRegistry` | 已定（2026-09-26），S1 已删除 | — |
 | D2 | `Selection` 留在 Model 还是移到 Application | 留在 `model/edit/`：选择状态存在实体上，移走是另一件事（11.2 节） | 待定 | S2 开工前 |
 | D3 | 上层库的类型 | Render、Application 用 STATIC，Ui、Shell 用 OBJECT；后续阶段除 Shell 外改为 SHARED（11.1 节） | 待定 | S6 开工前 |
 | D4 | 是否换 Ninja 生成器 | 以 S6 的实测数据定 | 待定 | S6 验收时 |
