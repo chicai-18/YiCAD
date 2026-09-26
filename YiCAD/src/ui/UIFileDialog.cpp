@@ -30,7 +30,7 @@
 #include "DmSettings.h"
 #include "DmSystem.h"
 #include "Debug.h"
-#include "Fileio.h"
+#include "FilterRegistry.h"
 
 namespace
 {
@@ -94,8 +94,7 @@ QString UIFileDialog::getOpenFile()
 
     QString fn = "";
 
-    auto typeImportTypes = DMSYSTEM->getImportFormatTypes(open_filter);
-    typeImportTypes.append(FileIO::instance()->pluginImportNameFilters());
+    auto typeImportTypes = FilterRegistry::instance().importNameFilters();
 
     setWindowTitle(tr("Open %1").arg(m_strName));
     setNameFilters(typeImportTypes);
@@ -141,8 +140,7 @@ QString UIFileDialog::getSaveFile(QString& formatType)
     }
 
     auto type = DMSYSTEM->getCurrentFormatType();
-    auto filters = DMSYSTEM->getExportFormatTypes(type);
-    filters.append(FileIO::instance()->pluginExportNameFilters());
+    auto filters = FilterRegistry::instance().exportNameFilters();
     auto subStrs = filters.at(0).split("(*");
     auto suffix = (subStrs[subStrs.size() - 1]).split(")").at(0);
 
@@ -204,7 +202,7 @@ QString UIFileDialog::getSaveFile(QString& formatType)
     fn = QDir::toNativeSeparators(fi.absoluteFilePath());
 
     formatType =
-        FileIO::instance()->exportFormatType(selectedNameFilter());
+        FilterRegistry::instance().exportFormatType(selectedNameFilter());
 
     // store new default settings:
     DMSETTINGS->beginGroup("/Paths");

@@ -286,13 +286,13 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a |
-|------------|--------------------:|---:|---:|---:|---:|---:|---:|
-| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
-| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） |
-| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） |
-| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 |
-| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） |
+| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b |
+|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|
+| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
+| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） |
+| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） |
+| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 |
+| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） |
 
 S0 新增的 19 个 `DISABLED_` 对应读回路径的缺陷 R1–R9（`LAYER_RESTRUCTURE_PLAN.md` 4.5 节，
 `tests/persistence/test_persistence_document.cpp` 文件头部），修复后去掉前缀即为验收。
@@ -303,3 +303,5 @@ S2 只搬目录、改构建脚本，用例不变；`test_persistence` 改链 `Yi
 S3 新增 `test_interaction` 的 `test_document_listener.cpp`（9 个）：文档经监听接口通知画布。
 S4a 新增 `test_geometry` 的 `test_geometry_dimension.cpp`（2 个）：标注与引线从自己的文档取箭头块；
 `test_interaction` 的 `test_modify_commands.cpp` 新增 1 个：粘贴别的图纸的标注时标注改归本文档。
+S4b 新增 `test_persistence` 的 `test_persistence_filter_registry.cpp`（5 个）：格式注册表；`test_dxf_encoding.cpp`
+新增 1 个：插件格式登记进格式注册表、卸载前注销。

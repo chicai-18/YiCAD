@@ -38,10 +38,9 @@ SRC = os.path.join(REPO, 'YiCAD', 'src')
 # 键是相对 YiCAD/src 的路径，值是该文件允许包含的、按规则本应禁止的头文件集合。
 #
 # 全部是 ui/ 对 shell/ 的既有依赖（分层重组 S2 新增"ui/ 不得包含 shell/"时登记，
-# doc/LAYER_RESTRUCTURE_PLAN.md 1.2 节 L4）：
-#   - Fileio.h：S4b 让 UIFileDialog 改查 model/io/ 的格式注册表、删除 FileIO 时清除；
-#   - ApplicationWindow.h、MDIWindow.h：S5 新增 IDocumentManager、把壳层部件搬进
-#     shell/ 时清除。
+# doc/LAYER_RESTRUCTURE_PLAN.md 1.2 节 L4）：ApplicationWindow.h、MDIWindow.h，
+# S5 新增 IDocumentManager、把壳层部件搬进 shell/ 时清除。原有的 Fileio.h 两条已随
+# S4b 删除 FileIO 清除。
 WHITELIST = {
     'ui/UIActionHandler.cpp': {'MDIWindow.h'},
     'ui/UIActionHandler.h': {'MDIWindow.h'},
@@ -49,8 +48,7 @@ WHITELIST = {
     'ui/UIBottomWidget.h': {'ApplicationWindow.h'},
     'ui/UICommandWidget.h': {'MDIWindow.h'},
     'ui/UICurrentActivePen.cpp': {'ApplicationWindow.h'},
-    'ui/UIDialogFactory.cpp': {'ApplicationWindow.h', 'Fileio.h'},
-    'ui/UIFileDialog.cpp': {'Fileio.h'},
+    'ui/UIDialogFactory.cpp': {'ApplicationWindow.h'},
     'ui/UILineTypeBox.cpp': {'ApplicationWindow.h'},
     'ui/UITabDrawWidget.cpp': {'MDIWindow.h'},
 }

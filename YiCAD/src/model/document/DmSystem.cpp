@@ -35,7 +35,10 @@
 #include <QStandardPaths>
 #include <qdebug.h>
 
+#include "DmDocument.h"
 #include "DmSettings.h"
+#include "FilterOcdIO.h"
+#include "FilterRegistry.h"
 #include "Datamodel.h"
 #include "Debug.h"
 #include "DmBlockReference.h"
@@ -209,8 +212,6 @@ DmSystem::DmSystem()
 {
 	initialized = false;
 
-	m_importFormatTypes["ycd"] = QStringList({ "Drawing Exchange YCD (*.ycd)" });		// 添加yicad默认导入格式
-	m_exportFormatTypes["ycd"] = QStringList({ "Drawing Exchange YCD 2023 (*.ycd)" });	// 添加yicad默认导出格式
 	m_currentFormatType = "ycd";														// 设置文件格式
 }
 
@@ -290,6 +291,13 @@ void DmSystem::init(const QString& appName, const QString& appVersion, const QSt
 	DmBlock::initialize();
 	// 注册所有实体
 	entityInitialize();
+
+	// 原生格式登记进格式注册表；文件对话框按登记顺序列出过滤串，原生格式排在插件格式前面
+	FilterRegistry& filters = FilterRegistry::instance();
+	filters.addImport(QStringLiteral("Drawing Exchange YCD (*.ycd)"),
+	                  []() -> std::unique_ptr<FilterInterface> { return std::make_unique<FilterOcdIO>(); });
+	filters.addExport(QString::fromLatin1(DOCDEFAULTFORMAT), QString::fromLatin1(DOCDEFAULTFORMAT),
+	                  []() -> std::unique_ptr<FilterInterface> { return std::make_unique<FilterOcdIO>(); });
 }
 
 // Loads a different translation for the application GUI.
@@ -704,74 +712,6 @@ QStringList DmSystem::getDirectoryList(const QString& _subDirectory)
 	}
 
 	return ret;
-}
-
-QMap<QString, QStringList> DmSystem::getImportTypes() const
-{
-	return m_importFormatTypes;
-}
-
-QStringList DmSystem::getImportFormatTypes(const QString& type) const
-{
-	if (m_importFormatTypes.find(type) == m_importFormatTypes.end())
-	{
-		return QStringList();
-	}
-	else
-	{
-		return m_importFormatTypes[type];
-	}
-}
-
-void DmSystem::setImportTypes(const QMap<QString, QStringList>& formatTypes)
-{
-	m_importFormatTypes = formatTypes;
-}
-
-void DmSystem::addImportFormatType(const QString& key, const QString& formatType)
-{
-	if (m_importFormatTypes.find(key) == m_importFormatTypes.end())
-	{
-		m_importFormatTypes[key] = QStringList(formatType);
-	}
-	else
-	{
-		m_importFormatTypes.find(key).value().append(formatType);
-	}
-}
-
-QMap<QString, QStringList> DmSystem::getExportTypes() const
-{
-	return m_exportFormatTypes;
-}
-
-QStringList DmSystem::getExportFormatTypes(const QString& type) const
-{
-	if (m_exportFormatTypes.find(type) == m_exportFormatTypes.end())
-	{
-		return QStringList(); 
-	}
-	else
-	{
-		return m_exportFormatTypes[type];
-	}
-}
-
-void DmSystem::setExportTypes(const QMap<QString, QStringList>& formatTypes)
-{
-	m_exportFormatTypes = formatTypes;
-}
-
-void DmSystem::addExportFormatType(const QString& key, const QString& formatType)
-{
-	if (m_exportFormatTypes.find(key) == m_exportFormatTypes.end())
-	{
-		m_exportFormatTypes[key] = QStringList(formatType);
-	}
-	else
-	{
-		m_exportFormatTypes.find(key).value().append(formatType);
-	}
 }
 
 QString DmSystem::getCurrentFormatType() const

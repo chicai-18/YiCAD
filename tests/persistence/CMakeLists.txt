@@ -9,5 +9,6 @@ yicad_add_test(persistence
         test_persistence_roundtrip.cpp
         test_persistence_primitives.cpp
         test_persistence_document.cpp
+        test_persistence_filter_registry.cpp
     LINK YiCadModel
     LABELS "persistence;unit;roundtrip")

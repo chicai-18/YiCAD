@@ -26,7 +26,8 @@
 #include "ApplicationWindow.h"
 #include "DmDocument.h"
 #include "DmVector.h"
-#include "Fileio.h"
+#include "FilterInterface.h"
+#include "FilterRegistry.h"
 #include "IExclusiveCommand.h"
 #include "UIBottomWidget.h"
 #include "UICommandWidget.h"
@@ -100,12 +101,19 @@ QString UIDialogFactory::requestUntitledDocumentName(DmDocument* document)
 
 bool UIDialogFactory::requestFileExport(DmDocument& document, const QString& file, const QString& formatType)
 {
-	return FileIO::instance()->fileExport(document, file, formatType);
+	std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().exportFilter(formatType);
+	if (!filter)
+	{
+		QMessageBox::critical(nullptr, QObject::tr("ToolTips"), QObject::tr("Unsupported file format, please use another format to export!"), QMessageBox::Cancel); // 暂不支持的文件格式，请使用其他格式导出
+		return false;
+	}
+	return filter->fileExport(document, file, formatType);
 }
 
 bool UIDialogFactory::requestFileImport(DmDocument& document, const QString& file)
 {
-	return FileIO::instance()->fileImport(document, file);
+	std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().importFilter(file);
+	return filter && filter->fileImport(document, file);
 }
 
 void UIDialogFactory::requestCommandOptions(IExclusiveCommand* command, bool on, bool update)

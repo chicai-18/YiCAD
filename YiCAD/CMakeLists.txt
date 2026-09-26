@@ -83,7 +83,8 @@ yicad_collect_sources(BASE
 #   src/model/history/      撤销重做（Cmd/CmdManager/MacroCmd/Transaction 与各 *Cmd）
 #   src/model/edit/         Modification、Selection
 #   src/model/algorithm/    求交、面积、闭合区域、三角剖分
-#   src/model/io/           原生格式 FilterOcdIO、.bak 备份、迁移基类；meta/ 是各类型的
+#   src/model/io/           原生格式 FilterOcdIO、格式注册表 FilterRegistry、.bak 备份、
+#                           迁移基类；meta/ 是各类型的
 #                           Meta* 容器。原是独立的 YiCadPersistence 库，它本来就只依赖
 #                           Model 与 Base，分层重组 S2 并入本库
 #   src/model/host/         过渡目录：GuiDialogFactory*，即 Model 对宿主的遗留依赖。
@@ -144,9 +145,8 @@ yicad_collect_sources(APPLICATION
 #
 # 本分区不得包含 SHELL 的头文件，但有既有的双向依赖：UIActionHandler、UIBottomWidget、
 # UICommandWidget、UICurrentActivePen、UIDialogFactory、UILineTypeBox、UITabDrawWidget
-# 调 ApplicationWindow/MDIWindow 取全局状态（当前文档、当前图纸窗口），UIDialogFactory、
-# UIFileDialog 调 FileIO。这些 include 登记在 tools/check_layering.py 的白名单里，由
-# 分层重组 S4、S5 逐个清除。
+# 调 ApplicationWindow/MDIWindow 取全局状态（当前文档、当前图纸窗口）。这些 include 登记在
+# tools/check_layering.py 的白名单里，由分层重组 S5 清除。
 yicad_collect_sources(UI
     src/ui
     src/ui/forms
@@ -157,18 +157,15 @@ yicad_collect_sources(UI
 #                              图纸窗口 MDIWindow、预编译头 YiCadPch.h，以及只编进可执行
 #                              目标的 Main.cpp 与扩展注册表 BuiltinExtensions.cpp（见下方）
 #   src/shell/plugin_runtime/  C ABI 插件运行时。PluginUiAdapter 把插件命令与按钮登记进
-#                              CommandRegistry 与 UIRibbonRegistry；公开头文件
+#                              CommandRegistry 与 UIRibbonRegistry，PluginFormatRegistration
+#                              把插件的文件格式登记进 model/io/ 的 FilterRegistry；公开头文件
 #                              YiCadPluginAbi.h、YiCadPluginSdk.h 同时是插件 SDK
-#   src/shell/fileio/          过渡目录：FileIO 门面，要经 setPluginRuntime() 接入插件
-#                              运行时，只能在本分区。分层重组 S4 把格式注册表下沉到
-#                              model/io/ 后删除本目录
 #
 # 本分区原名 APP（目标库 YiCadApp），与 APPLICATION 分区、ApplicationWindow 容易混淆，
 # 2026-09-25 更名；更名前的文档执行记录保留原名。
 yicad_collect_sources(SHELL
     src/shell
-    src/shell/plugin_runtime
-    src/shell/fileio)
+    src/shell/plugin_runtime)
 
 # 进程内扩展：src/extensions/ 下每个子目录是一个扩展，各自建成 OBJECT 库
 # YiCadExt_<扩展>（见下方 YiCadCore 之后），构建系统里没有逐个扩展的登记。目录约定：
@@ -502,8 +499,7 @@ target_include_directories(YiCadCore PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shell
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/plugin_runtime
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/fileio)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/plugin_runtime)
 
 target_precompile_headers(YiCadCore PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/shell/YiCadPch.h")

@@ -104,7 +104,7 @@
 #include "PluginManager.h"
 #include "PluginRegistry.h"
 #include "PluginUiAdapter.h"
-#include "Fileio.h"
+#include "PluginFormatRegistration.h"
 
 #include "DmLine.h"
 #include "DmCircle.h"
@@ -377,7 +377,7 @@ void ApplicationWindow::loadPlugins()
         *m_pluginHostApi, *m_pluginRegistry);
     m_pluginManager->loadAll();
 
-    FileIO::instance()->setPluginRuntime(
+    m_pluginFormats = std::make_unique<PluginFormatRegistration>(
         *m_pluginRegistry, *m_pluginManager, *m_pluginHostApi);
 
     m_pluginUiAdapter = std::make_unique<PluginUiAdapter>(*m_pluginRegistry);
@@ -1054,7 +1054,7 @@ ApplicationWindow::~ApplicationWindow()
     /// @brief 必须在任何窗口、文档和全局宿主服务销毁前关闭并卸载插件。
     /// 插件命令先从命令注册表注销：回调只在插件 shutdown 前有效。
     m_pluginUiAdapter.reset();
-    FileIO::instance()->clearPluginRuntime();
+    m_pluginFormats.reset();
     if (m_pluginManager)
     {
         m_pluginManager->shutdownAll();

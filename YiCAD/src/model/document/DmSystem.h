@@ -112,24 +112,6 @@ public:
 	/// @return 找到并安装了翻译包时返回 true
 	bool loadExtensionTranslation(const QString& name);
 
-	/// @brief 获取导入格式集合
-	QMap<QString, QStringList> getImportTypes() const;
-	/// @brief 获取指定格式的导入文件集合
-	QStringList getImportFormatTypes(const QString& type) const;
-	/// @brief 设置导入格式集合
-	void setImportTypes(const QMap<QString, QStringList>& formatTypes);
-	/// @brief 新增导入格式
-	void addImportFormatType(const QString& key, const QString& formatType);
-	
-	/// @brief 获取导出格式集合
-	QMap<QString, QStringList> getExportTypes() const;
-	/// @brief 获取指定格式的导入文件集合
-	QStringList getExportFormatTypes(const QString& type) const;
-	/// @brief 设置导出格式集合
-	void setExportTypes(const QMap<QString, QStringList>& formatTypes);
-	/// @brief 新增导出格式
-	void addExportFormatType(const QString& key, const QString& formatType);
-
 	/// @brief 获取当前格式
 	QString getCurrentFormatType() const;
 	/// @brief 设置当前格式
@@ -152,8 +134,6 @@ protected:
 	QTranslator*						m_pTranslatorPlugIns;
 	QList<QTranslator*>					m_extensionTranslators;		// 各扩展的翻译包
 	QString								m_translationLang;			// loadTranslation() 选定的语言
-	QMap<QString, QStringList>			m_importFormatTypes;		// 导入格式集合
-	QMap<QString, QStringList>			m_exportFormatTypes;		// 导出格式集合
 	QString								m_currentFormatType;		// 当前文件格式
 };
 

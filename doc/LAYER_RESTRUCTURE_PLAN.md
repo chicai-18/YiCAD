@@ -772,6 +772,38 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
   （`DmLayerTable.cpp:36`），这些指针悬空。块参照没有 `blockSource` 时也按所属文档找块，同样受影响。
 - 块插入导入的标注，箭头块参照的 `blockSource` 指向已析构的临时文档（见上表），目前没有代码访问它。
 
+#### S4b：格式注册表下沉
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | 新增 `model/io/FilterRegistry`：`addImport`（过滤串 + 工厂）、`addExport`（格式名 + 过滤串 + 工厂）、`remove`（按登记号）；`importFilter(文件)`、`exportFilter(格式名)` 按登记顺序逐个创建过滤器，问它 `canImport`/`canExport`，与 `FileIO` 查内置格式的做法相同；`importNameFilters`、`exportNameFilters` 按登记顺序列出过滤串；`exportFormatType` 把选中的过滤串换成格式名，没登记过的原样返回 |
+| 2 | `DmSystem::init` 登记 OCD 的导入与导出。插件格式由新增的 `shell/plugin_runtime/PluginFormatRegistration` 登记：`ApplicationWindow::loadPlugins` 在 `loadAll()` 之后构造它（取代 `FileIO::setPluginRuntime`），析构函数在插件 shutdown 之前释放它（取代 `clearPluginRuntime`）；只登记活动插件的格式，过滤串的补后缀规则与格式名 `pluginId/formatId` 从 `Fileio.cpp` 原样搬来 |
+| 3 | `UIFileDialog` 的三处改查注册表；`check_layering.py` 白名单删去两条 `Fileio.h`，剩 9 条 |
+| 4 | `UIDialogFactory::requestFileExport`/`requestFileImport` 改查注册表，找不到导出格式时的 `QMessageBox::critical` 从 `Fileio.cpp` 原样移到这里（S4c 再随存盘策略移走）；`git rm` `shell/fileio/`，CMake 的分区、include 目录与注释随之删去 |
+
+**与 8.3 节原文的出入**：
+
+- `.ycd` 在文件对话框里的过滤串原先不在 `FileIO`，而在 `DmSystem` 的格式表里（构造函数写死）。按 8.3 节第 1 项"列出文件对话框的过滤串"，
+  改由注册表列出：OCD 登记时带上原来的两条过滤串，`UIFileDialog` 只查注册表，`DmSystem` 的格式表与 8 个存取函数随之删除
+  （调用方只有 `UIFileDialog`）。`DmSystem` 的"当前格式"（恒为 `ycd`）不动，文件对话框仍用它选默认过滤串。
+- 同一后缀原生格式优先、插件格式只查活动插件，都与 `FileIO` 相同；插件的活动集合在 `loadAll()` 与 `shutdownAll()` 之间不变，
+  所以"登记时筛一次"与"每次查找时筛"结果一样。
+
+**测试**：新增 `tests/persistence/test_persistence_filter_registry.cpp`（5 个）：原生格式在系统初始化时登记、找不到时的返回值
+（`.YCD` 大写后缀照旧不认，`FilterOcdIO::canImport` 只认小写）、登记的格式排在原生格式之后且注销后消失、同一后缀先登记的优先、
+注销不存在的登记号。`test_dxf_encoding.cpp` 的导入导出改经注册表找过滤器（与程序相同），另加 1 个：DXF 插件格式加载后登记、
+过滤串与格式名正确、运行时析构后注销。用例 490（启用 484，`DISABLED_` 6）。
+
+**验收**：
+
+- Release、Debug 构建通过；两种配置的 ctest 全部通过；`check_layering.py` 通过（9 处已登记的例外）。
+- `update_translations` 只改了 `YiCAD_zh_cn.ts`、`edit_zh_cn.ts` 的 `<location>` 行，"Unsupported file format…" 的位置随代码移到
+  `UIDialogFactory.cpp`，上下文仍是 `QObject`，译文不变。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应，关闭后以 0 退出（退出时先注销插件格式再关插件）。
+- 交互清单 W 系列（打开、另存为时的格式列表，DXF 导入导出）没有在界面上手工走查。
+
 ---
 
 ## 9. S5：解开 UI 与 Shell

@@ -2,7 +2,8 @@
 /// @brief DXF 导入导出的中文编码测试（阶段 5 验收）
 ///
 /// 加载构建目录里真实的 YiCadDxfPlugin.dll，走与程序相同的插件运行时
-/// （PluginManager、HostApi、PluginFileIOAdapter）。覆盖两条路径：
+/// （PluginManager、HostApi、PluginFileIOAdapter），导入导出与程序一样经格式注册表
+/// （PluginFormatRegistration 把插件格式登记进 FilterRegistry）找过滤器。覆盖两条路径：
 /// - R2000 文件按 $DWGCODEPAGE（ANSI_936）用 GBK 存中文，导入后图层名与文字正确；
 /// - 导入后再导出（插件固定写 R2013，字符串为 UTF-8），文件里是中文的 UTF-8 字节，
 ///   再导入得到同样的图层与文字。
@@ -31,8 +32,11 @@
 #include "DmLayer.h"
 #include "DmText.h"
 #include "EntityTable.h"
+#include "FilterInterface.h"
+#include "FilterRegistry.h"
 #include "HostApi.h"
 #include "PluginFileIOAdapter.h"
+#include "PluginFormatRegistration.h"
 #include "PluginManager.h"
 #include "PluginRegistry.h"
 
@@ -85,6 +89,7 @@ public:
         }
         m_manager = std::make_unique<PluginManager>(m_host, m_registry, m_manifestDir.path());
         m_manager->loadAll();
+        m_formats = std::make_unique<PluginFormatRegistration>(m_registry, *m_manager, m_host);
     }
 
     /// @brief 插件已加载并注册了 DXF 的导入与导出
@@ -108,17 +113,26 @@ public:
     bool importFile(DmDocument& document, const QString& path)
     {
         open(document);
-        PluginFileIOAdapter adapter(m_registry.importFilters().front(), *m_manager, m_host);
-        return adapter.fileImport(document, path);
+        std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().importFilter(path);
+        return dynamic_cast<PluginFileIOAdapter*>(filter.get()) != nullptr && filter->fileImport(document, path);
     }
 
     bool exportFile(DmDocument& document, const QString& path)
     {
         open(document);
-        const PluginExportFilterRecord& filter = m_registry.exportFilters().front();
-        PluginFileIOAdapter adapter(filter, *m_manager, m_host);
-        return adapter.fileExport(document, path, PluginRegistry::canonicalExportFormat(filter));
+        const QString format = exportFormat();
+        std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().exportFilter(format);
+        return dynamic_cast<PluginFileIOAdapter*>(filter.get()) != nullptr && filter->fileExport(document, path, format);
     }
+
+    /// @brief 插件声明的导入格式数
+    int importFormatCount() const { return static_cast<int>(m_registry.importFilters().size()); }
+
+    /// @brief 插件声明的导出格式数
+    int exportFormatCount() const { return static_cast<int>(m_registry.exportFilters().size()); }
+
+    /// @brief 插件的 DXF 导出格式名
+    QString exportFormat() const { return PluginRegistry::canonicalExportFormat(m_registry.exportFilters().front()); }
 
 private:
     void open(DmDocument& document)
@@ -132,6 +146,7 @@ private:
     HostApi m_host;
     QTemporaryDir m_manifestDir;
     std::unique_ptr<PluginManager> m_manager;
+    std::unique_ptr<PluginFormatRegistration> m_formats;  ///< 先于插件 shutdown 析构，与程序相同
 };
 
 // GBK 编码的「图层甲」与「中文文字」
@@ -219,6 +234,35 @@ void expectChineseContent(DmDocument& document)
     EXPECT_EQ(found.front()->getLayer()->getName(), layerName);
 }
 } // namespace
+
+TEST(DxfEncodingTest, 插件格式加载后登记进格式注册表卸载前注销)
+{
+    const QStringList importsBefore = FilterRegistry::instance().importNameFilters();
+    const QStringList exportsBefore = FilterRegistry::instance().exportNameFilters();
+    {
+        DxfRuntime runtime;
+        ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
+
+        // 插件格式排在原生格式之后，文件对话框的过滤串补上后缀
+        const QStringList imports = FilterRegistry::instance().importNameFilters();
+        ASSERT_EQ(imports.size(), importsBefore.size() + runtime.importFormatCount());
+        EXPECT_EQ(imports.mid(0, importsBefore.size()), importsBefore);
+        EXPECT_TRUE(imports.back().endsWith(QStringLiteral("(*.dxf)"))) << imports.back().toStdString();
+
+        const QStringList exports = FilterRegistry::instance().exportNameFilters();
+        ASSERT_EQ(exports.size(), exportsBefore.size() + runtime.exportFormatCount());
+        EXPECT_EQ(exports.mid(0, exportsBefore.size()), exportsBefore);
+        EXPECT_TRUE(exports.back().endsWith(QStringLiteral("(*.dxf)"))) << exports.back().toStdString();
+        // 保存对话框选中插件的过滤串，得到插件规范格式名 "pluginId/formatId"
+        EXPECT_EQ(FilterRegistry::instance().exportFormatType(exports.back()), runtime.exportFormat());
+
+        EXPECT_NE(FilterRegistry::instance().importFilter(QStringLiteral("drawing.dxf")), nullptr);
+        EXPECT_NE(FilterRegistry::instance().exportFilter(runtime.exportFormat()), nullptr);
+    }
+    EXPECT_EQ(FilterRegistry::instance().importNameFilters(), importsBefore);
+    EXPECT_EQ(FilterRegistry::instance().exportNameFilters(), exportsBefore);
+    EXPECT_EQ(FilterRegistry::instance().importFilter(QStringLiteral("drawing.dxf")), nullptr);
+}
 
 TEST(DxfEncodingTest, 按代码页导入GBK中文)
 {

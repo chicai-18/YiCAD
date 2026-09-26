@@ -63,6 +63,7 @@ class UIRibbonRegistrar;
 class UIRibbonRegistry;
 class HostApi;
 class PluginManager;
+class PluginFormatRegistration;
 class PluginRegistry;
 class PluginUiAdapter;
 struct SingleTabDraw;
@@ -348,13 +349,14 @@ private:
     // 进程内扩展的宿主服务（阶段4）；引用 m_ribbonRegistry，声明在其后以先于它析构。
     std::unique_ptr<ApplicationWindowExtensionHost> m_extensionHost;
 
-    /// @brief 新插件运行时；声明顺序保证插件命令最先注销、Manager 随后析构，宿主上下文
+    /// @brief 新插件运行时；声明顺序保证插件格式与命令最先注销、Manager 随后析构，宿主上下文
     /// 最后析构（析构函数里另按同样的顺序显式释放）。
     std::unique_ptr<ApplicationPluginHostContext> m_pluginHostContext;
     std::unique_ptr<PluginRegistry>                m_pluginRegistry;
     std::unique_ptr<HostApi>                       m_pluginHostApi;
     std::unique_ptr<PluginManager>                 m_pluginManager;
     std::unique_ptr<PluginUiAdapter>               m_pluginUiAdapter;
+    std::unique_ptr<PluginFormatRegistration>      m_pluginFormats;  ///< 插件格式在格式注册表里的登记
 };
 
 #endif  // APPLICATIONWINDOW_H
