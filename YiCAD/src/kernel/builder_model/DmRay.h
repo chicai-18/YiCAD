@@ -122,6 +122,7 @@ public:
     virtual void restoreStream(InputStream& reader,
                                const std::vector<PAIR>& revs) override;
     virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;
+    virtual void restoreStream(InputStream& rdr) override;
 
 private:
     bool isModify;              ///< 是否已修改标记

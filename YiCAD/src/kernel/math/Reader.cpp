@@ -57,7 +57,8 @@ XMLReader::XMLReader(const char* FileName, std::istream& str)
 
     if (result) {
         _valid = true;
-        cursor = doc.first_child();
+        // 光标先停在根元素上，第一次 advance() 产生根元素的开始事件
+        cursor = doc.document_element();
         ReadType = StartDocument;
     }
     else {
@@ -147,44 +148,87 @@ bool XMLReader::hasAttribute (const char* AttrName) const
 
 // ---------------------------------------------------------------------------
 //  DOM traversal helpers
+//
+//  调用方（FilterOcdIO 与各 Meta*Container）按 FreeCAD 基于 SAX 的 XMLReader 的语义编写：
+//  读取器依次产生"开始、开始即结束、结束"三种元素事件，readElement/readEndElement 在事件流上
+//  向后找。这里在 pugixml 的 DOM 上逐个产生同样的事件：
+//  - 有元素子节点的元素先产生 StartElement，最后一个子元素之后产生它的 EndElement；
+//  - 没有元素子节点的元素（含只有文本的元素）只产生一个 StartEndElement；
+//  - Level 与头文件的说明一致：StartElement 加一，StartEndElement 不变，EndElement 减一。
+//  文本、注释等非元素节点不产生事件。
 // ---------------------------------------------------------------------------
+
+namespace
+{
+/// @brief 第一个元素子节点，没有则返回空节点
+pugi::xml_node firstElementChild(pugi::xml_node node)
+{
+    for (pugi::xml_node child = node.first_child(); child; child = child.next_sibling()) {
+        if (child.type() == pugi::node_element)
+            return child;
+    }
+    return pugi::xml_node();
+}
+
+/// @brief 下一个元素兄弟节点，没有则返回空节点
+pugi::xml_node nextElementSibling(pugi::xml_node node)
+{
+    for (pugi::xml_node sibling = node.next_sibling(); sibling; sibling = sibling.next_sibling()) {
+        if (sibling.type() == pugi::node_element)
+            return sibling;
+    }
+    return pugi::xml_node();
+}
+}  // namespace
+
+void XMLReader::enterElement(pugi::xml_node node)
+{
+    cursor = node;
+    LocalName = node.name();
+    readAttributes(node);
+    if (firstElementChild(node)) {
+        ReadType = StartElement;
+        Level++;
+    }
+    else {
+        ReadType = StartEndElement;
+    }
+}
 
 bool XMLReader::advance()
 {
-    // Depth-first traversal in document order.
-    // Prefer first child, then next sibling, then parent's next sibling, etc.
-    if (!cursor)
-        return false;
-
-    pugi::xml_node next = cursor.first_child();
-    if (next) {
-        cursor = next;
-        Level++;
+    switch (ReadType) {
+    case StartDocument:
+        if (!cursor)
+            break;
+        enterElement(cursor);
         return true;
-    }
-
-    next = cursor.next_sibling();
-    if (next) {
-        cursor = next;
+    case StartElement:
+        // StartElement 只在有元素子节点时产生
+        enterElement(firstElementChild(cursor));
         return true;
-    }
-
-    // Walk up the tree looking for a parent's next sibling
-    pugi::xml_node parent = cursor.parent();
-    while (parent && parent != doc) {
-        pugi::xml_node ps = parent.next_sibling();
-        if (ps) {
-            cursor = ps;
-            Level--;
+    case StartEndElement:
+    case EndElement: {
+        // 当前元素已经结束：下一个事件是兄弟元素的开始，或者父元素的结束
+        pugi::xml_node sibling = nextElementSibling(cursor);
+        if (sibling) {
+            enterElement(sibling);
             return true;
         }
-        parent = parent.parent();
+        pugi::xml_node parent = cursor.parent();
+        if (parent.type() != pugi::node_element)
+            break;
+        cursor = parent;
+        LocalName = parent.name();
+        ReadType = EndElement;
         Level--;
+        return true;
+    }
+    default:
+        break;
     }
 
-    // Reached end of document
     cursor = pugi::xml_node();
-    Level = 0;
     ReadType = EndDocument;
     return false;
 }
@@ -199,40 +243,19 @@ void XMLReader::readAttributes(pugi::xml_node node)
 
 void XMLReader::readElement(const char* ElementName)
 {
-    if (!cursor)
-        return;
-
-    bool first = true;
-    while (true) {
-        // For the starting position, check it first; for subsequent positions,
-        // advance first then check.
-        if (!first) {
-            if (!advance())
-                break;
+    int currentLevel = Level;
+    std::string currentName = LocalName;
+    do {
+        if (!advance()) {
+            // 文档已经读完，仍在找元素
+            throw OneException("End of document reached");
         }
-        first = false;
-
-        if (cursor.type() != pugi::node_element)
-            continue;
-
-        if (ElementName && strcmp(cursor.name(), ElementName) != 0)
-            continue;
-
-        // Found a matching element
-        LocalName = cursor.name();
-        readAttributes(cursor);
-
-        // Check if this is a self-closing element (no children)
-        if (cursor.first_child()) {
-            ReadType = StartElement;
+        if (ReadType == EndElement && currentName == LocalName && currentLevel >= Level) {
+            // 调用时所在的元素已经结束，不再往后找
+            break;
         }
-        else {
-            ReadType = StartEndElement;
-        }
-
-        lastStartElement = cursor;
-        return;
-    }
+    } while ((ReadType != StartElement && ReadType != StartEndElement) ||
+             (ElementName && LocalName != ElementName));
 }
 
 int XMLReader::level() const {
@@ -241,15 +264,12 @@ int XMLReader::level() const {
 
 void XMLReader::readEndElement(const char* ElementName, int level)
 {
-    // if we are already at the end of the current element
-    // (self-closing element from previous readElement)
-    if (ReadType == StartEndElement
+    // 已经停在要找的元素的结束处（包括开始即结束的元素）
+    if ((ReadType == EndElement || ReadType == StartEndElement)
             && ElementName
             && LocalName == ElementName
-            && (level<0 || level==Level))
+            && (level < 0 || level == Level))
     {
-        // Move past the self-closing element
-        advance();
         return;
     }
     else if (ReadType == EndDocument) {
@@ -257,26 +277,13 @@ void XMLReader::readEndElement(const char* ElementName, int level)
         throw OneException("End of document reached");
     }
 
-    while (true) {
-        if (!advance()) break;
-        if (ReadType == EndDocument)
+    do {
+        if (!advance())
             break;
-
-        // For pugixml DOM traversal, after advancing past the last child
-        // of an element, we end up at the element itself (parent).
-        // Check if current cursor matches the target closing element.
-        if (cursor.type() == pugi::node_element) {
-            // If we're looking at an element that is a sibling or above,
-            // check if it matches the target
-            if (ElementName && strcmp(cursor.name(), ElementName) == 0) {
-                if (level < 0 || level == Level) {
-                    ReadType = EndElement;
-                    LocalName = cursor.name();
-                    return;
-                }
-            }
-        }
-    }
+    } while (ReadType != EndElement
+             || (ElementName
+                 && (LocalName != ElementName
+                     || (level >= 0 && level != Level))));
 }
 
 void XMLReader::readCharacters()

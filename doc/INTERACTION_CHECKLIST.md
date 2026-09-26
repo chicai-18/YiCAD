@@ -247,8 +247,8 @@
 | W3 | 另存为到另一个文件名 | 写出新文件，文档改用新文件名；原文件与原 .bak 不动；临时目录里原文件名对应的自动保存副本被删除 |
 | W4 | 用别的程序改动 W1 的文件（或改它的修改时间），回到 YiCAD 修改图纸后 Ctrl+S | 命令行提示 "File on disk modified. Please save to another file to avoid data loss! ..."，不写盘；另存为可以正常保存 |
 | W5 | 修改图纸后等自动保存触发；继续修改再等一个间隔 | 第一次：命令行显示 "Auto saving file: <临时目录>/<副本名>"，原文件不变。（既有）之后不再自动保存：`autoSave` 置位 `m_bHasAutoSaved`（`DmDocument.cpp:194`），`save` 见到它直接返回（`:223`），每个文档只自动保存一次 |
-| W6 | 打开 W1 保存的 .ycd | （既有，R1、R2）读不回：`FilterOcdIO::fileImport` 抛异常，`DmDocument::open`、`MDIWindow::slotFileOpen`、`UITabDrawWidget::slotFileOpen` 都不捕获，异常进入 Qt 事件循环；由代码推断程序异常退出，未实测。R1、R2 修好前本条预期失败，不要在有未保存图纸时核对 |
-| W7 | 把 W2 的 .ycd 换成任意内容（保留 .bak），打开它；分别在询问里点"是"和"否" | 设计上：询问 "Open failed, try to open backup file?"，点"是"先开 .bak 与自动保存副本中较新的一份、失败再开另一份，打开的那份复制为 `<备份基名>_<时间戳>.ycd` 并作为文档的文件名；点"否"或都打不开时警告 "Open failed, invalid file!"。（既有，R7、R8）过滤器的异常穿出 `DmDocument::open`，询问与警告都不出现，表现同 W6；R7 修好后 .bak 仍因后缀找不到过滤器而打不开，只有自动保存副本能打开 |
+| W6 | 打开 W1 保存的 .ycd；再打开一份含点、射线、构造线、自定义线型与中文图层的图纸，存盘后重新打开 | 内容与保存时一致：实体、图层、线型（含说明与当前线型）、文字样式、标注样式、块与属性。（既有，R4）图层列表里有两个 "0" 图层，文字样式、标注样式列表里 "Standard"、"ISO-25" 各两个，文档块表里的标注箭头块也各有两份；实体用的是新文档自带的那份 "0" 图层，文件里 "0" 图层自己的颜色等属性不生效；每存开一次，箭头块再多一套 |
+| W7 | 把 W2 的 .ycd 换成任意内容（保留 .bak），打开它；分别在询问里点"是"和"否" | 设计上：询问 "Open failed, try to open backup file?"，点"是"先开 .bak 与自动保存副本中较新的一份、失败再开另一份，打开的那份复制为 `<备份基名>_<时间戳>.ycd` 并作为文档的文件名；点"否"或都打不开时警告 "Open failed, invalid file!"。（既有，R7、R8）过滤器的异常穿出 `DmDocument::open`，`MDIWindow::slotFileOpen`、`UITabDrawWidget::slotFileOpen` 都不捕获，询问与警告都不出现，由代码推断程序异常退出，未实测，不要在有未保存图纸时核对；R7 修好后 .bak 仍因后缀找不到过滤器而打不开，只有自动保存副本能打开。两处都并入 S4c |
 | W8 | 打开 DXF | 图层与文字的中文正确；实体与 DXF 一致（`test_dxf_encoding` 覆盖同一插件路径） |
 | W9 | 接着按 Ctrl+S | 命令行提示 "File format mismatch. Please use 'Save As' to choose a compatible format."，不写盘（打开不改文档的格式类型，文件名后缀是 .dxf） |
 | W10 | 另存为选 DXF 格式，再打开导出的文件 | 插件写出 R2013 DXF；再打开内容与导出前一致，中文正确 |

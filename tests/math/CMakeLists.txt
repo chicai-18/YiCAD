@@ -17,5 +17,6 @@ yicad_add_test(math
         test_math_rtree.cpp
         test_math_kdtree.cpp
         test_debug_instrumentation.cpp
+        test_math_xml_reader.cpp
     LINK YiCadModel
     LABELS "math;unit")

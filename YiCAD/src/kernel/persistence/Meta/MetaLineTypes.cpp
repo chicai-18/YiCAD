@@ -83,17 +83,29 @@ void MetaLineTypesContainer::restoreXML(XMLReader& reader)
 		reader.readElement("LineType");
 
 		auto name = QString::fromStdString(reader.getAttribute("name"));
-		bool active = reader.hasAttribute("active");
+		// saveXML 对每个线型都写 active（0 或 1），要看值而不是看有没有这个属性
+		bool active = reader.hasAttribute("active") && reader.getAttributeAsInteger("active") != 0;
 
-		if ((name == "ByLayer" || name == "ByBlock" || name == "Continuous") && m_pDocument->getLineTypeTable()->find(name))
+		DmLineType* builtin = nullptr;
+		if (name == "ByLayer" || name == "ByBlock" || name == "Continuous")
 		{
+			builtin = m_pDocument->getLineTypeTable()->find(name);
+		}
+		if (builtin)
+		{
+			// 固定线型新文档已自带，不再重复添加，只恢复"是否为当前线型"
+			if (active)
+			{
+				m_pDocument->getLineTypeTable()->activate_direct(builtin);
+			}
 			reader.readEndElement("LineType");
 			continue;
 		}
 
 		reader.readElement("LineTypeDesp");
 		QString desp = QString::fromStdString(reader.getAttribute("desp"));
-		QString outward = desp.replace(QRegularExpression("[a-zA-Z0-9()]"), "");
+		// 外观串是说明去掉字母、数字与括号后剩下的部分；在副本上去掉，说明本身保持原样
+		QString outward = QString(desp).remove(QRegularExpression("[a-zA-Z0-9()]"));
 
 		reader.readElement("LineTypeData");
 		auto iDataCount = (size_t)reader.getAttributeAsInteger("Count");

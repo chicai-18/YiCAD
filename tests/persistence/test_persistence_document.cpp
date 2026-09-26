@@ -15,50 +15,26 @@
 /// GUIDIALOGFACTORY->requestActiveDocument() 取箭头块（方案 L3），没有它会解空指针。
 /// 读回的文档按产品的做法构造：新建 DmDocument 再导入。
 ///
-/// ## 已知缺陷（S0 发现，均不在本步修复）
+/// ## 读回路径的缺陷
 ///
-/// 读回路径目前整体不可用：YiCAD 读不回自己写出的任何 .ycd 文件。下面 R1、R2 两处各自
-/// 都足以让导入抛异常；在本地临时补上 R1、R2 之后又暴露出 R3–R9。每个 DISABLED_ 用例在
-/// 注释里写明它依赖哪几处，那几处修好即可去掉前缀，用例就是修复的验收。探查时逐处临时
-/// 修补、逐个核对过：除 R4 外，补上一个 DISABLED_ 用例所列的全部缺陷，该用例即通过。
+/// S0 查出读回路径 R1–R9 九处缺陷，编号与机理见 doc/LAYER_RESTRUCTURE_PLAN.md 4.5 节。
+/// R1–R3、R5、R6、R9 已在 D8 修复步修复（同文档 4.6 节），对应用例已启用。仍未修的三处，
+/// 相关用例保留 DISABLED_ 前缀，各自注明依赖哪几处，修好即可去掉前缀，用例就是修复的验收：
 ///
-/// - R1 FilterOcdIO.cpp:154：用 MinizipNgArchiveReader 打开文件后直接把 archive.stream()
-///   交给 XMLReader，没有先调 nextEntry()。Archive.h 为 ArchiveReader 写明
-///   "nextEntry() 必须在读取第一个条目之前调用一次"，MinizipNgArchiveReader 只在 nextEntry()
-///   里加载条目数据，于是 XMLReader 解析到空流（"No document element found at offset 0"），
-///   isValid() 为假，抛 OneException("Error reading compression file")。可达性：打开任何
-///   .ycd（FileIO::fileImport → FilterOcdIO::fileImport），包括打开备份与自动保存文件。
-///   与 test_persistence_roundtrip.cpp 末尾 Persistence::restoreFromStream 的缺陷同一机理。
-/// - R2 Reader.cpp:152–280：XMLReader 是在 pugixml 的 DOM 上模拟 FreeCAD 的 SAX 式读取器，
-///   但 advance() 只做先序遍历、从不回到父节点，readEndElement(name) 实际是向后找下一个
-///   名为 name 的"开始"标签；readElement 又先检查当前节点，连续读同名的兄弟节点
-///   （MetaLineTypes 的 <data>、各容器的 <level>）时反复读到第一个。restoreXML 读到
-///   <LineTypeData> 之后就找不到结束位置，一路走到文档末尾，抛
-///   OneException("End of document reached")。可达性：R1 修好后的每一次打开。
-/// - R3 DmPoint.cpp:233、DmRay.cpp:344、DmXline.cpp:242：restoreStream(reader, revs) 先调
-///   DmAtomicEntity::restoreStream(reader, revs)，而它在当前格式分支里什么也不读
-///   （DmAtomicEntity.cpp:153，注释写明交给派生类的 restoreStream(rdr)），DmEntity 部分
-///   （id、图层、画笔）因此没有读出。DmLine 等走的是 restoreStream(str) 那条链，没有这个问题。
-///   剩下的字节被当成后续实体继续解析：样本里 1 个点读回 6 个、射线与构造线各读回 4 个，
-///   坐标是乱数，每存一次、开一次还会继续增多。
 /// - R4 MetaLayers.cpp:114、MetaTextStyles.cpp:114、MetaDimensionStyles.cpp:116、
 ///   MetaBlockTableRecords.cpp:129：新建的 DmDocument 在各表的 setDocument 里已经放好
 ///   "0" 图层、"Standard" 文字样式、"ISO-25" 标注样式与 19 个标注箭头块，读入时又原样
 ///   add_direct 一份，同名条目各有两份；按名字查找（实体的图层、标注的样式）取到的是默认
 ///   那份，文件里这些条目自己的属性被忽略；箭头块每存一次、开一次多 19 个。
-/// - R5 MetaLineTypes.cpp:86：active = reader.hasAttribute("active")，而 saveXML 对每个
-///   线型都写 active 属性（值为 0 或 1），于是最后一个自定义线型被设为当前线型。
-/// - R6 MetaLineTypes.cpp:96：QString::replace 原地修改 desp 并返回它的引用，
-///   随后 setLineTypeDesp(desp) 存进去的是去掉了字母、数字与括号的外观串。
+///   修法待定（读入时覆盖同名默认条目，还是先清空默认表），见方案 12 节 D9。
 /// - R7 DmDocument.cpp:544（以及 :589、:597）：requestFileImport 没有 try/catch，而
-///   FilterOcdIO 对坏文件一律抛异常（FilterOcdIO.cpp:152、:159，MinizipNgArchive.cpp:324），
+///   FilterOcdIO 对坏文件一律抛异常（FilterOcdIO.cpp:152、:159、:165，MinizipNgArchive.cpp:324），
 ///   异常穿出 DmDocument::open，"是否打开备份"的询问与"Open failed, invalid file!"
 ///   的警告都走不到；MDIWindow::slotFileOpen、UITabDrawWidget::slotFileOpen 也不捕获。
+///   并入 S4c。
 /// - R8 DmDocument.cpp:589：打开失败后改开 "<文件名>.bak"，仍经 requestFileImport 按后缀选
 ///   过滤器，而 FilterOcdIO::canImport 只认 "ycd"（FilterOcdIO.cpp:118），.bak 没有过滤器
-///   接，备份永远打不开；只有临时目录里 .ycd 后缀的自动保存副本能走通。
-/// - R9 DmXline.cpp:91：setBasePoint 写的是 data.getBasePoint() 返回的临时对象，赋值
-///   不生效；读回的构造线基点停在 (0,0)。
+///   接，备份永远打不开；只有临时目录里 .ycd 后缀的自动保存副本能走通。并入 S4c。
 
 #include <gtest/gtest.h>
 
@@ -630,7 +606,7 @@ TEST_F(OcdDocumentWrite, 文档XML记录各表与各类实体的数量)
     ASSERT_FALSE(entries.empty());
     ASSERT_EQ(entries.front().name, "Document.xml");
 
-    // 用 Qt 的解析器独立读一遍，不依赖 XMLReader（它有 R2）
+    // 用 Qt 的解析器独立读一遍，不依赖被测的 XMLReader
     QXmlStreamReader xml(QByteArray::fromStdString(entries.front().data));
     std::map<QString, int> counts;
     QString root;
@@ -754,11 +730,10 @@ TEST_F(OcdDocumentWrite, 覆盖已有文件时旧文件改名为编号备份)
 }
 
 // ---------------------------------------------------------------------------
-// 往返（读回路径有 R1、R2，全部 DISABLED_；各用例注明还依赖哪几处）
+// 往返
 // ---------------------------------------------------------------------------
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_基本曲线的几何不变)
+TEST_F(OcdDocumentRoundTrip, 基本曲线的几何不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -809,8 +784,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_基本曲线的几何不变)
     expectVectorNear(controlPoints.back(), DmVector(30.0, 50.0));
 }
 
-// 依赖 R1、R2、R3、R9。
-TEST_F(OcdDocumentRoundTrip, DISABLED_点射线与构造线不变)
+TEST_F(OcdDocumentRoundTrip, 点射线与构造线不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -840,8 +814,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_点射线与构造线不变)
     EXPECT_EQ(xline->getLayer()->getName(), kLayerHidden);
 }
 
-// 依赖 R1、R2、R3。
-TEST_F(OcdDocumentRoundTrip, DISABLED_各类实体数量与类型不变)
+TEST_F(OcdDocumentRoundTrip, 各类实体数量与类型不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -849,8 +822,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_各类实体数量与类型不变)
     EXPECT_EQ(countByType(*restored.getEntityTable()), kModelSpaceCounts);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_实体的图层与画笔不变)
+TEST_F(OcdDocumentRoundTrip, 实体的图层与画笔不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -881,8 +853,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_实体的图层与画笔不变)
     EXPECT_EQ(hatch->getLayer()->getName(), kLayerOutline);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_文字与多行文字不变)
+TEST_F(OcdDocumentRoundTrip, 文字与多行文字不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -905,8 +876,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_文字与多行文字不变)
     EXPECT_EQ(mtext->getStyle()->getName(), kTextStyleName);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_标注与引线不变)
+TEST_F(OcdDocumentRoundTrip, 标注与引线不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -968,8 +938,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_标注与引线不变)
     expectVectorNear(leaderData.vertextes[2], DmVector(90.0, 10.0));
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_填充不变)
+TEST_F(OcdDocumentRoundTrip, 填充不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -983,8 +952,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_填充不变)
     expectVectorNear(hatch->getMax(), DmVector(120.0, 15.0), 1e-6);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_块定义与块引用不变)
+TEST_F(OcdDocumentRoundTrip, 块定义与块引用不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -1014,8 +982,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_块定义与块引用不变)
     EXPECT_EQ(attributes.front()->getText(), kAttributeValue);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_图层表内容不变)
+TEST_F(OcdDocumentRoundTrip, 图层表内容不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -1047,8 +1014,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_图层表内容不变)
     EXPECT_EQ(layers->getActive()->getName(), kLayerOutline);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_线型数据不变)
+TEST_F(OcdDocumentRoundTrip, 线型数据不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -1062,8 +1028,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_线型数据不变)
     EXPECT_EQ(countLineTypes(restored.getLineTypeTable(), QStringLiteral("Continuous")), 1);
 }
 
-// 依赖 R1、R2、R5。
-TEST_F(OcdDocumentRoundTrip, DISABLED_当前线型不变)
+TEST_F(OcdDocumentRoundTrip, 当前线型不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -1073,8 +1038,28 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_当前线型不变)
               original.getLineTypeTable()->getActive()->getLineTypeName());
 }
 
-// 依赖 R1、R2、R6。
-TEST_F(OcdDocumentRoundTrip, DISABLED_线型说明不变)
+TEST_F(OcdDocumentRoundTrip, 当前线型为自定义或固定线型时都不变)
+{
+    // 固定线型（ByLayer、ByBlock、Continuous）读入时跳过、不重复添加，"是否为当前线型"仍要恢复
+    for (const QString& name : {kLineTypeName, QStringLiteral("Continuous"), QStringLiteral("ByBlock")})
+    {
+        SCOPED_TRACE(name.toStdString());
+        DmDocument original;
+        ASSERT_NO_FATAL_FAILURE(build(original));
+        DmLineType* lineType = original.getLineTypeTable()->find(name);
+        ASSERT_NE(lineType, nullptr);
+        original.getLineTypeTable()->activate_direct(lineType);
+
+        const QString file = path(QStringLiteral("active_%1.ycd").arg(name));
+        ASSERT_NO_FATAL_FAILURE(exportTo(original, file));
+        DmDocument restored;
+        ASSERT_NO_FATAL_FAILURE(importFrom(restored, file));
+        ASSERT_NE(restored.getLineTypeTable()->getActive(), nullptr);
+        EXPECT_EQ(restored.getLineTypeTable()->getActive()->getLineTypeName(), name);
+    }
+}
+
+TEST_F(OcdDocumentRoundTrip, 线型说明不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -1084,8 +1069,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_线型说明不变)
     EXPECT_EQ(lineType->getLineTypeDesp(), kLineTypeDesp);
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_文字样式与标注样式表内容不变)
+TEST_F(OcdDocumentRoundTrip, 文字样式与标注样式表内容不变)
 {
     DmDocument original;
     DmDocument restored;
@@ -1108,7 +1092,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_文字样式与标注样式表内容不变
     EXPECT_EQ(restored.getDimStyleTable()->getActive()->getName(), kDimStyleName);
 }
 
-// 依赖 R1、R2、R4。
+// 依赖 R4。
 TEST_F(OcdDocumentRoundTrip, DISABLED_读回不重复新文档自带的条目)
 {
     DmDocument original;
@@ -1121,8 +1105,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_读回不重复新文档自带的条目)
     EXPECT_EQ(restored.getBlockTable()->count(), original.getBlockTable()->count());
 }
 
-// 依赖 R1、R2。
-TEST_F(OcdDocumentRoundTrip, DISABLED_中文路径往返)
+TEST_F(OcdDocumentRoundTrip, 中文路径往返)
 {
     DmDocument original;
     DmDocument restored;
@@ -1134,7 +1117,7 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_中文路径往返)
     EXPECT_EQ(text->getText(), kTextValue);
 }
 
-// 依赖 R1、R2、R3、R4。
+// 依赖 R4。
 TEST_F(OcdDocumentRoundTrip, DISABLED_写出读回再写出保持稳定)
 {
     // 读回的文档再存、再读，内容必须与第一次读回的相同，否则说明读写不对称
@@ -1285,8 +1268,7 @@ TEST_F(DocumentSavePolicy, 外部修改过的文件拒绝保存)
     EXPECT_FALSE(QFileInfo::exists(path(QStringLiteral("external.bak"))));
 }
 
-// 依赖 R1、R2。
-TEST_F(DocumentSavePolicy, DISABLED_另存为后能打开且不算修改)
+TEST_F(DocumentSavePolicy, 另存为后能打开且不算修改)
 {
     DmDocument original;
     ASSERT_NO_FATAL_FAILURE(build(original));
@@ -1304,7 +1286,7 @@ TEST_F(DocumentSavePolicy, DISABLED_另存为后能打开且不算修改)
     EXPECT_EQ(host.confirmCount, 0);
 }
 
-// 依赖 R7（打开主文件失败时不再抛出）、R8（.bak 找得到过滤器）以及 R1、R2（读得回备份）。
+// 依赖 R7（打开主文件失败时不再抛出）、R8（.bak 找得到过滤器）。
 TEST_F(DocumentSavePolicy, DISABLED_打开损坏文件时询问是否打开备份)
 {
     DmDocument doc;

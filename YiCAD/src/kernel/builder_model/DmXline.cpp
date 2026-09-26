@@ -88,7 +88,7 @@ DmVector DmXline::getBasePoint()
 
 void DmXline::setBasePoint(const DmVector& pt)
 {
-	data.getBasePoint() = pt;
+	data.setBasePoint(pt);
 }
 
 DmVector DmXline::getDirecion()
@@ -239,22 +239,16 @@ void DmXline::saveStream(OutputStream& wrt) const
 
 void DmXline::restoreStream(InputStream& reader, const std::vector<PAIR>& revs)
 {
-	DmAtomicEntity::restoreStream(reader, revs);
-
 	int fileRev = getRevisionId("DmXline", revs);
 	if (revId > fileRev)
 	{
+		DmAtomicEntity::restoreStream(reader, revs);
 		// 老文件格式
 		restoreStreamWithRev(reader, fileRev);
 	}
 	else
 	{
-		DmVector base(true), dir(true);
-		reader >> (double&)base.x >> (double&)base.y >> (double&)dir.x >> (double&)dir.y;
-
-		setBasePoint(base);
-		setDirection(dir);
-		isModify = true;
+		restoreStream(reader);
 	}
 }
 
@@ -269,4 +263,17 @@ void DmXline::restoreStreamWithRev(InputStream& rdr, int rev)
 		// read all legacy data one by one
 
 	}
+}
+
+void DmXline::restoreStream(InputStream& rdr)
+{
+	DmAtomicEntity::restoreStream(rdr);
+
+	DmVector base(true), dir(true);
+	rdr >> (double&)base.x >> (double&)base.y >> (double&)dir.x >> (double&)dir.y;
+
+	setBasePoint(base);
+	setDirection(dir);
+	calculateBorders();
+	isModify = true;
 }

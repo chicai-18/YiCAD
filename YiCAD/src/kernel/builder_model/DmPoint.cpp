@@ -230,21 +230,16 @@ void DmPoint::saveStream(OutputStream& wrt) const
 void DmPoint::restoreStream(InputStream& reader,
                             const std::vector<PAIR>& revs)
 {
-    DmAtomicEntity::restoreStream(reader, revs);
-
     int fileRev = getRevisionId("DmPoint", revs);
     if (revId > fileRev)
     {
+        DmAtomicEntity::restoreStream(reader, revs);
         // 老文件格式
         restoreStreamWithRev(reader, fileRev);
     }
     else
     {
-        DmVector p(true);
-        reader >> (double&)p.x >> (double&)p.y;
-
-        setPos(p);
-        isModify = true;
+        restoreStream(reader);
     }
 }
 
@@ -258,4 +253,16 @@ void DmPoint::restoreStreamWithRev(InputStream& rdr, int rev)
         // step1.
         // read all legacy data one by one
     }
+}
+
+void DmPoint::restoreStream(InputStream& rdr)
+{
+    DmAtomicEntity::restoreStream(rdr);
+
+    DmVector p(true);
+    rdr >> (double&)p.x >> (double&)p.y;
+
+    setPos(p);
+    calculateBorders();
+    isModify = true;
 }

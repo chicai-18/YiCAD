@@ -152,6 +152,12 @@ bool FilterOcdIO::fileImport(DmDocument& g, const QString& filename)
         throw OneException("Invalid file");
 
     MinizipNgArchiveReader archive(file);
+    // ArchiveReader 要求读第一个条目之前先调一次 nextEntry()；第一个条目是 Document.xml，
+    // 其余条目随后由 XMLReader::readFiles 接着往下读
+    if (!archive.nextEntry())
+    {
+        throw OneException("Error reading compression file");
+    }
     XMLReader reader(strfileName.c_str(), archive.stream());
 
     if (!reader.isValid())

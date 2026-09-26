@@ -315,6 +315,41 @@ LNK1103，删掉 `build/Debug/YiCAD/*.dir/Debug` 下的 `.obj`、`.pdb` 后重�
 - 半径、直径标注构造并 `update()` 之后，`getDefinitionPoint()` 变成了箭头点，与 `DmDimRadial.h` 注释"definitionPoint 是圆弧中心"
   不符；与读写无关，用例按写出前的值比对。
 
+### 4.6 D8 修复步：读回路径
+
+D8 于 2026-09-26 定下：先修 R1、R2、R3、R5、R6、R9；R7、R8 并入 S4c（8.4 节第 5 项）；R4 的修法另定（D9）。
+按决定在 S1 之前做，改动落在现有路径上，S2 搬家时随文件一起 `git mv`。
+
+**改动**（产品代码 10 个文件）：
+
+| 缺陷 | 文件 | 改法 |
+|------|------|------|
+| R1 | `FilterOcdIO.cpp` | 构造 `XMLReader` 之前先 `nextEntry()`；一个条目也没有时按坏文件抛异常 |
+| R2 | `Reader.h`、`Reader.cpp` | `advance()` 改为逐个产生"开始、开始即结束、结束"三种元素事件；`readElement`、`readEndElement` 照 FreeCAD 原实现；`Level` 按 `Reader.h` 的接口说明变化（开始加一，开始即结束不变，结束减一）；构造时从根元素开始；删去不再使用的 `lastStartElement` |
+| R3 | `DmPoint`、`DmRay`、`DmXline`（`.h`、`.cpp`） | 与 `DmLine`、`DmCircle` 相同：新增 `restoreStream(InputStream&)`，先读实体头再读自身字段；带修订号的 `restoreStream` 在当前格式分支转调它。末尾补 `calculateBorders()`，与同类实体一致——读回的实体随即放进空间索引，要有正确的包围盒 |
+| R5 | `MetaLineTypes.cpp` | 按 `active` 的值而不是有无判断；顺带修正固定线型（ByLayer、ByBlock、Continuous）为当前线型时读回不恢复的问题 |
+| R6 | `MetaLineTypes.cpp` | 外观串在副本上去掉字母、数字与括号，说明原样保存 |
+| R9 | `DmXline.cpp` | `setBasePoint` 改调 `data.setBasePoint` |
+
+**测试**：
+
+- 新增 `tests/math/test_math_xml_reader.cpp`（11 个）：按 `Reader.h` 的接口说明锁住 `XMLReader` 的事件语义，
+  不依赖 OCD 格式本身；
+- `tests/persistence/test_persistence_roundtrip.cpp` 新增 5 个：点、射线、构造线（加直线对照）按类型修订号读回并读完全部字节，
+  同类实体首尾相接时逐个读回不错位；
+- `test_persistence_document.cpp` 启用 15 个，另新增 1 个（ByBlock、Continuous 为当前线型时读回不变，覆盖 R5 的顺带修正）；
+  仍为 `DISABLED_` 的 4 个依赖 R4（2 个）与 R7、R8（2 个），用 `--gtest_also_run_disabled_tests` 核对过，它们只因这几处失败。
+- 用例 456 → 473（启用 434 → 466，`DISABLED_` 22 → 7）。
+
+**验收**：Debug、Release 构建与 ctest 通过；`check_layering.py` 通过；`cmake --install` 后程序正常启动。
+交互清单 6G 节 W6、W7 的期望随之改写；打开 `.ycd` 没有在界面上手工走查。
+
+**遗留**：
+
+- R4、R7、R8 未修。其中 R7 现在更容易碰到：正常的 `.ycd` 能打开了，只有损坏的文件还会让异常穿出 `DmDocument::open`。
+- `test_persistence_roundtrip.cpp` 的 `DISABLED_压缩流往返` 仍失败：`Persistence::dumpToStream`/`restoreFromStream` 有与 R1
+  相同的漏调，但这对接口全仓没有调用方，建议在 S1 的死代码清理中一并删除，不修。
+
 ---
 
 ## 5. S1：死代码清理
@@ -504,6 +539,9 @@ LNK1103，删掉 `build/Debug/YiCAD/*.dir/Debug` 下的 `.obj`、`.pdb` 后重�
    `:206`（写块与插入块时的临时文档）；`extensions/options/ui/UIDlgOptionsGeneral.cpp:198`（自动保存设置）。
    全部改调文档文件服务，保持现有提示行为。
 4. `DmDocument` 删除 `m_timer`、`m_bHasAutoSaved` 等策略状态。
+5. **修复 R7、R8**（4.5 节）：Model 的读文件把过滤器的异常转成结果码，不再穿出（R7）；打开备份时不按
+   `.bak` 后缀找过滤器，直接按原生格式读（R8）。去掉 `test_persistence_document.cpp` 里依赖它们的两个用例的
+   `DISABLED_` 前缀，即为验收。
 
 ### 8.5 S4d：宿主服务接口移到 Application
 
@@ -679,7 +717,8 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 | D5 | 存盘策略服务放 Application 还是 Shell | Application：扩展（块的写块与插入）也要用，且能在 `test_interaction` 里测 | 待定 | S4 开工前 |
 | D6 | 第 2.2 节的新目录命名 | 按 2.2 节；`shell/` 下不建子目录 | 待定 | S2 开工前 |
 | D7 | 第三方自定义实体的接口 | C++ SDK（仿 ObjectARX），实施列为后续阶段（11.1 节） | 已定（2026-09-26） | — |
-| D8 | S0 查出的读回缺陷（4.5 节 R1–R9）何时修 | 在 S4 之前单列一步修复 R1–R3、R5、R6、R9（均为局部修改，修好即可去掉对应用例的 `DISABLED_`）；R7、R8 与 S4c 的存盘策略搬移重叠，并入 S4c；R4 先定语义再修。放在 S2 之后，改动落在最终路径上 | 待定 | S2 开工前 |
+| D8 | S0 查出的读回缺陷（4.5 节 R1–R9）何时修 | 先修 R1–R3、R5、R6、R9，在 S1 之前做（4.6 节，已完成）；R7、R8 并入 S4c（8.4 节第 5 项）；R4 见 D9 | 已定（2026-09-26） | — |
+| D9 | R4：读入 `.ycd` 时怎样处理新文档自带的默认条目（"0" 图层、"Standard" 文字样式、"ISO-25" 标注样式、箭头块） | 两种做法：读入前清空这些默认条目、完全以文件为准；或保留默认条目，文件里的同名条目覆盖其属性。前者简单，但要确认实体、标注样式在读入过程中不会先引用到默认条目；后者兼容缺少这些条目的文件。建议前者，缺条目时读完再补 | 待定 | S4 开工前 |
 
 ---
 

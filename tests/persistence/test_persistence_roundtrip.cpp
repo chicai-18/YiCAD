@@ -30,11 +30,17 @@
 #include "DmCircle.h"
 #include "DmEllipse.h"
 #include "DmLine.h"
+#include "DmPoint.h"
+#include "DmRay.h"
 #include "DmVector.h"
+#include "DmXline.h"
 #include "EllipseData.h"
 #include "LineData.h"
 #include "Persistence.h"
+#include "PointData.h"
+#include "RayData.h"
 #include "Stream.h"
+#include "XLineData.h"
 
 namespace
 {
@@ -64,6 +70,26 @@ void expectVectorEq(const DmVector& got, const DmVector& expected, double tol = 
     EXPECT_NEAR(got.x, expected.x, tol);
     EXPECT_NEAR(got.y, expected.y, tol);
     EXPECT_NEAR(got.z, expected.z, tol);
+}
+
+/// @brief 按类型修订号读回（Meta*Container 读 .ycd 走的就是这条），并检查写出的字节正好读完
+///
+/// 同一个文件里同类实体首尾相接，一个实体少读或多读，后面的实体就全部错位。
+template <typename T>
+void roundTripWithRevs(const T& source, T& target)
+{
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        OutputStream out(buffer);
+        source.saveStream(out);
+    }
+    buffer.seekg(0, std::ios::beg);
+
+    std::vector<PAIR> revs;
+    T::getRevId(revs);
+    InputStream in(buffer);
+    target.restoreStream(in, revs);
+    EXPECT_TRUE(in.end()) << "写出的字节没有读完";
 }
 }  // namespace
 
@@ -186,6 +212,76 @@ TEST(PersistenceRoundTrip, 椭圆往返保持长轴与比率)
     expectVectorEq(restored.getCenter(), original.getCenter());
     EXPECT_NEAR(restored.getRatio(), original.getRatio(), 1e-9);
     expectVectorEq(restored.getMajorP(), original.getMajorP(), 1e-9);
+}
+
+// ---------------------------------------------------------------------------
+// 按类型修订号读回
+// ---------------------------------------------------------------------------
+
+// 点、射线、构造线原先在当前格式下不读实体头（id、图层、画笔），构造线的基点也写不进去
+// （doc/LAYER_RESTRUCTURE_PLAN.md 4.5 节的 R3、R9）。直线一并列出作对照。
+
+TEST(PersistenceRoundTrip, 直线按修订号读回读完全部字节)
+{
+    DmLine original(DmVector(1.5, -2.25), DmVector(30.75, 41.125));
+    DmLine restored;
+    ASSERT_NO_FATAL_FAILURE(roundTripWithRevs(original, restored));
+    expectVectorEq(restored.getStartpoint(), original.getStartpoint());
+    expectVectorEq(restored.getEndpoint(), original.getEndpoint());
+}
+
+TEST(PersistenceRoundTrip, 点按修订号读回保持位置)
+{
+    DmPoint original(nullptr, PointData(DmVector(-7.0, 9.0)));
+    DmPoint restored;
+    ASSERT_NO_FATAL_FAILURE(roundTripWithRevs(original, restored));
+    expectVectorEq(restored.getPos(), DmVector(-7.0, 9.0));
+}
+
+TEST(PersistenceRoundTrip, 射线按修订号读回保持基点与方向)
+{
+    DmRay original(nullptr, RayData(DmVector(0.0, 100.0), DmVector(0.6, 0.8)));
+    DmRay restored;
+    ASSERT_NO_FATAL_FAILURE(roundTripWithRevs(original, restored));
+    expectVectorEq(restored.getBasePoint(), DmVector(0.0, 100.0));
+    expectVectorEq(restored.getDirecion(), DmVector(0.6, 0.8));
+}
+
+TEST(PersistenceRoundTrip, 构造线按修订号读回保持基点与方向)
+{
+    DmXline original(nullptr, XLineData(DmVector(3.0, -100.0), DmVector(0.0, 1.0)));
+    DmXline restored;
+    ASSERT_NO_FATAL_FAILURE(roundTripWithRevs(original, restored));
+    expectVectorEq(restored.getBasePoint(), DmVector(3.0, -100.0));
+    expectVectorEq(restored.getDirecion(), DmVector(0.0, 1.0));
+}
+
+TEST(PersistenceRoundTrip, 同类实体首尾相接时逐个读回不错位)
+{
+    // 与 MetaPointsContainer::restoreStream 相同：一个流里连续读，直到流结束
+    DmPoint a(nullptr, PointData(DmVector(1.0, 2.0)));
+    DmPoint b(nullptr, PointData(DmVector(3.0, 4.0)));
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        OutputStream out(buffer);
+        a.saveStream(out);
+        b.saveStream(out);
+    }
+    buffer.seekg(0, std::ios::beg);
+
+    std::vector<PAIR> revs;
+    DmPoint::getRevId(revs);
+    InputStream in(buffer);
+    std::vector<DmVector> positions;
+    while (!in.end() && positions.size() < 10)
+    {
+        DmPoint p;
+        p.restoreStream(in, revs);
+        positions.push_back(p.getPos());
+    }
+    ASSERT_EQ(positions.size(), 2u);
+    expectVectorEq(positions[0], DmVector(1.0, 2.0));
+    expectVectorEq(positions[1], DmVector(3.0, 4.0));
 }
 
 // ---------------------------------------------------------------------------

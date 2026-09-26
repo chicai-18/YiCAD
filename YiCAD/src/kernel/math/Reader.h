@@ -167,15 +167,18 @@ public:
     std::vector<FileEntry> FileList;
 
 protected:
-    /// advance cursor to the next element in document order, return false if none
+    /// @brief 产生下一个元素事件（开始、开始即结束或结束），更新 cursor、ReadType、LocalName 与 Level
+    /// @return 文档已读完时返回 false，ReadType 置为 EndDocument
     bool advance();
+
+    /// @brief 进入元素 node：记下名字与属性，按有无元素子节点置为 StartElement 或 StartEndElement
+    void enterElement(pugi::xml_node node);
 
     /// populate AttrMap from the given node's attributes
     void readAttributes(pugi::xml_node node);
 
     pugi::xml_document doc;
-    pugi::xml_node cursor;          // current position in the DOM
-    pugi::xml_node lastStartElement; // last element entered via readElement (for self-closing detection)
+    pugi::xml_node cursor;          ///< 当前事件所在的元素
 
     int Level;
     std::string LocalName;

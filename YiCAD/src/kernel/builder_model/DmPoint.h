@@ -105,6 +105,7 @@ public:
     virtual void restoreStream(InputStream& reader,
                                const std::vector<PAIR>& revs) override;
     virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;
+    virtual void restoreStream(InputStream& rdr) override;
 
 protected:
     PointData data;         ///< 点几何数据

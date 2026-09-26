@@ -78,6 +78,7 @@ public:
 	virtual void saveStream(OutputStream& wrt) const override;
 	virtual void restoreStream(InputStream& reader, const std::vector<PAIR>& revs) override;
 	virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;
+	virtual void restoreStream(InputStream& rdr) override;
 
 protected:
 	XLineData data;
