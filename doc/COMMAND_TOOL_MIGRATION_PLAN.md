@@ -1488,7 +1488,21 @@ S15–S18、B2）尚未进行。
    - 块编辑模式另行整体重做（编辑模式挂在总线上并不合适），这次只做最小适配：`BlockEditTool` 改由
      `ICommandHost&` 构造。
 
+2. **总线接口收紧**：
+   - `approveEnd()`/`end()` 合并为 `endCommand(reason)`，`approveEndAll()`/`endAll()` 合并为
+     `endAll(reason)`：先问，都同意才结束，返回是否已经结束。拆成两步的原意是"调用方全部征得同意后
+     再结束"，但先问命令、再问模式在 `endAll` 内部就能完成，调用方每次都是问完紧接着结束，从没分开用过；
+   - `UIView::startCommand()` 原先先问一遍、结束当前命令，再调 `start()`，而 `start()` 内部又做同样的事，
+     现在只调 `start()`；`prepareInstantCommand()`（结束全部）与 `startCommand()` 调用前的 `isInCallback()`
+     检查是多余的（回调中这些调用本来就返回 false），删除。结束不可打断命令那一支保留这项检查：回调中
+     跳过结束、即时命令照常执行，与原先相同；
+   - 捕捉设置同步（`setSnapMode`/`setSnapRestriction`）移到 `UIView`：它取活动命令的捕捉器直接设置，
+     总线不经手。新增 `UIView::activeCommandSnapper()`，`commandSnapService()`（捕捉标记读哪个捕捉器，
+     选择阶段读选择层的）改为基于它。
+
 测试：`tests/support/TestCommandHost.h` 像 `UIView` 一样实现宿主并响应两个信号（`UIView` 是
 `QOpenGLWidget`，单测不构造它，改动 `UIView` 的这部分时要同步），`CommandFixture`、`BusFixture`、
 `SelectFirstFixture` 共用。`test_exclusive_command_bus` 加 2 例锁定两个信号的时机；激活失败与析构的
-两例补断言照常通知；"命令结束时总线清除选择阶段约束"改名为"视图清除"。
+两例补断言照常通知；"命令结束时总线清除选择阶段约束"改名为"视图清除"。各用例改用合并后的接口，
+"只问不改"的断言改为"被否决时什么也不结束"；"捕捉设置同步给活动命令的捕捉器"随同步移到 `UIView`
+删除（`UIView` 不在单测里构造）。

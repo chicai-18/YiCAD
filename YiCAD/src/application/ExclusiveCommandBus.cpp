@@ -24,7 +24,6 @@
 
 #include "ICommandHost.h"
 #include "IEditMode.h"
-#include "ISnapService.h"
 #include "ViewToolControl.h"
 
 ExclusiveCommandBus::DispatchScope::DispatchScope(ExclusiveCommandBus* bus)
@@ -69,13 +68,10 @@ bool ExclusiveCommandBus::start(std::unique_ptr<IExclusiveCommand> command)
     {
         return false;
     }
-    if (m_active)
+    // 先按 5.1 节请当前命令让位，被否决时丢弃新命令；编辑模式不受影响，新命令叠在它上面
+    if (!endCommand(CommandEndReason::Replaced))
     {
-        if (!approveEnd(CommandEndReason::Replaced))
-        {
-            return false;
-        }
-        end();
+        return false;
     }
 
     m_active = std::move(command);
@@ -121,18 +117,43 @@ void ExclusiveCommandBus::requestFinish(IExclusiveCommand* command)
     });
 }
 
-bool ExclusiveCommandBus::approveEnd(CommandEndReason reason)
+bool ExclusiveCommandBus::endCommand(CommandEndReason reason)
 {
     if (m_inCallback)
     {
         // 回调里弹出的对话框的事件循环中又请求结束：忽略（5.1 节）
         return false;
     }
+    if (!approveCommand(reason))
+    {
+        return false;
+    }
+    finishActive();
+    return true;
+}
+
+bool ExclusiveCommandBus::endAll(CommandEndReason reason)
+{
+    if (m_inCallback)
+    {
+        return false;
+    }
+    // 先问命令、再问模式，都同意后才结束：模式否决时命令也继续（命令在回调里已自己结束的除外）
+    if (!approveCommand(reason) || !approveMode(reason))
+    {
+        return false;
+    }
+    finishActive();
+    exitEditMode();
+    return true;
+}
+
+bool ExclusiveCommandBus::approveCommand(CommandEndReason reason)
+{
     if (!m_active)
     {
         return true;
     }
-
     bool approved = false;
     {
         // 回调里命令自己请求的结束，延迟到回调返回后
@@ -144,30 +165,12 @@ bool ExclusiveCommandBus::approveEnd(CommandEndReason reason)
     return approved || reason == CommandEndReason::ViewClosing;
 }
 
-void ExclusiveCommandBus::end()
+bool ExclusiveCommandBus::approveMode(CommandEndReason reason)
 {
-    if (m_inCallback)
-    {
-        return;
-    }
-    finishActive();
-}
-
-bool ExclusiveCommandBus::approveEndAll(CommandEndReason reason)
-{
-    if (m_inCallback)
-    {
-        return false;
-    }
-    if (!approveEnd(reason))
-    {
-        return false;
-    }
     if (!m_mode)
     {
         return true;
     }
-
     bool approved = false;
     {
         DispatchScope scope(this);
@@ -176,16 +179,6 @@ bool ExclusiveCommandBus::approveEndAll(CommandEndReason reason)
         m_inCallback = false;
     }
     return approved || reason == CommandEndReason::ViewClosing;
-}
-
-void ExclusiveCommandBus::endAll()
-{
-    if (m_inCallback)
-    {
-        return;
-    }
-    finishActive();
-    exitEditMode();
 }
 
 void ExclusiveCommandBus::enterEditMode(std::unique_ptr<IEditMode> mode)
@@ -238,22 +231,6 @@ void ExclusiveCommandBus::exitEditMode()
     if (m_scopeDepth > 0)
     {
         m_retiredModes.push_back(std::move(mode));
-    }
-}
-
-void ExclusiveCommandBus::setSnapMode(const SnapMode& snapMode)
-{
-    if (ISnapService* snapper = m_active ? m_active->snapService() : nullptr)
-    {
-        snapper->setSnapMode(snapMode);
-    }
-}
-
-void ExclusiveCommandBus::setSnapRestriction(DM::SnapRestriction restriction)
-{
-    if (ISnapService* snapper = m_active ? m_active->snapService() : nullptr)
-    {
-        snapper->setSnapRestriction(restriction);
     }
 }
 

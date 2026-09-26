@@ -41,7 +41,7 @@
 /// InstantInterrupt 处理正在运行的命令（见 prepareInstantCommand()）。
 ///
 /// 编辑模式（块编辑，IEditMode）也由命令总线持有：启动命令不影响它；结束全部命令、
-/// 需要结束全部的即时命令与视图关闭时先问命令、再问模式（ExclusiveCommandBus::approveEndAll）。
+/// 需要结束全部的即时命令与视图关闭时先问命令、再问模式（ExclusiveCommandBus::endAll）。
 
 #ifndef UIVIEW_H
 #define UIVIEW_H
@@ -75,7 +75,7 @@ public:
     ~UIView() override;
 
     /// @brief 启动交互命令（UIActionHandler 按注册类型分派到这里）
-    /// @details 先按 5.1 节请当前命令让位（被否决时丢弃新命令），再交给命令总线激活。
+    /// @details 交给命令总线：它先按 5.1 节请当前命令让位（被否决时丢弃新命令），再激活新命令。
     /// @param command 新命令，视图接管所有权
     /// @return 新命令已激活（包括激活期间就已完成的）时返回 true
     bool startCommand(std::unique_ptr<IExclusiveCommand> command);
@@ -146,7 +146,9 @@ private:
     /// @brief 命令已结束：清除残留的选择阶段约束，恢复选择层，夹点编辑工具放回业务栈顶
     void onCommandFinished();
 
-    /// @brief 活动命令的捕捉器：不在选择阶段且有捕捉器时返回它
+    /// @brief 活动命令的捕捉器；没有活动命令或它没有捕捉器时返回 nullptr。捕捉设置同步给它
+    ISnapService* activeCommandSnapper() const;
+    /// @brief 捕捉标记与提示读的命令捕捉器：不在选择阶段时是 activeCommandSnapper()
     ISnapService* commandSnapService() const;
 
     /// @brief 右键释放（含 back() 合成的）：经 ViewToolControl 交给命令的工具或编辑模式

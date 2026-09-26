@@ -25,12 +25,12 @@
 ///     （DS 的 ViewCommandManager::QueueFinishExclusive 用 0 毫秒定时器；这里
 ///     由视图用 DispatchScope 标出分发的范围，分发返回即结束，不经事件循环，
 ///     结束时机确定。分发之外的请求，如选项条按钮，仍经 0 毫秒定时器）；
-///   - 外部结束前先回调命令（5.1 节）：approveEnd() 只问不改，调用方全部征得
-///     同意后再 end()；回调期间的启动与结束请求一律忽略；
+///   - 外部结束前先回调命令（5.1 节）：endCommand()/endAll() 先问，都同意才结束；
+///     回调期间的启动与结束请求一律忽略；
 ///   - 以宿主 ICommandHost 构造（DS 是 UIView），命令激活时拿到的也是它；
 ///   - 持有编辑模式（块编辑，见 IEditMode.h）：模式的工具常驻在业务栈底部，
 ///     命令叠在它上面；启动命令不影响模式，结束全部命令与视图关闭时先问命令、
-///     再问模式（approveEndAll()）；
+///     再问模式（endAll()）；
 ///   - 命令启停经 commandStarting()/commandFinished() 通知视图，视图据此让出、收回
 ///     空闲态的工具（夹点编辑工具、选择层）。DS 只有一个 signal_activeChanged，在激活
 ///     之后发；这里让出要早于激活，所以分成两个。
@@ -44,12 +44,10 @@
 #include <QObject>
 #include <QString>
 
-#include "Datamodel.h"
 #include "IExclusiveCommand.h"
 
 class ICommandHost;
 class IEditMode;
-struct SnapMode;
 
 /// @brief 视图作用域的命令总线
 /// @note 仅限 UI 主线程访问
@@ -103,24 +101,19 @@ public:
     ///          自己的调用栈里销毁它。不是活动命令时忽略。
     void requestFinish(IExclusiveCommand* command);
 
-    /// @brief 外部结束前征求活动命令同意（5.1 节），不改变任何状态
-    /// @param reason 结束原因
-    /// @return 没有活动命令或命令同意时返回 true；ViewClosing 忽略否决；
-    ///         回调期间的重入请求返回 false
-    bool approveEnd(CommandEndReason reason);
-    /// @brief 结束活动命令，不再征求同意（调用方已经 approveEnd()）
-    void end();
+    /// @brief 从外部结束活动命令：先征求它同意（5.1 节），同意后结束
+    /// @param reason 结束原因；ViewClosing 忽略否决
+    /// @return 已经没有活动命令时返回 true；被否决或处在回调中时返回 false，什么也不结束
+    bool endCommand(CommandEndReason reason);
+
+    /// @brief 结束全部：先征求活动命令、再征求编辑模式同意（5.1 节），都同意后结束命令并退出编辑模式
+    /// @param reason Cancelled（结束全部命令）、Replaced（需要结束全部的即时命令，如新建、打开图纸）
+    ///        或 ViewClosing（忽略否决）
+    /// @return 都已结束时返回 true；被否决或处在回调中时返回 false，什么也不结束
+    bool endAll(CommandEndReason reason);
 
     /// @brief 是否正在回调 onEndRequested()；期间的启动与结束请求一律忽略
     bool isInCallback() const { return m_inCallback; }
-
-    /// @brief 结束全部前征求同意：先问活动命令，再问编辑模式（5.1 节），不改变任何状态
-    /// @param reason Cancelled（结束全部命令）、Replaced（需要结束全部的即时命令，如新建、打开图纸）
-    ///        或 ViewClosing
-    /// @return 都同意时返回 true；ViewClosing 忽略否决；回调期间的重入请求返回 false
-    bool approveEndAll(CommandEndReason reason);
-    /// @brief 结束活动命令并退出编辑模式，不再征求同意（调用方已经 approveEndAll()）
-    void endAll();
 
     // ---- 编辑模式（块编辑）----
 
@@ -137,13 +130,6 @@ public:
     /// @note 不能在模式自己的调用栈里调用，模式请求退出自己用 requestExitEditMode()
     void exitEditMode();
 
-    // ---- 捕捉设置同步 ----
-
-    /// @brief 视图的默认捕捉模式变化时同步给活动命令的捕捉器
-    void setSnapMode(const SnapMode& snapMode);
-    /// @brief 视图的捕捉限制变化时同步给活动命令的捕捉器
-    void setSnapRestriction(DM::SnapRestriction restriction);
-
 signals:
     /// @brief 命令即将激活：它已是活动命令，activate() 尚未调用
     /// @note 视图在这里让出空闲态的工具：激活的夹点要在命令改动选择集或实体之前取消
@@ -153,6 +139,10 @@ signals:
     void commandFinished();
 
 private:
+    /// @brief 回调活动命令的 onEndRequested()；没有活动命令时同意，ViewClosing 忽略否决
+    bool approveCommand(CommandEndReason reason);
+    /// @brief 回调编辑模式的 onEndRequested()；没有编辑模式时同意，ViewClosing 忽略否决
+    bool approveMode(CommandEndReason reason);
     /// @brief 结束活动命令：deactivate()，发 commandFinished()，恢复编辑模式，销毁命令
     void finishActive();
     void enterScope();

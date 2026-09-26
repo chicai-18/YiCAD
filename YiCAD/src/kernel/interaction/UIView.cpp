@@ -137,18 +137,7 @@ void UIView::onCommandFinished()
 
 bool UIView::startCommand(std::unique_ptr<IExclusiveCommand> command)
 {
-    if (!m_pCommandBus || !command || m_pCommandBus->isInCallback())
-    {
-        return false;
-    }
-    // 5.1 节：先请当前命令让位，被否决时新命令直接销毁、不激活。
-    // 编辑模式不受影响，新命令叠在它上面。
-    if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
-    {
-        return false;
-    }
-    m_pCommandBus->end();
-    return m_pCommandBus->start(std::move(command));
+    return m_pCommandBus && m_pCommandBus->start(std::move(command));
 }
 
 bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
@@ -159,29 +148,23 @@ bool UIView::prepareInstantCommand(InstantInterrupt interrupt)
         return true;
 
     case InstantInterrupt::EndAll:
-        if (m_pCommandBus)
+        // 原排他 Action 的做法：先请命令与编辑模式让位，被否决时不执行
+        if (m_pCommandBus && !m_pCommandBus->endAll(CommandEndReason::Replaced))
         {
-            // 原排他 Action 的做法：先请命令与编辑模式让位，被否决时不执行
-            if (m_pCommandBus->isInCallback() || !m_pCommandBus->approveEndAll(CommandEndReason::Replaced))
-            {
-                return false;
-            }
-            m_pCommandBus->endAll();
+            return false;
         }
         resetIdleTools();
         return true;
 
     case InstantInterrupt::EndUninterruptible:
         // 不可打断的命令（多行文字编辑与属性面板）先结束，否则它会继续编辑被删除或撤销的
-        // 文字；结束前照常询问（多行文字编辑的保存提示没有"取消"，不会否决）
+        // 文字；结束前照常询问（多行文字编辑的保存提示没有"取消"，不会否决）。回调期间不结束，
+        // 即时命令照常执行
         if (m_pCommandBus && !m_pCommandBus->isInCallback() && m_pCommandBus->activeCommand() &&
-            m_pCommandBus->activeCommand()->isUninterruptible())
+            m_pCommandBus->activeCommand()->isUninterruptible() &&
+            !m_pCommandBus->endCommand(CommandEndReason::Replaced))
         {
-            if (!m_pCommandBus->approveEnd(CommandEndReason::Replaced))
-            {
-                return false;
-            }
-            m_pCommandBus->end();
+            return false;
         }
         break;
     }
@@ -262,14 +245,10 @@ void UIView::commandEvent(GuiCommandEvent* e)
 
 bool UIView::killAllActions()
 {
-    if (m_pCommandBus)
+    // 5.1 节：先征求命令、再征求编辑模式同意，被否决时什么也不做（调用方也不清空选择）
+    if (m_pCommandBus && !m_pCommandBus->endAll(CommandEndReason::Cancelled))
     {
-        // 5.1 节：先征求命令、再征求编辑模式同意，被否决时什么也不做（调用方也不清空选择）
-        if (!m_pCommandBus->approveEndAll(CommandEndReason::Cancelled))
-        {
-            return false;
-        }
-        m_pCommandBus->endAll();
+        return false;
     }
     resetIdleTools();
     return true;
@@ -280,8 +259,7 @@ void UIView::killAllActionsOnClose()
     if (m_pCommandBus)
     {
         // 不能否决：命令与编辑模式只在回调里保存或放弃
-        m_pCommandBus->approveEndAll(CommandEndReason::ViewClosing);
-        m_pCommandBus->endAll();
+        m_pCommandBus->endAll(CommandEndReason::ViewClosing);
     }
     resetIdleTools();
 }
@@ -303,9 +281,9 @@ void UIView::setDefaultSnapMode(SnapMode sm)
     {
         m_pSelectSnapper->setSnapMode(sm);
     }
-    if (m_pCommandBus)
+    if (ISnapService* snapper = activeCommandSnapper())
     {
-        m_pCommandBus->setSnapMode(sm);
+        snapper->setSnapMode(sm);
     }
 }
 
@@ -316,23 +294,25 @@ void UIView::setSnapRestriction(DM::SnapRestriction sr)
     {
         m_pSelectSnapper->setSnapRestriction(sr);
     }
-    if (m_pCommandBus)
+    if (ISnapService* snapper = activeCommandSnapper())
     {
-        m_pCommandBus->setSnapRestriction(sr);
+        snapper->setSnapRestriction(sr);
     }
+}
+
+ISnapService* UIView::activeCommandSnapper() const
+{
+    IExclusiveCommand* command = m_pCommandBus ? m_pCommandBus->activeCommand() : nullptr;
+    return command ? command->snapService() : nullptr;
 }
 
 ISnapService* UIView::commandSnapService() const
 {
-    if (!m_pCommandBus || !m_pCommandBus->hasActiveCommand())
-    {
-        return nullptr;
-    }
     if (m_pSelectTool && m_pSelectTool->inSelectionPhase())
     {
         return nullptr;
     }
-    return m_pCommandBus->activeCommand()->snapService();
+    return activeCommandSnapper();
 }
 
 SnapResultType UIView::currentSnapResult()

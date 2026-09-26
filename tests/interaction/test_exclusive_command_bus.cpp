@@ -5,7 +5,7 @@
 ///   - 生命周期：启动、替换、结束、激活失败、激活期间就完成、延迟销毁；
 ///   - 结束前回调（5.1 节）：三种原因、否决与不否决、ViewClosing 忽略否决、
 ///     回调期间的重入请求被忽略；
-/// 以及命令启停的通知（commandStarting/commandFinished）、捕捉设置同步，编辑模式
+/// 以及命令启停的通知（commandStarting/commandFinished），编辑模式
 /// （IEditMode）的进入、退出与结束全部时的征求同意。
 ///
 /// 夹点编辑工具随命令启停移出与放回业务栈、命令结束时清除选择阶段约束，由视图响应这两个
@@ -64,7 +64,6 @@ public:
     bool finishOnActivate = false;       ///< 激活期间就请求结束
     bool selectOnActivate = false;       ///< 激活时进入选择阶段
     std::function<void()> duringEndRequest; ///< 在 onEndRequested() 里做的事
-    std::unique_ptr<Snapper> snapper;    ///< snapService() 返回它
 
     bool onEndRequested(CommandEndReason reason) override
     {
@@ -75,7 +74,6 @@ public:
         }
         return !veto;
     }
-    ISnapService* snapService() const override { return snapper.get(); }
 
 protected:
     bool onActivate() override
@@ -272,14 +270,13 @@ TEST_F(BusFixture, 结束全部命令可被否决)
     ProbeCommand* raw = command.get();
     ASSERT_TRUE(bus.start(std::move(command)));
 
-    EXPECT_FALSE(bus.approveEnd(CommandEndReason::Cancelled));
+    // 被否决时什么也不结束
+    EXPECT_FALSE(bus.endCommand(CommandEndReason::Cancelled));
     EXPECT_EQ(bus.activeCommand(), raw);
+    EXPECT_EQ(log.deactivated, 0);
 
     raw->veto = false;
-    EXPECT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    // approveEnd 只问不改：命令仍然活动，由调用方 end()
-    EXPECT_EQ(bus.activeCommand(), raw);
-    bus.end();
+    EXPECT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(log.deactivated, 1);
     EXPECT_EQ(log.destroyed, 1);
@@ -294,15 +291,15 @@ TEST_F(BusFixture, 视图关闭忽略否决)
     command->veto = true;
     ASSERT_TRUE(bus.start(std::move(command)));
 
-    EXPECT_TRUE(bus.approveEnd(CommandEndReason::ViewClosing));
+    EXPECT_TRUE(bus.endCommand(CommandEndReason::ViewClosing));
     ASSERT_EQ(log.endRequests.size(), 1u);
     EXPECT_EQ(log.endRequests[0], CommandEndReason::ViewClosing);
+    EXPECT_FALSE(bus.hasActiveCommand());
 }
 
 TEST_F(BusFixture, 没有活动命令时结束请求直接同意)
 {
-    EXPECT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    bus.end();
+    EXPECT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 
@@ -314,25 +311,27 @@ TEST_F(BusFixture, 回调期间的启动与结束请求被忽略)
     ProbeCommand* raw = command.get();
     bool inCallback = false;
     bool startResult = true;
-    bool approveResult = true;
+    bool endResult = true;
     raw->duringEndRequest = [&]()
     {
         // 模拟回调里弹出的对话框的事件循环中又点了 Ribbon、又按了"结束全部"
         inCallback = bus.isInCallback();
         startResult = bus.start(makeCommand(intruder, "test.bus.intruder"));
-        approveResult = bus.approveEnd(CommandEndReason::Cancelled);
+        endResult = bus.endCommand(CommandEndReason::Cancelled);
     };
     ASSERT_TRUE(bus.start(std::move(command)));
 
-    EXPECT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
+    EXPECT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
 
     EXPECT_TRUE(inCallback);
     EXPECT_FALSE(startResult);
-    EXPECT_FALSE(approveResult);
+    EXPECT_FALSE(endResult);
     EXPECT_EQ(intruder.activated, 0);
     EXPECT_EQ(intruder.destroyed, 1);
+    // 回调里的结束请求没有再问一次，也没有提前结束；回调返回后照常结束
     EXPECT_EQ(log.endRequests.size(), 1u);
-    EXPECT_EQ(bus.activeCommand(), raw);
+    EXPECT_EQ(log.deactivated, 1);
+    EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_FALSE(bus.isInCallback());
 }
 
@@ -362,7 +361,7 @@ TEST_F(BusFixture, 分发范围内被外部结束的命令在范围结束时才�
 
     {
         ExclusiveCommandBus::DispatchScope scope(&bus);
-        bus.end();
+        EXPECT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
         EXPECT_FALSE(bus.hasActiveCommand());
         EXPECT_EQ(log.deactivated, 1);
         // 它的工具可能还在这次分发的调用栈上
@@ -458,8 +457,7 @@ TEST_F(BusFixture, 命令结束后通知且早于恢复编辑模式)
         deactivatedAtNotice = log.deactivated;
         resumedAtNotice = modeLog.resumed;
     });
-    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    bus.end();
+    ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
 
     EXPECT_FALSE(activeAtNotice);
     EXPECT_EQ(deactivatedAtNotice, 1);
@@ -477,8 +475,7 @@ TEST_F(BusFixture, 命令结束时视图清除选择阶段约束)
     ASSERT_TRUE(bus.start(std::move(command)));
     ASSERT_TRUE(selectTool.inSelectionPhase());
 
-    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    bus.end();
+    ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     EXPECT_FALSE(selectTool.inSelectionPhase());
     EXPECT_EQ(selectTool.getStatus(), SelectTool::Neutral);
 }
@@ -492,8 +489,7 @@ TEST_F(BusFixture, 夹点编辑工具随命令启停移出与放回业务栈)
     ASSERT_TRUE(bus.start(makeCommand(log)));
     EXPECT_FALSE(control.isActive(&editTool));
 
-    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    bus.end();
+    ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     EXPECT_TRUE(control.isActive(&editTool));
 }
 
@@ -518,8 +514,7 @@ TEST_F(BusFixture, 夹点编辑工具在编辑模式的工具之上)
     // 编辑模式里启动、结束一个命令，夹点编辑工具放回栈顶
     CommandLog& log = newLog();
     ASSERT_TRUE(bus.start(makeCommand(log)));
-    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    bus.end();
+    ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
 
     addSelectedLine();
     clickGrip();
@@ -547,24 +542,6 @@ TEST_F(BusFixture, 析构时结束活动命令且不回调)
     EXPECT_EQ(log.destroyed, 1);
     // 仍然通知：UIView 析构时总线先于各层工具释放，各层工具照常收回
     EXPECT_EQ(finished, 1);
-}
-
-TEST_F(BusFixture, 捕捉设置同步给活动命令的捕捉器)
-{
-    CommandLog& log = newLog();
-    auto command = makeCommand(log);
-    command->snapper = std::make_unique<Snapper>(&doc, &view);
-    Snapper* commandSnapper = command->snapper.get();
-    ASSERT_TRUE(bus.start(std::move(command)));
-
-    // 捕捉限制随 SnapMode::restriction 一起下发；Snapper::setSnapRestriction()
-    // 本身是空实现，这里只验证 setSnapMode 的同步。
-    SnapMode mode;
-    mode.snapEndpoint = true;
-    mode.restriction = DM::RestrictOrthogonal;
-    bus.setSnapMode(mode);
-    EXPECT_TRUE(commandSnapper->getSnapMode()->snapEndpoint);
-    EXPECT_EQ(commandSnapper->getSnapMode()->restriction, DM::RestrictOrthogonal);
 }
 
 TEST_F(BusFixture, 编辑模式常驻业务栈底部且没有命令时立即恢复)
@@ -607,8 +584,7 @@ TEST_F(BusFixture, 编辑模式里启动的命令叠在模式之上结束后回�
     EXPECT_TRUE(modeLog.endRequests.empty());
     EXPECT_NE(bus.editMode(), nullptr);
 
-    ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-    bus.end();
+    ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     EXPECT_NE(bus.editMode(), nullptr);
     EXPECT_EQ(modeLog.resumed, 3);  // 进入、第一个命令被替换、第二个命令结束
     EXPECT_EQ(modeLog.exited, 0);
@@ -624,17 +600,16 @@ TEST_F(BusFixture, 结束全部先问命令再问编辑模式模式可以否决)
     CommandLog& log = newLog();
     ASSERT_TRUE(bus.start(makeCommand(log)));
 
-    EXPECT_FALSE(bus.approveEndAll(CommandEndReason::Cancelled));
+    EXPECT_FALSE(bus.endAll(CommandEndReason::Cancelled));
     ASSERT_EQ(log.endRequests.size(), 1u);
     ASSERT_EQ(modeLog.endRequests.size(), 1u);
     EXPECT_EQ(modeLog.endRequests[0], CommandEndReason::Cancelled);
-    // 只问不改
+    // 模式否决时命令也继续：两者都同意后才结束
     EXPECT_TRUE(bus.hasActiveCommand());
     EXPECT_EQ(bus.editMode(), rawMode);
 
     rawMode->veto = false;
-    ASSERT_TRUE(bus.approveEndAll(CommandEndReason::Cancelled));
-    bus.endAll();
+    ASSERT_TRUE(bus.endAll(CommandEndReason::Cancelled));
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(bus.editMode(), nullptr);
     EXPECT_EQ(modeLog.exited, 1);
@@ -651,7 +626,7 @@ TEST_F(BusFixture, 命令否决时不再问编辑模式)
     command->veto = true;
     ASSERT_TRUE(bus.start(std::move(command)));
 
-    EXPECT_FALSE(bus.approveEndAll(CommandEndReason::Cancelled));
+    EXPECT_FALSE(bus.endAll(CommandEndReason::Cancelled));
     EXPECT_TRUE(modeLog.endRequests.empty());
 }
 
@@ -662,9 +637,10 @@ TEST_F(BusFixture, 视图关闭忽略编辑模式的否决)
     mode->veto = true;
     bus.enterEditMode(std::move(mode));
 
-    EXPECT_TRUE(bus.approveEndAll(CommandEndReason::ViewClosing));
+    EXPECT_TRUE(bus.endAll(CommandEndReason::ViewClosing));
     ASSERT_EQ(modeLog.endRequests.size(), 1u);
     EXPECT_EQ(modeLog.endRequests[0], CommandEndReason::ViewClosing);
+    EXPECT_EQ(bus.editMode(), nullptr);
 }
 
 TEST_F(BusFixture, 编辑模式请求退出自己时延迟到分发结束)

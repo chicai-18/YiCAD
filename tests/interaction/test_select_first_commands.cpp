@@ -215,8 +215,7 @@ struct SelectFirstFixture : ::testing::Test
     /// @brief 结束活动命令（与"结束全部命令"相同的路径）
     void endCommand()
     {
-        ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-        bus.end();
+        ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     }
 
     /// @brief 命令行文本，与 UIView 一样只沿业务栈分发
@@ -717,13 +716,12 @@ TEST_F(SelectFirstFixture, 结束全部命令时块编辑弹出同样的对话�
 {
     enterBlockEdit();
     ui.answer = DialogAnswer::Cancel;
-    EXPECT_FALSE(bus.approveEndAll(CommandEndReason::Cancelled));
+    EXPECT_FALSE(bus.endAll(CommandEndReason::Cancelled));
     EXPECT_EQ(ui.questions, 1);
     EXPECT_NE(bus.editMode(), nullptr);
 
     ui.answer = DialogAnswer::No;
-    ASSERT_TRUE(bus.approveEndAll(CommandEndReason::Cancelled));
-    bus.endAll();
+    ASSERT_TRUE(bus.endAll(CommandEndReason::Cancelled));
     EXPECT_EQ(ui.questions, 2);
     EXPECT_EQ(bus.editMode(), nullptr);
 }
@@ -731,8 +729,7 @@ TEST_F(SelectFirstFixture, 结束全部命令时块编辑弹出同样的对话�
 TEST_F(SelectFirstFixture, 视图关闭时块编辑不提问)
 {
     enterBlockEdit();
-    EXPECT_TRUE(bus.approveEndAll(CommandEndReason::ViewClosing));
-    bus.endAll();
+    EXPECT_TRUE(bus.endAll(CommandEndReason::ViewClosing));
     EXPECT_EQ(ui.questions, 0);
     EXPECT_EQ(bus.editMode(), nullptr);
 }

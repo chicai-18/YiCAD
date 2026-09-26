@@ -126,8 +126,7 @@ struct CommandFixture : ::testing::Test
     /// @brief 结束活动命令（与"结束全部命令"相同的路径）
     void endCommand()
     {
-        ASSERT_TRUE(bus.approveEnd(CommandEndReason::Cancelled));
-        bus.end();
+        ASSERT_TRUE(bus.endCommand(CommandEndReason::Cancelled));
     }
 
     /// @brief 经 ViewToolControl 分发，与 UIView 一样包在分发范围里
