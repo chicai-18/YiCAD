@@ -33,8 +33,8 @@ set(qrc_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/res/ribbon/ribbon_icon.qrc)
 # 不会出现「文件建好了但没进构建」（方案 P5）。
 #
 # BASE、MODEL 是独立的静态库，依赖方向由 CMake 保证。RENDER 以上四个分区仍合编进
-# YiCadCore：UI 与 SHELL 之间有既有的双向依赖（见 UI 分区注释），分层重组方案 S5
-# 解开后由 S6 拆库；在此之前它们的边界由 tools/check_layering.py 检查。
+# YiCadCore，由分层重组方案 S6 拆库；在此之前它们的边界由 tools/check_layering.py 检查。
+# UI 与 SHELL 原先的双向依赖已由 S5 解开（见 UI 分区注释）。
 # #####################################################
 set(YICAD_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -128,11 +128,12 @@ yicad_collect_sources(RENDER
 #                               PanZoomTool）、选择层 SelectTool、捕捉器 Snapper、预览、
 #                               keyconfig.xml 与命令行别名（Commands）、文档的存盘策略
 #                               DocumentFileService（自动保存、备份、打开失败的处理）、
-#                               宿主服务接口 GuiDialogFactoryInterface（实现在 ui/ 的
+#                               宿主服务接口 GuiDialogFactoryInterface（实现在 shell/ 的
 #                               UIDialogFactory）
 #   src/application/framework/  进程内扩展框架（IExtension/IExtensionContext/
 #                               IExtensionHost/ExtensionManager），对应 DS 的
-#                               Application/Framework/
+#                               Application/Framework/；宿主管理的打开图纸 IDocumentManager
+#                               （实现在 shell/）
 #   src/application/view/       交互视图 UIView（对应 DS 的 View/UIView）：继承画布
 #                               GuiDocumentView，装配 ViewToolControl、各层工具与命令总线
 #
@@ -143,22 +144,26 @@ yicad_collect_sources(APPLICATION
     src/application/framework
     src/application/view)
 
-# 对应 YiCadUi：控件与对话框。forms/ 是 Qt Designer 表单对应的对话框，ribbon/ 是 Ribbon
-# 注册表与装配器（UIRibbonRegistry/UIRibbonManager），内置类目与扩展共用。
+# 对应 YiCadUi：扩展与壳层都能用的控件与对话框，以及对话框运行器 UIDialogRunner、文件对话框
+# UIFileDialog。forms/ 是 Qt Designer 表单对应的对话框，ribbon/ 是 Ribbon 注册表
+# UIRibbonRegistry，内置类目与扩展共用。
 #
-# 本分区不得包含 SHELL 的头文件，但有既有的双向依赖：UIActionHandler、UIBottomWidget、
-# UICommandWidget、UICurrentActivePen、UIDialogFactory、UILineTypeBox、UITabDrawWidget
-# 调 ApplicationWindow/MDIWindow 取全局状态（当前文档、当前图纸窗口）。这些 include 登记在
-# tools/check_layering.py 的白名单里，由分层重组 S5 清除。
+# 本分区不包含 SHELL 的头文件。要取当前文档的控件（UICurrentActivePen、UILineTypeBox）经
+# 宿主注入的 IDocumentManager 取；管理图纸与主窗口的部件在 SHELL（分层重组 S5）。
 yicad_collect_sources(UI
     src/ui
     src/ui/forms
     src/ui/ribbon)
 
 # 对应 YiCadShell：把各层组装成程序的外壳。
-#   src/shell/                 主窗口 ApplicationWindow（兼宿主侧的 IExtensionHost 实现）、
-#                              图纸窗口 MDIWindow、预编译头 YiCadPch.h，以及只编进可执行
-#                              目标的 Main.cpp 与扩展注册表 BuiltinExtensions.cpp（见下方）
+#   src/shell/                 主窗口 ApplicationWindow（兼宿主侧的 IExtensionHost、
+#                              IDocumentManager 实现）、图纸选项卡 UITabDrawWidget、图纸窗口
+#                              MDIWindow、状态栏 UIBottomWidget 与捕捉工具栏 UISnapWidget、
+#                              命令行 UICommandWidget、命令分派 UIActionHandler、宿主服务实现
+#                              UIDialogFactory、Ribbon 装配器 UIRibbonManager、只有壳层用的表单
+#                              （UIExitDialog、UISnapMiddleOptions）、预编译头 YiCadPch.h，以及
+#                              只编进可执行目标的 Main.cpp 与扩展注册表 BuiltinExtensions.cpp
+#                              （见下方）
 #   src/shell/plugin_runtime/  C ABI 插件运行时。PluginUiAdapter 把插件命令与按钮登记进
 #                              CommandRegistry 与 UIRibbonRegistry，PluginFormatRegistration
 #                              把插件的文件格式登记进 model/io/ 的 FilterRegistry；公开头文件
@@ -191,11 +196,13 @@ foreach(_entry IN LISTS _yicad_extension_entries)
     endif()
 endforeach()
 
-# src/ui 下的 Qt Designer 表单，由 qt6_wrap_ui 生成对应的 ui_*.h（扩展的表单见下方
-# yicad_wrap_ui）。
+# src/ui、src/shell 下的 Qt Designer 表单，由 qt6_wrap_ui 生成对应的 ui_*.h（扩展的表单见下方
+# yicad_wrap_ui）。两个分区各一个变量，S6 拆库时分别交给 YiCadUi、YiCadShell。
 file(GLOB YICAD_UI_FORMS CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/*.ui
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms/*.ui)
+file(GLOB YICAD_SHELL_FORMS CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/*.ui)
 
 # main() 必须留在可执行目标里，否则测试二进制无法提供自己的入口。
 # 扩展注册表 BuiltinExtensions.cpp 同样只编进可执行目标：它引用全部扩展，而扩展
@@ -252,12 +259,12 @@ install(FILES ${PLUGIN_SDK_HEADERS}
 file(GLOB YICAD_TS_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ts/YiCAD_*.ts")
 file(GLOB YICAD_QT_TS_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ts/qtbase_*.ts")
 
-# 将.ui转成.h（src/ui 的表单；扩展的表单由各扩展库用 yicad_wrap_ui 生成）
+# 将.ui转成.h（src/ui、src/shell 的表单；扩展的表单由各扩展库用 yicad_wrap_ui 生成）
 # Qt 6 的 uic 默认按函数指针生成表单里的信号槽连接，槽要在表单根控件的类
 # （QDialog、QWidget）上才能编译；本项目的 .ui 连接的是子类里声明的槽，
 # 所以沿用 Qt 5 的字符串连接（SIGNAL/SLOT），运行期行为与原来一致。
 set(YICAD_UIC_OPTIONS --connections string)
-qt6_wrap_ui(ui_FILES ${YICAD_UI_FORMS} OPTIONS ${YICAD_UIC_OPTIONS})
+qt6_wrap_ui(ui_FILES ${YICAD_UI_FORMS} ${YICAD_SHELL_FORMS} OPTIONS ${YICAD_UIC_OPTIONS})
 
 # 将.qrc转成.cpp（主程序的资源；扩展的资源编进各扩展库）
 qt6_add_resources(qrc_FILES ${qrc_DIRS})
@@ -314,7 +321,7 @@ endfunction()
 
 set(YICAD_LUPDATE_COMMANDS "")
 
-# 主程序的扫描范围：各分区的全部源文件、src/ui 的表单，加上 Main.cpp。src/extensions/ 下
+# 主程序的扫描范围：各分区的全部源文件、src/ui 与 src/shell 的表单，加上 Main.cpp。src/extensions/ 下
 # 的源码不在此列，由各扩展自己的 ts 覆盖（见下方）。
 set(YICAD_LUPDATE_SOURCES
     ${YICAD_BASE_HEADERS}        ${YICAD_BASE_SOURCES}
@@ -322,7 +329,7 @@ set(YICAD_LUPDATE_SOURCES
     ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
     ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}          ${YICAD_UI_FORMS}
-    ${YICAD_SHELL_HEADERS}       ${YICAD_SHELL_SOURCES}
+    ${YICAD_SHELL_HEADERS}       ${YICAD_SHELL_SOURCES}       ${YICAD_SHELL_FORMS}
     ${YICAD_MAIN_ENTRY})
 
 yicad_add_lupdate_job(YiCAD TS_FILES ${YICAD_TS_FILES} SOURCES ${YICAD_LUPDATE_SOURCES})
@@ -471,10 +478,8 @@ endif()
 # 选 OBJECT 而非 STATIC：静态库的符号剥离会丢掉 Qt 的静态注册（资源初始化、
 # 插件注册宏等自动注册符号没有显式引用），OBJECT 库没有这个问题。
 #
-# APPLICATION -> RENDER 是单向依赖，只是尚未拆库；UI 与 SHELL 之间仍有
-# ApplicationWindow/MDIWindow 的互相调用（见上方 UI 分区注释），是既有代码留下的
-# 真实双向依赖，不是靠移动文件能解决的问题。分层重组 S5 解开它，S6 把本库拆成
-# YiCadRender、YiCadApplication、YiCadUi、YiCadShell。
+# 四个分区之间已是自下而上的单向依赖（UI 与 SHELL 的双向依赖由分层重组 S5 解开），
+# 只是尚未拆库：S6 把本库拆成 YiCadRender、YiCadApplication、YiCadUi、YiCadShell。
 # #####################################################
 add_library(YiCadCore OBJECT
     ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
@@ -482,6 +487,7 @@ add_library(YiCadCore OBJECT
     ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
     ${YICAD_SHELL_HEADERS}       ${YICAD_SHELL_SOURCES}
     ${YICAD_UI_FORMS}
+    ${YICAD_SHELL_FORMS}
     ${ui_FILES}
     ${qrc_FILES})
 

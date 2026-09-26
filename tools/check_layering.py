@@ -37,18 +37,11 @@ SRC = os.path.join(REPO, 'YiCAD', 'src')
 
 # 键是相对 YiCAD/src 的路径，值是该文件允许包含的、按规则本应禁止的头文件集合。
 #
-# 全部是 ui/ 对 shell/ 的既有依赖（分层重组 S2 新增"ui/ 不得包含 shell/"时登记，
-# doc/LAYER_RESTRUCTURE_PLAN.md 1.2 节 L4）：ApplicationWindow.h、MDIWindow.h，
-# S5 把壳层部件搬进 shell/ 时清除。原有的 Fileio.h 两条已随 S4b 删除 FileIO 清除；
-# UICurrentActivePen、UILineTypeBox、UIDialogFactory 三条已随 S5 新增 IDocumentManager 清除。
-WHITELIST = {
-    'ui/UIActionHandler.cpp': {'MDIWindow.h'},
-    'ui/UIActionHandler.h': {'MDIWindow.h'},
-    'ui/UIBottomWidget.cpp': {'MDIWindow.h'},
-    'ui/UIBottomWidget.h': {'ApplicationWindow.h'},
-    'ui/UICommandWidget.h': {'MDIWindow.h'},
-    'ui/UITabDrawWidget.cpp': {'MDIWindow.h'},
-}
+# 目前为空。分层重组 S2 新增"ui/ 不得包含 shell/"时登记过 ui/ 对 shell/ 的既有依赖
+# （doc/LAYER_RESTRUCTURE_PLAN.md 1.2 节 L4）：Fileio.h 两条随 S4b 删除 FileIO 清除，
+# 其余（ApplicationWindow.h、MDIWindow.h）随 S5 新增 IDocumentManager、把壳层部件搬进
+# shell/ 清除。
+WHITELIST = {}
 
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^>"]+)[>"]', re.MULTILINE)
 
@@ -170,7 +163,7 @@ def main():
         print('')
         print('层次自下而上为 base/、model/、render/、application/、ui/、扩展、shell/，下层不得包含')
         print('上层的头文件；application/view/ 以外不得包含 application/view/；扩展不得包含别的')
-        print('扩展。需要的能力经 GuiDialogFactoryInterface、IExtensionContext 或新增的窄接口获取。')
+        print('扩展。需要的能力经 GuiDialogFactoryInterface、IExtensionContext、IDocumentManager 或新增的窄接口获取。')
 
     if stale:
         print('白名单已失效，请从 tools/check_layering.py 的 WHITELIST 中删除:')

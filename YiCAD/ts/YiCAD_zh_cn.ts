@@ -42,7 +42,7 @@
 <context>
     <name>QMessageBox</name>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="67"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="64"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
@@ -50,33 +50,33 @@
 <context>
     <name>QObject</name>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="208"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="208"/>
         <source>Grid</source>
         <translation>网格</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="72"/>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="219"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="219"/>
         <source>Snap</source>
         <translation>捕捉模式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="230"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="230"/>
         <source>show width</source>
         <translation>线宽</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="239"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="239"/>
         <source>Unit</source>
         <translation>单位</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="512"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="512"/>
         <source>Light</source>
         <translation>明</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="508"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="508"/>
         <source>Dark</source>
         <translation>暗</translation>
     </message>
@@ -107,8 +107,8 @@
     <message>
         <location filename="../src/model/document/DmUnits.cpp" line="133"/>
         <location filename="../src/model/document/DmUnits.cpp" line="192"/>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="285"/>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="372"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="285"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="372"/>
         <source>Millimeter</source>
         <translation>毫米</translation>
     </message>
@@ -413,7 +413,7 @@
         <translation>arch e</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="578"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="681"/>
         <source>command</source>
         <translation>命令</translation>
     </message>
@@ -481,7 +481,7 @@
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="469"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="572"/>
         <source>select qss file</source>
         <translation>选择qss文件</translation>
     </message>
@@ -491,7 +491,7 @@
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="182"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="182"/>
         <source>Orthogonal</source>
         <translation>正交</translation>
     </message>
@@ -526,22 +526,22 @@
         <translation>移动引用点</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1247"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1353"/>
         <source>on all</source>
         <translation>显示所有图层</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1251"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1357"/>
         <source>unlock all</source>
         <translation>解锁所有图层</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1255"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1361"/>
         <source>new layer</source>
         <translation>新增图层</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1263"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1369"/>
         <source>rename layer</source>
         <translation>重命名图层</translation>
     </message>
@@ -551,48 +551,48 @@
         <translation>文字</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1259"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1365"/>
         <source>copy to layer</source>
         <translation>复制实体到指定图层</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="48"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="48"/>
         <source>SnapGrid</source>
         <translation>栅格交点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="76"/>
-        <location filename="../src/ui/UISnapWidget.cpp" line="89"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="76"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="89"/>
         <source>SnapEnd</source>
         <translation>端点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="106"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="106"/>
         <source>SnapEntity</source>
         <translation>最近点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="136"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="136"/>
         <source>SnapCenter</source>
         <translation>圆心</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="165"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="165"/>
         <source>SnapMiddle</source>
         <translation>中点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="194"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="194"/>
         <source>SnapIntersection</source>
         <translation>交点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="741"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="742"/>
         <source>Closing Drawing</source>
         <translation>关闭画布</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="754"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="755"/>
         <source>Save changes to the following item?
 %1</source>
         <translation>保存对以下项目的更改？</translation>
@@ -600,29 +600,29 @@
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="61"/>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="80"/>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="459"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="562"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="44"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="47"/>
         <source>File</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1161"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1267"/>
         <source>open</source>
         <translation>打开文件</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1157"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1263"/>
         <source>new</source>
         <translation>新建文件</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1169"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1275"/>
         <source>save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1173"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1279"/>
         <source>save as</source>
         <translation>另存为</translation>
     </message>
@@ -645,14 +645,14 @@
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1180"/>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1658"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1286"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1764"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1187"/>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1668"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1293"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1774"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
@@ -667,158 +667,158 @@
         <translation>视图</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="106"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="108"/>
         <source>File format mismatch. Please use &apos;Save As&apos; to choose a compatible format.</source>
         <translation>文件格式不匹配。请使用&quot;另存为&quot;选择合适的格式。</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="150"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="152"/>
         <source>File on disk modified. Please save to another file to avoid data loss! File modified: %1</source>
         <translation>磁盘上的文件已修改。 请保存到另一个文件，以免数据丢失！ 文件已修改：%1</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="163"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="165"/>
         <source>Auto saving file: %1</source>
         <translation>自动保存文件:%1</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="211"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="213"/>
         <source>Can not remove origin backup file: %1!</source>
         <translation>无法移除原始备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="238"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="240"/>
         <source>File saved: %1</source>
         <translation>文件已保存：%1</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="242"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="244"/>
         <source>File save failed: %1!</source>
         <translation>文件保存失败：%1！</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="362"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="364"/>
         <source>Open failed, try to open backup file?</source>
         <translation>打开失败，尝试打开备份文件？</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="401"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="403"/>
         <source>Open failed, invalid file!</source>
         <translation>打开失败，无效文件！</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="191"/>
-        <location filename="../src/application/DocumentFileService.cpp" line="220"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="193"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="222"/>
         <source>Can not backup file: %1!</source>
         <translation>无法备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="215"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="206"/>
         <source>Windows Bitmap</source>
         <translation>BMP</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="231"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="222"/>
         <source>Portable Bit Map</source>
         <translation>PBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="235"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="226"/>
         <source>Portable Grey Map</source>
         <translation>PGM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="243"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="234"/>
         <source>Portable Pixel Map</source>
         <translation>PPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="247"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="238"/>
         <source>X Bitmap Format</source>
         <translation>XBM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="251"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="242"/>
         <source>X Pixel Map</source>
         <translation>XPM</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="219"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="210"/>
         <source>Joint Photo document Experts Group</source>
         <translation>JPEG 图像格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="223"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="214"/>
         <source>Documents Interchange Format</source>
         <translation>文档交换格式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="227"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="218"/>
         <source>Multiple-image Network Documents</source>
         <translation>多图像网络文档</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="239"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="230"/>
         <source>Portable Network Document</source>
         <translation>便携式网络图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="255"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="246"/>
         <source>Scalable Vector Documents</source>
         <translation>可缩放矢量图形</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="259"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="250"/>
         <source>SGI Black &amp; White</source>
         <translation>BW</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="263"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="254"/>
         <source>Encapsulated PostScript</source>
         <translation>EPS</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="267"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="258"/>
         <source>Encapsulated PostScript Format</source>
         <translation>EPSF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="271"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="262"/>
         <source>Encapsulated PostScript Interchange</source>
         <translation>EPSI</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="275"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="266"/>
         <source>Windows Icon</source>
         <translation>ICO</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="279"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="270"/>
         <source>JPEG 2000</source>
         <translation>JPEG 2000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="283"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="274"/>
         <source>ZSoft Paintbrush</source>
         <translation>PCX</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="287"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="278"/>
         <source>PC Paint</source>
         <translation>PIC</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="291"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="282"/>
         <source>SGI-Bilddatei</source>
         <translation>SGI-Bilddatei</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="295"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="286"/>
         <source>Targa Image File</source>
         <translation>TGA</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIDialogFactory.cpp" line="299"/>
+        <location filename="../src/shell/UIDialogFactory.cpp" line="290"/>
         <source>Tagged Image File Format</source>
         <translation>TIF/TIFF</translation>
     </message>
@@ -882,7 +882,7 @@
         <translation>易CAD</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="362"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="364"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
@@ -988,12 +988,12 @@
         <translation>不能删除ByLayer,ByBlock,Continuous！</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="412"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="414"/>
         <source>ToolTips</source>
         <translation>工具提示</translation>
     </message>
     <message>
-        <location filename="../src/application/DocumentFileService.cpp" line="412"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="414"/>
         <source>Unsupported file format, please use another format to export!</source>
         <translation>不支持的文件格式，请使用其他格式导出！</translation>
     </message>
@@ -1024,7 +1024,7 @@
 <context>
     <name>UIActionHandler</name>
     <message>
-        <location filename="../src/ui/UIActionHandler.cpp" line="242"/>
+        <location filename="../src/shell/UIActionHandler.cpp" line="242"/>
         <source>escape</source>
         <comment>escape, go back from action steps</comment>
         <translation>取消</translation>
@@ -1131,23 +1131,23 @@
 <context>
     <name>UIBottomWindow</name>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="149"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="149"/>
         <source>0.0000 , 0.0000</source>
         <translation>0.0000 , 0.0000</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="156"/>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="447"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="156"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="447"/>
         <source>number:</source>
         <translation>已选实体数:</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="188"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="188"/>
         <source>orthogonal: open</source>
         <translation>正交：打开</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIBottomWidget.cpp" line="194"/>
+        <location filename="../src/shell/UIBottomWidget.cpp" line="194"/>
         <source>orthogonal: close</source>
         <translation>正交：关闭</translation>
     </message>
@@ -1254,18 +1254,18 @@
 <context>
     <name>UICommandWidget</name>
     <message>
-        <location filename="../src/ui/UICommandWidget.cpp" line="59"/>
-        <location filename="../src/ui/UICommandWidget.cpp" line="122"/>
+        <location filename="../src/shell/UICommandWidget.cpp" line="59"/>
+        <location filename="../src/shell/UICommandWidget.cpp" line="122"/>
         <source>Command</source>
         <translation>命令</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICommandWidget.cpp" line="111"/>
+        <location filename="../src/shell/UICommandWidget.cpp" line="111"/>
         <source>Show command history</source>
         <translation>显示命令历史</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICommandWidget.cpp" line="292"/>
+        <location filename="../src/shell/UICommandWidget.cpp" line="292"/>
         <source>Unknown command</source>
         <translation>未知命令</translation>
     </message>
@@ -1273,28 +1273,28 @@
 <context>
     <name>UICurrentActivePen</name>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="42"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="43"/>
         <source>Color:</source>
         <translation>颜色：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="47"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="48"/>
         <source>LineWindth:</source>
         <translation>线宽：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="52"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="53"/>
         <source>LineType:</source>
         <translation>线型：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="121"/>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="123"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="122"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="124"/>
         <source>Modify current pen</source>
         <translation>修改当前画笔</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="141"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="142"/>
         <source>Modify current selected entities</source>
         <translation>修改选中实体</translation>
     </message>
@@ -1472,33 +1472,33 @@
 <context>
     <name>UIExitDialog</name>
     <message>
-        <location filename="../src/ui/forms/UIExitDialog.cpp" line="102"/>
+        <location filename="../src/shell/UIExitDialog.cpp" line="102"/>
         <source>Close All</source>
         <translation>全部关闭</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIExitDialog.cpp" line="38"/>
-        <location filename="../src/ui/forms/UIExitDialog.cpp" line="102"/>
+        <location filename="../src/shell/UIExitDialog.cpp" line="38"/>
+        <location filename="../src/shell/UIExitDialog.cpp" line="102"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIExitDialog.cpp" line="39"/>
+        <location filename="../src/shell/UIExitDialog.cpp" line="39"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIExitDialog.cpp" line="40"/>
+        <location filename="../src/shell/UIExitDialog.cpp" line="40"/>
         <source>Save All</source>
         <translation>保存全部</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIExitDialog.cpp" line="37"/>
+        <location filename="../src/shell/UIExitDialog.cpp" line="37"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIExitDialog.ui" line="41"/>
+        <location filename="../src/shell/UIExitDialog.ui" line="41"/>
         <source>again Still No Text supplied.</source>
         <translation>仍然没有提供文本。</translation>
     </message>
@@ -1519,8 +1519,8 @@
 <context>
     <name>UILineTypeBox</name>
     <message>
-        <location filename="../src/ui/UILineTypeBox.cpp" line="72"/>
-        <location filename="../src/ui/UILineTypeBox.cpp" line="84"/>
+        <location filename="../src/ui/UILineTypeBox.cpp" line="76"/>
+        <location filename="../src/ui/UILineTypeBox.cpp" line="88"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
@@ -1528,27 +1528,27 @@
 <context>
     <name>UISnapWidget</name>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="61"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="61"/>
         <source>SnapGrid</source>
         <translation>网格点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="119"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="119"/>
         <source>SnapEntity</source>
         <translation>范围</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="149"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="149"/>
         <source>SnapCenter</source>
         <translation>圆心</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="178"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="178"/>
         <source>SnapMiddle</source>
         <translation>中点</translation>
     </message>
     <message>
-        <location filename="../src/ui/UISnapWidget.cpp" line="207"/>
+        <location filename="../src/shell/UISnapWidget.cpp" line="207"/>
         <source>SnapIntersection</source>
         <translation>交点</translation>
     </message>
@@ -1654,43 +1654,43 @@
 <context>
     <name>UITabDrawWidget</name>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="615"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="616"/>
         <source>Export as</source>
         <translation>导出为</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="865"/>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="964"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="866"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="965"/>
         <source>Draft Mode</source>
         <translation>草稿模式</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="944"/>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1023"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="945"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1024"/>
         <source>Saving drawing...</source>
         <translation>保存文件...</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="944"/>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1023"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="945"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1024"/>
         <source>Saving drawing: %1</source>
         <translation>保存文件：%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="955"/>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1034"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="956"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1035"/>
         <source>Saved drawing: %1</source>
         <translation>保存文件：%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="973"/>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1040"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="974"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1041"/>
         <source>Cannot save the file </source>
         <translation>无法保存文件 </translation>
     </message>
     <message>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="974"/>
-        <location filename="../src/ui/UITabDrawWidget.cpp" line="1040"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="975"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1041"/>
         <source> , please check the filename and permissions.</source>
         <translation>，请检查文件名和权限。</translation>
     </message>
@@ -2076,17 +2076,17 @@
 <context>
     <name>Ui_SnapMiddleOptions</name>
     <message>
-        <location filename="../src/ui/forms/UISnapMiddleOptions.ui" line="35"/>
+        <location filename="../src/shell/UISnapMiddleOptions.ui" line="35"/>
         <source>Snap Distance Options</source>
         <translation>捕捉距离选项</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UISnapMiddleOptions.ui" line="47"/>
+        <location filename="../src/shell/UISnapMiddleOptions.ui" line="47"/>
         <source>Middle Points:</source>
         <translation>捕捉分段数：</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UISnapMiddleOptions.ui" line="63"/>
+        <location filename="../src/shell/UISnapMiddleOptions.ui" line="63"/>
         <source>Number of equidistant division points</source>
         <translation>等距分割点数</translation>
     </message>

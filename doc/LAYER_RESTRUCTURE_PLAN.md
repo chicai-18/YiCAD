@@ -936,7 +936,7 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
 - R4 未修（D9 已定为做法 A），`test_persistence_document.cpp` 的 2 个 `DISABLED_` 用例留作验收。（已在 4.7 节修复。）
 - 跨文档粘贴的既有缺陷（粘贴出的实体仍属于来源图纸、图层指针指向来源图纸），见 S4a 遗留。（已在 8.9 节修复。）
 - 块插入导入的标注，箭头块参照的 `blockSource` 指向已析构的临时文档，目前没有代码访问它，见 S4a。
-- `requestUntitledDocumentName` 仍在宿主服务接口里，S5 并入 `IDocumentManager`；`UIDialogFactory` 实现它仍要包含 `ApplicationWindow.h`（白名单里的一条）。
+- `requestUntitledDocumentName` 仍在宿主服务接口里，S5 并入 `IDocumentManager`；`UIDialogFactory` 实现它仍要包含 `ApplicationWindow.h`（白名单里的一条）。（已在 S5 并入，见 9.5 节。）
 - `DmSystem` 的"当前格式"（恒为 `ycd`）只剩文件对话框选默认过滤串一个用途，没有动。
 
 ### 8.9 S4 遗留修复：跨文档粘贴
@@ -1038,7 +1038,68 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
 
 ### 9.5 执行结果
 
-（未开始）
+2026-09-27 完成，基线 `7675399`（跨文档粘贴修复之后），两个提交：S5a `6299644`（新增接口与注入，文件仍在 `ui/`）、
+S5b 随后一个（搬移、构建脚本、白名单清空、文档）。
+
+开工前定下（用户确认）：
+
+- **谁实现接口**：按 9.2 节第 1 项"由 Shell 实现，委托给 `UITabDrawWidget`"，在 `ApplicationWindow.cpp` 里加内部类
+  `ApplicationWindowDocumentManager`，与 `ApplicationWindowExtensionHost` 同一做法。它比选项卡早建（第一张图纸的文档文件服务
+  与画笔栏在创建选项卡时就要用它），所以持有主窗口、每次经 `getTabDrawWidget()` 取选项卡，选项卡还没建好时如同没有打开的图纸。
+  `UITabDrawWidget` 自己的接口不动。
+- **`UILineTypeBox` 怎样拿到管理器**：做法 A，类的静态 `setDocumentManager()`，主窗口构造时装入、析构时清空。它由 uic 按表单构造
+  （经 `UIWidgetPen` 用在 11 个表单里），没法在构造时传参。另一做法是在 application 里加一个全局持有者（同 `GuiDialogFactory`），
+  等于用新的全局量换掉 `getAppWindow()`，未采用。
+- **方案未提、本步不动**：`IExtensionContext`/`IExtensionHost` 的 `currentDocument()`、`currentDocumentView()` 保留（AI 扩展在用）；
+  `GuiDialogFactoryInterface` 的 `setCommandWidget`、`setBottomWidget`。两者都记入遗留。
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | 新增 `application/framework/IDocumentManager.h`：`currentDocument`、`currentDocumentView`、`documents`、`documentViews`、`newDocument`、`openDocument`、`saveDocument`、`saveDocumentAs`、`exportImage`、`untitledDocumentName`。文件操作面向用户（弹文件对话框，结果与提示由宿主处理），没有返回值；接口里只出现 `DmDocument*`、`GuiDocumentView*`，不出现控件类型（11.1 节）。`requestUntitledDocumentName` 从 `GuiDialogFactoryInterface`、`GuiDialogFactoryAdapter`、`UIDialogFactory` 删去；`DocumentFileService` 构造时可传入 `IDocumentManager`，`MDIWindow` 传入，块命令读写的临时文档不传，名字为空（原先宿主服务按文档找不到标签页，同样为空） |
+| 2 | `IExtensionContext`、`IExtensionHost` 的 `tabDrawWidget()` 改为 `documentManager()`，宿主不管理图纸时（单测）为空，`ExtensionManager` 照旧转发；`FileExtension`、`OptionsExtension` 改用接口，不再包含 `UITabDrawWidget.h` |
+| 3 | `UICurrentActivePen` 构造时注入（它由 `UITabDrawWidget` 构造）；`UILineTypeBox` 静态注入（见上）。两者不再包含 `ApplicationWindow.h`。`UITabDrawWidget`、`MDIWindow` 的构造函数多一个 `IDocumentManager` 参数，转给画笔栏与文档文件服务 |
+| 4 | `git mv` 9 组 20 个文件到 `shell/`（含 `UIExitDialog.ui`、`UISnapMiddleOptions.ui`），内容不改 |
+| 5 | `CMakeLists.txt` 新增 `YICAD_SHELL_FORMS`（`shell/*.ui`），与 `YICAD_UI_FORMS` 分开，S6 拆库时各交给自己的库；两者都交给 `qt6_wrap_ui`、lupdate 与 `YiCadCore`；分区注释改写。`check_layering.py` 白名单清空：S5a 删去 `UICurrentActivePen`、`UILineTypeBox`、`UIDialogFactory` 三条，S5b 删去其余六条 |
+
+**与 9.2 节原文的出入**：
+
+- 第 1 项的方法按接口的用法命名（`newDocument` 等），不沿用 `UITabDrawWidget` 的 `slotFile*`；"未命名文档名"叫 `untitledDocumentName`，
+  参数改为 `const DmDocument*`。
+- 第 3 项的"注入"对 `UILineTypeBox` 只能是静态的，原因见上。
+- 9.3 节要求扩展里不再出现 `ApplicationWindow`：AI 扩展有两处注释提到它（`AIAssistant.h`、`AIExtension.h`），改为"使用方（AIExtension）"
+  与"主窗口"。`UILineTypeBox.cpp` 里两行没有用到的前置声明（`class Document;`、`class MDIWindow;`）一并删去。
+- `UIDialogFactory.h` 的文件说明还写着"内核经它取的活动文档与文件读写"（S4d 已删去这些方法），一并改正。
+
+**风险核对**（9.4 节）：`UITabDrawWidget::createMdiWindow` 与主窗口的信号连接原样随搬移，只多传了 `MDIWindow` 的构造参数。
+析构顺序由代码保证：管理器是主窗口的成员，析构函数体执行完才释放；图纸窗口（文档文件服务引用管理器）随 `m_pDrawingArea` 在函数体里删除，
+线型框的静态注入也在函数体里清空；画笔栏是主窗口的子控件，在成员之后随 `QWidget` 析构，它的析构不访问管理器。
+
+**测试**：新增 `tests/support/FakeDocumentManager.h`。`test_host_extensions.cpp` 新增"文件命令经宿主管理的打开图纸执行"：原先宿主的标签页是
+具体控件，单测只能给空，五条文件命令的执行体一直没有覆盖；原"没有标签页或文档时命令什么也不做"改名。`test_document_file_service.cpp`
+新增"没有打开的图纸时未命名文档的副本名为空"，两个未命名文档的自动保存用例改由假的 `IDocumentManager` 给名字。
+用例 509（启用 507，`DISABLED_` 2），比跨文档粘贴修复多 2 个（`BASELINE.md` 7.2 节）。
+
+**验收**：
+
+- Release、Debug 构建通过（Debug 照 S0 的做法先删 `.obj`、`.pdb`）；两种配置的 ctest 全部通过；`check_layering.py` 通过，白名单为空。
+- `ui/` 与扩展里不再出现 `ApplicationWindow`、`MDIWindow`、`UITabDrawWidget`（grep，含注释）；`application/` 及以下也不再出现
+  `UITabDrawWidget`、`MDIWindow`、`getAppWindow`。
+- `update_translations` 只改 `YiCAD_zh_cn.ts` 的 `<location>` 行（搬移后的路径与行号），译文不变；扩展的 `.ts` 不变。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应，关闭后以 0 退出。截图里画笔栏的线型框显示当前文档的
+  线型（ByLayer）：线型框经注入取到了当前文档（取不到时只有"自定义"一项）。
+- 交互清单 6B（文件、图层、选项）、6F（命令行）没有在界面上手工走查（会话里无法安全驱动界面，S0 以来同样的限制）；6G 新增 W5a
+  （未命名图纸的自动保存副本名，S5 改了取名字的路径），同样待手工走查。
+
+**遗留**：
+
+- `README.md`、`README_zh.md` 里"UI 与 Shell 互相依赖"的说明已不成立，按 10.2 节第 7 项随 S6 更新。
+- `GuiDialogFactoryInterface` 的 `setCommandWidget(UICommandWidget*)`、`setBottomWidget(UIBottomWindow*)` 以壳层类型为参数（前置声明），
+  调用方只有主窗口，可改为直接调 `UIDialogFactory`、从接口删去。
+- `IExtensionContext`/`IExtensionHost` 的 `currentDocument()`、`currentDocumentView()` 与 `documentManager()` 的同名方法重复。
+- `ui/UIActionGroupManager` 方案未列、留在 `ui/`，但它没有任何构造点，只有 `ApplicationWindow.h` 里一行前置声明，是死代码。
+- `UICurrentActivePen::m_document` 从未赋值（原本如此），未动。
 
 ---
 
