@@ -252,15 +252,15 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 
 采集环境：Windows 11 Pro 22621，16 逻辑核，MSVC 19.38.33139（v143 工具集），Visual Studio 17 2022 生成器，
 `/MP` 加 `cmake --build ... -- -m`，Release 配置，CMake 4.1.2（CLion 自带）
-采集日期：2026-09-26（S0）
-提交：`17aaeb5` 加 S0 的测试（产品代码与 `17aaeb5` 相同）
+采集日期：2026-09-26（S0、S2）
+提交：S0 为 `17aaeb5` 加 S0 的测试（产品代码与 `17aaeb5` 相同）；S2 为 `5e5a44b`
 
 | 指标 | S0（起点） | S2 | S6 |
 |------|----------:|---:|---:|
-| 全量构建耗时 (Release, 秒) | 203.2 | | |
-| 改 `DmArc.cpp` 后增量 (秒) | 10.9 | | |
-| 改 `GuiDocumentView.h` 后增量 (秒) | 21.5 | | |
-| 改 `Datamodel.h` 后增量 (秒) | 163.4 | | |
+| 全量构建耗时 (Release, 秒) | 203.2 | 191.7 | |
+| 改 `DmArc.cpp` 后增量 (秒) | 10.9 | 10.9 | |
+| 改 `GuiDocumentView.h` 后增量 (秒) | 21.5 | 21.3 | |
+| 改 `Datamodel.h` 后增量 (秒) | 163.4 | 141.1 | |
 
 测法与第 5 节不同的地方：
 
@@ -278,6 +278,9 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 - 与第 5 节阶段 3 的数字（179.2 / 9.7 / 18.7 / 141.2）相比全面变慢，但两者之间代码已经大变：阶段 4 把命令拆进
   13 个扩展（各自一个 OBJECT 库）、阶段 5 切到 Qt 6，`test_interaction` 从 35 个用例涨到 282 个。这一列只作为本方案的起点，
   不用来评价阶段 3 之后的改动。
+- S2 在 `build/measure-s2` 里照上面的做法测，三个目标文件按新路径（`model/entity/`、`render/view/`、`base/core/`）。
+  全量构建快了约 6%，改 `Datamodel.h` 后的增量快了约 14%，另两项持平。S2 只搬目录、没有改代码，差异应来自项目链少了一级
+  （`YiCadPersistence` 并入 `YiCadModel`，Visual Studio 生成器少串行一个项目）；各项只测了一次，没有重复取均值。
 
 ### 7.2 自动化测试用例数
 

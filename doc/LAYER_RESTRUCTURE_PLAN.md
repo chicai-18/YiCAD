@@ -520,7 +520,9 @@ Model 包含 Render，这几条 CMake 已经保证，不会新增违规。另加
   与 S1 相同（`BASELINE.md` 7.2 节）。
 - `check_layering.py` 通过（11 处已登记的例外）。
 - Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程仍在运行、主窗口有响应。交互清单未手工走查：本步不改代码。
-- 构建时间（`BASELINE.md` 7.1 节，照 S0 的做法在 `build/measure-s2` 里测）：复测进行中，数字随后补记。
+- 构建时间（`BASELINE.md` 7.1 节，照 S0 的做法在 `build/measure-s2` 里测）：全量构建 191.7 秒（S0 203.2），改 `DmArc.cpp`、`GuiDocumentView.h`、
+  `Datamodel.h` 后的增量分别 10.9、21.3、141.1 秒（S0 10.9、21.5、163.4）。与 6.3 节的预期一致，全量略快；
+  改 `Datamodel.h` 的增量也快了约 14%，应同样来自项目链少一级。各项只测了一次。
 
 ---
 
