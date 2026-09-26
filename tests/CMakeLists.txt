@@ -1,12 +1,12 @@
 # YiCAD 自动化测试树（方案阶段 0）
 #
-# 目录按 doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.3 节的目标库分区，与
-# YiCAD/cmake/sources/*.cmake 一一对应。阶段 3 拆库后，每个测试目标
-# 只需链接对应的那一个库，而不是现在的整个 YiCadCore。
+# 目录按子系统划分，每个测试目标只链接它需要的那一层库，而不是整个 YiCadCore
+# （库的划分见 doc/LAYER_RESTRUCTURE_PLAN.md 第 2 节）。
 #
-#   tests/math/         -> YiCadMath
-#   tests/persistence/  -> YiCadPersistence
+#   tests/math/         -> YiCadBase（经 YiCadModel 链接，见 math/CMakeLists.txt）
+#   tests/persistence/  -> YiCadModel 的 model/io/
 #   tests/geometry/     -> YiCadModel 中的几何实体
+#   tests/interaction/  -> YiCadCore 与全部扩展库
 #
 # 所有测试二进制以 test_ 开头：YiCAD/CMakeLists.txt 的安装规则按
 # "test_*" 模式把它们排除在安装包之外。
@@ -56,7 +56,7 @@ endif()
 # yicad_add_test(<name> SOURCES <...> [LINK <target>] [LABELS <...>])
 #
 # 建一个 GoogleTest 目标并注册到 CTest，默认链接 YiCadCore；LINK 可指定
-# 更小的目标（YiCadMath/YiCadModel/YiCadPersistence）。
+# 更小的目标（YiCadBase/YiCadModel）。
 # <name> 不带 test_ 前缀，函数会自动加上。
 # ---------------------------------------------------------------------------
 function(yicad_add_test name)
@@ -74,10 +74,9 @@ function(yicad_add_test name)
     add_executable(${target} ${ARG_SOURCES}
         "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/support/yicad_test_main.cpp")
 
-    # LINK 指定测试实际依赖的那一层（阶段 3 拆库后默认为 YiCadCore，
-    # tests/math、tests/geometry、tests/persistence 改传更小的
-    # YiCadMath/YiCadModel/YiCadPersistence，链接目标文件从整个上层
-    # OBJECT 库降到对应分区，是本次拆库的核心增量构建收益）。
+    # LINK 指定测试实际依赖的那一层（默认为 YiCadCore，tests/math、
+    # tests/geometry、tests/persistence 传更小的 YiCadModel，链接的目标文件
+    # 从整个上层 OBJECT 库降到对应的静态库，是拆库的核心增量构建收益）。
     target_link_libraries(${target} PRIVATE ${ARG_LINK} GTest::gtest)
 
     # yicad_test_main.cpp 无条件构造 QApplication（见其注释），与 LINK

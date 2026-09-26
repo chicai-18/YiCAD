@@ -47,15 +47,16 @@ if (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
 }
 
 $targets = @(
-    @{ Name = "DmArc.cpp";          Path = "YiCAD/src/kernel/builder_model/DmArc.cpp" },
-    @{ Name = "GuiDocumentView.h";  Path = "YiCAD/src/kernel/view/GuiDocumentView.h" },
-    @{ Name = "Datamodel.h";        Path = "YiCAD/src/kernel/math/Datamodel.h" }
+    @{ Name = "DmArc.cpp";          Path = "YiCAD/src/model/entity/DmArc.cpp" },
+    @{ Name = "GuiDocumentView.h";  Path = "YiCAD/src/render/view/GuiDocumentView.h" },
+    @{ Name = "Datamodel.h";        Path = "YiCAD/src/base/core/Datamodel.h" }
 )
 
 function Invoke-Build {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     # `-- -m`：MSBuild 的解决方案级并行。阶段 3 把 YiCadCore 拆成
-    # YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore 一条依赖链后，
+    # YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore 一条依赖链后
+    # （分层重组 S2 收为 YiCadBase -> YiCadModel -> YiCadCore），
     # 没有这个参数时 Visual Studio 生成器按项目依赖顺序逐个构建，各层内部的
     # /MP 并行度用不满，全量构建反而比阶段 1 的单一 OBJECT 库更慢
     # （实测无 -m 时 189.7 秒，比阶段 1 的 129.5 秒还慢）。CI 的构建步骤

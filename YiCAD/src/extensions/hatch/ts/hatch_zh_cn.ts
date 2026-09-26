@@ -32,7 +32,7 @@
 <context>
     <name>HatchExtension</name>
     <message>
-        <location filename="../HatchExtension.cpp" line="58"/>
+        <location filename="../HatchExtension.cpp" line="57"/>
         <source>Hatch</source>
         <translation>填充</translation>
     </message>

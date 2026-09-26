@@ -123,17 +123,17 @@
 <context>
     <name>TextExtension</name>
     <message>
-        <location filename="../TextExtension.cpp" line="141"/>
+        <location filename="../TextExtension.cpp" line="140"/>
         <source>Single line text</source>
         <translation>单行文字</translation>
     </message>
     <message>
-        <location filename="../TextExtension.cpp" line="142"/>
+        <location filename="../TextExtension.cpp" line="141"/>
         <source>Multiline text</source>
         <translation>多行文字</translation>
     </message>
     <message>
-        <location filename="../TextExtension.cpp" line="143"/>
+        <location filename="../TextExtension.cpp" line="142"/>
         <source>Text style</source>
         <translation>文字样式</translation>
     </message>

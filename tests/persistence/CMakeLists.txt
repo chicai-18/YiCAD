@@ -1,4 +1,5 @@
-# tests/persistence —— 对应阶段 3 的 YiCadPersistence
+# tests/persistence —— 对应 YiCadModel 的 model/io/（原 YiCadPersistence，分层重组 S2 并入
+# YiCadModel），以及 base/core/ 的序列化机制
 #
 # 方案 3.2 第 2 条把往返测试列为投入产出比最高的一类：它一次性锁住整个
 # 数据模型的序列化语义，也是阶段 5（Qt 6 迁移）字符编码验证的唯一依靠。
@@ -8,5 +9,5 @@ yicad_add_test(persistence
         test_persistence_roundtrip.cpp
         test_persistence_primitives.cpp
         test_persistence_document.cpp
-    LINK YiCadPersistence
+    LINK YiCadModel
     LABELS "persistence;unit;roundtrip")

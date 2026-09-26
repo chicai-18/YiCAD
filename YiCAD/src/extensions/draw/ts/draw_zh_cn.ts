@@ -12,38 +12,38 @@
 <context>
     <name>DrawArc3PCommand</name>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="396"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="398"/>
         <source>Create Arc</source>
         <translation>3点圆弧</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="570"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="584"/>
         <source>Invalid arc data.</source>
         <translation>无效的圆弧数据。</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="435"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="449"/>
         <source>Specify startpoint or [center]</source>
         <translation>指定初始点或中点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="436"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="450"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="439"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="453"/>
         <source>Specify second point</source>
         <translation>指定第二个点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="440"/>
-        <location filename="../commands/DrawArcCommand.cpp" line="444"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="454"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="458"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="443"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="457"/>
         <source>Specify endpoint</source>
         <translation>指定终点</translation>
     </message>
@@ -51,46 +51,46 @@
 <context>
     <name>DrawArcCommand</name>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="213"/>
-        <location filename="../commands/DrawArcCommand.cpp" line="236"/>
-        <location filename="../commands/DrawArcCommand.cpp" line="252"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="215"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="238"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="254"/>
         <source>Not a valid expression</source>
         <translation>不是有效表达</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="344"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="346"/>
         <source>Create Arc</source>
         <translation>圆弧</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="93"/>
         <source>Specify center</source>
         <translation>指定中点</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="91"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="93"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="96"/>
         <source>Specify radius</source>
         <translation>指定半径</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="94"/>
-        <location filename="../commands/DrawArcCommand.cpp" line="98"/>
-        <location filename="../commands/DrawArcCommand.cpp" line="101"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="96"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="100"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="103"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="97"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="99"/>
         <source>Specify start angle:</source>
         <translation>指定初始角度：</translation>
     </message>
     <message>
-        <location filename="../commands/DrawArcCommand.cpp" line="101"/>
+        <location filename="../commands/DrawArcCommand.cpp" line="103"/>
         <source>Specify arc angle</source>
         <translation>指定圆弧角度</translation>
     </message>

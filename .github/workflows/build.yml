@@ -10,9 +10,10 @@
 # becomes a cache hit. All other packages still come prebuilt.
 #
 # Pre-build static check:
-#   - src/kernel/ and src/application/ do not include ui/, main/ or extension
-#     headers, src/application/ does not include the interactive view, and
-#     extensions do not include main/ or each other (tools/check_layering.py)
+#   - lower layers do not include upper ones (base/ -> model/ -> render/ ->
+#     application/ -> ui/ -> extensions -> shell/), application/ outside
+#     application/view/ does not include the interactive view, and extensions
+#     do not include shell/ or each other (tools/check_layering.py)
 #
 # Unit tests run via ctest after the build.
 #
@@ -116,9 +117,9 @@ jobs:
         run: cmake -G "Visual Studio 17 2022" -A x64 -S . -B build/Release -DCMAKE_TOOLCHAIN_FILE="build/conan-release/build/generators/conan_toolchain.cmake" -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }};${{ github.workspace }}/external/SARibbonBar/install;${{ github.workspace }}/external/CDT/install" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/build/package/Release"
 
       - name: Build
-        # -m: MSBuild solution-level parallelism. Since stage 3 split YiCadCore
-        # into a YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore
-        # dependency chain, the Visual Studio generator builds those projects
+        # -m: MSBuild solution-level parallelism. Since YiCadCore is split
+        # into a YiCadBase -> YiCadModel -> YiCadCore dependency chain
+        # (doc/LAYER_RESTRUCTURE_PLAN.md), the Visual Studio generator builds those projects
         # in dependency order; without -m each stage under-uses available
         # cores. See doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 and
         # tools/measure_build.ps1.

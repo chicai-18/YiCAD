@@ -151,57 +151,57 @@
 <context>
     <name>DimExtension</name>
     <message>
-        <location filename="../DimExtension.cpp" line="72"/>
+        <location filename="../DimExtension.cpp" line="71"/>
         <source>Modify dimension text</source>
         <translation>修改标注文本</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="73"/>
+        <location filename="../DimExtension.cpp" line="72"/>
         <source>New dimension text:</source>
         <translation>新标注文本：</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="81"/>
+        <location filename="../DimExtension.cpp" line="80"/>
         <source>Modify dimension</source>
         <translation>修改标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="99"/>
+        <location filename="../DimExtension.cpp" line="98"/>
         <source>Aligned</source>
         <translation>对齐标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="101"/>
+        <location filename="../DimExtension.cpp" line="100"/>
         <source>Linear</source>
         <translation>线性标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="109"/>
+        <location filename="../DimExtension.cpp" line="108"/>
         <source>Radial</source>
         <translation>半径标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="111"/>
+        <location filename="../DimExtension.cpp" line="110"/>
         <source>Diametric</source>
         <translation>直径标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="113"/>
+        <location filename="../DimExtension.cpp" line="112"/>
         <source>Angular</source>
         <translation>角度标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="115"/>
+        <location filename="../DimExtension.cpp" line="114"/>
         <source>Leader</source>
         <translation>引线标注</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="117"/>
+        <location filename="../DimExtension.cpp" line="116"/>
         <source>Baseline</source>
         <translation>基线</translation>
     </message>
     <message>
-        <location filename="../DimExtension.cpp" line="137"/>
+        <location filename="../DimExtension.cpp" line="136"/>
         <source>Dimension style</source>
         <translation>标注样式</translation>
     </message>

@@ -1,6 +1,6 @@
 # tests/interaction —— 交互层：命令与视图工具的机制（src/application/，含扩展框架
-# src/application/framework/）、keyconfig.xml（src/cmd/）、内置命令与各扩展的命令，
-# 以及插件命令与按钮接入宿主注册表（src/plugin_runtime/PluginUiAdapter）。
+# src/application/framework/ 与 keyconfig.xml 的解析 Commands）、内置命令与各扩展的命令，
+# 以及插件命令与按钮接入宿主注册表（src/shell/plugin_runtime/PluginUiAdapter）。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
 yicad_add_test(interaction

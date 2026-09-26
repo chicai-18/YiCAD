@@ -465,7 +465,62 @@ D8 于 2026-09-26 定下：先修 R1、R2、R3、R5、R6、R9；R7、R8 并入 S
 
 ### 6.5 执行结果
 
-（未开始）
+2026-09-26 完成，基线 `c42948c`（S1 之后）。D2、D6 于开工前定下：`Selection` 留在 `model/edit/`，目录按 2.2 节。
+
+**D2 的讨论**：开工前曾选择把 `Selection` 移到 `application/`，核查后收回。`tests/geometry/test_geometry_spatial_query.cpp`
+的 10 个用例有 5 个直接调 `Selection::selectWindow`，而 `test_geometry` 只链接 `YiCadModel`；更根本的是选中状态在实体的
+`FlagSelected` 位上，Model 自己的 `Modification`、`EntityTable` 也读它，只移操作类、不移状态，分层上没有收益。
+结论与长远去向写进 12 节 D2 与 11.2 节。
+
+**提交**：按 13 节分成两个。
+
+| 提交 | 内容 |
+|------|------|
+| `f1e48f7` | 446 个文件 `git mv`，0 行增删。单独构建不通过（CMake 仍指向旧目录），bisect 时跳过 |
+| 随后一个 | 构建脚本、`check_layering.py`、测试的链接与注释、文档、`.ts` 的源码位置；不含 `.h`/`.cpp` |
+
+**搬移**：按 2.3 节标为 S2 的行执行，没有偏离。Base 54 个文件、Model 314、Render 39、Application 4（`Commands`、`UIView`
+各 2）、Shell 35，合计 446。归属存疑的文件按"谁包含它"核对：
+
+- `builder_model/Datamodel.cpp` 进 `base/core/`：它只包含 `Datamodel.h`，进 Base 不缺头文件；
+- `DmMTextContentCmd` 名为 `*Cmd`，但不是 `Cmd` 的派生类，是 `DmMText` 自己的内容编辑栈，只被 `DmMText.cpp` 与
+  `extensions/text` 包含，随 `text/` 进 `model/entity/text/`；
+- `main/YiCAD.rc` 受版本控制但构建不用（构建由 `YiCAD.rc.cmake` 生成），随 `main/` 进 `shell/`，未删除；
+- `TSingleton.hpp` 不在分区的 GLOB 里（只收 `.h`、`.cpp`），与搬家前相同，经 include 目录可见。
+
+**构建脚本**：
+
+- `YiCAD/CMakeLists.txt`：分区改为 BASE、MODEL、RENDER、APPLICATION、UI、SHELL；`YiCadMath` 更名 `YiCadBase`；
+  删除 `YiCadPersistence`，它的源文件随 `model/io/`、`model/io/meta/` 进 MODEL 分区——它没有自己的第三方依赖，
+  只链接 `YiCadModel`，所以没有依赖要搬；`YiCadCore` 改链 `YiCadModel`，include 目录换成新目录，预编译头改为
+  `shell/YiCadPch.h`；`Main.cpp`、`BuiltinExtensions.cpp`、`YiCAD.rc.cmake`、`icon.ico` 与插件 SDK 头文件的路径改到
+  `shell/`（SDK 的安装路径不变）；lupdate 的扫描范围随分区更名；各分区与库的注释按新结构重写。
+- `tests/persistence` 改链 `YiCadModel`；`tests/CMakeLists.txt`、`tests/math`、`tests/interaction` 的注释改掉旧库名与旧目录。
+
+**`check_layering.py`**：按 2.1 节的层次给每个顶层目录一个序号（`RANK`），下层不得包含上层，另加"`application/view/`
+以外不得包含 `application/view/`"与"扩展不得包含别的扩展"。这是 6.2 节第 4 项的超集：还禁止 Base 包含 Model、Render，
+Model 包含 Render，这几条 CMake 已经保证，不会新增违规。另加一项检查：`YiCAD/src` 下出现没有在 `RANK` 登记的顶层目录时报错，
+免得新目录不受检查。白名单 11 条，分布在 10 个文件：6.2 节的"10 处"是按文件数的，`UIDialogFactory.cpp` 同时包含
+`ApplicationWindow.h` 与 `Fileio.h`，占两条。清空白名单跑一次，报出的正是这 11 条。
+
+**其他路径引用**：`tools/measure_build.ps1` 的三个目标文件与一处注释；`.github/workflows/build.yml` 两处注释；
+`README.md`/`README_zh.md` 的架构表与模块依赖图（按新目录重写，删去已不存在的 Persistence、Interaction 节点）；
+`AGENTS.md` 的目录结构与 Source File Collection 两段，另改了 Logging 一节的 `base/debug/` 路径与 `check_layering.py`
+的行内说明。历史文档（`ARCHITECTURE_EVOLUTION_PLAN.md`、`COMMAND_TOOL_MIGRATION_PLAN.md`、`BASELINE.md` 的旧列）
+保留旧路径，不改。
+
+**翻译**：`update_translations` 刷新了 `YiCAD_zh_cn.ts` 的 160 处源码位置；另有 6 个扩展的 `.ts` 共 79 处行号变化——
+扩展源码没有搬，这是此前提交留下的行号漂移，一并刷新。逐行核对，变化的全是 `<location>` 行，没有增删词条、没有改译文。
+
+**验收**：
+
+- `git show --stat -M f1e48f7`：446 个文件，0 行增删；第二个提交不含 `.h`/`.cpp`。
+- `YiCAD/src/kernel/`、`src/main/`、`src/cmd/`、`src/plugin_runtime/` 不再存在。
+- Release、Debug 用 CLion 的 CMake 重新配置后构建通过，两种配置的 ctest 全部通过；用例 472（启用 466，`DISABLED_` 6），
+  与 S1 相同（`BASELINE.md` 7.2 节）。
+- `check_layering.py` 通过（11 处已登记的例外）。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程仍在运行、主窗口有响应。交互清单未手工走查：本步不改代码。
+- 构建时间（`BASELINE.md` 7.1 节，照 S0 的做法在 `build/measure-s2` 里测）：复测进行中，数字随后补记。
 
 ---
 
@@ -732,7 +787,7 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 
 | 事项 | 现状 | 说明 |
 |------|------|------|
-| 选择集移出 Model | 选择状态是实体上的标志位（`DmEntity::setSelected`），`Selection` 操作这些标志 | 本方案把 `Selection` 留在 `model/edit/`（D2），只去掉它对视图的依赖 |
+| 选择集移出 Model | 选择状态是实体上的标志位（`DmEntity::setSelected`，`Datamodel.h:63` 的 `FlagSelected`），`Selection` 操作这些标志 | 本方案把 `Selection` 留在 `model/edit/`（D2），只去掉它对视图的依赖。选择集概念上是编辑会话的状态而不是图纸数据（AutoCAD 的选择集在 AcEd 而非 AcDb，FreeCAD 的 `Gui::Selection` 在 Gui 层）。移出时状态改由 Application 持有的选择集对象保存，Render 经接口读取高亮，`Selection` 随状态进 Application；窗选、交叉选里的几何查询留在 Model，即 `test_geometry` 覆盖的部分 |
 | 块编辑模式重做 | 编辑模式在 `ExclusiveCommandBus` 里 | 另行设计；本方案只在 S1、S3 做最小适配 |
 | 渲染专项 | `ARCHITECTURE_EVOLUTION_PLAN.md` 已声明不在其排期 | 本方案同样不改 `render/` 内部实现 |
 
@@ -743,11 +798,11 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 | 编号 | 决策 | 建议或结论 | 状态 | 何时定 |
 |------|------|-----------|------|--------|
 | D1 | 删除 `kernel/solver/`、`kernel/generators/`、`FilterJsonIO` | 删除。若要保留 JSON 导出，改做扩展，在 S4 注册进 `FilterRegistry` | 已定（2026-09-26），S1 已删除 | — |
-| D2 | `Selection` 留在 Model 还是移到 Application | 留在 `model/edit/`：选择状态存在实体上，移走是另一件事（11.2 节） | 待定 | S2 开工前 |
+| D2 | `Selection` 留在 Model 还是移到 Application | 留在 `model/edit/`。选中状态是实体上的 `FlagSelected` 位，Model 自己的 `Modification`、`EntityTable` 也读它；只移操作类、不移状态，分层上没有收益，还会让只链接 Model 的 `test_geometry`（5 个框选用例）改链 `YiCadCore`。选择集连同状态移到 Application 是另一件事（11.2 节） | 已定（2026-09-26） | — |
 | D3 | 上层库的类型 | Render、Application 用 STATIC，Ui、Shell 用 OBJECT；后续阶段除 Shell 外改为 SHARED（11.1 节） | 待定 | S6 开工前 |
 | D4 | 是否换 Ninja 生成器 | 以 S6 的实测数据定 | 待定 | S6 验收时 |
 | D5 | 存盘策略服务放 Application 还是 Shell | Application：扩展（块的写块与插入）也要用，且能在 `test_interaction` 里测 | 待定 | S4 开工前 |
-| D6 | 第 2.2 节的新目录命名 | 按 2.2 节；`shell/` 下不建子目录 | 待定 | S2 开工前 |
+| D6 | 第 2.2 节的新目录命名 | 按 2.2 节；`shell/` 下不建子目录 | 已定（2026-09-26），S2 已执行 | — |
 | D7 | 第三方自定义实体的接口 | C++ SDK（仿 ObjectARX），实施列为后续阶段（11.1 节） | 已定（2026-09-26） | — |
 | D8 | S0 查出的读回缺陷（4.5 节 R1–R9）何时修 | 先修 R1–R3、R5、R6、R9，在 S1 之前做（4.6 节，已完成）；R7、R8 并入 S4c（8.4 节第 5 项）；R4 见 D9 | 已定（2026-09-26） | — |
 | D9 | R4：读入 `.ycd` 时怎样处理新文档自带的默认条目（"0" 图层、"Standard" 文字样式、"ISO-25" 标注样式、箭头块） | 两种做法：读入前清空这些默认条目、完全以文件为准；或保留默认条目，文件里的同名条目覆盖其属性。前者简单，但要确认实体、标注样式在读入过程中不会先引用到默认条目；后者兼容缺少这些条目的文件。建议前者，缺条目时读完再补 | 待定 | S4 开工前 |

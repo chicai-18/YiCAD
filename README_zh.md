@@ -325,15 +325,13 @@ Visual Studio 2022 Developer PowerShell。可用以下命令诊断当前进程�
 
 | 层次 | 路径 | 说明 |
 |------|------|------|
-| **数据模型** | `YiCAD/src/kernel/data_model/` | Dm* 类 — CAD 实体数据 |
-| **视图** | `YiCAD/src/kernel/view/` | QOpenGLWidget 子类，4 层渲染 |
-| **应用** | `YiCAD/src/application/` | 命令与视图工具机制（命令总线、注册表、选择、捕捉）及扩展框架 |
+| **基础** | `YiCAD/src/base/` | 类型系统与序列化机制（`core/`）、日志与计时（`debug/`）、向量与计算几何、KD 树、R 树（`geometry/`） |
+| **数据模型** | `YiCAD/src/model/` | 文档、Dm* 实体（`entity/`）与实体数据（`entity_data/`）、符号表与空间索引（`table/`）、Undo/Redo（`history/`）、求交与 Delaunay 三角剖分（`algorithm/`）、原生格式读写（`io/`） |
+| **渲染** | `YiCAD/src/render/` | 绘制抽象（`painter/`）、OpenGL 实现（`opengl/`）、画布 `GuiDocumentView`（`view/`，QOpenGLWidget 子类，4 层渲染） |
+| **应用** | `YiCAD/src/application/` | 命令与视图工具机制（命令总线、注册表、选择、捕捉、命令行别名 `keyconfig.xml`）、扩展框架（`framework/`）、交互视图 `UIView`（`view/`） |
+| **界面** | `YiCAD/src/ui/` | Qt 控件、对话框与 Ribbon 注册表 |
 | **扩展** | `YiCAD/src/extensions/` | 业务命令（绘图、修改、测量、编辑、视图、标注、块、文字、填充……） |
-| **命令行** | `YiCAD/src/cmd/` | 命令行别名（`keyconfig.xml`） |
-| **Undo/Redo** | `YiCAD/src/kernel/history/` | 命令栈、事务、宏命令 |
-| **数学计算** | `YiCAD/src/kernel/math/` | 计算几何、KD树、R树、Delaunay三角剖分 |
-| **渲染** | `YiCAD/src/kernel/painters/` | OpenGL 绘制抽象层 |
-| **持久化** | `YiCAD/src/kernel/persistence/` | XML 序列化 (pugixml) |
+| **壳层** | `YiCAD/src/shell/` | 主窗口、程序入口、C ABI 插件运行时（`plugin_runtime/`） |
 
 ### 模块依赖
 
@@ -341,39 +339,34 @@ Visual Studio 2022 Developer PowerShell。可用以下命令诊断当前进程�
 
 ```mermaid
 flowchart TB
-    Exe["YiCAD.exe<br/>main/Main.cpp, main/BuiltinExtensions.cpp"]
+    Exe["YiCAD.exe<br/>shell/Main.cpp, shell/BuiltinExtensions.cpp"]
     Ext["YiCadExt_*（每个扩展一个）<br/>extensions/*/"]
     subgraph Core["YiCadCore（OBJECT 库）"]
-        Shell["Shell<br/>main/, plugin_runtime/, kernel/fileio/"]
+        Shell["Shell<br/>shell/"]
         Ui["UI<br/>ui/"]
-        Inter["Interaction<br/>kernel/interaction/"]
-        Appl["Application<br/>application/, cmd/"]
-        Render["Render<br/>kernel/painters/, kernel/view/"]
+        Appl["Application<br/>application/"]
+        Render["Render<br/>render/"]
     end
-    Persist["YiCadPersistence<br/>kernel/persistence/, kernel/filters/"]
-    Model["YiCadModel<br/>kernel/data_model/, builder_model/, history/, ..."]
-    Math["YiCadMath<br/>kernel/math/, utility/, debug/"]
+    Model["YiCadModel<br/>model/"]
+    Base["YiCadBase<br/>base/"]
 
     Exe --> Ext
     Exe --> Shell
     Ext --> Ui
     Shell --> Ui
-    Shell --> Persist
     Ui -. 既有双向依赖 .-> Shell
-    Ui --> Inter
-    Inter --> Appl
+    Ui --> Appl
     Appl --> Render
     Render --> Model
-    Persist --> Model
-    Model --> Math
+    Model --> Base
 ```
 
-- 依赖可以传递：模块也可以使用它沿箭头能到达的模块，例如 Application 使用 Render、Model 与 Math。除虚线外没有向上的箭头。
-- `YiCadMath`、`YiCadModel`、`YiCadPersistence` 是独立的静态库，依赖方向由 CMake 的 include 路径物理保证：Math 看不到 Model，Model 看不到持久化、渲染与界面。
-- Render、Application、Interaction、UI、Shell 合编进 `YiCadCore`，由 CI 中的 `tools/check_layering.py` 检查：`kernel/` 与 `application/` 不得包含 `ui/`、`main/` 与扩展的头文件；`application/` 也不得包含 `kernel/interaction/`，命令与工具只经 `IDocumentView`/`GuiDocumentView` 认识视图。
-- 每个扩展是链接 `YiCadCore` 的独立 OBJECT 库，只看得到自己的头文件，因此不能包含别的扩展，也不得包含 `main/`。`YiCadCore` 不引用任何扩展，只有编进可执行文件的 `main/BuiltinExtensions.cpp` 引用它们。
-- UI 与 Shell 互相依赖（虚线）：`UIActionHandler`、`UIBottomWidget` 等部件直接调用 `ApplicationWindow`/`MDIWindow` 取当前文档等全局状态。
-- 只有 Shell 使用持久化（`kernel/fileio/` 与插件的文件读写适配）；数据模型经 `GuiDialogFactoryInterface` 访问文件读写。
+- 依赖可以传递：模块也可以使用它沿箭头能到达的模块，例如 Application 使用 Render、Model 与 Base。除虚线外没有向上的箭头。
+- `YiCadBase`、`YiCadModel` 是独立的静态库，依赖方向由 CMake 的 include 路径物理保证：Base 看不到 Model，Model 看不到渲染、命令机制与界面。
+- Render、Application、UI、Shell 合编进 `YiCadCore`，由 CI 中的 `tools/check_layering.py` 按目录检查：下层不得包含上层的头文件；`application/view/` 以外不得包含交互视图 `UIView`，命令与工具只经 `IDocumentView`/`GuiDocumentView` 认识视图。
+- 每个扩展是链接 `YiCadCore` 的独立 OBJECT 库，只看得到自己的头文件，因此不能包含别的扩展，也不得包含 `shell/`。`YiCadCore` 不引用任何扩展，只有编进可执行文件的 `shell/BuiltinExtensions.cpp` 引用它们。
+- UI 与 Shell 互相依赖（虚线）：`UIActionHandler`、`UIBottomWidget` 等部件直接调用 `ApplicationWindow`/`MDIWindow` 取当前文档等全局状态，这些 include 登记在 `check_layering.py` 的白名单里。
+- 原生格式的读写代码在 `model/io/`，但文档存盘与打开仍经 `GuiDialogFactoryInterface` 绕到 Shell 的 `shell/fileio/`（`FileIO`）分派。Model 对视图与宿主的遗留依赖集中在过渡目录 `model/host/`；`doc/LAYER_RESTRUCTURE_PLAN.md` 记录了解开它们、把 `YiCadCore` 拆成四个库的步骤。
 
 ## 开发
 

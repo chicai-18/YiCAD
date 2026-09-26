@@ -335,15 +335,13 @@ The project uses an **MVC + command** architecture: business commands are `XxxCo
 
 | Layer | Path | Description |
 |-------|------|-------------|
-| **Data Model** | `YiCAD/src/kernel/data_model/` | Dm* classes — CAD entity data |
-| **View** | `YiCAD/src/kernel/view/` | QOpenGLWidget subclasses, 4-layer rendering |
-| **Application** | `YiCAD/src/application/` | Command and view tool mechanism (command bus, registry, selection, snapping) and the extension framework |
+| **Base** | `YiCAD/src/base/` | Type system and serialization machinery (`core/`), logging and timing (`debug/`), vectors, computational geometry, KD-tree, R-tree (`geometry/`) |
+| **Data Model** | `YiCAD/src/model/` | Document, Dm* entities (`entity/`) and entity data (`entity_data/`), symbol tables and spatial index (`table/`), undo/redo (`history/`), intersection and Delaunay triangulation (`algorithm/`), native file format (`io/`) |
+| **Rendering** | `YiCAD/src/render/` | Drawing abstraction (`painter/`), OpenGL implementation (`opengl/`), the `GuiDocumentView` canvas (`view/`, QOpenGLWidget subclass, 4-layer rendering) |
+| **Application** | `YiCAD/src/application/` | Command and view tool mechanism (command bus, registry, selection, snapping, `keyconfig.xml` command-line aliases), the extension framework (`framework/`) and the interactive view `UIView` (`view/`) |
+| **UI** | `YiCAD/src/ui/` | Qt widgets, dialogs and the Ribbon registry |
 | **Extensions** | `YiCAD/src/extensions/` | Business commands (draw, modify, measure, edit, view, dimension, block, text, hatch, ...) |
-| **Command line** | `YiCAD/src/cmd/` | Command-line aliases (`keyconfig.xml`) |
-| **Undo/Redo** | `YiCAD/src/kernel/history/` | Command stack, transactions, macro commands |
-| **Math** | `YiCAD/src/kernel/math/` | Computational geometry, KD-tree, R-tree, Delaunay triangulation |
-| **Rendering** | `YiCAD/src/kernel/painters/` | OpenGL drawing abstraction layer |
-| **Persistence** | `YiCAD/src/kernel/persistence/` | XML serialization (pugixml) |
+| **Shell** | `YiCAD/src/shell/` | Main window, entry point, C ABI plugin runtime (`plugin_runtime/`) |
 
 ### Module Dependencies
 
@@ -351,39 +349,34 @@ Arrows point from a module to the modules it uses. The partitions are the `yicad
 
 ```mermaid
 flowchart TB
-    Exe["YiCAD.exe<br/>main/Main.cpp, main/BuiltinExtensions.cpp"]
+    Exe["YiCAD.exe<br/>shell/Main.cpp, shell/BuiltinExtensions.cpp"]
     Ext["YiCadExt_* (one per extension)<br/>extensions/*/"]
     subgraph Core["YiCadCore (OBJECT library)"]
-        Shell["Shell<br/>main/, plugin_runtime/, kernel/fileio/"]
+        Shell["Shell<br/>shell/"]
         Ui["UI<br/>ui/"]
-        Inter["Interaction<br/>kernel/interaction/"]
-        Appl["Application<br/>application/, cmd/"]
-        Render["Render<br/>kernel/painters/, kernel/view/"]
+        Appl["Application<br/>application/"]
+        Render["Render<br/>render/"]
     end
-    Persist["YiCadPersistence<br/>kernel/persistence/, kernel/filters/"]
-    Model["YiCadModel<br/>kernel/data_model/, builder_model/, history/, ..."]
-    Math["YiCadMath<br/>kernel/math/, utility/, debug/"]
+    Model["YiCadModel<br/>model/"]
+    Base["YiCadBase<br/>base/"]
 
     Exe --> Ext
     Exe --> Shell
     Ext --> Ui
     Shell --> Ui
-    Shell --> Persist
     Ui -. legacy .-> Shell
-    Ui --> Inter
-    Inter --> Appl
+    Ui --> Appl
     Appl --> Render
     Render --> Model
-    Persist --> Model
-    Model --> Math
+    Model --> Base
 ```
 
-- Dependencies are transitive: a module may also use whatever its arrows reach, so Application uses Render, Model and Math. Apart from the dashed edge, nothing points upward.
-- `YiCadMath`, `YiCadModel` and `YiCadPersistence` are separate static libraries, so CMake include paths enforce their direction: Math cannot see Model, and Model cannot see persistence, rendering or UI.
-- Render, Application, Interaction, UI and Shell compile together into `YiCadCore`. `tools/check_layering.py` (run in CI) keeps `kernel/` and `application/` from including `ui/`, `main/` or extension headers, and keeps `application/` from including `kernel/interaction/`: commands and tools know the view only through `IDocumentView`/`GuiDocumentView`.
-- Each extension is its own OBJECT library linking `YiCadCore`. It sees only its own headers, so it cannot include another extension, and it must not include `main/`. `YiCadCore` never references an extension; only `main/BuiltinExtensions.cpp`, compiled into the executable, does.
-- UI and Shell depend on each other (dashed edge): widgets such as `UIActionHandler` and `UIBottomWidget` call `ApplicationWindow`/`MDIWindow` for global state such as the current document.
-- Only Shell uses persistence (`kernel/fileio/` and the plugin file adapter); the data model reaches file I/O through `GuiDialogFactoryInterface`.
+- Dependencies are transitive: a module may also use whatever its arrows reach, so Application uses Render, Model and Base. Apart from the dashed edge, nothing points upward.
+- `YiCadBase` and `YiCadModel` are separate static libraries, so CMake include paths enforce their direction: Base cannot see Model, and Model cannot see rendering, the command mechanism or UI.
+- Render, Application, UI and Shell compile together into `YiCadCore`. `tools/check_layering.py` (run in CI) checks them by directory: a lower layer must not include headers from a higher one, and nothing outside `application/view/` includes the interactive view `UIView`, so commands and tools know the view only through `IDocumentView`/`GuiDocumentView`.
+- Each extension is its own OBJECT library linking `YiCadCore`. It sees only its own headers, so it cannot include another extension, and it must not include `shell/`. `YiCadCore` never references an extension; only `shell/BuiltinExtensions.cpp`, compiled into the executable, does.
+- UI and Shell depend on each other (dashed edge): widgets such as `UIActionHandler` and `UIBottomWidget` call `ApplicationWindow`/`MDIWindow` for global state such as the current document. These includes are whitelisted in `check_layering.py`.
+- The native file format code lives in `model/io/`, but saving and opening a document still go through `GuiDialogFactoryInterface` to Shell's `shell/fileio/` (`FileIO`) for dispatch. The model's remaining dependencies on the view and the host are gathered in the transitional `model/host/` directory; `doc/LAYER_RESTRUCTURE_PLAN.md` lists the steps that remove them and split `YiCadCore` into four libraries.
 
 ## Development
 

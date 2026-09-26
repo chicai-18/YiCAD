@@ -4,37 +4,37 @@
 <context>
     <name>GuiDocumentView</name>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1299"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1298"/>
         <source>Endpoint</source>
         <translation>端点</translation>
     </message>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1300"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1299"/>
         <source>Center</source>
         <translation>中心</translation>
     </message>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1301"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1300"/>
         <source>Middle</source>
         <translation>中点</translation>
     </message>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1302"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1301"/>
         <source>Intersection</source>
         <translation>交点</translation>
     </message>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1303"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1302"/>
         <source>On Entity</source>
         <translation>最近点</translation>
     </message>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1304"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1303"/>
         <source>Subsection</source>
         <translation>节点</translation>
     </message>
     <message>
-        <location filename="../src/kernel/view/GuiDocumentView.cpp" line="1305"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1304"/>
         <source>Grid</source>
         <translation>网格</translation>
     </message>
@@ -81,386 +81,386 @@
         <translation>暗</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="125"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="125"/>
         <source>None</source>
         <comment>unknown length unit</comment>
         <translation>无</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="127"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="180"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="127"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="180"/>
         <source>Inch</source>
         <translation>英寸</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="129"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="184"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="129"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="184"/>
         <source>Foot</source>
         <translation>英尺</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="131"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="188"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="131"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="188"/>
         <source>Mile</source>
         <translation>英里</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="133"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="192"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="133"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="192"/>
         <location filename="../src/ui/UIBottomWidget.cpp" line="285"/>
         <location filename="../src/ui/UIBottomWidget.cpp" line="372"/>
         <source>Millimeter</source>
         <translation>毫米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="135"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="196"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="135"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="196"/>
         <source>Centimeter</source>
         <translation>厘米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="137"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="200"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="137"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="200"/>
         <source>Meter</source>
         <translation>米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="139"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="204"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="139"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="204"/>
         <source>Kilometer</source>
         <translation>千米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="141"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="208"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="141"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="208"/>
         <source>Microinch</source>
         <translation>微英寸</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="143"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="212"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="143"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="212"/>
         <source>Mil</source>
         <translation>毫寸</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="145"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="216"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="145"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="216"/>
         <source>Yard</source>
         <translation>码</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="147"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="220"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="147"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="220"/>
         <source>Angstrom</source>
         <translation>埃</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="149"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="224"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="149"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="224"/>
         <source>Nanometer</source>
         <translation>纳米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="151"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="228"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="151"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="228"/>
         <source>Micron</source>
         <translation>微米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="153"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="232"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="153"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="232"/>
         <source>Decimeter</source>
         <translation>分米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="155"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="236"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="155"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="236"/>
         <source>Decameter</source>
         <translation>十米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="157"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="240"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="157"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="240"/>
         <source>Hectometer</source>
         <translation>公引</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="159"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="244"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="159"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="244"/>
         <source>Gigameter</source>
         <translation>千兆米</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="161"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="248"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="161"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="248"/>
         <source>Astro</source>
         <translation>天文</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="163"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="252"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="163"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="252"/>
         <source>Lightyear</source>
         <translation>光年</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="165"/>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="256"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="165"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="256"/>
         <source>Parsec</source>
         <translation>秒差距</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="844"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="844"/>
         <source>Custom</source>
         <comment>Paper format</comment>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="846"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="846"/>
         <source>A0</source>
         <comment>Paper format</comment>
         <translation>A0</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="847"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="847"/>
         <source>A1</source>
         <comment>Paper format</comment>
         <translation>A1</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="848"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="848"/>
         <source>A2</source>
         <comment>Paper format</comment>
         <translation>A2</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="849"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="849"/>
         <source>A3</source>
         <comment>Paper format</comment>
         <translation>A3</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="850"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="850"/>
         <source>A4</source>
         <comment>Paper format</comment>
         <translation>A4</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="852"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="852"/>
         <source>Letter/ANSI A</source>
         <comment>Paper format</comment>
         <translation>Letter/ANSI A</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="854"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="854"/>
         <source>Tabloid/ANSI B</source>
         <comment>Paper format</comment>
         <translation>Tabloid/ANSI B</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="853"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="853"/>
         <source>Legal</source>
         <comment>Paper format</comment>
         <translation>Legal</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="856"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="856"/>
         <source>ANSI C</source>
         <comment>Paper format</comment>
         <translation>ANSI C</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="857"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="857"/>
         <source>ANSI D</source>
         <comment>Paper format</comment>
         <translation>ANSI D</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="858"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="858"/>
         <source>ANSI E</source>
         <comment>Paper format</comment>
         <translation>ANSI E</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="860"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="860"/>
         <source>Arch A</source>
         <comment>Paper format</comment>
         <translation>Arch A</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="861"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="861"/>
         <source>Arch B</source>
         <comment>Paper format</comment>
         <translation>Arch B</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="862"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="862"/>
         <source>Arch C</source>
         <comment>Paper format</comment>
         <translation>Arch C</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="863"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="863"/>
         <source>Arch D</source>
         <comment>Paper format</comment>
         <translation>Arch D</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="864"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="864"/>
         <source>Arch E</source>
         <comment>Paper format</comment>
         <translation>Arch E</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="878"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="878"/>
         <source>custom</source>
         <comment>Paper format</comment>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="881"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="881"/>
         <source>a0</source>
         <comment>Paper format</comment>
         <translation>a0</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="883"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="883"/>
         <source>a1</source>
         <comment>Paper format</comment>
         <translation>a1</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="885"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="885"/>
         <source>a2</source>
         <comment>Paper format</comment>
         <translation>a2</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="887"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="887"/>
         <source>a3</source>
         <comment>Paper format</comment>
         <translation>a3</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="889"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="889"/>
         <source>a4</source>
         <comment>Paper format</comment>
         <translation>a4</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="892"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="892"/>
         <source>letter</source>
         <comment>Paper format</comment>
         <translation>letter</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="894"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="894"/>
         <source>legal</source>
         <comment>Paper format</comment>
         <translation>legal</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="896"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="896"/>
         <source>tabloid</source>
         <comment>Paper format</comment>
         <translation>tabloid</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="899"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="899"/>
         <source>ansi c</source>
         <comment>Paper format</comment>
         <translation>ansi c</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="901"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="901"/>
         <source>ansi d</source>
         <comment>Paper format</comment>
         <translation>ansi d</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="903"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="903"/>
         <source>ansi e</source>
         <comment>Paper format</comment>
         <translation>ansi e</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="906"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="906"/>
         <source>arch a</source>
         <comment>Paper format</comment>
         <translation>arch a</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="908"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="908"/>
         <source>arch b</source>
         <comment>Paper format</comment>
         <translation>arch b</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="910"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="910"/>
         <source>arch c</source>
         <comment>Paper format</comment>
         <translation>arch c</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="912"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="912"/>
         <source>arch d</source>
         <comment>Paper format</comment>
         <translation>arch d</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmUnits.cpp" line="914"/>
+        <location filename="../src/model/document/DmUnits.cpp" line="914"/>
         <source>arch e</source>
         <comment>Paper format</comment>
         <translation>arch e</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="578"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="578"/>
         <source>command</source>
         <translation>命令</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="57"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="57"/>
         <source>Draw2d</source>
         <translation>绘图</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="65"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="62"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="62"/>
         <source>Line</source>
         <translation>直线</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="57"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="65"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="65"/>
         <source>Circle</source>
         <translation>圆</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="58"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="63"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="63"/>
         <source>Curve</source>
         <translation>曲线</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="69"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="64"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="64"/>
         <source>Polyline</source>
         <translation>多段线</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="60"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="66"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="66"/>
         <source>Ellipse</source>
         <translation>椭圆</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="62"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="69"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="69"/>
         <source>Dimension</source>
         <translation>标注</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="66"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="78"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="78"/>
         <source>Modify</source>
         <translation>修改</translation>
     </message>
@@ -470,23 +470,23 @@
         <translation>选择</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="81"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="81"/>
         <source>Measure</source>
         <translation>测量</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="68"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="75"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="75"/>
         <source>Other</source>
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="469"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="469"/>
         <source>select qss file</source>
         <translation>选择qss文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="49"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="49"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
@@ -496,62 +496,62 @@
         <translation>正交</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="85"/>
+        <location filename="../src/model/edit/Modification.cpp" line="85"/>
         <source>Delete Entities</source>
         <translation>删除实体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="497"/>
+        <location filename="../src/model/edit/Modification.cpp" line="497"/>
         <source>Move</source>
         <translation>移动</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="593"/>
+        <location filename="../src/model/edit/Modification.cpp" line="593"/>
         <source>Trim</source>
         <translation>修剪</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="866"/>
+        <location filename="../src/model/edit/Modification.cpp" line="866"/>
         <source>cut entity</source>
         <translation>单点打断</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="951"/>
+        <location filename="../src/model/edit/Modification.cpp" line="951"/>
         <source>cut entity 2P</source>
         <translation>2点打断</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="1421"/>
+        <location filename="../src/model/edit/Modification.cpp" line="1421"/>
         <source>move ref</source>
         <translation>移动引用点</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1247"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1247"/>
         <source>on all</source>
         <translation>显示所有图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1251"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1251"/>
         <source>unlock all</source>
         <translation>解锁所有图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1255"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1255"/>
         <source>new layer</source>
         <translation>新增图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1263"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1263"/>
         <source>rename layer</source>
         <translation>重命名图层</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="72"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="72"/>
         <source>Text</source>
         <translation>文字</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1259"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1259"/>
         <source>copy to layer</source>
         <translation>复制实体到指定图层</translation>
     </message>
@@ -600,42 +600,42 @@
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="61"/>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="80"/>
-        <location filename="../src/main/ApplicationWindow.cpp" line="459"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="44"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="47"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="459"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="44"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="47"/>
         <source>File</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1161"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1161"/>
         <source>open</source>
         <translation>打开文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1157"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1157"/>
         <source>new</source>
         <translation>新建文件</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1169"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1169"/>
         <source>save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1173"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1173"/>
         <source>save as</source>
         <translation>另存为</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="56"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="90"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="90"/>
         <source>Block</source>
         <translation>图块</translation>
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="67"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="97"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="103"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="97"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="103"/>
         <source>Options</source>
         <translation>设置</translation>
     </message>
@@ -645,19 +645,19 @@
         <translation>编辑</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1180"/>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1658"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1180"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1658"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1187"/>
-        <location filename="../src/main/ApplicationWindow.cpp" line="1668"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1187"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1668"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../src/kernel/modification/Modification.cpp" line="118"/>
+        <location filename="../src/model/edit/Modification.cpp" line="118"/>
         <source>Cut</source>
         <translation>剪切</translation>
     </message>
@@ -667,48 +667,48 @@
         <translation>视图</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="205"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="205"/>
         <source>File format mismatch. Please use &apos;Save As&apos; to choose a compatible format.</source>
         <translation>文件格式不匹配。请使用&quot;另存为&quot;选择合适的格式。</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="249"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="249"/>
         <source>File on disk modified. Please save to another file to avoid data loss! File modified: %1</source>
         <translation>磁盘上的文件已修改。 请保存到另一个文件，以免数据丢失！ 文件已修改：%1</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="262"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="262"/>
         <source>Auto saving file: %1</source>
         <translation>自动保存文件:%1</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="310"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="310"/>
         <source>Can not remove origin backup file: %1!</source>
         <translation>无法移除原始备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="337"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="337"/>
         <source>File saved: %1</source>
         <translation>文件已保存：%1</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="341"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="341"/>
         <source>File save failed: %1!</source>
         <translation>文件保存失败：%1！</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="585"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="585"/>
         <source>Open failed, try to open backup file?</source>
         <translation>打开失败，尝试打开备份文件？</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="627"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="627"/>
         <source>Open failed, invalid file!</source>
         <translation>打开失败，无效文件！</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="290"/>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="319"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="290"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="319"/>
         <source>Can not backup file: %1!</source>
         <translation>无法备份文件：%1！</translation>
     </message>
@@ -824,7 +824,7 @@
     </message>
     <message>
         <location filename="../src/ui/UIActionGroupManager.cpp" line="64"/>
-        <location filename="../src/main/ApplicationWindowRibbon.cpp" line="84"/>
+        <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="84"/>
         <source>Layer</source>
         <translation>图层</translation>
     </message>
@@ -849,105 +849,105 @@
         <translation>小部件</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="295"/>
+        <location filename="../src/application/Commands.cpp" line="294"/>
         <source>Accepted keycode: %1</source>
         <translation>接受的按键代码：%1</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="451"/>
+        <location filename="../src/application/Commands.cpp" line="450"/>
         <source>Available commands:</source>
         <translation>可用命令：</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="463"/>
+        <location filename="../src/application/Commands.cpp" line="462"/>
         <source>cal</source>
         <comment>command to trigger cli calculator</comment>
         <translation>cal</translation>
     </message>
     <message>
-        <location filename="../src/cmd/Commands.cpp" line="466"/>
+        <location filename="../src/application/Commands.cpp" line="465"/>
         <source>calculate</source>
         <comment>command to trigger cli calculator</comment>
         <translation>计算</translation>
     </message>
     <message>
-        <location filename="../src/kernel/filters/FilterInterface.h" line="52"/>
+        <location filename="../src/model/io/FilterInterface.h" line="52"/>
         <source>undefined error</source>
         <comment>FilterInterface</comment>
         <translation>未定义错误</translation>
     </message>
     <message>
-        <location filename="../src/main/Main.cpp" line="125"/>
+        <location filename="../src/shell/Main.cpp" line="125"/>
         <source>YiCAD</source>
         <translation>易CAD</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/DmDocument.cpp" line="585"/>
+        <location filename="../src/model/document/DmDocument.cpp" line="585"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="225"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="225"/>
         <source>Bold Italic</source>
         <translation>粗斜体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="229"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="229"/>
         <source>Bold</source>
         <translation>粗体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="233"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="233"/>
         <source>Italic</source>
         <translation>斜体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="237"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="237"/>
         <source>Regular</source>
         <translation>常规</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="376"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="376"/>
         <source>SimSun</source>
         <translation>宋体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="377"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="377"/>
         <source>NSimSun</source>
         <translation>新宋体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="378"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="378"/>
         <source>Microsoft YaHei</source>
         <translation>微软雅黑</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="379"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="379"/>
         <source>Microsoft YaHei UI</source>
         <translation>微软雅黑</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="380"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="380"/>
         <source>Microsoft YaHei Light</source>
         <translation>微软雅黑 Light</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="381"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="381"/>
         <source>KaiTi</source>
         <translation>楷体</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="382"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="382"/>
         <source>FangSong</source>
         <translation>仿宋</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="383"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="383"/>
         <source>DengXian</source>
         <translation>等线</translation>
     </message>
     <message>
-        <location filename="../src/kernel/builder_model/text/DmFontList.cpp" line="384"/>
+        <location filename="../src/model/entity/text/DmFontList.cpp" line="384"/>
         <source>SimHei</source>
         <translation>黑体</translation>
     </message>
@@ -988,12 +988,12 @@
         <translation>不能删除ByLayer,ByBlock,Continuous！</translation>
     </message>
     <message>
-        <location filename="../src/kernel/fileio/Fileio.cpp" line="132"/>
+        <location filename="../src/shell/fileio/Fileio.cpp" line="132"/>
         <source>ToolTips</source>
         <translation>工具提示</translation>
     </message>
     <message>
-        <location filename="../src/kernel/fileio/Fileio.cpp" line="132"/>
+        <location filename="../src/shell/fileio/Fileio.cpp" line="132"/>
         <source>Unsupported file format, please use another format to export!</source>
         <translation>不支持的文件格式，请使用其他格式导出！</translation>
     </message>
@@ -1001,22 +1001,22 @@
 <context>
     <name>SelectTool</name>
     <message>
-        <location filename="../src/application/SelectTool.cpp" line="223"/>
+        <location filename="../src/application/SelectTool.cpp" line="201"/>
         <source>Click and drag for the selection window</source>
         <translation>单击并拖动选择窗口</translation>
     </message>
     <message>
-        <location filename="../src/application/SelectTool.cpp" line="223"/>
+        <location filename="../src/application/SelectTool.cpp" line="201"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/application/SelectTool.cpp" line="226"/>
+        <location filename="../src/application/SelectTool.cpp" line="204"/>
         <source>Choose second edge</source>
         <translation>选择第二个点</translation>
     </message>
     <message>
-        <location filename="../src/application/SelectTool.cpp" line="226"/>
+        <location filename="../src/application/SelectTool.cpp" line="204"/>
         <source>Back</source>
         <translation>返回</translation>
     </message>
@@ -1024,7 +1024,7 @@
 <context>
     <name>UIActionHandler</name>
     <message>
-        <location filename="../src/ui/UIActionHandler.cpp" line="254"/>
+        <location filename="../src/ui/UIActionHandler.cpp" line="242"/>
         <source>escape</source>
         <comment>escape, go back from action steps</comment>
         <translation>取消</translation>
