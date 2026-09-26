@@ -53,7 +53,6 @@ class UIActionHandler;
 class UIWindowSize;
 class UIBottomWindow;
 class UITabDrawWidget;
-class UIActionGroupManager;
 class UICommandWidget;
 class ApplicationPluginHostContext;
 class ApplicationWindowDocumentManager;

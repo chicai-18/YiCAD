@@ -55,7 +55,6 @@
         <translation>网格</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="72"/>
         <location filename="../src/shell/UIBottomWidget.cpp" line="219"/>
         <source>Snap</source>
         <translation>捕捉模式</translation>
@@ -423,51 +422,43 @@
         <translation>绘图</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="65"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="62"/>
         <source>Line</source>
         <translation>直线</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="57"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="65"/>
         <source>Circle</source>
         <translation>圆</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="58"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="63"/>
         <source>Curve</source>
         <translation>曲线</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="69"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="64"/>
         <source>Polyline</source>
         <translation>多段线</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="60"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="66"/>
         <source>Ellipse</source>
         <translation>椭圆</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="62"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="69"/>
         <source>Dimension</source>
         <translation>标注</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="66"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="78"/>
         <source>Modify</source>
         <translation>修改</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="71"/>
         <source>Select</source>
-        <translation>选择</translation>
+        <translation type="vanished">选择</translation>
     </message>
     <message>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="81"/>
@@ -475,7 +466,6 @@
         <translation>测量</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="68"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="75"/>
         <source>Other</source>
         <translation>其他</translation>
@@ -598,8 +588,6 @@
         <translation>保存对以下项目的更改？</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="61"/>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="80"/>
         <location filename="../src/shell/ApplicationWindow.cpp" line="562"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="44"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="47"/>
@@ -627,22 +615,19 @@
         <translation>另存为</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="56"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="90"/>
         <source>Block</source>
         <translation>图块</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="67"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="97"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="103"/>
         <source>Options</source>
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="59"/>
         <source>Edit</source>
-        <translation>编辑</translation>
+        <translation type="vanished">编辑</translation>
     </message>
     <message>
         <location filename="../src/shell/ApplicationWindow.cpp" line="1286"/>
@@ -662,9 +647,8 @@
         <translation>剪切</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="74"/>
         <source>View</source>
-        <translation>视图</translation>
+        <translation type="vanished">视图</translation>
     </message>
     <message>
         <location filename="../src/application/DocumentFileService.cpp" line="108"/>
@@ -823,30 +807,25 @@
         <translation>TIF/TIFF</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="64"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="84"/>
         <source>Layer</source>
         <translation>图层</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="63"/>
         <source>Info</source>
-        <translation>信息</translation>
+        <translation type="vanished">信息</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="70"/>
         <source>Restriction</source>
-        <translation>约束</translation>
+        <translation type="vanished">约束</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="73"/>
         <source>Snap Extras</source>
-        <translation>捕捉扩展</translation>
+        <translation type="vanished">捕捉扩展</translation>
     </message>
     <message>
-        <location filename="../src/ui/UIActionGroupManager.cpp" line="75"/>
         <source>Widgets</source>
-        <translation>小部件</translation>
+        <translation type="vanished">小部件</translation>
     </message>
     <message>
         <location filename="../src/application/Commands.cpp" line="294"/>

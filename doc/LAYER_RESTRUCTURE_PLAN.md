@@ -1099,6 +1099,8 @@ S5b 随后一个（搬移、构建脚本、白名单清空、文档）。
   调用方只有主窗口，可改为直接调 `UIDialogFactory`、从接口删去。
 - `IExtensionContext`/`IExtensionHost` 的 `currentDocument()`、`currentDocumentView()` 与 `documentManager()` 的同名方法重复。
 - `ui/UIActionGroupManager` 方案未列、留在 `ui/`，但它没有任何构造点，只有 `ApplicationWindow.h` 里一行前置声明，是死代码。
+  已删除（两个文件与前置声明一并去掉）。`update_translations` 把只出现在它里面的 7 个词条（Select、Edit、View、Info、Restriction、
+  Snap Extras、Widgets）标为 vanished 并保留译文，其余词条只少了它的 `<location>` 行。
 - `UICurrentActivePen::m_document` 从未赋值（原本如此），未动。
 
 ---
