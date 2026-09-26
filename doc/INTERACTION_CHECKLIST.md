@@ -233,8 +233,9 @@
 
 `LAYER_RESTRUCTURE_PLAN.md` 的 S4 改动文档读写路径（原生格式下沉到 Model，存盘策略移出
 `DmDocument`），本节在 S4 的每个子步骤前后各走一遍。自动化覆盖见
-`tests/persistence/test_persistence_document.cpp`，文件头部列出的 R1–R9 是 S0 查出的读写缺陷，
-下表引用同一编号。
+`tests/persistence/test_persistence_document.cpp`（Model 的读写）与
+`tests/interaction/test_document_file_service.cpp`（S4c 起的存盘策略）；前者文件头部列出的 R1–R9
+是 S0 查出的读写缺陷，下表引用同一编号。
 
 准备：一个可写的空目录；一份含中文图层与中文文字的 DXF；选项 → 系统设置里把自动保存间隔设为
 1 分钟。下文"临时目录"指 `QStandardPaths::TempLocation`（通常是 `%TEMP%`），
@@ -246,9 +247,9 @@
 | W2 | 接着不做修改按 Ctrl+S；再画一条线按 Ctrl+S；再画一条再按 | 未修改时不写盘；之后每次保存都把旧文件改名为 `<基名>.bak`（替换已有的 .bak），目录里始终是一个 .ycd 加一个 .bak |
 | W3 | 另存为到另一个文件名 | 写出新文件，文档改用新文件名；原文件与原 .bak 不动；临时目录里原文件名对应的自动保存副本被删除 |
 | W4 | 用别的程序改动 W1 的文件（或改它的修改时间），回到 YiCAD 修改图纸后 Ctrl+S | 命令行提示 "File on disk modified. Please save to another file to avoid data loss! ..."，不写盘；另存为可以正常保存 |
-| W5 | 修改图纸后等自动保存触发；继续修改再等一个间隔 | 第一次：命令行显示 "Auto saving file: <临时目录>/<副本名>"，原文件不变。（既有）之后不再自动保存：`autoSave` 置位 `m_bHasAutoSaved`（`DmDocument.cpp:194`），`save` 见到它直接返回（`:223`），每个文档只自动保存一次 |
+| W5 | 修改图纸后等自动保存触发；继续修改再等一个间隔 | 第一次：命令行显示 "Auto saving file: <临时目录>/<副本名>"，原文件不变。（既有）之后不再自动保存：`autoSave` 置位 `m_bHasAutoSaved`（S4c 起在 `DocumentFileService.cpp:93`），`save` 见到它直接返回（`:124`），每个文档只自动保存一次 |
 | W6 | 打开 W1 保存的 .ycd；再打开一份含点、射线、构造线、自定义线型与中文图层的图纸，存盘后重新打开 | 内容与保存时一致：实体、图层、线型（含说明与当前线型）、文字样式、标注样式、块与属性。（既有，R4）图层列表里有两个 "0" 图层，文字样式、标注样式列表里 "Standard"、"ISO-25" 各两个，文档块表里的标注箭头块也各有两份；实体用的是新文档自带的那份 "0" 图层，文件里 "0" 图层自己的颜色等属性不生效；每存开一次，箭头块再多一套 |
-| W7 | 把 W2 的 .ycd 换成任意内容（保留 .bak），打开它；分别在询问里点"是"和"否" | 设计上：询问 "Open failed, try to open backup file?"，点"是"先开 .bak 与自动保存副本中较新的一份、失败再开另一份，打开的那份复制为 `<备份基名>_<时间戳>.ycd` 并作为文档的文件名；点"否"或都打不开时警告 "Open failed, invalid file!"。（既有，R7、R8）过滤器的异常穿出 `DmDocument::open`，`MDIWindow::slotFileOpen`、`UITabDrawWidget::slotFileOpen` 都不捕获，询问与警告都不出现，由代码推断程序异常退出，未实测，不要在有未保存图纸时核对；R7 修好后 .bak 仍因后缀找不到过滤器而打不开，只有自动保存副本能打开。两处都并入 S4c |
+| W7 | 把 W2 的 .ycd 换成任意内容（保留 .bak），打开它；分别在询问里点"是"和"否" | 询问 "Open failed, try to open backup file?"，点"是"先开 .bak 与自动保存副本中较新的一份、失败再开另一份（备份按原生格式读，不看后缀），打开的那份复制为 `<备份基名>_<时间戳>.ycd` 并作为文档的文件名；点"否"或都打不开时警告 "Open failed, invalid file!"。S4c 之前（R7、R8）过滤器的异常穿出 `DmDocument::open`，询问与警告都不出现；.bak 也因后缀找不到过滤器而打不开 |
 | W8 | 打开 DXF | 图层与文字的中文正确；实体与 DXF 一致（`test_dxf_encoding` 覆盖同一插件路径） |
 | W9 | 接着按 Ctrl+S | 命令行提示 "File format mismatch. Please use 'Save As' to choose a compatible format."，不写盘（打开不改文档的格式类型，文件名后缀是 .dxf） |
 | W10 | 另存为选 DXF 格式，再打开导出的文件 | 插件写出 R2013 DXF；再打开内容与导出前一致，中文正确 |
@@ -281,6 +282,8 @@
 | 第四步之后（夹点编辑） | 取消空闲态拖动整个实体：在选中实体的线身上按住拖动改为框选，移动实体用移动命令 | S9、N8、B2 |
 | 第四步之后（夹点编辑） | 夹点激活时启动命令，夹点取消。原先只清除预览，命令结束后夹点接着跟随鼠标，下一次单击按命令改过的选择集落位 | S16 |
 | 第四步之后（夹点编辑） | 夹点激活时右键取消，预览随之清除。原先拖动的副本留在画布上，直到下一次选择、Esc 或鼠标离开画布 | S15 |
+| 分层重组 S4c | 修复 R7、R8：打开损坏的文件时询问是否打开备份，.bak 能打开；原先异常穿出，询问与警告都不出现 | W7 |
+| 分层重组 S4c | 写文件时过滤器抛出的异常不再穿出，按保存失败处理（命令行 "File save failed: ..."）；原先穿出 `DmDocument::save`，无人捕获 | W1–W3、W10 |
 
 ## 8. 核对记录
 

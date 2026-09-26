@@ -83,8 +83,8 @@ yicad_collect_sources(BASE
 #   src/model/history/      撤销重做（Cmd/CmdManager/MacroCmd/Transaction 与各 *Cmd）
 #   src/model/edit/         Modification、Selection
 #   src/model/algorithm/    求交、面积、闭合区域、三角剖分
-#   src/model/io/           原生格式 FilterOcdIO、格式注册表 FilterRegistry、.bak 备份、
-#                           迁移基类；meta/ 是各类型的
+#   src/model/io/           原生格式 FilterOcdIO、格式注册表 FilterRegistry、覆盖写时的
+#                           编号备份、迁移基类；meta/ 是各类型的
 #                           Meta* 容器。原是独立的 YiCadPersistence 库，它本来就只依赖
 #                           Model 与 Base，分层重组 S2 并入本库
 #   src/model/host/         过渡目录：GuiDialogFactory*，即 Model 对宿主的遗留依赖。
@@ -126,7 +126,8 @@ yicad_collect_sources(RENDER
 #                               ExclusiveCommandBus/CommandRegistry、放置命令与先选
 #                               后建的基类）、视图工具框架（IViewTool/ViewToolControl/
 #                               PanZoomTool）、选择层 SelectTool、捕捉器 Snapper、预览、
-#                               keyconfig.xml 与命令行别名（Commands）
+#                               keyconfig.xml 与命令行别名（Commands）、文档的存盘策略
+#                               DocumentFileService（自动保存、备份、打开失败的处理）
 #   src/application/framework/  进程内扩展框架（IExtension/IExtensionContext/
 #                               IExtensionHost/ExtensionManager），对应 DS 的
 #                               Application/Framework/

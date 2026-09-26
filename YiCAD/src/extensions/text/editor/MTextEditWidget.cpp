@@ -29,6 +29,7 @@
 #include <QSvgRenderer>
 #include <QPainter>
 #include <QRectF>
+#include <QTimer>
 
 #include "DmColor.h"
 #include "DmLine.h"

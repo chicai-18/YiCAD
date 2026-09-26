@@ -32,6 +32,7 @@
 #include "Debug.h"
 #include "UIDlgCmdsSetting.h"
 #include "DmDocument.h"
+#include "DocumentFileService.h"
 
 int UIDlgOptionsGeneral::current_tab = 0;
 
@@ -192,10 +193,13 @@ void UIDlgOptionsGeneral::ok()
         DMSETTINGS->writeEntry("/InvertZoomDirection", cbInvertZoomDirection->isChecked() ? 1 : 0);
         DMSETTINGS->endGroup();
 
-        // 设置自动保存文件
+        // 设置自动保存文件（自动保存由各文档的文件服务管理）
         for (DmDocument* doc : m_documents)
         {
-            doc->enableAutoSave(isAutoSave, saveMin);
+            if (DocumentFileService* files = DocumentFileService::find(doc))
+            {
+                files->enableAutoSave(isAutoSave, saveMin);
+            }
         }
 
         // 设置快捷键；命令行在重新加载后自己刷新补全列表（Commands::addReloadListener）

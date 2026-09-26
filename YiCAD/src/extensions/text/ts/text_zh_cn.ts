@@ -89,12 +89,12 @@
 <context>
     <name>MTextEditWidget</name>
     <message>
-        <location filename="../editor/MTextEditWidget.cpp" line="1467"/>
+        <location filename="../editor/MTextEditWidget.cpp" line="1468"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
     <message>
-        <location filename="../editor/MTextEditWidget.cpp" line="1467"/>
+        <location filename="../editor/MTextEditWidget.cpp" line="1468"/>
         <source>Save the changes?</source>
         <translation>是否保存改变？</translation>
     </message>

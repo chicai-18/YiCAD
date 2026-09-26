@@ -667,48 +667,48 @@
         <translation>视图</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="199"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="106"/>
         <source>File format mismatch. Please use &apos;Save As&apos; to choose a compatible format.</source>
         <translation>文件格式不匹配。请使用&quot;另存为&quot;选择合适的格式。</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="243"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="150"/>
         <source>File on disk modified. Please save to another file to avoid data loss! File modified: %1</source>
         <translation>磁盘上的文件已修改。 请保存到另一个文件，以免数据丢失！ 文件已修改：%1</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="256"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="163"/>
         <source>Auto saving file: %1</source>
         <translation>自动保存文件:%1</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="304"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="211"/>
         <source>Can not remove origin backup file: %1!</source>
         <translation>无法移除原始备份文件：%1！</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="331"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="238"/>
         <source>File saved: %1</source>
         <translation>文件已保存：%1</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="335"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="242"/>
         <source>File save failed: %1!</source>
         <translation>文件保存失败：%1！</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="598"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="362"/>
         <source>Open failed, try to open backup file?</source>
         <translation>打开失败，尝试打开备份文件？</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="640"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="401"/>
         <source>Open failed, invalid file!</source>
         <translation>打开失败，无效文件！</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="284"/>
-        <location filename="../src/model/document/DmDocument.cpp" line="313"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="191"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="220"/>
         <source>Can not backup file: %1!</source>
         <translation>无法备份文件：%1！</translation>
     </message>
@@ -882,7 +882,7 @@
         <translation>易CAD</translation>
     </message>
     <message>
-        <location filename="../src/model/document/DmDocument.cpp" line="598"/>
+        <location filename="../src/application/DocumentFileService.cpp" line="362"/>
         <source>Tips</source>
         <translation>提示</translation>
     </message>
@@ -988,11 +988,13 @@
         <translation>不能删除ByLayer,ByBlock,Continuous！</translation>
     </message>
     <message>
+        <location filename="../src/application/DocumentFileService.cpp" line="412"/>
         <location filename="../src/ui/UIDialogFactory.cpp" line="107"/>
         <source>ToolTips</source>
         <translation>工具提示</translation>
     </message>
     <message>
+        <location filename="../src/application/DocumentFileService.cpp" line="412"/>
         <location filename="../src/ui/UIDialogFactory.cpp" line="107"/>
         <source>Unsupported file format, please use another format to export!</source>
         <translation>不支持的文件格式，请使用其他格式导出！</translation>

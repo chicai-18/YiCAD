@@ -25,13 +25,12 @@
 #include "DmDocument.h"
 
 #include <algorithm>
+#include <exception>
 #include <iostream>
 #include <cmath>
-#include <QDir>
-#include <QStandardPaths>
+#include <memory>
 #include <unordered_map>
 
-#include "GuiDialogFactory.h"
 #include "DmDocumentListener.h"
 #include "Debug.h"
 #include "Math2d.h"
@@ -42,7 +41,41 @@
 #include "DmText.h"
 #include "DmMText.h"
 #include "DmDimension.h"
-#include "MD5.h"
+#include "FilterInterface.h"
+#include "FilterOcdIO.h"
+#include "FilterRegistry.h"
+
+namespace
+{
+/// @brief 调过滤器读或写；过滤器返回 false 时为 Failed，抛出的异常转成 Failed 并取异常信息
+template <typename Call>
+DmFileResult runFilter(Call&& call)
+{
+    try
+    {
+        return call() ? DmFileResult{} : DmFileResult{DmFileStatus::Failed, QString()};
+    }
+    catch (const std::exception& e)
+    {
+        return {DmFileStatus::Failed, QString::fromUtf8(e.what())};
+    }
+    catch (...)
+    {
+        return {DmFileStatus::Failed, QStringLiteral("unknown exception")};
+    }
+}
+
+/// @brief 用给定的过滤器读入文档，成功后记为已保存
+DmFileResult importInto(DmDocument& document, FilterInterface& filter, const QString& file)
+{
+    const DmFileResult result = runFilter([&]() { return filter.fileImport(document, file); });
+    if (result.ok())
+    {
+        document.markSaved();
+    }
+    return result;
+}
+}  // namespace
 
 DmDocument::DmDocument()
     : m_idManager(DmIdManager())
@@ -83,15 +116,6 @@ DmDocument::DmDocument()
     m_cmdManager->setDocument(this);
 
     m_savedUndoCount = 0;
-
-    m_bHasAutoSaved = false;
-    m_timer.reset(new QTimer());
-    QObject::connect(m_timer.get(), &QTimer::timeout, [this]() { this->autoSave(); });
-    DMSETTINGS->beginGroup("/Defaults");
-    bool isAutoSave = DMSETTINGS->readNumEntry("/AutoBackupDocument", 1) != 0;
-    int min = DMSETTINGS->readNumEntry("/AutoSaveTime", 10);
-    DMSETTINGS->endGroup();
-    enableAutoSave(isAutoSave, min);
 
     //QObject::connect(&m_cmdManager, SIGNAL(signalCmdCommitted(bool , const std::string& , bool , const std::string&)), )
 }
@@ -182,206 +206,37 @@ void DmDocument::initDoc()
     m_savedUndoCount = 0;
 }
 
-void DmDocument::autoSave()
+DmFileResult DmDocument::readFile(const QString& file)
 {
-    save(true);
-    m_bHasAutoSaved = true;
+    initDoc();
+    std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().importFilter(file);
+    if (!filter)
+    {
+        return {DmFileStatus::NoFilter, QString()};
+    }
+    return importInto(*this, *filter, file);
 }
 
-bool DmDocument::save(bool isAutoSave, bool force)
+DmFileResult DmDocument::readNativeFile(const QString& file)
 {
-    // 判断后缀名和保存格式是否一致
-    QFileInfo fileInfo = QFileInfo(getFilename());
-    auto fileSuffix = "." + fileInfo.suffix().toLower();
-    auto formatLower = getFormatType().toLower();
-    if (!formatLower.contains(fileSuffix))
-    {
-        GUIDIALOGFACTORY->commandMessage(QObject::tr("File format mismatch. Please use 'Save As' to choose a compatible format."));
-        return false;
-    }
-
-    bool ret = false;
-
-    if (!isModified() && !force)
-    {
-        return true;
-    }
-    QString actualName;
-    QString actualType = getFormatType();
-    QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-
-    //获得文件的名字
-    if (isAutoSave)
-    {
-        //自动保存
-        if (hasAutoSaved())
-        {
-            return true;
-        }
-        if (m_filename.isEmpty())   //从未保存过的文件
-        {
-            //获得选项卡的名字
-            QString tabName = GUIDIALOGFACTORY->requestUntitledDocumentName(this);
-            QString sName = QString::fromStdString(MD5::getMD5(tabName.toStdString())).left(8);
-            actualName = QDir::cleanPath(tmpDir + QDir::separator() + tabName + "_" + sName + ".ycd");
-        }
-        else
-        {
-            QFileInfo fileInfo(m_filename);
-            QString sName = QString::fromStdString(MD5::getMD5(m_filename.toStdString())).left(8);
-            actualName = QDir::cleanPath(tmpDir + QDir::separator() + fileInfo.baseName() + "_" + sName + ".ycd");
-        }
-    }
-    else
-    {
-        //手动保存
-        QFileInfo   finfo(m_filename);
-        QDateTime m = finfo.lastModified();
-        //被其他程序修改了
-        if (m_strCurrentFileName == QString(m_filename) && m_modifiedTime.isValid() && m != m_modifiedTime)
-        {
-            GUIDIALOGFACTORY->commandMessage(QObject::tr("File on disk modified. Please save to another file to avoid data loss! File modified: %1").arg(m_filename));
-            return false;
-        }
-        actualName = m_filename;
-    }
-
-    //保存文件
-    if (!actualName.isEmpty())
-    {
-        // 自动保存只保存ocd格式
-        if (isAutoSave)
-        {
-            actualType = DOCDEFAULTFORMAT;
-            GUIDIALOGFACTORY->commandMessage(QObject::tr("Auto saving file: %1").arg(actualName));
-        }
-
-        QString tempFileName = actualName + ".tmp";
-        ret = GUIDIALOGFACTORY->requestFileExport(*this, tempFileName, actualType);
-        QFileInfo tempFileInfo(tempFileName);
-        QFile tempFile(tempFileName);
-        if (ret)
-        {
-            if (isAutoSave)
-            {
-                //删除原来的备份文件
-                bool canTempRename = true;
-                QFileInfo originFinfo(actualName);
-                if (originFinfo.exists())
-                {
-                    QFile originFile(actualName);
-                    bool res = originFile.remove();
-                    canTempRename = res;
-                }
-                if (canTempRename)
-                {
-                    //将.tmp文件重命名为actualName
-                    tempFile.rename(actualName);
-                }
-                else
-                {
-                    tempFile.remove();
-                    GUIDIALOGFACTORY->commandMessage(QObject::tr("Can not backup file: %1!").arg(actualName));
-                    return false;
-                }
-            }
-            else
-            {
-                //备份已有文件
-                QFileInfo originFinfo(actualName);
-                if (originFinfo.exists())
-                {
-                    QFile file(actualName);
-                    QString bakName = QDir::cleanPath(originFinfo.absolutePath() + QDir::separator() + originFinfo.baseName() + ".bak");
-                    QFile bakFile(bakName);
-                    //移除原来的bak文件
-                    if (bakFile.exists())
-                    {
-                        bool removeRes = bakFile.remove();
-                        if (!removeRes)
-                        {
-                            tempFile.remove();
-                            GUIDIALOGFACTORY->commandMessage(QObject::tr("Can not remove origin backup file: %1!").arg(bakName));
-                            return false;
-                        }
-                    }
-                    //将原文件重命名为bak文件
-                    bool res = file.rename(bakName);
-                    if (!res)
-                    {
-                        tempFile.remove();
-                        GUIDIALOGFACTORY->commandMessage(QObject::tr("Can not backup file: %1!").arg(actualName));
-                        return false;
-                    }
-                }
-
-                //将.tmp文件重命名为actualName
-                tempFile.rename(actualName);
-
-                //删除临时自动保存文件（另存为的在此处无效）
-                QString sName = QString::fromStdString(MD5::getMD5(actualName.toStdString())).left(8);
-                QString autoSaveName = QDir::cleanPath(tmpDir + QDir::separator() + originFinfo.baseName() + "_" + sName + ".ycd");
-                QFile autoSaveFile(autoSaveName);
-                autoSaveFile.remove();
-
-                QFileInfo   finfo(actualName);
-                m_modifiedTime = finfo.lastModified();
-                m_strCurrentFileName = actualName;
-            }
-            GUIDIALOGFACTORY->commandMessage(QObject::tr("File saved: %1").arg(actualName));
-        }
-        else
-        {
-            GUIDIALOGFACTORY->commandMessage(QObject::tr("File save failed: %1!").arg(actualName));
-            return false;
-        }
-    }
-
-    if (ret && !isAutoSave)
-    {
-        // Tell that drawing file is no more modified.
-        m_savedUndoCount = m_cmdManager->getUndoCount();
-    }
-    return ret;
+    initDoc();
+    FilterOcdIO filter;
+    return importInto(*this, filter, file);
 }
 
-bool DmDocument::saveAs(const QString& filename, const QString& formatType, bool force)
+DmFileResult DmDocument::writeFile(const QString& file, const QString& formatType)
 {
-    bool ret = false;
-
-    // Check/memorize if file name we want to use as new file
-    // name is the same as the actual file name.
-    bool fn_is_same = filename == this->m_filename;
-    auto const filenameSaved = this->m_filename;
-    auto const formatTypeSaved = getFormatType();
-
-    this->m_filename = filename;
-    setFormatType(formatType);
-    QFileInfo   finfo(filename);
-
-    ret = save(false, !fn_is_same || force); // Save file.
-
-    if (ret)
+    std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().exportFilter(formatType);
+    if (!filter)
     {
-        //删除临时自动保存文件
-        QFileInfo originFinfo(filenameSaved);
-        if (originFinfo.exists())
-        {
-            QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-            QString sName = QString::fromStdString(MD5::getMD5(filenameSaved.toStdString())).left(8);
-            QString autoSaveName = QDir::cleanPath(tmpDir + QDir::separator() + originFinfo.baseName() + "_" + sName + ".ycd");
-            QFile autoSaveFile(autoSaveName);
-            autoSaveFile.remove();
-        }
+        return {DmFileStatus::NoFilter, QString()};
     }
-    else
-    {
-        // do not modify filenames:
-        this->m_filename = filenameSaved;
-        setFormatType(formatTypeSaved);
-    }
+    return runFilter([&]() { return filter->fileExport(*this, file, formatType); });
+}
 
-    return ret;
+void DmDocument::markSaved()
+{
+    m_savedUndoCount = m_cmdManager->getUndoCount();
 }
 
 QString DmDocument::getFilename() const
@@ -402,25 +257,6 @@ QString DmDocument::getFormatType() const
 void DmDocument::setFormatType(const QString& ft)
 {
     m_formatType = ft;
-}
-
-bool DmDocument::hasAutoSaved() const
-{
-    return m_bHasAutoSaved;
-}
-
-void DmDocument::enableAutoSave(bool enableAutoSave, int saveMinute)
-{
-    if (enableAutoSave && saveMinute > 0)
-    {
-        constexpr int kMsecPerMinute = 60 * 1000;
-        int msec = saveMinute * kMsecPerMinute;
-        m_timer->start(msec);
-    }
-    else
-    {
-        m_timer->stop();
-    }
 }
 
 void DmDocument::addListener(DmDocumentListener* listener)
@@ -542,107 +378,6 @@ QHash<QString, DmVariable>& DmDocument::getVariableDict()
     return m_variableDict.getVariableDict();
 }
 
-bool DmDocument::open(const QString& filename)
-{
-    bool ret = false;
-
-    this->m_filename = filename;
-    QFileInfo finfo(filename);
-
-    // 新建文档
-    initDoc();
-
-    // 导入文件
-    QString tmpDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    ret = GUIDIALOGFACTORY->requestFileImport(*this, filename);
-    if (!ret)
-    {
-        //导入失败(文件损坏等原因)，尝试打开备份文件
-        QFileInfo finfo(filename);
-        if (finfo.exists())
-        {
-            QString bakName = QDir::cleanPath(finfo.absolutePath() + QDir::separator() + finfo.baseName() + ".bak");
-            QString sName = QString::fromStdString(MD5::getMD5(filename.toStdString())).left(8);
-            QString autoBakName = QDir::cleanPath(tmpDir + QDir::separator() + finfo.baseName() + "_" + sName + ".ycd");
-            QString newestBakName;  //最新备份文件
-            QString notNewbakName;  //非最新备份文件
-            QFileInfo bakInfo(bakName);
-            if (bakInfo.exists())
-            {
-                newestBakName = bakName;
-            }
-            QFileInfo autoBakInfo(autoBakName);
-            if (autoBakInfo.exists())
-            {
-                if (bakInfo.exists())
-                {
-                    if (autoBakInfo.lastModified() > bakInfo.lastModified())
-                    {
-                        newestBakName = autoBakName;
-                        notNewbakName = bakName;
-                    }
-                    else
-                    {
-                        notNewbakName = autoBakName;
-                    }
-                }
-                else
-                {
-                    newestBakName = autoBakName;
-                }
-            }
-
-            //先读取最新备份文件，如果失败读取非最新备份文件
-            if (!newestBakName.isEmpty())
-            {
-                if (GUIDIALOGFACTORY->requestConfirmDialog(QObject::tr("Tips"), QObject::tr("Open failed, try to open backup file?")))
-                {
-                    QString curBakName;
-                    initDoc();
-                    ret = GUIDIALOGFACTORY->requestFileImport(*this, newestBakName);
-                    if (ret)
-                    {
-                        curBakName = newestBakName;
-                    }
-                    else if (!notNewbakName.isEmpty())
-                    {
-                        initDoc();
-                        ret = GUIDIALOGFACTORY->requestFileImport(*this, notNewbakName);
-                        if (ret)
-                        {
-                            curBakName = notNewbakName;
-                        }
-                    }
-                    if (!curBakName.isEmpty())
-                    {
-                        //备份文件读取成功
-                        QFile bakfile(curBakName);
-                        QFileInfo bakfinfo(curBakName);
-                        QString appendStr = QDateTime::currentDateTime().date().toString(Qt::ISODate) + QDateTime::currentDateTime().time().toString();
-                        QString backedFileName = QDir::cleanPath(bakfinfo.absolutePath() + QDir::separator() + bakfinfo.baseName() + "_" + QDateTime::currentDateTime().toString("dd.MM.yyyy.hh.mm.ss.zzz") + ".ycd");
-                        bool copyRes = bakfile.copy(backedFileName);
-                        this->m_filename = backedFileName;
-                        QFileInfo finfo(backedFileName);
-                    }
-                }
-            }
-        }
-    }
-
-    if (ret)
-    {
-        m_savedUndoCount = m_cmdManager->getUndoCount();
-        m_modifiedTime = finfo.lastModified();
-        m_strCurrentFileName = QString(filename);
-    }
-    else
-    {
-        GUIDIALOGFACTORY->requestWarningDialog(QObject::tr("Open failed, invalid file!"));
-    }
-
-    return ret;
-}
-
 /// @return true if the grid is switched on (visible).
 bool DmDocument::isGridOn()
 {
@@ -735,11 +470,6 @@ int DmDocument::getAnglePrecision()
 bool DmDocument::isModified() const
 {
     return m_cmdManager->getUndoCount() != m_savedUndoCount;
-}
-
-QDateTime DmDocument::getModifyTime(void)
-{
-    return m_modifiedTime;
 }
 
 std::shared_ptr<DmCacheDrawData> DmDocument::getCacheDrawData()

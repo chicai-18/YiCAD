@@ -1,39 +1,32 @@
 /// @file test_persistence_document.cpp
 /// @brief 整文档 OCD 读写的回归测试（分层重组方案 S0）
 ///
-/// doc/LAYER_RESTRUCTURE_PLAN.md 的 S4 要改动文档读写路径：原生格式与格式注册表下沉到
-/// Model，存盘策略移出 DmDocument。本文件先把这条路径的现状锁住：
+/// doc/LAYER_RESTRUCTURE_PLAN.md 的 S4 改动了文档读写路径：原生格式与格式注册表下沉到
+/// Model，存盘策略移出 DmDocument。本文件锁住 Model 这一层：
 ///
 /// - 写出：构造一份含全部一等实体、块定义与块引用（含属性）、多个图层、线型、文字样式与
-///   标注样式的文档，经 FilterOcdIO 写出，逐项检查压缩包的条目与 Document.xml；
+///   标注样式的文档（tests/support/OcdSampleDocument.h），经 FilterOcdIO 写出，逐项检查
+///   压缩包的条目与 Document.xml；
 /// - 往返：把写出的文件读回新文档，逐项比对；
-/// - 异常路径：空文件、非压缩包、截断的文件、不存在的文件；
-/// - 存盘策略：DmDocument::saveAs / save / open 这一层的 .bak 备份、外部修改检测与打开失败的处理。
+/// - 异常路径：空文件、非压缩包、截断的文件、不存在的文件，经 DmDocument::readFile 读；
+/// - 只链接 YiCadModel、不装宿主服务，经 DmDocument::readFile、writeFile 读写整份文档（方案 8.6 节）。
 ///
-/// 宿主服务用 OcdHost 代替：文件读写直接交给 FilterOcdIO（与 FileIO 对 .ycd 的分派相同，
-/// 只是不查插件格式、不弹框）。
+/// 存盘策略（.bak 备份、外部修改检测、打开失败的处理）在 S4c 移到 Application 的
+/// DocumentFileService，用例在 tests/interaction/test_document_file_service.cpp。
 /// 读回的文档按产品的做法构造：新建 DmDocument 再导入。
 ///
 /// ## 读回路径的缺陷
 ///
 /// S0 查出读回路径 R1–R9 九处缺陷，编号与机理见 doc/LAYER_RESTRUCTURE_PLAN.md 4.5 节。
-/// R1–R3、R5、R6、R9 已在 D8 修复步修复（同文档 4.6 节），对应用例已启用。仍未修的三处，
-/// 相关用例保留 DISABLED_ 前缀，各自注明依赖哪几处，修好即可去掉前缀，用例就是修复的验收：
+/// R1–R3、R5、R6、R9 已在 D8 修复步修复（同文档 4.6 节），R7、R8 在 S4c 修复（同文档 8.8 节），
+/// 对应用例已启用。仍未修的一处，相关用例保留 DISABLED_ 前缀，修好即可去掉前缀，用例就是修复的验收：
 ///
 /// - R4 MetaLayers.cpp:114、MetaTextStyles.cpp:114、MetaDimensionStyles.cpp:116、
 ///   MetaBlockTableRecords.cpp:129：新建的 DmDocument 在各表的 setDocument 里已经放好
 ///   "0" 图层、"Standard" 文字样式、"ISO-25" 标注样式与 19 个标注箭头块，读入时又原样
 ///   add_direct 一份，同名条目各有两份；按名字查找（实体的图层、标注的样式）取到的是默认
 ///   那份，文件里这些条目自己的属性被忽略；箭头块每存一次、开一次多 19 个。
-///   修法待定（读入时覆盖同名默认条目，还是先清空默认表），见方案 12 节 D9。
-/// - R7 DmDocument.cpp:544（以及 :589、:597）：requestFileImport 没有 try/catch，而
-///   FilterOcdIO 对坏文件一律抛异常（FilterOcdIO.cpp:152、:159、:165，MinizipNgArchive.cpp:324），
-///   异常穿出 DmDocument::open，"是否打开备份"的询问与"Open failed, invalid file!"
-///   的警告都走不到；MDIWindow::slotFileOpen、UITabDrawWidget::slotFileOpen 也不捕获。
-///   并入 S4c。
-/// - R8 DmDocument.cpp:589：打开失败后改开 "<文件名>.bak"，仍经 requestFileImport 按后缀选
-///   过滤器，而 FilterOcdIO::canImport 只认 "ycd"（FilterOcdIO.cpp:118），.bak 没有过滤器
-///   接，备份永远打不开；只有临时目录里 .ycd 后缀的自动保存副本能走通。并入 S4c。
+///   修法已定为读入前清空默认条目、缺条目时读完再补（方案 12 节 D9），修复另行安排。
 
 #include <gtest/gtest.h>
 
@@ -98,8 +91,6 @@
 #include "EllipseData.h"
 #include "EntityTable.h"
 #include "FilterOcdIO.h"
-#include "GuiDialogFactory.h"
-#include "GuiDialogFactoryAdapter.h"
 #include "HatchData.h"
 #include "MTextData.h"
 #include "MinizipNgArchive.h"
@@ -111,275 +102,16 @@
 #include "SplineData.h"
 #include "TextData.h"
 #include "XLineData.h"
+#include "support/OcdSampleDocument.h"
+
+using namespace yicad_test;
 
 namespace
 {
-constexpr double kPi = 3.14159265358979323846;
 constexpr double kTol = 1e-9;
-
-/// 导出格式名，与 FilterOcdIO 的 EXPORTTYPE、DmDocument 的 DOCDEFAULTFORMAT 相同
-const QString kOcdFormat = QString::fromLatin1(DOCDEFAULTFORMAT);
-
-// 样本文档里的名字。图层、块、属性与文字用中文，顺带覆盖 UTF-8 的读写。
-const QString kLayerOutline = QStringLiteral("轮廓");
-const QString kLayerHidden = QStringLiteral("隐藏线");
-const QString kLineTypeName = QStringLiteral("DASHDOT_S0");
-const QString kLineTypeDesp = QStringLiteral("Dash dot (S0) __ . __");
-const QString kTextStyleName = QStringLiteral("工程字");
-const QString kDimStyleName = QStringLiteral("机械");
-const QString kBlockName = QStringLiteral("螺栓");
-const QString kAttributeTag = QStringLiteral("规格");
-const QString kAttributeValue = QStringLiteral("M12");
-const QString kTextValue = QStringLiteral("单行文字 Text 123");
-const QString kMTextValue = QStringLiteral("多行文字");
-
-/// @brief 测试用宿主服务：文件读写直接交给 FilterOcdIO
-///
-/// 与 FileIO 对原生格式的分派相同：导入按文件后缀、导出按格式名找过滤器。
-/// 过滤器抛出的异常原样向外传播，FileIO 也不捕获。
-class OcdHost : public GuiDialogFactoryAdapter
-{
-public:
-    bool confirmAnswer = false;    ///< 确认对话框的回答
-    int confirmCount = 0;          ///< 确认对话框弹出的次数
-    QStringList warnings;          ///< 警告对话框的内容
-    QStringList messages;          ///< 命令行消息
-
-    bool requestFileExport(DmDocument& document, const QString& file, const QString& formatType) override
-    {
-        FilterOcdIO filter;
-        return filter.canExport(formatType) && filter.fileExport(document, file, formatType);
-    }
-
-    bool requestFileImport(DmDocument& document, const QString& file) override
-    {
-        FilterOcdIO filter;
-        return filter.canImport(file) && filter.fileImport(document, file);
-    }
-
-    bool requestConfirmDialog(const QString&, const QString&) override
-    {
-        ++confirmCount;
-        return confirmAnswer;
-    }
-
-    void requestWarningDialog(const QString& warning) override { warnings.append(warning); }
-
-    void commandMessage(const QString& message) override { messages.append(message); }
-};
-
-/// @brief 按图层取画笔（新实体的默认画笔）
-DmPen byLayerPen()
-{
-    return DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, DmLineTypeTable::ByLayer);
-}
-
-/// @brief 设好文档、图层与画笔，更新后直接放进实体表（不经事务）
-template <typename T>
-T* addTo(EntityTable& table, DmDocument& doc, T* entity, DmLayer* layer, const DmPen& pen = byLayerPen())
-{
-    entity->setDocument(&doc);
-    entity->setLayer(layer);
-    entity->setPen(pen);
-    entity->update();
-    entity->calculateBorders();
-    EXPECT_TRUE(table.add_direct(entity));
-    return entity;
-}
-
-/// @brief 样本文档里各类实体的数量（模型空间）
-const std::map<DM::EntityType, int> kModelSpaceCounts = {
-    {DM::EntityLine, 1},         {DM::EntityCircle, 1},       {DM::EntityArc, 1},
-    {DM::EntityEllipse, 1},      {DM::EntityPoint, 1},        {DM::EntityRay, 1},
-    {DM::EntityXline, 1},        {DM::EntitySolid, 1},        {DM::EntityPolyline, 1},
-    {DM::EntitySpline, 1},       {DM::EntityText, 1},         {DM::EntityMText, 1},
-    {DM::EntityDimLinear, 1},    {DM::EntityDimAligned, 1},   {DM::EntityDimAngular, 1},
-    {DM::EntityDimRadial, 1},    {DM::EntityDimDiametric, 1}, {DM::EntityDimLeader, 1},
-    {DM::EntityHatch, 1},        {DM::EntityBlockReference, 1},
-};
 
 /// 新建文档自带的标注箭头块数（DmDimensionStyleTable::initArrowBlocks）
 constexpr int kArrowBlocks = 19;
-
-/// @brief 构造样本文档
-///
-/// 表：自定义线型 kLineTypeName；图层 "0"、kLayerOutline（红色、自定义线型、当前图层）、
-/// kLayerHidden（冻结、锁定、不打印）；文字样式 kTextStyleName 与标注样式 kDimStyleName，
-/// 两者都设为当前样式；当前线型保持默认的 ByLayer。
-/// 块 kBlockName：一个圆、一条直线、一个属性定义；模型空间一个块引用带一个属性值。
-/// 其余模型空间实体见 kModelSpaceCounts。
-void buildSample(DmDocument& doc)
-{
-    // 线型
-    auto* lineType = new DmLineType(kLineTypeName);
-    lineType->setDocument(&doc);
-    lineType->setLineTypeDesp(kLineTypeDesp);
-    lineType->setLineTypeData(std::vector<double>{0.5, -0.25, 0.0, -0.25});
-    ASSERT_TRUE(doc.getLineTypeTable()->add_direct(lineType));
-
-    // 图层
-    DmLayer* layer0 = doc.getLayerTable()->find(QStringLiteral("0"));
-    ASSERT_NE(layer0, nullptr);
-
-    auto* outline = new DmLayer();
-    outline->setDocument(&doc);
-    outline->setData(DmLayerData(kLayerOutline, DmPen(DmColor(255, 0, 0), DM::Width09, lineType), false, false));
-    ASSERT_TRUE(doc.getLayerTable()->add_direct(outline));
-
-    auto* hidden = new DmLayer();
-    hidden->setDocument(&doc);
-    DmLayerData hiddenData(kLayerHidden, DmPen(DmColor(0, 128, 255), DM::Width05, DmLineTypeTable::Continuous), true,
-                           true);
-    hiddenData.print = false;
-    hidden->setData(hiddenData);
-    ASSERT_TRUE(doc.getLayerTable()->add_direct(hidden));
-    doc.getLayerTable()->activate_direct(outline);
-
-    // 文字样式：以 Standard 为模板，改高度与宽度因子
-    DmTextStyle* standardText = doc.getTextStyleTable()->find(QStringLiteral("Standard"));
-    ASSERT_NE(standardText, nullptr);
-    auto* textStyle = new DmTextStyle(*standardText, kTextStyleName);
-    DmTextStyleData textStyleData = textStyle->getData();
-    textStyleData.defaultHeight = 3.5;
-    textStyleData.widhFactor = 0.7;
-    textStyle->setData(textStyleData);
-    textStyle->setDocument(&doc);
-    ASSERT_TRUE(doc.getTextStyleTable()->add_direct(textStyle));
-    doc.getTextStyleTable()->activate_direct(textStyle);
-
-    // 标注样式
-    auto* dimStyle = new DmDimensionStyle(kDimStyleName, textStyle);
-    dimStyle->setDocument(&doc);
-    dimStyle->getDataRef().setArrowSize(3.0);
-    dimStyle->getDataRef().setTextHeight(3.5);
-    ASSERT_TRUE(doc.getDimStyleTable()->add_direct(dimStyle));
-    doc.getDimStyleTable()->activate_direct(dimStyle);
-
-    // 块定义：圆、直线、属性定义
-    auto* block = new DmBlock(&doc, DmBlockData(kBlockName, DmVector(0.0, 0.0), false));
-    doc.getIdManager()->assignID(block);
-    doc.getBlockTable()->add_direct(block);
-    EntityTable& blockTable = block->getEntityTable();
-    addTo(blockTable, doc, new DmCircle(nullptr, CircleData(DmVector(0.0, 0.0), 5.0)), layer0);
-    addTo(blockTable, doc, new DmLine(DmVector(-5.0, 0.0), DmVector(5.0, 0.0)), layer0);
-    TextData attDefText(DmVector(0.0, -8.0), 2.5, ETextVertMode::kTextBase, ETextHorzMode::kTextLeft,
-                        QStringLiteral("M10"), textStyle, 0.0, EUpdateMode::NoUpdate);
-    addTo(blockTable, doc,
-          new DmAttributeDefinition(nullptr, attDefText,
-                                    AttributeDefinitionData(kAttributeTag, QStringLiteral("输入规格"))),
-          layer0);
-
-    EntityTable& model = *doc.getEntityTable();
-
-    // 基本曲线
-    addTo(model, doc, new DmLine(DmVector(1.5, -2.25), DmVector(30.75, 41.125)), outline,
-          DmPen(DmColor(0, 255, 0), DM::Width07, lineType));
-    addTo(model, doc, new DmCircle(nullptr, CircleData(DmVector(12.0, -34.5), 6.125)), outline);
-    addTo(model, doc,
-          new DmArc(nullptr, ArcData(DmVector(3.0, 4.0), DmVector(0.0, 0.0, 1.0), 7.5, 0.25, 2.75)), outline);
-    addTo(model, doc,
-          new DmEllipse(nullptr,
-                        EllipseData(DmVector(1.0, 2.0), DmVector(8.0, 0.0), DmVector(0.0, 0.0, 1.0), 0.5, true,
-                                    0.0, 2.0 * kPi)),
-          layer0);
-    addTo(model, doc, new DmPoint(nullptr, PointData(DmVector(-7.0, 9.0))), layer0);
-    addTo(model, doc, new DmRay(nullptr, RayData(DmVector(0.0, 100.0), DmVector(1.0, 0.0))), hidden);
-    addTo(model, doc, new DmXline(nullptr, XLineData(DmVector(0.0, -100.0), DmVector(0.0, 1.0))), hidden);
-    addTo(model, doc,
-          new DmSolid(nullptr, SolidData({DmVector(50.0, 0.0), DmVector(60.0, 0.0), DmVector(55.0, 8.0)})),
-          layer0);
-
-    // 多段线：四个顶点，第二段带凸度，闭合
-    std::vector<double> widths(8, 0.0);
-    addTo(model, doc,
-          new DmPolyline(nullptr,
-                         PolylineData({DmVector(0.0, 0.0), DmVector(20.0, 0.0), DmVector(20.0, 10.0),
-                                       DmVector(0.0, 10.0)},
-                                      {0.0, 0.5, 0.0, 0.0}, widths, true)),
-          outline);
-
-    // 三次样条：四个控制点，钳位节点向量
-    SplineData splineData(3, false, ESplineType::eControlPoints);
-    splineData.setControlPoints({DmVector(0.0, 50.0), DmVector(10.0, 60.0), DmVector(20.0, 40.0),
-                                 DmVector(30.0, 50.0)});
-    splineData.setKnots({0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0});
-    addTo(model, doc, new DmSpline(nullptr, splineData), layer0);
-
-    // 文字
-    addTo(model, doc,
-          new DmText(nullptr, TextData(DmVector(40.0, 40.0), 3.5, ETextVertMode::kTextBase,
-                                       ETextHorzMode::kTextLeft, kTextValue, textStyle, 0.0,
-                                       EUpdateMode::NoUpdate)),
-          layer0);
-    addTo(model, doc,
-          new DmMText(nullptr, MTextData(DmVector(40.0, 60.0), 2.5, EMTextVertMode::kTextTop,
-                                         EMTextHorzMode::kTextLeft, 2.5 * 1.6, 50.0, kMTextValue, textStyle, 0.0,
-                                         EUpdateMode::NoUpdate)),
-          layer0);
-
-    // 五种标注
-    auto dimCommon = [dimStyle](const DmVector& definitionPoint, const DmVector& textPos) {
-        return DmDimensionData(definitionPoint, textPos, EMTextVertMode::kTextVertMid, EMTextHorzMode::kTextCenter,
-                               1.0, QString(), 0.0, dimStyle);
-    };
-    addTo(model, doc,
-          new DmDimLinear(nullptr, dimCommon(DmVector(20.0, -10.0), DmVector(10.0, -10.0)),
-                          DmDimLinearData(DmVector(0.0, 0.0), DmVector(20.0, 0.0))),
-          layer0);
-    addTo(model, doc,
-          new DmDimAligned(nullptr, dimCommon(DmVector(24.0, 13.0), DmVector(17.0, 16.0)),
-                           DmDimAlignedData(DmVector(0.0, 10.0), DmVector(20.0, 10.0))),
-          layer0);
-    addTo(model, doc,
-          new DmDimAngular(nullptr, dimCommon(DmVector(0.0, 0.0), DmVector(6.0, 3.0)),
-                           DmDimAngularData(DmVector(0.0, 0.0), DmVector(10.0, 0.0), DmVector(0.0, 0.0),
-                                            DmVector(0.0, 10.0), DmVector(5.0, 5.0))),
-          layer0);
-    addTo(model, doc,
-          new DmDimRadial(nullptr, dimCommon(DmVector(12.0, -34.5), DmVector(15.0, -30.0)),
-                          DmDimRadialData(DmVector(18.125, -34.5), 5.0)),
-          layer0);
-    addTo(model, doc,
-          new DmDimDiametric(nullptr, dimCommon(DmVector(5.875, -34.5), DmVector(12.0, -34.5)),
-                             DmDimDiametricData(DmVector(18.125, -34.5), 5.0)),
-          layer0);
-
-    // 引线
-    addTo(model, doc,
-          new DmLeader(nullptr, DmLeaderData(dimStyle, {DmVector(70.0, 0.0), DmVector(80.0, 10.0),
-                                                        DmVector(90.0, 10.0)})),
-          layer0);
-
-    // 实心填充：一个矩形外环
-    auto boundary = std::make_shared<DmEntityContainer>(nullptr);
-    std::vector<double> hatchWidths(8, 0.0);
-    auto* edge = new DmPolyline(boundary.get(),
-                                PolylineData({DmVector(100.0, 0.0), DmVector(120.0, 0.0), DmVector(120.0, 15.0),
-                                              DmVector(100.0, 15.0)},
-                                             {0.0, 0.0, 0.0, 0.0}, hatchWidths, true));
-    boundary->addEntity(edge);
-    HatchData hatchData(true, 1.0, 0.0, std::wstring(L"SOLID"));
-    hatchData.setBoundary(std::make_shared<DmRegion>(nullptr, RegionData(boundary, {})));
-    addTo(model, doc, new DmHatch(nullptr, hatchData), outline);
-
-    // 块引用与属性值
-    auto* insert = new DmBlockReference(nullptr,
-                                        DmBlockReferenceData(kBlockName, DmVector(100.0, 50.0), DmVector(2.0, 2.0),
-                                                             0.5, 1, 1, DmVector(0.0, 0.0), doc.getBlockTable(),
-                                                             DM::NoUpdate));
-    insert->setBlock(block);
-    auto* attribute = new DmAttribute(nullptr,
-                                      TextData(DmVector(100.0, 34.0), 2.5, ETextVertMode::kTextBase,
-                                               ETextHorzMode::kTextLeft, kAttributeValue, textStyle, 0.0,
-                                               EUpdateMode::NoUpdate),
-                                      AttributeData(kAttributeTag));
-    attribute->setDocument(&doc);
-    attribute->setLayer(layer0);
-    attribute->setPen(byLayerPen());
-    attribute->update();
-    insert->addAttributes({attribute});
-    addTo(model, doc, insert, outline);
-}
 
 /// @brief 按类型统计实体表里的实体
 std::map<DM::EntityType, int> countByType(const EntityTable& table)
@@ -390,20 +122,6 @@ std::map<DM::EntityType, int> countByType(const EntityTable& table)
         ++counts[e->getEntityType()];
     }
     return counts;
-}
-
-/// @brief 取实体表里第一个指定类型的实体
-template <typename T>
-T* first(const EntityTable& table, DM::EntityType type)
-{
-    for (DmEntity* e : table)
-    {
-        if (e->getEntityType() == type)
-        {
-            return static_cast<T*>(e);
-        }
-    }
-    return nullptr;
 }
 
 /// @brief 统计表里名字为 name 的条目数
@@ -441,51 +159,10 @@ void expectVectorNear(const DmVector& got, const DmVector& expected, double tol 
     EXPECT_NEAR(got.y, expected.y, tol);
 }
 
-/// @brief 写一个文件，内容为 bytes
-bool writeBytes(const QString& path, const QByteArray& bytes)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-    {
-        return false;
-    }
-    return file.write(bytes) == bytes.size();
-}
-
-QByteArray readBytes(const QString& path)
-{
-    QFile file(path);
-    return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
-}
-
-/// @brief 压缩包里的一个条目
-struct ArchiveEntry
-{
-    std::string name;
-    std::string data;
-};
-
-/// @brief 按 Archive.h 的约定（先 nextEntry() 再读）逐个读出压缩包的条目
-std::vector<ArchiveEntry> readArchive(const QString& path)
-{
-    std::vector<ArchiveEntry> entries;
-    MinizipNgArchiveReader archive(QFile::encodeName(path).toStdString());
-    while (archive.nextEntry())
-    {
-        std::string data((std::istreambuf_iterator<char>(archive.stream())), std::istreambuf_iterator<char>());
-        entries.push_back({archive.entryName(), std::move(data)});
-    }
-    return entries;
-}
-
-/// @brief 用例夹具：装上 OcdHost，提供临时目录
+/// @brief 用例夹具：提供临时目录。不装宿主服务：Model 读写文件不经宿主
 struct OcdFixture : ::testing::Test
 {
-    OcdHost host;
     QTemporaryDir dir;
-
-    OcdFixture() { GuiDialogFactory::instance()->setFactoryObject(&host); }
-    ~OcdFixture() override { GuiDialogFactory::instance()->setFactoryObject(nullptr); }
 
     QString path(const QString& name) const { return dir.filePath(name); }
 
@@ -526,7 +203,7 @@ struct OcdFixture : ::testing::Test
 using OcdDocumentWrite = OcdFixture;
 using OcdDocumentRoundTrip = OcdFixture;
 using OcdDocumentErrorPath = OcdFixture;
-using DocumentSavePolicy = OcdFixture;
+using DocumentReadWrite = OcdFixture;
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -1134,31 +811,33 @@ TEST_F(OcdDocumentRoundTrip, DISABLED_写出读回再写出保持稳定)
 // ---------------------------------------------------------------------------
 //
 // FilterInterface::fileImport 的签名返回 bool，但 FilterOcdIO 对坏文件一律抛异常
-// （OneException 或 MinizipNgArchiveReader 的 std::runtime_error），调用链上的 FileIO 与
-// DmDocument::open 都不捕获（R7）。这里断言过滤器这一层的现状；S4c 让 Model 返回结果码
-// 之后，这几个用例随之改写。
+// （OneException 或 MinizipNgArchiveReader 的 std::runtime_error）。S4c 起 DmDocument::readFile
+// 把异常转成 Failed，异常信息放进结果（R7）；这里经它读。
 
-TEST_F(OcdDocumentErrorPath, 空文件抛异常)
+TEST_F(OcdDocumentErrorPath, 空文件读失败并带回原因)
 {
     const QString file = path(QStringLiteral("empty.ycd"));
     ASSERT_TRUE(writeBytes(file, QByteArray()));
     DmDocument doc;
-    FilterOcdIO filter;
-    EXPECT_ANY_THROW(filter.fileImport(doc, file));
+    const DmFileResult result = doc.readFile(file);
+    EXPECT_EQ(result.status, DmFileStatus::Failed);
+    // OneException 自己保存消息、覆盖 std::exception::what()，按 std::exception 捕获也能取到
+    EXPECT_EQ(result.message, QStringLiteral("Invalid file"));
     EXPECT_EQ(doc.getEntityTable()->count(), 0);
 }
 
-TEST_F(OcdDocumentErrorPath, 不是压缩包的文件抛异常)
+TEST_F(OcdDocumentErrorPath, 不是压缩包的文件读失败)
 {
     const QString file = path(QStringLiteral("garbage.ycd"));
     ASSERT_TRUE(writeBytes(file, QByteArray(4096, 'x')));
     DmDocument doc;
-    FilterOcdIO filter;
-    EXPECT_ANY_THROW(filter.fileImport(doc, file));
+    const DmFileResult result = doc.readFile(file);
+    EXPECT_EQ(result.status, DmFileStatus::Failed);
+    EXPECT_FALSE(result.message.isEmpty());
     EXPECT_EQ(doc.getEntityTable()->count(), 0);
 }
 
-TEST_F(OcdDocumentErrorPath, 截断的文件抛异常)
+TEST_F(OcdDocumentErrorPath, 截断的文件读失败)
 {
     DmDocument original;
     ASSERT_NO_FATAL_FAILURE(build(original));
@@ -1170,136 +849,87 @@ TEST_F(OcdDocumentErrorPath, 截断的文件抛异常)
     const QString truncated = path(QStringLiteral("truncated.ycd"));
     ASSERT_TRUE(writeBytes(truncated, bytes.left(bytes.size() / 2)));
     DmDocument doc;
-    FilterOcdIO filter;
-    EXPECT_ANY_THROW(filter.fileImport(doc, truncated));
+    const DmFileResult result = doc.readFile(truncated);
+    EXPECT_EQ(result.status, DmFileStatus::Failed);
+    EXPECT_FALSE(result.message.isEmpty());
 }
 
-TEST_F(OcdDocumentErrorPath, 不存在的文件抛异常)
+TEST_F(OcdDocumentErrorPath, 不存在的文件读失败)
 {
     DmDocument doc;
+    const DmFileResult result = doc.readFile(path(QStringLiteral("missing.ycd")));
+    EXPECT_EQ(result.status, DmFileStatus::Failed);
+    EXPECT_FALSE(result.message.isEmpty());
+}
+
+TEST_F(OcdDocumentErrorPath, 过滤器本身仍然抛异常)
+{
+    // 转结果码是 DmDocument 这一层做的，FilterOcdIO 本身不变
+    const QString file = path(QStringLiteral("empty.ycd"));
+    ASSERT_TRUE(writeBytes(file, QByteArray()));
+    DmDocument doc;
     FilterOcdIO filter;
-    EXPECT_ANY_THROW(filter.fileImport(doc, path(QStringLiteral("missing.ycd"))));
+    EXPECT_ANY_THROW(filter.fileImport(doc, file));
 }
 
 // ---------------------------------------------------------------------------
-// 存盘策略（DmDocument::saveAs / save / open）
+// 只链接 YiCadModel 读写整份文档（方案 8.6 节：L1 已解决）
 // ---------------------------------------------------------------------------
+//
+// 本二进制不链接宿主，夹具也不装 GuiDialogFactory 的实现：DmDocument 读写文件只经格式注册表
+// （原生格式在 DmSystem::init 时登记），不弹框、不输出命令行消息、不改文件名。
 
-TEST_F(DocumentSavePolicy, 另存为经临时文件写出并记录文件名)
-{
-    DmDocument doc;
-    ASSERT_NO_FATAL_FAILURE(build(doc));
-    const QString file = path(QStringLiteral("saved.ycd"));
-    ASSERT_TRUE(doc.saveAs(file, kOcdFormat));
-    EXPECT_EQ(doc.getFilename(), file);
-    EXPECT_EQ(doc.getFormatType(), kOcdFormat);
-    EXPECT_FALSE(doc.isModified());
-    // 先写 <文件名>.tmp 再改名；第一次保存没有旧文件，不产生 .bak
-    EXPECT_EQ(QDir(dir.path()).entryList(QDir::Files), QStringList{QStringLiteral("saved.ycd")});
-    EXPECT_EQ(host.messages, QStringList{QStringLiteral("File saved: %1").arg(file)});
-    EXPECT_EQ(readArchive(file).size(), 27u);
-}
-
-TEST_F(DocumentSavePolicy, 再次保存时旧文件备份为bak)
-{
-    DmDocument doc;
-    ASSERT_NO_FATAL_FAILURE(build(doc));
-    const QString file = path(QStringLiteral("drawing.ycd"));
-    const QString bak = path(QStringLiteral("drawing.bak"));
-    ASSERT_TRUE(doc.saveAs(file, kOcdFormat));
-    EXPECT_FALSE(QFileInfo::exists(bak));
-    const QByteArray firstBytes = readBytes(file);
-
-    // 未修改时 save() 直接返回成功、不写盘；force 才真正写
-    ASSERT_TRUE(doc.save());
-    EXPECT_FALSE(QFileInfo::exists(bak));
-    ASSERT_TRUE(doc.save(false, true));
-    ASSERT_TRUE(QFileInfo::exists(bak));
-    EXPECT_EQ(readBytes(bak), firstBytes);
-    EXPECT_EQ(QDir(dir.path()).entryList(QDir::Files),
-              (QStringList{QStringLiteral("drawing.bak"), QStringLiteral("drawing.ycd")}));
-
-    // 第三次保存覆盖 .bak，仍然只有一份
-    const QByteArray secondBytes = readBytes(file);
-    ASSERT_TRUE(doc.save(false, true));
-    EXPECT_EQ(readBytes(bak), secondBytes);
-}
-
-TEST_F(DocumentSavePolicy, 后缀与格式不符时拒绝保存)
-{
-    DmDocument doc;
-    ASSERT_NO_FATAL_FAILURE(build(doc));
-    const QString file = path(QStringLiteral("drawing.dxf"));
-    EXPECT_FALSE(doc.saveAs(file, kOcdFormat));
-    EXPECT_FALSE(QFileInfo::exists(file));
-    EXPECT_TRUE(doc.getFilename().isEmpty()) << "失败的另存为不应改动文件名";
-    ASSERT_FALSE(host.messages.isEmpty());
-    EXPECT_TRUE(host.messages.back().startsWith(QStringLiteral("File format mismatch.")));
-}
-
-TEST_F(DocumentSavePolicy, 外部修改过的文件拒绝保存)
-{
-    DmDocument doc;
-    ASSERT_NO_FATAL_FAILURE(build(doc));
-    const QString file = path(QStringLiteral("external.ycd"));
-    ASSERT_TRUE(doc.saveAs(file, kOcdFormat));
-
-    // 修改时间只在 save() 的手动分支写盘成功后记录（另存为也走这条分支）
-    QFile touched(file);
-    ASSERT_TRUE(touched.open(QIODevice::ReadWrite));
-    ASSERT_TRUE(touched.setFileTime(QDateTime::currentDateTime().addSecs(3600), QFileDevice::FileModificationTime));
-    touched.close();
-
-    host.messages.clear();
-    EXPECT_FALSE(doc.save(false, true));
-    ASSERT_EQ(host.messages.size(), 1);
-    EXPECT_TRUE(host.messages.front().startsWith(QStringLiteral("File on disk modified.")));
-    EXPECT_FALSE(QFileInfo::exists(path(QStringLiteral("external.bak"))));
-}
-
-TEST_F(DocumentSavePolicy, 另存为后能打开且不算修改)
+TEST_F(DocumentReadWrite, 不起界面写出再读回整份文档)
 {
     DmDocument original;
     ASSERT_NO_FATAL_FAILURE(build(original));
-    const QString file = path(QStringLiteral("saved.ycd"));
-    ASSERT_TRUE(original.saveAs(file, kOcdFormat));
+    const QString file = path(QStringLiteral("model_only.ycd"));
+    const DmFileResult written = original.writeFile(file, kOcdFormat);
+    ASSERT_TRUE(written.ok()) << written.message.toStdString();
+    EXPECT_TRUE(written.message.isEmpty());
+    EXPECT_TRUE(original.getFilename().isEmpty()) << "writeFile 不改文件名";
+    EXPECT_EQ(QDir(dir.path()).entryList(QDir::Files), QStringList{QStringLiteral("model_only.ycd")});
 
-    DmDocument reopened;
-    ASSERT_TRUE(reopened.open(file));
-    EXPECT_EQ(reopened.getFilename(), file);
-    EXPECT_FALSE(reopened.isModified());
-    EXPECT_NE(first<DmLine>(*reopened.getEntityTable(), DM::EntityLine), nullptr);
-    EXPECT_NE(reopened.getBlockTable()->find(kBlockName), nullptr);
-    EXPECT_TRUE(host.warnings.isEmpty());
-    EXPECT_EQ(host.confirmCount, 0);
+    DmDocument restored;
+    const DmFileResult read = restored.readFile(file);
+    ASSERT_TRUE(read.ok()) << read.message.toStdString();
+    EXPECT_TRUE(restored.getFilename().isEmpty()) << "readFile 不改文件名";
+    EXPECT_FALSE(restored.isModified());
+    EXPECT_EQ(countByType(*restored.getEntityTable()), kModelSpaceCounts);
+    EXPECT_NE(restored.getBlockTable()->find(kBlockName), nullptr);
 }
 
-// 依赖 R7（打开主文件失败时不再抛出）、R8（.bak 找得到过滤器）。
-TEST_F(DocumentSavePolicy, DISABLED_打开损坏文件时询问是否打开备份)
+TEST_F(DocumentReadWrite, 没有过滤器时返回NoFilter)
 {
     DmDocument doc;
     ASSERT_NO_FATAL_FAILURE(build(doc));
-    const QString file = path(QStringLiteral("broken.ycd"));
-    ASSERT_TRUE(doc.saveAs(file, kOcdFormat));
-    ASSERT_TRUE(doc.save(false, true));  // 第二次保存留下 broken.bak
-    ASSERT_TRUE(QFileInfo::exists(path(QStringLiteral("broken.bak"))));
-    ASSERT_TRUE(writeBytes(file, QByteArray(4096, 'x')));
+    const QString file = path(QStringLiteral("drawing.unknown"));
+    EXPECT_EQ(doc.writeFile(file, QStringLiteral("Unknown format (*.unknown)")).status, DmFileStatus::NoFilter);
+    EXPECT_FALSE(QFileInfo::exists(file));
 
-    host.confirmAnswer = true;
-    DmDocument reopened;
-    EXPECT_TRUE(reopened.open(file));
-    EXPECT_EQ(host.confirmCount, 1);
-    EXPECT_NE(reopened.getBlockTable()->find(kBlockName), nullptr);
+    ASSERT_TRUE(writeBytes(file, QByteArray("not a drawing")));
+    DmDocument other;
+    const DmFileResult result = other.readFile(file);
+    EXPECT_EQ(result.status, DmFileStatus::NoFilter);
+    EXPECT_TRUE(result.message.isEmpty());
 }
 
-// 依赖 R7。
-TEST_F(DocumentSavePolicy, DISABLED_打开损坏文件且没有备份时警告并返回失败)
+TEST_F(DocumentReadWrite, 按原生格式读不看后缀)
 {
-    const QString file = path(QStringLiteral("broken.ycd"));
-    ASSERT_TRUE(writeBytes(file, QByteArray(4096, 'x')));
+    // .bak 备份是原生格式，后缀却没有过滤器接（R8）：readFile 找不到过滤器，readNativeFile 读得了
+    DmDocument original;
+    ASSERT_NO_FATAL_FAILURE(build(original));
+    const QString ycd = path(QStringLiteral("drawing.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(original, ycd));
+    const QString bak = path(QStringLiteral("drawing.bak"));
+    ASSERT_TRUE(QFile::copy(ycd, bak));
 
-    DmDocument doc;
-    EXPECT_FALSE(doc.open(file));
-    EXPECT_EQ(host.confirmCount, 0);
-    EXPECT_EQ(host.warnings, QStringList{QStringLiteral("Open failed, invalid file!")});
+    DmDocument bySuffix;
+    EXPECT_EQ(bySuffix.readFile(bak).status, DmFileStatus::NoFilter);
+
+    DmDocument native;
+    const DmFileResult result = native.readNativeFile(bak);
+    ASSERT_TRUE(result.ok()) << result.message.toStdString();
+    EXPECT_FALSE(native.isModified());
+    EXPECT_NE(native.getBlockTable()->find(kBlockName), nullptr);
 }

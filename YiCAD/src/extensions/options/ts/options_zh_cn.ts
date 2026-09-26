@@ -334,42 +334,42 @@
         <translation>启动程序窗口最大化</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="48"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="49"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="49"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="50"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="116"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="117"/>
         <source>Customize command</source>
         <translation>自定义命令</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="218"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="222"/>
         <source>Preferences</source>
         <translation>偏好</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="218"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="222"/>
         <source>Please restart the application to apply all changes.</source>
         <translation>设置完成，请重新启动应用程序！</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="279"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="283"/>
         <source>Modify command table:%1</source>
         <translation>修改命令：%1</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="286"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="290"/>
         <source>Clear settings</source>
         <translation>清除设置</translation>
     </message>
     <message>
-        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="287"/>
+        <location filename="../ui/UIDlgOptionsGeneral.cpp" line="291"/>
         <source>This will also include custom menus. Continue?</source>
         <translation>还包括自定义菜单。 继续？</translation>
     </message>

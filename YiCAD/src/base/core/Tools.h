@@ -279,15 +279,18 @@ struct Tools
 };
 
 
+/// @brief 读写与解析中抛出的异常
+///
+/// 消息复制一份自己保存：抛出处常传入局部字符串（如 msg.str().c_str()），只存指针会悬空。
+/// what() 覆盖 std::exception::what()，按 std::exception 捕获也能取到消息。
 class OneException : public std::exception {
 private:
-    const char * message;
+    std::string message;
 
 public:
-    OneException(char * msg) : message(msg) {}
-    OneException(const char * msg) : message(msg) {}
-    const char * what () {
-        return message;
+    OneException(const char * msg) : message(msg ? msg : "") {}
+    const char * what() const noexcept override {
+        return message.c_str();
     }
 };
 

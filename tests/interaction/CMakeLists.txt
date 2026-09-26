@@ -1,7 +1,7 @@
 # tests/interaction —— 交互层：命令与视图工具的机制（src/application/，含扩展框架
 # src/application/framework/ 与 keyconfig.xml 的解析 Commands）、内置命令与各扩展的命令，
-# 插件命令与按钮接入宿主注册表（src/shell/plugin_runtime/PluginUiAdapter），以及文档经
-# DmDocumentListener 通知画布（分层重组 S3）。
+# 插件命令与按钮接入宿主注册表（src/shell/plugin_runtime/PluginUiAdapter），文档经
+# DmDocumentListener 通知画布（分层重组 S3），以及文档的存盘策略 DocumentFileService（S4c）。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
 yicad_add_test(interaction
@@ -15,6 +15,7 @@ yicad_add_test(interaction
         test_select_tool.cpp
         test_edit_tool.cpp
         test_document_listener.cpp
+        test_document_file_service.cpp
         test_command_registry.cpp
         test_command_dispatch.cpp
         test_keyconfig.cpp

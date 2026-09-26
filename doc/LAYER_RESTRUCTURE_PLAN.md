@@ -804,6 +804,51 @@ Debug 下跑全部用例，再加 `--gtest_also_run_disabled_tests` 跑一遍 `t
 - Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应，关闭后以 0 退出（退出时先注销插件格式再关插件）。
 - 交互清单 W 系列（打开、另存为时的格式列表，DXF 导入导出）没有在界面上手工走查。
 
+#### S4c：读写与存盘策略分离
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | `DmDocument` 新增 `readFile(文件)`（经注册表按文件找导入过滤器）、`readNativeFile(文件)`（按原生格式读，不看后缀）、`writeFile(文件, 格式名)`（经注册表按格式名找导出过滤器）与 `markSaved()`。结果是 `DmFileResult`：结果码 `Ok`/`NoFilter`/`Failed` 加异常信息。读文件先 `initDoc()`、成功后记为已保存，与原 `open` 相同；两者都不改文件名、不弹框、不输出命令行消息 |
+| 2 | 新增 `application/DocumentFileService`，`save`、`saveAs`、`open`、`autoSave`、`enableAutoSave`、`hasAutoSaved` 与自动保存定时器、外部修改检测的两个状态从 `DmDocument` 整段搬来；`DmDocument` 的成员换成文档的存取函数，`requestFileExport`/`requestFileImport` 换成文档的读写函数，提示文字与时机不变。每份文档一个实例，构造时按设置启动自动保存（原先在 `DmDocument` 构造函数里）；`find(文档)` 按文档找到它 |
+| 3 | `MDIWindow` 持有一份文档的服务，打开、保存、另存为经它；析构时在视图之后、文档之前释放它。`BlockFileCommands` 的写块与插入块给临时文档建局部的服务。`UIDlgOptionsGeneral` 改自动保存设置时经 `find()` 找到各文档的服务 |
+| 4 | `DmDocument` 删去 `save`、`saveAs`、`open`、`autoSave`、`enableAutoSave`、`hasAutoSaved`、没有调用方的 `getModifyTime`，以及 `m_timer`、`m_bHasAutoSaved`、`m_modifiedTime`、`m_strCurrentFileName`；不再包含 `GuiDialogFactory.h`、`QTimer`。`MTextEditWidget.cpp` 原先经 `DmDocument.h` 间接得到 `QTimer`，补上自己的包含 |
+| 5 | R7：`readFile`/`readNativeFile` 捕获过滤器的异常，转成 `Failed`。R8：`open` 读 .bak 与自动保存副本改用 `readNativeFile`。`OneException`（`base/core/Tools.h`）按 4.5 节"其他观察"修正：消息复制一份自己保存（原先只存指针，抛出处多传局部字符串），`what()` 改为 `const noexcept` 并覆盖 `std::exception::what()`，按 `std::exception` 捕获也能取到消息 |
+
+**自动保存定时器**（8.7 节第 2 项）：定时器是服务的值成员，随服务析构停止；`~MDIWindow` 先删视图、再释放服务、最后删文档，
+定时器不会作用在已删除的文档上。这一顺序没有运行期用例（定时器最短一分钟），由代码保证并在执行结果里记录。
+
+**与 8.4 节原文的出入**：
+
+- 找不到导出格式时的 `QMessageBox::critical`（S4b 从 `Fileio.cpp` 移到 `UIDialogFactory`）随写文件的调用移到服务里，仍是原来的对话框。
+  `UIDialogFactory::requestFileExport`/`requestFileImport` 已无调用方，S4d 删除。
+- 写文件时过滤器抛出的异常同样转成 `Failed`（8.4 节只要求读文件这样做）：原先异常穿出 `DmDocument::save`、无人捕获，现在按保存失败处理，
+  命令行提示 "File save failed: ..."。过滤器的异常信息记进日志（`persistence` 分类，Warning），提示用户的文字不变。
+- 原先每个 `DmDocument` 都在构造时启动自动保存定时器，包括剪贴板里的文档（`DmClipboard::pDocument`）；现在只有交给服务的文档有。
+  剪贴板文档的实体经 `add_direct` 放入、不进撤销栈，一直"未修改"，原先的自动保存也是直接返回，行为不变。
+- 存盘策略的用例随代码搬到 `tests/interaction`：`test_persistence` 只链接 `YiCadModel`，链接不到 Application。
+
+**测试**：
+
+- 样本文档与文件工具从 `test_persistence_document.cpp` 移到 `tests/support/OcdSampleDocument.h`，内容不变，两个测试二进制共用。
+- 新增 `tests/interaction/test_document_file_service.cpp`：S0 的 `DocumentSavePolicy` 7 个用例搬来，只把 `doc.save/saveAs/open` 改成经服务调用，
+  其中依赖 R7、R8 的 2 个去掉 `DISABLED_` 前缀，即为 8.4 节第 5 项的验收；另加 5 个：打开的备份复制成带时间戳的副本、拒绝打开备份时警告、
+  未命名文档自动保存到临时目录的副本、每份文档只自动保存一次（交互清单 W5 记录的既有行为）、`find()`。
+- `test_persistence_document.cpp` 不再装宿主服务；异常路径 4 个改为经 `readFile` 断言结果码与异常信息（空文件的信息是 "Invalid file"，
+  验证了 `OneException` 的修正），另加 1 个锁住过滤器本身仍抛异常；新增 `DocumentReadWrite` 3 个，其中"不起界面写出再读回整份文档"
+  即 8.6 节要求的只链接 `YiCadModel` 的用例。
+- 用例 499（启用 495，`DISABLED_` 4），比 S4b 多 9 个，`DISABLED_` 少 2 个（`BASELINE.md` 7.2 节）。剩下的 `DISABLED_` 中 2 个依赖 R4。
+
+**验收**：
+
+- Release、Debug 构建通过（`Tools.h` 改动全量重编；Debug 照 S0 的做法先删 `.obj`、`.pdb`）；两种配置的 ctest 全部通过；
+  `check_layering.py` 通过（9 处已登记的例外）。
+- `update_translations` 只改 `<location>` 行：`DmDocument.cpp` 的提示移到 `DocumentFileService.cpp`，上下文仍是 `QObject`，译文不变；
+  `block`、`options`、`text` 三个扩展的 `.ts` 是改动文件的行号变化。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应；关闭时启动的空白图纸按新顺序析构，进程以 0 退出。
+- 交互清单 6G 节（W1–W10）没有在界面上手工走查；W5、W7 的期望随本步改写，第 7 节补了两条有意的行为变化。
+
 ---
 
 ## 9. S5：解开 UI 与 Shell

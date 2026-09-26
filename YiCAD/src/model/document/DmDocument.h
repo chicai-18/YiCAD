@@ -27,8 +27,7 @@
 
 #include <vector>
 
-#include <QDateTime>
-#include <QTimer>
+#include <QString>
 
 #include "DmEntityContainer.h"
 #include "EntityTable.h"
@@ -49,6 +48,24 @@ class DmCacheDrawData;
 class DmDocumentListener;
 
 constexpr const char* DOCDEFAULTFORMAT = "Drawing Exchange YCD 2023 (*.ycd)";
+
+/// @brief 读写文件的结果码
+enum class DmFileStatus
+{
+    Ok,        ///< 成功
+    NoFilter,  ///< 格式注册表里没有接得住该文件或格式的过滤器
+    Failed     ///< 过滤器报告失败，或者抛出了异常
+};
+
+/// @brief DmDocument::readFile、readNativeFile、writeFile 的结果
+struct DmFileResult
+{
+    DmFileStatus status = DmFileStatus::Ok;  ///< 结果码
+    QString message;                         ///< 过滤器抛出的异常信息；其余情况为空
+
+    /// @brief 是否成功
+    bool ok() const { return status == DmFileStatus::Ok; }
+};
 
 /// @brief 文档
 class DmDocument : public DmFlags
@@ -103,22 +120,30 @@ public:
     /// @brief 初始化文档
     void initDoc();
 
-    /// @brief 保存文件
-    /// @param isAutoSave 是否为自动保存
-    /// @return 保存是否成功
-    bool save(bool isAutoSave = false, bool force = false);
+    /// @brief 读文件：先 initDoc()，再经格式注册表按文件找导入过滤器，读进本文档
+    /// @details 只读，不做别的：不改文件名与保存格式、不弹框、不输出命令行消息。成功后文档
+    ///          视为未修改。过滤器抛出的异常不穿出，转成 Failed，异常信息放进结果。
+    ///          什么时候读、失败了怎么办由 Application 的 DocumentFileService 决定
+    /// @param file 文件路径
+    /// @return 结果
+    DmFileResult readFile(const QString& file);
 
-    /// @brief 另存为
-    /// @param filename 目标文件名
-    /// @param formatType 文件格式类型
-    /// @param force 是否强制保存
-    /// @return 保存是否成功
-    bool saveAs(const QString& filename, const QString& formatType, bool force = false);
+    /// @brief 按原生格式读文件，不看后缀；其余同 readFile
+    /// @details 用于读 .bak 备份与自动保存的副本：它们是原生格式，后缀却不一定是 .ycd
+    /// @param file 文件路径
+    /// @return 结果
+    DmFileResult readNativeFile(const QString& file);
 
-    /// @brief 打开文件
-    /// @param filename 文件名
-    /// @return 打开是否成功
-    bool open(const QString& filename);
+    /// @brief 写文件：经格式注册表按格式名找导出过滤器，把本文档写到 file
+    /// @details 只写，不做别的：不改文件名与保存格式、不改"已修改"状态、不弹框、不决定备份。
+    ///          过滤器抛出的异常不穿出，转成 Failed，异常信息放进结果
+    /// @param file 目标文件路径
+    /// @param formatType 导出格式名
+    /// @return 结果
+    DmFileResult writeFile(const QString& file, const QString& formatType);
+
+    /// @brief 把当前状态记为已保存：此后 isModified() 为假，直到再有修改
+    void markSaved();
 
     /// @brief 撤销操作
     void undo();
@@ -151,15 +176,6 @@ public:
     /// @brief 设置文件保存格式
     /// @param ft 格式字符串
     void setFormatType(const QString& ft);
-
-    /// @brief 是否已自动保存
-    /// @return 如果已自动保存则返回true
-    bool hasAutoSaved() const;
-
-    /// @brief 启动或关闭自动保存
-    /// @param enableAutoSave 是否启用自动保存
-    /// @param saveMinute 自动保存间隔（分钟）
-    void enableAutoSave(bool enableAutoSave, int saveMinute);
 
     /// @brief 注册监听者；已注册或为空时不做任何事
     /// @param listener 监听者，文档不拥有它
@@ -240,18 +256,11 @@ public:
     /// @return 如果已修改则返回true
     bool isModified() const;
 
-    /// @brief 获取文档上次修改时间
-    /// @return 修改时间
-    QDateTime getModifyTime(void);
-
     /// @brief 获取缓存绘制数据
     /// @return 共享指针
     std::shared_ptr<DmCacheDrawData> getCacheDrawData();
 
 public:
-    /// @brief 通过计时器自动保存
-    void autoSave();
-
     /// @brief 获取命令管理器
     /// @return 命令管理器指针
     CmdManager* getCmdManager() { return m_cmdManager; }
@@ -263,9 +272,6 @@ public:
     friend class EntityTable;
 
 private:
-    QDateTime                           m_modifiedTime; ///< 文档修改时间
-    QString                             m_strCurrentFileName; ///< 保存文件名副本，用于检测外部修改
-
     DmLineTypeTable*                    m_LineTypeTable = nullptr; ///< 线型表
     DmLayerTable*                       m_layerTable = nullptr; ///< 层表
     DmTextStyleTable*                   m_textStyleTable = nullptr; ///< 文字样式表
@@ -280,8 +286,6 @@ private:
     std::shared_ptr<DmCacheDrawData>    m_pCacheDrawData; ///< 缓存绘制数据
 
     size_t                              m_savedUndoCount = 0; ///< 保存时的 undo 栈大小，用于判断文档是否需要保存
-    bool                                m_bHasAutoSaved = false; ///< 是否已自动保存
-    std::shared_ptr<QTimer>             m_timer; ///< 用于自动保存文件的定时器   //不能用unique_ptr，否则编译不过
     std::vector<DmDocumentListener*>    m_listeners; ///< 监听者（如画布），不拥有
     DmPen                               m_activePen; ///< 文档当前的画笔
     QString                             m_filename; ///< 文档保存路径

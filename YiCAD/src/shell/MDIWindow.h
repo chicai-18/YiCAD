@@ -21,6 +21,8 @@
 #ifndef MDIWINDOW_H
 #define MDIWINDOW_H
 
+#include <memory>
+
 #include <QList>
 #include <QMdiSubWindow>
 
@@ -28,6 +30,7 @@
 
 class GuiDocumentView;
 class DmDocument;
+class DocumentFileService;
 class DmPen;
 class QMdiArea;
 class QCloseEvent;
@@ -111,6 +114,7 @@ private:
     GuiDocumentView*        docView = nullptr;          ///< 文档视图
     DmDocument*             document = nullptr;         ///< 关联的文档对象
     bool                    owner = false;              ///< 窗口是否拥有文档的所有权
+    std::unique_ptr<DocumentFileService> fileService;   ///< 文档的存盘策略（自动保存、备份、打开失败的处理）
     QList<MDIWindow*>       childWindows;               ///< 已知子窗口列表（显示同一图纸的块）
     MDIWindow*              parentWindow = nullptr;     ///< 父窗口指针（需要知道本窗口是否关闭）
 };

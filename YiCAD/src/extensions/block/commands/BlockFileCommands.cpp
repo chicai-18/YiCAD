@@ -42,6 +42,7 @@
 #include "DmText.h"
 #include "DmTextStyle.h"
 #include "DmTextStyleTable.h"
+#include "DocumentFileService.h"
 #include "GuiDialogFactory.h"
 #include "Transaction.h"
 #include "UIBlockDelete.h"
@@ -183,7 +184,7 @@ void BlockFileCommands::saveActiveBlock(DmDocument* doc, QWidget* parent)
     {
         QApplication::setOverrideCursor(
             QCursor(Qt::WaitCursor));
-        tmpDoc.saveAs(fn, formatType);
+        DocumentFileService(tmpDoc).saveAs(fn, formatType);
         QApplication::restoreOverrideCursor();
     }
 }
@@ -203,7 +204,7 @@ void BlockFileCommands::importBlocks(DmDocument* doc, QWidget* parent)
 
     // 2. 创建临时文档并加载文件（复用已有 filter 系统）
     DmDocument tempDoc;
-    bool ok = tempDoc.open(fn);
+    bool ok = DocumentFileService(tempDoc).open(fn);
     if (!ok)
     {
         QApplication::restoreOverrideCursor();

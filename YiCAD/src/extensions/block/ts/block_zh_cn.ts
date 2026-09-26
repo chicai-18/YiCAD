@@ -84,23 +84,23 @@
 <context>
     <name>BlockFileCommands</name>
     <message>
-        <location filename="../commands/BlockFileCommands.cpp" line="210"/>
-        <location filename="../commands/BlockFileCommands.cpp" line="221"/>
+        <location filename="../commands/BlockFileCommands.cpp" line="211"/>
+        <location filename="../commands/BlockFileCommands.cpp" line="222"/>
         <source>Import Block</source>
         <translation>导入块</translation>
     </message>
     <message>
-        <location filename="../commands/BlockFileCommands.cpp" line="211"/>
+        <location filename="../commands/BlockFileCommands.cpp" line="212"/>
         <source>Failed to open file: %1</source>
         <translation>打开文件失败：%1</translation>
     </message>
     <message>
-        <location filename="../commands/BlockFileCommands.cpp" line="222"/>
+        <location filename="../commands/BlockFileCommands.cpp" line="223"/>
         <source>No blocks found in file.</source>
         <translation>文件中未找到块。</translation>
     </message>
     <message>
-        <location filename="../commands/BlockFileCommands.cpp" line="149"/>
+        <location filename="../commands/BlockFileCommands.cpp" line="150"/>
         <source>No block activated to save</source>
         <translation>没有激活块去保存</translation>
     </message>

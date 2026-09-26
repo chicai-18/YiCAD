@@ -31,6 +31,7 @@
 
 #include "DmDocument.h"
 #include "DmSettings.h"
+#include "DocumentFileService.h"
 #include "UIExitDialog.h"
 #include "UIFileDialog.h"
 #include "DmBlockReference.h"
@@ -61,6 +62,7 @@ MDIWindow::MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags)
         document = doc;
         owner = false;
     }
+    fileService = std::make_unique<DocumentFileService>(*document);
 
     docView = new UIView(this, Qt::WindowFlags(), document);
     docView->setObjectName("documentview");
@@ -71,14 +73,16 @@ MDIWindow::MDIWindow(DmDocument* doc, QWidget* parent, Qt::WindowFlags wflags)
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 }
 
-/// @brief 析构函数，先释放视图，再删除与此窗口关联的文档
+/// @brief 析构函数，先释放视图与文档文件服务，再删除与此窗口关联的文档
 ///
 /// 视图是文档的监听者，析构时从文档注销，必须先于文档释放。它是本窗口的子控件，
-/// 不在这里删就要等基类析构时才释放，那时文档已经删除。
+/// 不在这里删就要等基类析构时才释放，那时文档已经删除。文档文件服务的自动保存定时器
+/// 会写文档，也要在文档之前停下。
 MDIWindow::~MDIWindow()
 {
     delete docView;
     docView = nullptr;
+    fileService.reset();
 
     if (owner && document)
     {
@@ -155,7 +159,7 @@ bool MDIWindow::slotFileOpen(const QString& fileName)
 
     if (document && !fileName.isEmpty())
     {
-        ret = document->open(fileName);
+        ret = fileService->open(fileName);
 
         if (ret)
         {
@@ -187,7 +191,7 @@ bool MDIWindow::slotFileSave(bool& cancelled, bool isAutoSave)
     {
         if (isAutoSave)
         {
-            ret = document->save(true);
+            ret = fileService->save(true);
         }
         else
         {
@@ -203,7 +207,7 @@ bool MDIWindow::slotFileSave(bool& cancelled, bool isAutoSave)
                     return false;
                 }
                 QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-                ret = document->save();
+                ret = fileService->save();
                 QApplication::restoreOverrideCursor();
             }
         }
@@ -226,7 +230,7 @@ bool MDIWindow::slotFileSaveAs(bool& cancelled)
     if (document && !fn.isEmpty())
     {
         QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-        ret = document->saveAs(fn, formatType, true);
+        ret = fileService->saveAs(fn, formatType, true);
         QApplication::restoreOverrideCursor();
     }
     else
