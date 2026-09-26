@@ -120,7 +120,7 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
     // 对话框只给出块数据，块由这里创建并加进块表
     DmBlockData blockData("", DmVector(false), false);
     {
-        UIBlockDialog dlg(dialogParent());
+        UIBlockDialog dlg(UIDialogRunner::parentOf(view()));
         dlg.setBlockList(blockTable);
         if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
         {
@@ -162,7 +162,7 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
     {
         std::list<DmAttributeDefinition*> attrDefs =
             block->getAttributeDefinitions();
-        UIDlgEditAttributes::editAttributes(dialogParent(), block->getName(), attrDefs, attrs);
+        UIDlgEditAttributes::editAttributes(UIDialogRunner::parentOf(view()), block->getName(), attrDefs, attrs);
     }
     for (auto attr : attrs)
     {

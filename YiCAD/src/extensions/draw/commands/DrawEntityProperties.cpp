@@ -24,7 +24,6 @@
 
 #include <QDialog>
 
-#include "BaseExclusiveCommand.h"
 #include "DmArc.h"
 #include "DmCircle.h"
 #include "DmEllipse.h"
@@ -76,7 +75,7 @@ InstantCommand DrawCommands::properties()
         {
             return;
         }
-        QWidget* parent = BaseExclusiveCommand::dialogParentOf(ctx.view);
+        QWidget* parent = UIDialogRunner::parentOf(ctx.view);
         switch (entity->getEntityType())
         {
         case DM::EntityPoint:

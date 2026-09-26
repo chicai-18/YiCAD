@@ -23,6 +23,9 @@
 #include <utility>
 
 #include <QDialog>
+#include <QWidget>
+
+#include "IDocumentView.h"
 
 namespace
 {
@@ -42,4 +45,10 @@ int UIDialogRunner::exec(QDialog& dialog)
 UIDialogRunner::Runner UIDialogRunner::setRunner(Runner runner)
 {
     return std::exchange(currentRunner(), std::move(runner));
+}
+
+QWidget* UIDialogRunner::parentOf(IDocumentView* view)
+{
+    QWidget* canvas = view ? qobject_cast<QWidget*>(view->asQObject()) : nullptr;
+    return canvas ? canvas->window() : nullptr;
 }

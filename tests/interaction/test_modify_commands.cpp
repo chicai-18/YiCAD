@@ -7,8 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <vector>
 
+#include "BaseExclusiveCommand.h"
 #include "CircleData.h"
 #include "DmCircle.h"
 #include "DmLine.h"
@@ -48,6 +50,14 @@ const FirstStep kCommands[] = {
     {"ext.modify.bevel", "Specify first entity", "Back"},
     {"ext.modify.round", "Specify first entity", "Back"},
     {"ext.modify.extend", nullptr, nullptr},
+};
+
+/// @brief 什么也不做的交互命令，充当属性面板那样的交互式属性编辑命令
+class PanelCommand : public BaseExclusiveCommand
+{
+protected:
+    bool onActivate() override { return true; }
+    void onDeactivate() override {}
 };
 
 struct ModifyFixture : BuiltinCommandFixture
@@ -400,6 +410,32 @@ TEST_F(ModifyFixture, 修改实体属性选中实体并弹出对话框)
     click(45, 0);
     EXPECT_EQ(dialogs.shown, (std::vector<QString>{QStringLiteral("UIDlgLine"), QStringLiteral("UIDlgCircle")}));
     EXPECT_TRUE(bus.hasActiveCommand());
+    endCommand();
+}
+
+TEST_F(ModifyFixture, 修改实体属性由交互式属性编辑命令接替)
+{
+    // 多行文字的属性面板是交互命令（文字扩展不在本夹具里）：这里把直线的属性编辑换成一个交互命令
+    CommandRegistry& registry = CommandRegistry::instance();
+    // 用例中途失败也要注销，否则下一个用例里绘图扩展登记不上直线的属性编辑（ext.draw.properties
+    // 随扩展在每个用例重新注册）
+    struct Unregister
+    {
+        ~Unregister() { CommandRegistry::instance().unregisterCommand(QStringLiteral("test.modify.panel")); }
+    } unregister;
+    ASSERT_TRUE(registry.unregisterCommand(QStringLiteral("ext.draw.properties")));
+    ASSERT_TRUE(registry.registerExclusiveCommand(QStringLiteral("test.modify.panel"),
+                                                  [](const CommandContext&) { return std::make_unique<PanelCommand>(); }));
+    ASSERT_TRUE(registry.registerPropertyEditor(DM::EntityLine, QStringLiteral("test.modify.panel")));
+
+    DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
+    ASSERT_TRUE(start("ext.modify.entity"));
+    click(5, 0);
+    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(dialogs.shown.empty());
+    // 修改实体命令让位，由属性编辑命令接替
+    EXPECT_EQ(bus.activeCommandId(), QStringLiteral("test.modify.panel"));
+
     endCommand();
 }
 

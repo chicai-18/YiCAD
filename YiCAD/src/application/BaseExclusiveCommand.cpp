@@ -20,12 +20,8 @@
 
 #include "BaseExclusiveCommand.h"
 
-#include <QWidget>
-
-#include "CommandRegistry.h"
 #include "ExclusiveCommandBus.h"
 #include "ICommandHost.h"
-#include "IDocumentView.h"
 
 bool BaseExclusiveCommand::activate(ICommandHost& host)
 {
@@ -59,25 +55,6 @@ void BaseExclusiveCommand::finish()
     }
 }
 
-void BaseExclusiveCommand::replaceWith(const QString& commandId)
-{
-    replaceWith(commandId, nullptr);
-}
-
-void BaseExclusiveCommand::replaceWith(const QString& commandId, DmEntity* entity, const DmVector& point)
-{
-    ExclusiveCommandBus* commandBus = m_active ? bus() : nullptr;
-    if (!commandBus)
-    {
-        return;
-    }
-    if (std::unique_ptr<IExclusiveCommand> next = CommandRegistry::instance().createCommand(
-            commandId, CommandContext{document(), view(), nullptr, entity, point}))
-    {
-        commandBus->start(std::move(next));
-    }
-}
-
 ExclusiveCommandBus* BaseExclusiveCommand::bus() const
 {
     return m_host ? m_host->commandBus() : nullptr;
@@ -96,10 +73,4 @@ IDocumentView* BaseExclusiveCommand::view() const
 ViewToolControl* BaseExclusiveCommand::viewToolControl() const
 {
     return m_host ? m_host->viewToolControl() : nullptr;
-}
-
-QWidget* BaseExclusiveCommand::dialogParentOf(IDocumentView* view)
-{
-    QWidget* canvas = view ? qobject_cast<QWidget*>(view->asQObject()) : nullptr;
-    return canvas ? canvas->window() : nullptr;
 }

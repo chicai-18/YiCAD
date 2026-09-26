@@ -218,7 +218,7 @@ std::unique_ptr<BasePlaceTool> DrawTextCommand::createTool()
                                         QString(), style, 0.0, EUpdateMode::Update);
     DmText tmp(nullptr, *m_data);
     tmp.setDocument(document());
-    UIDlgText dlg(dialogParent());
+    UIDlgText dlg(UIDialogRunner::parentOf(view()));
     dlg.setText(tmp, true);
     if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
     {

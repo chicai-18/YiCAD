@@ -26,7 +26,6 @@
 #include <QInputDialog>
 #include <QStringList>
 
-#include "BaseExclusiveCommand.h"
 #include "DimCommands.h"
 #include "DmDimension.h"
 #include "DmDocument.h"
@@ -68,7 +67,7 @@ void editDimensionText(const CommandContext& ctx)
     auto* dim = static_cast<DmDimension*>(ctx.entity);
 
     // 与原先的 QInputDialog::getText() 相同，改为自己构造以便经 UIDialogRunner 运行
-    QInputDialog dlg(BaseExclusiveCommand::dialogParentOf(ctx.view));
+    QInputDialog dlg(UIDialogRunner::parentOf(ctx.view));
     dlg.setWindowTitle(QCoreApplication::translate("DimExtension", "Modify dimension text"));
     dlg.setLabelText(QCoreApplication::translate("DimExtension", "New dimension text:"));
     dlg.setTextEchoMode(QLineEdit::Normal);

@@ -20,14 +20,17 @@
 ///
 /// 扩展自己构造对话框，经 UIDialogRunner::exec() 运行，而不是直接调用 QDialog::exec()。
 /// 单测装入替身运行方式：不弹窗，记下弹出的是哪个对话框并给出结果（例如"取消"），
-/// 这样"取消对话框时命令启动失败"之类的路径可以无头测试。
+/// 这样"取消对话框时命令启动失败"之类的路径可以无头测试。对话框的父窗口也从这里取
+/// （parentOf()），交互命令与即时命令一样用。
 
 #ifndef UIDIALOGRUNNER_H
 #define UIDIALOGRUNNER_H
 
 #include <functional>
 
+class IDocumentView;
 class QDialog;
+class QWidget;
 
 /// @brief 模态运行对话框；运行方式可替换（单测用）
 class UIDialogRunner
@@ -44,6 +47,11 @@ public:
     /// @param runner 为空时恢复 QDialog::exec()
     /// @return 原先的运行方式（为空表示原先是 QDialog::exec()），供调用方恢复
     static Runner setRunner(Runner runner);
+
+    /// @brief 弹出对话框时的父窗口：视图所在的顶层窗口（主窗口）
+    /// @param view 命令所在的视图；可为空
+    /// @return 视图为空或不是控件（测试用的假视图）时为空
+    static QWidget* parentOf(IDocumentView* view);
 };
 
 #endif // UIDIALOGRUNNER_H

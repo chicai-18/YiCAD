@@ -176,7 +176,7 @@ std::unique_ptr<BasePlaceTool> DefineAttributesCommand::createTool()
     DmAttributeDefinition tmp(nullptr, *m_textData, *m_attrData);
     tmp.setDocument(document());
     {
-        UIDlgDefineAttribute dlg(dialogParent());
+        UIDlgDefineAttribute dlg(UIDialogRunner::parentOf(view()));
         dlg.setAttributeDefinition(tmp, true);
         if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
         {

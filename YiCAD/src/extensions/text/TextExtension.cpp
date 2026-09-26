@@ -38,7 +38,6 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
-#include "BaseExclusiveCommand.h"
 #include "DmText.h"
 #include "ModifyMTextCommand.h"
 #include "UIDialogRunner.h"
@@ -112,7 +111,7 @@ void editTextProperties(const CommandContext& ctx)
     {
         return;
     }
-    UIDlgText dlg(BaseExclusiveCommand::dialogParentOf(ctx.view));
+    UIDlgText dlg(UIDialogRunner::parentOf(ctx.view));
     dlg.setText(*static_cast<DmText*>(ctx.entity), false);
     if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
     {

@@ -31,6 +31,7 @@
 #include "BasePlaceTool.h"
 #include "CircleData.h"
 #include "CommandPreview.h"
+#include "CommandRegistry.h"
 #include "DrawCommands.h"
 #include "Commands.h"
 #include "DmArc.h"
@@ -38,6 +39,7 @@
 #include "DmDocument.h"
 #include "DmLine.h"
 #include "EntityTable.h"
+#include "ExclusiveCommandBus.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
@@ -402,6 +404,18 @@ public:
         view()->moveRelativeZero(arc->getEndpoint());
     }
 
+    /// @brief 切换为圆心圆弧 ext.draw.arc：总线先请本命令让位（Replaced），再启动它
+    ///        （原 Action 在 finish() 之后 setCurrentAction(new ActionDrawArc)）
+    void switchToCenterArc()
+    {
+        std::unique_ptr<IExclusiveCommand> next = CommandRegistry::instance().createCommand(
+            QStringLiteral("ext.draw.arc"), CommandContext{document(), view()});
+        if (next && bus())
+        {
+            bus()->start(std::move(next));
+        }
+    }
+
 protected:
     std::unique_ptr<BasePlaceTool> createTool() override;
 };
@@ -527,7 +541,7 @@ protected:
         // 文字都切换为圆心圆弧；文字不被接受，随后还会被当作新命令解析
         if (Commands::checkCommand("center", c))
         {
-            command().replaceWith(QStringLiteral("ext.draw.arc"));
+            m_command.switchToCenterArc();
         }
     }
 

@@ -1764,9 +1764,10 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
    块参照与属性定义的属性对话框（`UIDlgInsert`、`UIDlgDefineAttribute`）同时是属性对话框，随④。
 2. **命令直接构造**：创建块的 `UIBlockDialog`、嵌套块选择在 `BlockEditTool::prepare()` 里构造；
    填属性值是创建块与插入块共用的，放在 `UIDlgEditAttributes::editAttributes()`（与
-   `UIDlgDimensionStyle::editStyle()` 同样的静态辅助）。父窗口与工厂相同：命令用新增的
-   `BaseExclusiveCommand::dialogParent()`（视图所在的顶层窗口，即主窗口；测试的假视图没有窗口
-   时为空），嵌套块选择仍不设父窗口。
+   `UIDlgDimensionStyle::editStyle()` 同样的静态辅助）。父窗口与工厂相同：取视图所在的顶层窗口，
+   即主窗口，测试的假视图没有窗口时为空；嵌套块选择仍不设父窗口。这个取法原先是
+   `BaseExclusiveCommand::dialogParent()`，即时命令也借用它；2026-09-26 起改为
+   `UIDialogRunner::parentOf(view)`，交互命令与即时命令一样用（业务工具化方案 9.7 节）。
 3. **块编辑选项条**：块编辑是编辑模式，不是命令，选项条不能随命令注册。接口里的
    `requestBlockEditOptions(IBlockEditSession*, bool)` 换成通用的
    `requestEditModeOptions(build, on)`：控件由调用方构造，宿主只负责摆放，与命令的选项条各占
@@ -1791,7 +1792,7 @@ Windows 11 Pro 22621 / MSVC 2022，2026-09-24。基准代码未入库，正确�
    扩展命名空间校验。两张表分开，是因为多行文字双击是就地编辑（`ext.text.edit_mtext`），修改属性
    却是属性面板（`ext.text.modify_mtext`）。属性编辑命令可以是即时命令或交互命令：
    - 属性对话框登记为即时命令（`InstantInterrupt::KeepAll`）。"修改实体属性"命令原先弹完对话框
-     仍然活动，可以接着点下一个实体；如果属性编辑是交互命令，`replaceWith` 会把它结束掉。
+     仍然活动，可以接着点下一个实体；如果属性编辑是交互命令，它经总线启动时会把本命令结束掉。
    - 多行文字的属性面板是非模态的交互命令，由它接替"修改实体属性"（与原先一致）。
 2. **分派**：选择层双击先找双击编辑命令，没有时找属性编辑命令，即时命令直接运行、交互命令经
    视图启动；"修改实体属性"按属性编辑命令运行或让位，多行文字的特判随之删除。没有登记的实体

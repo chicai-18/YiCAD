@@ -23,7 +23,6 @@
 
 #include <QCoreApplication>
 
-#include "BaseExclusiveCommand.h"
 #include "BlockEditTool.h"
 #include "BlockFileCommands.h"
 #include "BlockInsertCommand.h"
@@ -76,7 +75,7 @@ void editBlockProperties(const CommandContext& ctx)
     {
         return;
     }
-    QWidget* parent = BaseExclusiveCommand::dialogParentOf(ctx.view);
+    QWidget* parent = UIDialogRunner::parentOf(ctx.view);
     switch (ctx.entity->getEntityType())
     {
     case DM::EntityBlockReference:

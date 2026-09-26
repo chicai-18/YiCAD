@@ -1500,9 +1500,23 @@ S15–S18、B2）尚未进行。
      总线不经手。新增 `UIView::activeCommandSnapper()`，`commandSnapService()`（捕捉标记读哪个捕捉器，
      选择阶段读选择层的）改为基于它。
 
+3. **基类的辅助函数下放**：`BaseExclusiveCommand` 只剩生命周期（激活、停用、请求结束）与取用宿主。
+   - `replaceWith()` 只有两处调用，改在调用处经总线启动下一个命令（`start()` 自己会先请当前命令
+     让位）：三点圆弧命令新增 `switchToCenterArc()`，命令行输入 center 时由工具调用；修改实体属性在
+     属性编辑是交互命令时直接启动它；
+   - `dialogParentOf()`/`dialogParent()` 是"弹对话框用哪个父窗口"，与命令无关，5 个即时命令也在借用
+     `BaseExclusiveCommand::dialogParentOf()`。改为 `UIDialogRunner::parentOf(view)`（`ui/`，扩展可以
+     包含），10 个调用处替换，即时命令不再包含 `BaseExclusiveCommand.h`；
+   - `BaseExclusiveCommand.h` 去掉只为上面这些函数包含的 `DmVector.h`、`ISnapService.h`。
+
 测试：`tests/support/TestCommandHost.h` 像 `UIView` 一样实现宿主并响应两个信号（`UIView` 是
 `QOpenGLWidget`，单测不构造它，改动 `UIView` 的这部分时要同步），`CommandFixture`、`BusFixture`、
 `SelectFirstFixture` 共用。`test_exclusive_command_bus` 加 2 例锁定两个信号的时机；激活失败与析构的
 两例补断言照常通知；"命令结束时总线清除选择阶段约束"改名为"视图清除"。各用例改用合并后的接口，
 "只问不改"的断言改为"被否决时什么也不结束"；"捕捉设置同步给活动命令的捕捉器"随同步移到 `UIView`
-删除（`UIView` 不在单测里构造）。
+删除（`UIView` 不在单测里构造）。`test_modify_commands` 加 1 例"修改实体属性由交互式属性编辑命令接替"：
+原先没有用例走到这一支（多行文字的属性面板在文字扩展里，不在该夹具中），这里把直线的属性编辑临时换成
+一个交互命令；三点圆弧切换为圆心圆弧原有用例覆盖。
+
+验证：每次提交前 Release 构建通过；`ctest` 4 个测试程序全部通过（`test_interaction` 282 例，281 例通过，
+1 例因缺基准图纸跳过，与本次无关）；`check_layering.py` 通过。

@@ -32,6 +32,7 @@
 #include "CommandRegistry.h"
 #include "ModifyCommands.h"
 #include "DmEntity.h"
+#include "ExclusiveCommandBus.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
@@ -57,10 +58,17 @@ public:
             registry.runInstant(editor, CommandContext{document(), view(), nullptr, entity});
             break;
         case CommandKind::Exclusive:
-            // 属性面板（多行文字）不是模态对话框，由它接替本命令；面板结束后回到空闲态
-            // （原先把属性编辑的旧 Action 叠在本命令之上，结束后回到本命令）
-            replaceWith(editor, entity);
+        {
+            // 属性面板（多行文字）不是模态对话框，由它接替本命令（总线先请本命令让位）；面板结束后
+            // 回到空闲态（原先把属性编辑的旧 Action 叠在本命令之上，结束后回到本命令）
+            std::unique_ptr<IExclusiveCommand> next =
+                registry.createCommand(editor, CommandContext{document(), view(), nullptr, entity});
+            if (next && bus())
+            {
+                bus()->start(std::move(next));
+            }
             break;
+        }
         default:
             break;
         }

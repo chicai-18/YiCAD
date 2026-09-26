@@ -21,7 +21,6 @@
 
 #include <QCoreApplication>
 
-#include "BaseExclusiveCommand.h"
 #include "CommandRegistry.h"
 #include "DmHatch.h"
 #include "DmSystem.h"
@@ -41,7 +40,7 @@ void editHatchProperties(const CommandContext& ctx)
     {
         return;
     }
-    UIDlgHatch dlg(BaseExclusiveCommand::dialogParentOf(ctx.view));
+    UIDlgHatch dlg(UIDialogRunner::parentOf(ctx.view));
     dlg.setHatch(*static_cast<DmHatch*>(ctx.entity), false);
     if (UIDialogRunner::exec(dlg) == QDialog::Accepted)
     {

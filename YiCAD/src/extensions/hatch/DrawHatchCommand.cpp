@@ -109,7 +109,7 @@ std::unique_ptr<BasePlaceTool> DrawHatchCommand::createTool()
     DmHatch tmp(nullptr, *m_data);
     tmp.setDocument(document());
     {
-        UIDlgHatch dlg(dialogParent());
+        UIDlgHatch dlg(UIDialogRunner::parentOf(view()));
         dlg.setHatch(tmp, true);
         if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
         {

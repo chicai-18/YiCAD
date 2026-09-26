@@ -25,15 +25,11 @@
 #define BASEEXCLUSIVECOMMAND_H
 
 #include "IExclusiveCommand.h"
-#include "DmVector.h"
-#include "ISnapService.h"
 
 class DmDocument;
-class DmEntity;
 class ExclusiveCommandBus;
 class ICommandHost;
 class IDocumentView;
-class QWidget;
 class ViewToolControl;
 
 /// @brief 命令的通用基类
@@ -60,19 +56,6 @@ public:
     ///          命令，调用之后仍可安全访问成员（见 ExclusiveCommandBus::requestFinish）
     void finish();
 
-    /// @brief 结束本命令并启动另一个命令
-    /// @details 取代原 Action 里 finish() 之后 setCurrentAction(new ...) 的写法（如三点
-    ///          圆弧在命令行切换为圆心圆弧）。按 5.1 节，本命令先被请求让位（Replaced）。
-    /// @param commandId 另一个命令在 CommandRegistry 里的 ID；未注册时什么也不做
-    void replaceWith(const QString& commandId);
-    /// @brief 同上，新命令作用于 entity（在 point 处），如修改实体属性转到多行文字属性面板、
-    ///        多行文字属性面板双击转到文字编辑（见 CommandContext）
-    void replaceWith(const QString& commandId, DmEntity* entity, const DmVector& point = DmVector(false));
-
-    /// @brief 弹出对话框时的父窗口：视图所在的顶层窗口（主窗口）
-    /// @return 视图不是控件（测试用的假视图）时为空
-    static QWidget* dialogParentOf(IDocumentView* view);
-
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等
     /// @return false 表示启动失败；此时 onDeactivate() 不会被调用，需自行清理
@@ -90,8 +73,6 @@ protected:
     IDocumentView* view() const;
     /// @brief 视图的工具控制器
     ViewToolControl* viewToolControl() const;
-    /// @brief 弹出对话框时的父窗口，见 dialogParentOf()
-    QWidget* dialogParent() const { return dialogParentOf(view()); }
 
 private:
     ICommandHost* m_host = nullptr;
