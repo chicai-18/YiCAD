@@ -50,12 +50,7 @@ public:
 
     DmVector getNearestCenter(const DmVector& /*coord*/, double* /*dist*/) const override;
 
-    virtual void setStartpointSelected(bool select);
-    virtual void setEndpointSelected(bool select);
     virtual bool isTangent(const CircleData& /* circleData */) const;
-
-    bool isStartpointSelected() const;
-    bool isEndpointSelected() const;
 
     bool offset(const DmVector& /*position*/, const double& /*distance*/) override;
 

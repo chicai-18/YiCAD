@@ -757,10 +757,9 @@ void DmEntity::restoreStream(InputStream& reader)
     auto pen = DmPen(color, (DM::LineWidth)lineWidth, lineType);
     this->setPen(std::move(pen));
 
-    // 导入实体不允许高亮；选中状态不属于图纸数据，旧文件的标志字里可能带着选中位，无条件清掉
+    // 导入实体不允许高亮
     if (this->isHighlighted())
     {
         this->setHighlighted(false);
     }
-    delFlag(DM::FlagSelected);
 }

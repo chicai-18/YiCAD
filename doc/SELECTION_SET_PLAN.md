@@ -91,7 +91,8 @@ AcEd（编辑器），不在 AcDb（数据库）；FreeCAD 的 `Gui::Selection` 
   - `EntityTable` 的三个选中查询；撤销命令里的 3 处取消选中；
   - `Modification::offset`、`deselectOriginals`（没有调用者）。
 - **`FlagSelected`**：编号保留、不再复用，注释写明已废弃。`DmEntity::restoreStream` 改为无条件
-  `delFlag(DM::FlagSelected)`，旧文件里可能带着这一位。
+  `delFlag(DM::FlagSelected)`，旧文件里可能带着这一位。（后改：程序尚未发布，没有要兼容的旧文件，枚举值连同读回清除
+  一并删除，见 9.5 节末。）
 - **几何查询**：`Selection` 里的几何判断移进 `EntityTable`，与已有的空间查询 `searchEntities`、
   `getNearestVirtualIntersection` 放在一起，返回命中的顶层实体，不改任何状态：
   - `entitiesInsideRect(corner1, corner2, types)`：完全落在矩形内的实体（窗选）；
@@ -554,6 +555,10 @@ grep 确认 `FlagSelected` 只剩枚举定义与 `DmEntity::restoreStream` 里�
 **发现、未处理**：`DmAtomicEntity` 的端点选中（`setStartpointSelected`、`setEndpointSelected`、`isStartpointSelected`、
 `isEndpointSelected`，读写 `FlagSelected1`、`FlagSelected2`）在定义之外没有调用者，是死代码。它不是选择集，本方案只管
 `FlagSelected`，D3 所列的其他会话状态里也没有它，这次不删，另行处理。
+
+> 后续（2026-09-27，另一个提交）：四个函数已删除，查 git 历史，它们从首次提交起就没有调用者。程序尚未发布，没有要兼容
+> 的旧文件，所以 `FlagSelected`、`FlagSelected1`、`FlagSelected2` 三个枚举值也删除，编号不再保留；`DmEntity::restoreStream`
+> 里对 `FlagSelected` 的无条件清除随之删除（3.1 节的做法作废）。
 
 **验证**：`cmake --build --preset Release`（只重新编译了 `test_math_rtree.cpp`，构建目录与 `b96b12d` 一致）、`ctest`（4 个测试
 二进制全部通过，`test_interaction` 325 例）、`python tools/check_layering.py` 通过。程序代码没有改动，没有重新安装走查。

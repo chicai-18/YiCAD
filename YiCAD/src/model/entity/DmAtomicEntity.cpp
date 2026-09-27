@@ -71,43 +71,9 @@ DmVector DmAtomicEntity::getNearestCenter(const DmVector& /*coord*/, double* /*d
     return DmVector(false);
 }
 
-void DmAtomicEntity::setStartpointSelected(bool select)
-{
-    if (select)
-    {
-        setFlag(DM::FlagSelected1);
-    }
-    else
-    {
-        delFlag(DM::FlagSelected1);
-    }
-}
-
-void DmAtomicEntity::setEndpointSelected(bool select)
-{
-    if (select)
-    {
-        setFlag(DM::FlagSelected2);
-    }
-    else
-    {
-        delFlag(DM::FlagSelected2);
-    }
-}
-
 bool DmAtomicEntity::isTangent(const CircleData& /* circleData */) const
 {
     return false;
-}
-
-bool DmAtomicEntity::isStartpointSelected() const
-{
-    return getFlag(DM::FlagSelected1);
-}
-
-bool DmAtomicEntity::isEndpointSelected() const
-{
-    return getFlag(DM::FlagSelected2);
 }
 
 bool DmAtomicEntity::offset(const DmVector& /*position*/, const double& /*distance*/)
