@@ -14,6 +14,7 @@
 #ifndef LIBDXFRW_H
 #define LIBDXFRW_H
 
+/// @brief YiCAD 本地修改（2026-07-11）：新增，供 fileName 使用 std::filesystem::path。
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -26,8 +27,7 @@
 class dxfReader;
 class dxfWriter;
 
-/// @brief YiCAD 本地修改（2026-07-11）：导出公开读写器。
-class YICAD_LIBDXFRW_API dxfRW {
+class dxfRW {
 public:
     dxfRW(const char* name);
     ~dxfRW();
@@ -136,6 +136,7 @@ private:
 private:
     DRW::Version version;
     DRW::error error {DRW::BAD_NONE};
+    /// @brief YiCAD 本地修改（2026-07-11）：原为 std::string，改为 path 以支持非 ASCII 文件路径。
     std::filesystem::path fileName;
     std::string codePage;
     bool binFile;
@@ -152,6 +153,7 @@ private:
     bool writingBlock;
     int elParts;  /*!< parts number when convert ellipse to polyline */
     std::unordered_map<std::string,int> blockMap;
+    /// @brief YiCAD 本地修改（2026-07-11）：新增，读取时把 DIMSTYLE 引用的文字样式句柄换成名称。
     std::unordered_map<duint32, std::string> textStyleNames;  /*!< 文字样式句柄到名称的映射 */
     std::vector<DRW_ImageDef*> imageDef;  /*!< imageDef list */
 

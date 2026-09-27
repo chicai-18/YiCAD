@@ -245,7 +245,7 @@ cmake --fresh --preset Release "-DCMAKE_PREFIX_PATH=$env:Qt6_DIR"
 - SARibbonBar.dll
 - CDT.dll（如果存在）
 - Conan 管理的第三方库 DLL（GLEW、FreeType、zlib 等）
-- DXF 插件清单、`YiCadDxfPlugin.dll` 及其私有依赖 `YiCadLibdxfrw220.dll`
+- DXF 插件清单和 `YiCadDxfPlugin.dll`（libdxfrw 已静态链接在内）
 
 这使得应用运行目录可以独立运行。要启用插件，仍需按下文说明将插件清单和 DLL 目录
 部署到插件发现路径。
@@ -256,11 +256,9 @@ DXF 运行时文件作为一个完整部署单元生成：
 build/<config>/bin/plugins/
   dxf.xml
   dxf/YiCadDxfPlugin.dll
-  dxf/YiCadLibdxfrw220.dll
 ```
 
-两个 DLL 必须放在一起。安装输出中的 `bin/plugins` 是部署来源；生产环境下 YiCAD
-只从以下目录加载插件：
+安装输出中的 `bin/plugins` 是部署来源；生产环境下 YiCAD 只从以下目录加载插件：
 
 ```text
 C:\ProgramData\YiCAD\plugins
@@ -273,7 +271,6 @@ C:\ProgramData\YiCAD\plugins
 C:\ProgramData\YiCAD\plugins\
   dxf.xml
   dxf\YiCadDxfPlugin.dll
-  dxf\YiCadLibdxfrw220.dll
 ```
 
 每个清单都是 UTF-8 XML，只能包含一个空的 `plugin` 根元素和一个不带命名空间的
@@ -286,7 +283,7 @@ C:\ProgramData\YiCAD\plugins\
 
 清单不允许包含其他属性、命名空间、子元素、文本或 DTD。`dll` 的值必须指向实际存在
 的 `.dll` 文件；它可以是绝对路径，也可以是相对于清单所在目录解析的相对路径。
-内置 libdxfrw 是 DXF 插件的私有依赖，不属于公开的 Plugin SDK。详见
+内置 libdxfrw 静态链接在 DXF 插件内，不属于公开的 Plugin SDK。详见
 [插件 SDK 指南](doc/PLUGIN_SDK.md)、[Demo 插件部署说明](plugins/demo_plugin/README.md)
 和 [DXF 插件说明](plugins/dxf_plugin/README.md)。
 

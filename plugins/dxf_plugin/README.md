@@ -25,7 +25,7 @@ cmake --preset Release
 cmake --build --preset Release --target YiCadDxfPlugin
 ```
 
-仅构建目标不会形成完整部署目录。请通过 Runtime 预设同时安装应用、插件清单、两个
+仅构建目标不会形成完整部署目录。请通过 Runtime 预设同时安装应用、插件清单、插件
 DLL 和运行时许可证：
 
 ```powershell
@@ -38,14 +38,12 @@ cmake --build --preset Release-Runtime
 build/Release/bin/plugins/
   dxf.xml
   dxf/YiCadDxfPlugin.dll
-  dxf/YiCadLibdxfrw220.dll
 ```
 
 YiCAD 扫描插件目录第一层的 `*.xml`，清单中的 DLL 相对路径以清单所在目录为基准。
-`YiCadLibdxfrw220.dll` 与插件 DLL 安装到同一目录，由插件加载器的受限 DLL 搜索路径
-解析；部署时两者不可拆分。Plugin SDK 安装组件不包含 libdxfrw 的头文件、导入库或 DLL。
-手工复制部署时，还必须保留 `dxf.xml` 的第一层位置和其中的相对路径，并随发布包提供
-适用的许可证文本。不要只复制 `YiCadDxfPlugin.dll`。
+libdxfrw 以静态库链接进 `YiCadDxfPlugin.dll`，插件没有额外的私有 DLL。Plugin SDK
+安装组件不包含 libdxfrw 的头文件或库。手工复制部署时，必须保留 `dxf.xml` 的第一层
+位置和其中的相对路径，并随发布包提供适用的许可证文本。
 
 生产环境的实际插件加载目录是 `C:\ProgramData\YiCAD\plugins`，不是安装输出中的
 `build/Release/bin/plugins`。将安装输出中的 `dxf.xml` 和整个 `dxf` 子目录复制到该
@@ -58,14 +56,15 @@ YiCAD 扫描插件目录第一层的 `*.xml`，清单中的 DLL 相对路径以�
 文件清单记录在 `third_party/libdxfrw/UPSTREAM.md`；原始许可证保留在同目录的
 `COPYING` 中，原始快照校验值记录在 `MANIFEST.sha256` 中。
 
-同步上游时，先更新纯上游源码快照及校验清单，再单独应用 YiCAD 的 DLL 导出适配。
+同步上游时，先更新纯上游源码快照及校验清单，再单独应用 `UPSTREAM.md` 所列的 YiCAD
+本地修改。
 不得移除上游文件已有的版权或许可证声明；修改上游文件时，应在文件中记录修改事实和
 日期，并同步更新 `UPSTREAM.md` 的本地修改清单。发布源码包必须包含本目录中的实际
 构建源码、CMake 脚本、`COPYING`、`UPSTREAM.md` 和 `MANIFEST.sha256`。
 
 ## 第三方许可证
 
-DXF 读写使用仓库内置的 `libdxfrw 2.2.0` 源码，并以独立 DLL 方式链接。`libdxfrw`
+DXF 读写使用仓库内置并经 YiCAD 修改的 `libdxfrw 2.2.0` 源码，静态链接进插件 DLL。`libdxfrw`
 使用 `GPL-2.0-or-later` 许可证；对应 GPLv2 文本位于仓库的
 `licenses/gpl-2.0.txt`，并由 Runtime 组件安装到 `bin/licenses/gpl-2.0.txt`。
 YiCAD 及本插件仍按仓库 `LICENSE` 所述的 GPLv3 条款发布。

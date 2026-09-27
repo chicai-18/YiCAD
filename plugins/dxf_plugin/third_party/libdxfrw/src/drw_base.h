@@ -14,9 +14,6 @@
 #ifndef DRW_BASE_H
 #define DRW_BASE_H
 
-/// @brief YiCAD 本地修改（2026-07-11）：从 DLL 导出公开类型。
-#include "yicad_libdxfrw_export.h"
-
 #define DRW_VERSION "0.6.3"
 
 #include <string>
@@ -209,7 +206,7 @@ enum TransparencyCodes {
 *  Class to handle 3D coordinate point
 *  @author Rallaz
 */
-class YICAD_LIBDXFRW_API DRW_Coord {
+class DRW_Coord {
 public:
     DRW_Coord()=default;
     DRW_Coord(double ix, double iy, double iz): x(ix), y(iy),z(iz){}
@@ -237,7 +234,7 @@ public:
 *  Class to handle vertex for lwpolyline entity
 *  @author Rallaz
 */
-class YICAD_LIBDXFRW_API DRW_Vertex2D {
+class DRW_Vertex2D {
 public:
     DRW_Vertex2D(): x(0), y(0), stawidth(0), endwidth(0), bulge(0){}
 
@@ -257,7 +254,7 @@ public:
 *  Class to handle header vars
 *  @author Rallaz
 */
-class YICAD_LIBDXFRW_API DRW_Variant {
+class DRW_Variant {
 public:
     enum TYPE {
         STRING,
@@ -329,7 +326,7 @@ private:
 *  Class to handle dwg handles
 *  @author Rallaz
 */
-class YICAD_LIBDXFRW_API dwgHandle{
+class dwgHandle{
 public:
     dwgHandle(): code(0), size(0), ref(0){}
 
@@ -346,7 +343,7 @@ public:
 *  returns widthDefault.
 *  @author Rallaz
 */
-class YICAD_LIBDXFRW_API DRW_LW_Conv{
+class DRW_LW_Conv{
 public:
     enum lineWidth {
         width00 = 0,       /*!< 0.00mm (dxf 0)*/

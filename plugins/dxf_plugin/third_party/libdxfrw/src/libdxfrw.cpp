@@ -36,6 +36,8 @@
 
 dxfRW::dxfRW(const char* name){
     DRW_DBGSL(DRW_dbg::Level::None);
+    /// @brief YiCAD 本地修改（2026-07-11）：按 UTF-8 解析文件名以支持非 ASCII 路径；
+    /// 下方各处 filestr.open 相应改为直接传入 path。
     fileName = std::filesystem::u8path(name);
     reader = NULL;
     writer = NULL;
@@ -66,6 +68,7 @@ void dxfRW::setDebug(DRW::DebugLevel lvl){
 bool dxfRW::read(DRW_Interface *interface_, bool ext){
     drw_assert(fileName.empty() == false);
     applyExt = ext;
+    /// @brief YiCAD 本地修改（2026-07-11）：每次读取前清空文字样式句柄映射。
     textStyleNames.clear();
     std::ifstream filestr;
     if (nullptr == interface_) {
@@ -2110,6 +2113,8 @@ bool dxfRW::processDimStyle() {
         DRW_DBG(code); DRW_DBG("\n");
         if (code == 0) {
             if (reading) {
+                /// @brief YiCAD 本地修改（2026-07-11）：DIMSTYLE 的文字样式（组码 340）是 STYLE
+                /// 句柄，能在已读的 STYLE 表中找到时换成样式名再交给接口。
                 duint32 styleHandle = 0;
                 std::istringstream handleStream(dimSty.dimtxsty);
                 handleStream >> std::hex >> styleHandle;
@@ -2149,6 +2154,7 @@ bool dxfRW::processTextStyle(){
         DRW_DBG(code); DRW_DBG("\n");
         if (code == 0) {
             if (reading) {
+                /// @brief YiCAD 本地修改（2026-07-11）：记录 STYLE 句柄到名称的映射，供 DIMSTYLE 使用。
                 if (TxtSty.handle != 0 && !TxtSty.name.empty()) {
                     textStyleNames[TxtSty.handle] = TxtSty.name;
                 }

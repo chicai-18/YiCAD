@@ -8,8 +8,8 @@ demo 固定声明 ABI v3，并只通过常规 C++ SDK 的 `ImportSession`、`Lay
 `ImportContainer` 语义接口创建导入图层、直线和圆，不直接构造 ABI POD 或填写 ABI
 元数据。示例文件解析不依赖具体库。
 真实格式插件应自行链接 `libdxfrw` 等解析库，PluginSDK 不包含或传播这些依赖。
-仓库中的 `plugins/dxf_plugin` 展示了如何把此类解析库构建为插件私有 DLL，并将插件、
-私有依赖和许可证作为完整运行时单元部署；第三方插件应按其依赖许可证履行对应义务。
+仓库中的 `plugins/dxf_plugin` 展示了如何内置此类解析库的源码、静态链接进插件 DLL，
+并随插件提供许可证；第三方插件应按其依赖许可证履行对应义务。
 
 ## Demo 文件格式
 
@@ -75,8 +75,8 @@ cmake --build build/Debug --config Debug --target YiCadDemoPlugin
 
 如果插件还有私有 DLL 依赖，应把这些 DLL 与插件 DLL 放在同一个插件子目录中，并将
 它们视为不可拆分的部署单元。`PluginSDK` 组件不会自动收集第三方插件的私有依赖或
-许可证；插件发布者需要自行随部署包提供这些文件。内置 DXF 插件的
-`dxf/YiCadDxfPlugin.dll` 与 `dxf/YiCadLibdxfrw220.dll` 布局可作为参考。
+许可证；插件发布者需要自行随部署包提供这些文件。也可以像内置 DXF 插件那样把依赖库
+静态链接进插件 DLL，从而不需要私有 DLL。
 
 ## 手工验收
 

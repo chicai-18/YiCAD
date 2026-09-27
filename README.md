@@ -155,8 +155,8 @@ After building, specify the install path in YiCAD's CMake configuration via `CDT
 Most third-party dependencies are installed via [Conan 2](https://conan.io/). Install Conan 2 first, then run:
 
 The DXF plugin's `libdxfrw 2.2.0` dependency is bundled in the repository and
-is not downloaded by Conan. CMake builds it together with `YiCadDxfPlugin` as
-the private `YiCadLibdxfrw220` shared library.
+is not downloaded by Conan. CMake builds it as a static library linked into
+`YiCadDxfPlugin.dll`.
 
 ```powershell
 # Install Conan 2 (if not already installed)
@@ -251,7 +251,7 @@ Installing `Runtime` automatically copies the following dependencies to `build/<
 - SARibbonBar.dll
 - CDT.dll (if present)
 - Conan-managed third-party DLLs (GLEW, FreeType, zlib, etc.)
-- The DXF plugin manifest, `YiCadDxfPlugin.dll`, and its private `YiCadLibdxfrw220.dll` dependency
+- The DXF plugin manifest and `YiCadDxfPlugin.dll` (libdxfrw is linked into it statically)
 
 This makes the application runtime directory self-contained. Plugin activation
 still requires deploying its manifest and DLL directory to the discovery path
@@ -263,11 +263,10 @@ The DXF runtime files are produced as one deployable unit:
 build/<config>/bin/plugins/
   dxf.xml
   dxf/YiCadDxfPlugin.dll
-  dxf/YiCadLibdxfrw220.dll
 ```
 
-Keep both DLLs together. The installed `bin/plugins` directory is the deployment
-source; the production application loads plugins only from:
+The installed `bin/plugins` directory is the deployment source; the production
+application loads plugins only from:
 
 ```text
 C:\ProgramData\YiCAD\plugins
@@ -281,7 +280,6 @@ search subdirectories. With the supplied relative path, the resulting layout is:
 C:\ProgramData\YiCAD\plugins\
   dxf.xml
   dxf\YiCadDxfPlugin.dll
-  dxf\YiCadLibdxfrw220.dll
 ```
 
 Each manifest is UTF-8 XML with exactly one empty `plugin` root element and one
@@ -295,8 +293,8 @@ unnamespaced `dll` attribute:
 No other attributes, namespaces, child elements, text, or DTD are allowed. The
 `dll` value must identify an existing `.dll` file. It may be an absolute path,
 or a relative path resolved from the directory containing the manifest. The
-bundled libdxfrw source is a private DXF-plugin dependency and is not part of
-the public Plugin SDK. See the [Plugin SDK guide](doc/PLUGIN_SDK.md),
+bundled libdxfrw source is linked into the DXF plugin and is not part of the
+public Plugin SDK. See the [Plugin SDK guide](doc/PLUGIN_SDK.md),
 [Demo plugin deployment guide](plugins/demo_plugin/README.md), and
 [DXF plugin notes](plugins/dxf_plugin/README.md).
 

@@ -22,11 +22,11 @@ set(_yicad_libdxfrw_sources
     src/intern/dxfwriter.cpp
     src/intern/rscodec.cpp)
 
-add_library(YiCadDxfLibdxfrw SHARED ${_yicad_libdxfrw_sources})
+# 静态库，只链接进 YiCadDxfPlugin.dll，不单独部署，也不安装。
+add_library(YiCadDxfLibdxfrw STATIC ${_yicad_libdxfrw_sources})
 add_library(YiCAD::DxfLibdxfrw ALIAS YiCadDxfLibdxfrw)
 
 target_compile_features(YiCadDxfLibdxfrw PUBLIC cxx_std_23)
-target_compile_definitions(YiCadDxfLibdxfrw PRIVATE YICAD_LIBDXFRW_BUILD)
 target_include_directories(YiCadDxfLibdxfrw PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>")
 
@@ -34,11 +34,7 @@ if(MSVC)
     target_compile_options(YiCadDxfLibdxfrw PRIVATE /utf-8)
 endif()
 
+# 要链接进插件这个共享模块，非 Windows 平台需要位置无关代码。
 set_target_properties(YiCadDxfLibdxfrw PROPERTIES
-    OUTPUT_NAME "YiCadLibdxfrw220")
-
-# 与 DXF 插件安装到同一目录，供安全 DLL 搜索策略解析私有依赖。
-install(TARGETS YiCadDxfLibdxfrw
-        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/plugins/dxf"
-        LIBRARY DESTINATION "${CMAKE_INSTALL_BINDIR}/plugins/dxf"
-        COMPONENT Runtime)
+    OUTPUT_NAME "YiCadLibdxfrw220"
+    POSITION_INDEPENDENT_CODE ON)

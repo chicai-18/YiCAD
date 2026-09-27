@@ -2,7 +2,7 @@
 #
 # Builds and tests YiCAD on Windows x64 with MSVC 2022 (Release only).
 # Uses Conan 2 prebuilt packages. The DXF plugin builds its bundled libdxfrw
-# source as a private runtime DLL.
+# source as a static library linked into the plugin DLL.
 #
 # GoogleTest is the one Conan package this workflow builds locally
 # (--build="gtest/*"): ConanCenter has no prebuilt binary for msvc 194 with

@@ -19,7 +19,6 @@
 #include "drw_objects.h"
 #include "drw_header.h"
 
-/// @brief YiCAD 本地修改（2026-07-11）：导出跨 DLL 接口。
 /**
  * Abstract class (interface) for communicate dxfReader with the application.
  * Inherit your class which takes care of the entities in the 
@@ -27,7 +26,7 @@
  *
  * @author Rallaz
  */
-class YICAD_LIBDXFRW_API DRW_Interface {
+class DRW_Interface {
 public:
     DRW_Interface() {
     }
