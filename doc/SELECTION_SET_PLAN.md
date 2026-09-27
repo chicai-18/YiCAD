@@ -5,7 +5,7 @@
 `model/edit/`，只去掉它对视图的依赖，并注明"选择集连同状态移到 Application 是另一件事"。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `6378f1b` 实测。引用 `LAYER_RESTRUCTURE_PLAN.md`
-> 的章节时写作"分层方案 x.y 节"。状态：第 1 至 4 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
+> 的章节时写作"分层方案 x.y 节"。状态：全部完成（2026-09-27，第 1 至 5 步，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
 
 ---
 
@@ -292,7 +292,7 @@ python tools/check_layering.py
 
 ### 9.1 第 1 步：Model 先改接口
 
-2026-09-27 完成，基线 `4ced7bc`，一个提交。行为不变。
+2026-09-27 完成，基线 `4ced7bc`，一个提交（`2cc3d30`）。行为不变。
 
 **方案未写、执行时定的**：
 
@@ -338,7 +338,7 @@ python tools/check_layering.py
 
 ### 9.2 第 2 步：提取每文档对象 `AppDocument`
 
-2026-09-27 完成，基线 `2cc3d30`，一个提交。行为不变。
+2026-09-27 完成，基线 `2cc3d30`，一个提交（`b7c5260`）。行为不变。
 
 **方案未写、执行时定的**：
 
@@ -375,7 +375,7 @@ python tools/check_layering.py
 
 ### 9.3 第 3 步：引入 `SelectionSet` 与 `ISelectionSource`，迁移全部调用方
 
-2026-09-27 完成，基线 `b7c5260`，一个提交。行为不变：选中状态仍是实体的 `FlagSelected` 位，`SelectionSet` 读写它、
+2026-09-27 完成，基线 `b7c5260`，一个提交（`96bca76`）。行为不变：选中状态仍是实体的 `FlagSelected` 位，`SelectionSet` 读写它、
 修改后仍经文档通知监听者，只换入口。
 
 **方案未写、执行时定的**：
@@ -459,7 +459,7 @@ python tools/check_layering.py
 
 ### 9.4 第 4 步：换存储，删除实体上的选中接口
 
-2026-09-27 完成，基线 `96bca76`，一个提交。行为差异见第 5 节。
+2026-09-27 完成，基线 `96bca76`，一个提交（`b96b12d`）。行为差异见第 5 节。
 
 **方案未写或与方案不同、执行时定的**（第 1 至 3、7 条与用户讨论后定）：
 
@@ -527,3 +527,33 @@ python tools/check_layering.py
 `python tools/check_layering.py` 通过；在 `DmCachePainter.cpp` 临时包含 `SelectionSet.h`，构建 `YiCadRender` 报 C1083，恢复后通过。
 grep 确认 `FlagSelected` 只剩枚举定义与 `DmEntity::restoreStream` 里的清除两处（第 5 步的检查项）。安装后启动程序能正常响应，
 关闭后退出码为 0。界面走查（点选、框选、删除后撤销、移动、夹点编辑、块编辑进出，Shift 吸附）交由用户进行，用户确认后提交。
+
+### 9.5 第 5 步：收尾
+
+2026-09-27 完成，基线 `b96b12d`，一个提交。只改文档与一处测试注释，行为不变。
+
+**检查**：
+
+1. `grep -rnw FlagSelected YiCAD/src tests` 只剩两处：枚举定义（`Datamodel.h:63`，注明已废弃）与 `DmEntity::restoreStream` 里的
+   无条件清除（`DmEntity.cpp:765`）。`FlagSelected1`、`FlagSelected2` 是另外两个位，见下"发现、未处理"。
+2. 3.1 节删除的接口（`setSelected`、`toggleSelected`、`isSelected`、`isParentSelected`、`getNearestSelectedRef`、`moveSelectedRef`，
+   `EntityTable` 的 `hasSelect`、`countSelect`）在源码与测试里没有调用，只剩注释掉的旧代码（`Modification.cpp`、`DmSpline`，9.4 节第
+   10 条）。同名的都与实体无关：`ISelectionSource::isSelected` 及其实现 `SelectionSet`、`DmCachePainter` 查来源的私有函数、
+   OpenGL 画笔的着色器参数、多行文字编辑器里表示"有文字被选中"的局部变量 `hasSelect`。
+3. `Selection` 类在代码里只剩说明来历的注释（`SelectionSet.cpp`、`test_geometry_spatial_query.cpp`、`test_math_rtree.cpp`）。
+   `ARCHITECTURE_EVOLUTION_PLAN.md` 的性能记录与分层方案 S2 至 S4 的执行结果里提到它，是当时的记录，不改。
+
+**回填**：
+
+1. 9.1 至 9.4 节补上各步的提交号；文首状态改为全部完成。
+2. 分层方案：2.2 节目录去掉 `model/edit/` 的 `Selection`，在 `application/` 根目录加上 `AppDocument`、`SelectionSet`，在
+   `render/view/` 加上 `ISelectionSource`，目录下注明改动的来由（`AGENTS.md` 说源码布局见该节）；11.2 节"选择集移出 Model"
+   注明已完成；12 节 D2 注明后来的去向，决策本身照旧。
+3. `test_math_rtree.cpp` 的文件说明提到 `Selection::selectWindow`，补上它现在是 `EntityTable` 的两个矩形查询。
+
+**发现、未处理**：`DmAtomicEntity` 的端点选中（`setStartpointSelected`、`setEndpointSelected`、`isStartpointSelected`、
+`isEndpointSelected`，读写 `FlagSelected1`、`FlagSelected2`）在定义之外没有调用者，是死代码。它不是选择集，本方案只管
+`FlagSelected`，D3 所列的其他会话状态里也没有它，这次不删，另行处理。
+
+**验证**：`cmake --build --preset Release`（只重新编译了 `test_math_rtree.cpp`，构建目录与 `b96b12d` 一致）、`ctest`（4 个测试
+二进制全部通过，`test_interaction` 325 例）、`python tools/check_layering.py` 通过。程序代码没有改动，没有重新安装走查。

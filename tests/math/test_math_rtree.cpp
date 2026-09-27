@@ -1,9 +1,10 @@
 /// @file test_math_rtree.cpp
 /// @brief RTree 空间索引的单元测试
 ///
-/// R 树是拾取与捕捉的性能基础（见方案 1.3 节）。阶段 9.1 要把
-/// Selection::selectWindow 与 EntityTable::getNearestVirtualIntersection
-/// 也改成走 R 树候选集，改之前先把 R 树本身的语义锁住。
+/// R 树是拾取与捕捉的性能基础（见方案 1.3 节）。阶段 9.1 要把框选（原
+/// Selection::selectWindow，现为 EntityTable 的两个矩形查询）与
+/// EntityTable::getNearestVirtualIntersection 也改成走 R 树候选集，改之前先把
+/// R 树本身的语义锁住。
 
 #include <gtest/gtest.h>
 
