@@ -322,19 +322,6 @@ void UITabDrawWidget::newTabDraw(SingleTabDrawDataRibbon* newTab)
 	closeDraw->move(initialCloseX, (kTabBarHeight - kTabCloseButtonSize) / 2);
 	closeDraw->show();
 	connect(closeDraw, &QPushButton::clicked, newTab->tabBack, [this, newTab, drawWidget, closeDraw] {
-
-		QList<MDIWindow*> childMdi = newTab->mdiWindow->getChildWindows();
-		for (auto ite = childMdi.begin(); ite != childMdi.end(); ite++)
-		{
-			for (int i = 0; i < m_pTabDrawList->size(); ++i)
-			{
-				SingleTabDrawDataRibbon* tabData = (*m_pTabDrawList)[i];
-				if (tabData->mdiWindow == (*ite))
-				{
-					closeTab(tabData);
-				}
-			}
-		}
 		closeTab(newTab);
 		layoutTabButtons();
 	});
@@ -462,7 +449,7 @@ void UITabDrawWidget::closeTab(SingleTabDrawDataRibbon* newTab)
 
 MDIWindow* UITabDrawWidget::createMdiWindow()
 {
-	MDIWindow* w = new MDIWindow(nullptr, m_documents, m_pDrawBackWidget, Qt::WindowType::Widget);
+	MDIWindow* w = new MDIWindow(m_documents, m_pDrawBackWidget, Qt::WindowType::Widget);
 	GuiDocumentView* view = w->getDocumentView();
 	connect(view, SIGNAL(selectedChanged()), m_pActionHandler, SLOT(slotSecectedChanged()));
     connect(view, SIGNAL(selectedChanged()), ApplicationWindow::getAppWindow(), SLOT(updateLayerTable()));
@@ -718,18 +705,6 @@ void UITabDrawWidget::slotFileCloseAll()
 	{
 		for (auto it = m_pTabDrawList->size(); it > 0; --it)
 		{
-			QList<MDIWindow*> childMdi = (*m_pTabDrawList)[it-1]->mdiWindow->getChildWindows();
-			for (auto ite = childMdi.begin(); ite != childMdi.end(); ite++)
-			{
-				for (int i = 0; i < m_pTabDrawList->size(); ++i)
-				{
-					if ((*m_pTabDrawList)[i]->mdiWindow == (*ite))
-					{
-						closeTab((*m_pTabDrawList)[i]);
-						it--;
-					}
-				}
-			}
 			closeTab((*m_pTabDrawList)[it - 1]);
 		}
 	}
@@ -984,8 +959,7 @@ bool UITabDrawWidget::slotFileSave(MDIWindow* w, bool forceSaveAs)
 bool UITabDrawWidget::slotFileClosing(MDIWindow* pMdiWin)
 {
 	bool cancel = false;
-	bool hasParent = pMdiWin->getParentWindow() != nullptr;
-	if (pMdiWin && pMdiWin->getDocument()->isModified() && !hasParent)
+	if (pMdiWin && pMdiWin->getDocument()->isModified())
 	{
 		switch (showCloseDialog(pMdiWin))
 		{
@@ -1050,17 +1024,6 @@ bool UITabDrawWidget::doSave(MDIWindow* w, bool forceSaveAs)
 void UITabDrawWidget::doClose(MDIWindow* w, bool activateNext)
 {
 	w->getDocumentView()->killAllActionsOnClose();
-	MDIWindow* parentWindow = w->getParentWindow();
-	if (parentWindow)
-	{
-		parentWindow->removeChildWindow(w);
-	}
-
-	for (auto child : w->getChildWindows()) // block editors and print previews; just force these closed
-	{
-		doClose(child, false); // they belong to the document (changes already saved there)
-	}
-	w->getChildWindows().clear();
 }
 
 void UITabDrawWidget::setChangeTabDrawArea()

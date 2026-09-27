@@ -16,80 +16,48 @@
  */
 
 /// @file MDIWindow.cpp
-/// @brief MDI文档窗口类实现，管理单个CAD文档的视图、文件I/O和子窗口
+/// @brief 图纸窗口的实现：承载视图，处理打开、保存、另存为的文件对话框与等待光标
 
-#include<iostream>
 #include "MDIWindow.h"
 
 #include <QApplication>
 #include <QCloseEvent>
 #include <QCursor>
-#include <QMessageBox>
 #include <QFileInfo>
-#include <QMdiArea>
-#include <QPainter>
 
+#include "AppDocument.h"
 #include "DmDocument.h"
-#include "DmSettings.h"
 #include "DocumentFileService.h"
-#include "UIExitDialog.h"
 #include "UIFileDialog.h"
-#include "DmBlockReference.h"
-#include "DmMText.h"
-#include "DmPen.h"
 #include "UIView.h"
-#include "Debug.h"
 
-int MDIWindow::idCounter = 0;
-
-/// @brief MDIWindow构造函数
-/// @param [in] doc 已有文档指针，若为nullptr则创建新文档
+/// @brief MDIWindow构造函数，新建一份空白图纸
 /// @param [in] documents 宿主管理的打开图纸，交给文档文件服务取未命名文档的名字；必须比本窗口活得久
 /// @param [in] parent 父窗口QMdiArea实例
 /// @param [in] wflags 窗口标志
-MDIWindow::MDIWindow(DmDocument* doc, const IDocumentManager& documents, QWidget* parent, Qt::WindowFlags wflags)
+MDIWindow::MDIWindow(const IDocumentManager& documents, QWidget* parent, Qt::WindowFlags wflags)
     : QMdiSubWindow(parent, wflags)
+    , appDocument(std::make_unique<AppDocument>(documents))
 {
     setAttribute(Qt::WA_DeleteOnClose);
 
-    if (doc == nullptr)
-    {
-        document = new DmDocument();
-        document->initDoc();
-        owner = true;
-    }
-    else
-    {
-        document = doc;
-        owner = false;
-    }
-    fileService = std::make_unique<DocumentFileService>(*document, &documents);
-
-    docView = new UIView(this, Qt::WindowFlags(), document);
+    docView = new UIView(this, Qt::WindowFlags(), &appDocument->document());
     docView->setObjectName("documentview");
 
     setWidget(docView);
 
-    id = idCounter++;
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 }
 
-/// @brief 析构函数，先释放视图与文档文件服务，再删除与此窗口关联的文档
+/// @brief 析构函数，先释放视图，再释放图纸
 ///
 /// 视图是文档的监听者，析构时从文档注销，必须先于文档释放。它是本窗口的子控件，
-/// 不在这里删就要等基类析构时才释放，那时文档已经删除。文档文件服务的自动保存定时器
-/// 会写文档，也要在文档之前停下。
+/// 不在这里删就要等基类析构时才释放，那时文档已经删除。图纸内部先释放文档文件服务、再释放文档。
 MDIWindow::~MDIWindow()
 {
     delete docView;
     docView = nullptr;
-    fileService.reset();
-
-    if (owner && document)
-    {
-        delete document;
-    }
-    document = nullptr;
+    appDocument.reset();
 }
 
 GuiDocumentView* MDIWindow::getDocumentView() const
@@ -97,50 +65,9 @@ GuiDocumentView* MDIWindow::getDocumentView() const
     return (docView) ? docView : nullptr;
 }
 
-int MDIWindow::getId() const
-{
-    return id;
-}
-
-void MDIWindow::setParentWindow(MDIWindow* p)
-{
-    parentWindow = p;
-}
-
-MDIWindow* MDIWindow::getParentWindow() const
-{
-    return parentWindow;
-}
-
 DmDocument* MDIWindow::getDocument() const
 {
-    return document;
-}
-
-/// @brief 将另一个MDI窗口添加到已知子窗口列表
-/// @param [in] w 子窗口指针（可以是另一个视图或特定块的视图）
-void MDIWindow::addChildWindow(MDIWindow* w)
-{
-    childWindows.append(w);
-    w->setParentWindow(this);
-}
-
-/// @brief 移除子窗口
-/// @param [in] w 待移除的子窗口指针
-void MDIWindow::removeChildWindow(MDIWindow* w)
-{
-    if (childWindows.size() > 0)
-    {
-        if (childWindows.contains(w))
-        {
-            childWindows.removeAll(w);
-        }
-    }
-}
-
-QList<MDIWindow*>& MDIWindow::getChildWindows()
-{
-    return childWindows;
+    return &appDocument->document();
 }
 
 /// @brief 关闭事件处理（由Qt在用户关闭此MDI窗口时调用）
@@ -158,13 +85,13 @@ bool MDIWindow::slotFileOpen(const QString& fileName)
 {
     bool ret = false;
 
-    if (document && !fileName.isEmpty())
+    if (!fileName.isEmpty())
     {
-        ret = fileService->open(fileName);
+        ret = appDocument->fileService().open(fileName);
 
         if (ret)
         {
-            document->regenerate();
+            appDocument->document().regenerate();
         }
     }
 
@@ -188,29 +115,27 @@ bool MDIWindow::slotFileSave(bool& cancelled, bool isAutoSave)
     bool ret = false;
     cancelled = false;
 
-    if (document)
+    if (isAutoSave)
     {
-        if (isAutoSave)
+        ret = appDocument->fileService().save(true);
+    }
+    else
+    {
+        const QString fileName = appDocument->document().getFilename();
+        if (fileName.isEmpty())
         {
-            ret = fileService->save(true);
+            ret = slotFileSaveAs(cancelled);
         }
         else
         {
-            if (document->getFilename().isEmpty())
+            QFileInfo info(fileName);
+            if (!info.isWritable())
             {
-                ret = slotFileSaveAs(cancelled);
+                return false;
             }
-            else
-            {
-                QFileInfo info(document->getFilename());
-                if (!info.isWritable())
-                {
-                    return false;
-                }
-                QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-                ret = fileService->save();
-                QApplication::restoreOverrideCursor();
-            }
+            QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+            ret = appDocument->fileService().save();
+            QApplication::restoreOverrideCursor();
         }
     }
 
@@ -228,10 +153,10 @@ bool MDIWindow::slotFileSaveAs(bool& cancelled)
     UIFileDialog dlg(this);
     QString formatType;
     QString fn = dlg.getSaveFile(formatType);
-    if (document && !fn.isEmpty())
+    if (!fn.isEmpty())
     {
         QApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
-        ret = fileService->saveAs(fn, formatType, true);
+        ret = appDocument->fileService().saveAs(fn, formatType, true);
         QApplication::restoreOverrideCursor();
     }
     else
@@ -241,34 +166,4 @@ bool MDIWindow::slotFileSaveAs(bool& cancelled)
     }
 
     return ret;
-}
-
-/// @brief 流输出操作符，将MDI窗口信息输出到流
-/// @param [in,out] os 输出流
-/// @param [in] w MDI窗口引用
-/// @return 输出流引用
-std::ostream& operator << (std::ostream& os, MDIWindow& w)
-{
-    os << "MDIWindow[" << w.getId() << "]:\n";
-    if (w.parentWindow)
-    {
-        os << "  parentWindow: " << w.parentWindow->getId() << "\n";
-    }
-    else
-    {
-        os << "  parentWindow: NULL\n";
-    }
-    int i = 0;
-    for (auto p : w.childWindows)
-    {
-        os << "  childWindow[" << i++ << "]: " << p->getId() << "\n";
-    }
-    return os;
-}
-
-/// @brief 判断是否有子窗口
-/// @return true 如果有子窗口
-bool MDIWindow::has_children()
-{
-    return !childWindows.isEmpty();
 }

@@ -1240,6 +1240,7 @@ YiCAD/src/extensions/<扩展>/    每个子目录是一个自包含的扩展
 
 - `MDIWindow` 的父子窗口（`addChildWindow` 等）只剩删除前的打印预览一个调用方，现在没有人建子
   窗口；关闭窗口时遍历子窗口的代码照常运行（列表恒为空），与打印无关，未删。
+  （2026-09-27 随 `SELECTION_SET_PLAN.md` 第 2 步删除，见该文 9.2 节。）
 - AI 助手的知识库（`src/extensions/ai/support/`）描述了打印、打印预览、PDF 导出与 `Ctrl+P`，
   这些功能从未实现；知识库里还有其它从未实现的条目（如 `ActionFileClose`、`ActionFileQuit`）
   与旧的 Action 名，需要整体核对，未在本次处理。

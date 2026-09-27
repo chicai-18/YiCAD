@@ -16,33 +16,28 @@
  */
 
 /// @file MDIWindow.h
-/// @brief MDI文档窗口类，封装单个CAD文档及其视图
+/// @brief 图纸窗口：持有一份打开的图纸，承载它的视图
 
 #ifndef MDIWINDOW_H
 #define MDIWINDOW_H
 
 #include <memory>
 
-#include <QList>
 #include <QMdiSubWindow>
 
-#include "Datamodel.h"
-
+class AppDocument;
 class GuiDocumentView;
 class DmDocument;
-class DocumentFileService;
 class IDocumentManager;
-class DmPen;
-class QMdiArea;
 class QCloseEvent;
 
-/// @brief 文档窗体类，包含文档和视口
+/// @brief 图纸窗口：持有一份打开的图纸，承载它的视图，处理文件对话框
 class MDIWindow : public QMdiSubWindow
 {
     Q_OBJECT
 
 public:
-    MDIWindow(DmDocument* doc, const IDocumentManager& documents, QWidget* parent,
+    MDIWindow(const IDocumentManager& documents, QWidget* parent,
               Qt::WindowFlags wflags = Qt::WindowType::Widget);
     ~MDIWindow();
 
@@ -74,36 +69,6 @@ public:
     /// @return 文档对象指针
     DmDocument* getDocument() const;
 
-    /// @brief 添加子窗口
-    /// @param [in] w 子窗口指针
-    void addChildWindow(MDIWindow* w);
-
-    /// @brief 移除子窗口
-    /// @param [in] w 子窗口指针
-    void removeChildWindow(MDIWindow* w);
-
-    /// @brief 获取子窗口列表
-    /// @return 子窗口列表引用
-    QList<MDIWindow*>& getChildWindows();
-
-    /// @brief 设置父窗口（当本窗口关闭时需要通知的窗口）
-    /// @param [in] p 父窗口指针
-    void setParentWindow(MDIWindow* p);
-
-    /// @brief 获取父窗口
-    /// @return 父窗口指针
-    MDIWindow* getParentWindow() const;
-
-    /// @brief 获取MDI窗口ID
-    /// @return 窗口ID
-    int getId() const;
-
-    friend std::ostream& operator<<(std::ostream& os, MDIWindow& w);
-
-    /// @brief 判断是否有子窗口
-    /// @return true 如果有子窗口
-    bool has_children();
-
 signals:
     void signalClosing(MDIWindow*);
 
@@ -111,14 +76,8 @@ protected:
     void closeEvent(QCloseEvent*);
 
 private:
-    int                     id = 0;                     ///< 窗口ID
-    static int              idCounter;                  ///< ID计数器
-    GuiDocumentView*        docView = nullptr;          ///< 文档视图
-    DmDocument*             document = nullptr;         ///< 关联的文档对象
-    bool                    owner = false;              ///< 窗口是否拥有文档的所有权
-    std::unique_ptr<DocumentFileService> fileService;   ///< 文档的存盘策略（自动保存、备份、打开失败的处理）
-    QList<MDIWindow*>       childWindows;               ///< 已知子窗口列表（显示同一图纸的块）
-    MDIWindow*              parentWindow = nullptr;     ///< 父窗口指针（需要知道本窗口是否关闭）
+    GuiDocumentView*             docView = nullptr;  ///< 文档视图
+    std::unique_ptr<AppDocument> appDocument;        ///< 本窗口显示的图纸：文档与它的存盘策略
 };
 
 #endif

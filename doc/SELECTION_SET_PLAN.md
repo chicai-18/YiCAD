@@ -5,7 +5,7 @@
 `model/edit/`，只去掉它对视图的依赖，并注明"选择集连同状态移到 Application 是另一件事"。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `6378f1b` 实测。引用 `LAYER_RESTRUCTURE_PLAN.md`
-> 的章节时写作"分层方案 x.y 节"。状态：第 1 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
+> 的章节时写作"分层方案 x.y 节"。状态：第 1、2 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
 
 ---
 
@@ -326,3 +326,40 @@ python tools/check_layering.py
 
 **验证**：`cmake --build --preset Release`、`ctest`（4 个测试二进制全部通过）、`python tools/check_layering.py` 通过；安装后启动程序，
 能正常响应并正常退出。界面走查（点选、框选、删除、移动、夹点编辑、块编辑进出）由用户完成，没有发现问题。
+
+### 9.2 第 2 步：提取每文档对象 `AppDocument`
+
+2026-09-27 完成，基线 `2cc3d30`，一个提交。行为不变。
+
+**方案未写、执行时定的**：
+
+1. **`MDIWindow` 不再接受外部文档**：构造函数去掉 `DmDocument* doc` 参数与 `owner` 标志。唯一的调用方
+   `UITabDrawWidget::createMdiWindow` 本来就传空（6.1 节），`AppDocument` 总是自己新建并持有文档。
+2. **遗留代码一并删除**：按 6.3 节"父子窗口列表等遗留代码可以在这一步一并删除"，删掉 6.1 节列出的三项：父子窗口列表
+   （`addChildWindow`、`removeChildWindow`、`getChildWindows`、`setParentWindow`、`getParentWindow`、`has_children`）、
+   窗口编号（`id`、`idCounter`、`getId`）与 `operator<<`；`UITabDrawWidget` 里读它们的四处（关闭按钮与全部关闭时先关子窗口、
+   关闭时的 `hasParent` 判断、`doClose` 的递归）随之删除。子窗口列表恒为空，`hasParent` 恒为假，所以行为不变。
+   `doClose` 的 `activateNext` 参数原本只有递归调用传 `false`，现在没有读者，签名未改。没有连接的 `signalClosing` 与
+   没有调用者的 `slotZoomAuto` 不在 6.1 节所列之内，未动。
+3. **析构顺序**：`AppDocument` 的析构函数显式先释放文档服务、再释放文档，不依赖成员的声明顺序；`MDIWindow` 的析构函数
+   照旧先删视图，再释放 `AppDocument`。
+4. **`MDIWindow` 暂不暴露 `AppDocument`**：这一步没有使用者，`getDocument()` 改为返回 `AppDocument` 持有的文档，其余
+   调用方不变。第 3 步 `IDocumentManager::selection` 需要时再加访问器。
+5. 打开、保存、另存为三个槽函数去掉对文档的判空（文档不会为空），头文件去掉不再需要的 `Datamodel.h` 与前置声明。
+
+**改动**：
+
+| 位置 | 改法 |
+|------|------|
+| `application/AppDocument.*`（新增） | 构造时新建文档、`initDoc()`，再以宿主的 `IDocumentManager` 构造 `DocumentFileService`；提供 `document()`、`fileService()`；不可复制 |
+| `MDIWindow` | 持有 `std::unique_ptr<AppDocument>`，视图、文件槽函数经它取文档与文档服务；删除第 1、2 条所列 |
+| `UITabDrawWidget` | 构造 `MDIWindow` 时不再传空文档；删除第 2 条所列的四处 |
+| `AGENTS.md`、`YiCAD/CMakeLists.txt`、`tests/interaction/CMakeLists.txt` | 说明里加上 `AppDocument` |
+
+**测试**：新增 `test_app_document.cpp`（`test_interaction`）两例：文档服务管理的是 `AppDocument` 持有的文档、`AppDocument`
+释放后按这份文档找不到服务；宿主给的未命名文档名字经 `AppDocument` 传到文档服务（自动保存副本以它命名）。存盘策略本身的
+用例仍在 `test_document_file_service.cpp`，未改。
+
+**验证**：`cmake --build --preset Release`（没有新增警告）、`ctest`（4 个测试二进制全部通过）、`python tools/check_layering.py`
+通过；安装后启动程序（新建第一张图纸即构造 `AppDocument`），能正常响应，关闭后退出码为 0。界面走查（点选、框选、删除、移动、
+夹点编辑、块编辑进出，以及新建、打开、保存、关闭图纸）交由用户进行，用户确认后提交。

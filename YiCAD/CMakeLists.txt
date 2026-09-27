@@ -127,7 +127,8 @@ yicad_collect_sources(RENDER
 #                               ExclusiveCommandBus/CommandRegistry、放置命令与先选
 #                               后建的基类）、视图工具框架（IViewTool/ViewToolControl/
 #                               PanZoomTool）、选择层 SelectTool、捕捉器 Snapper、预览、
-#                               keyconfig.xml 与命令行别名（Commands）、文档的存盘策略
+#                               keyconfig.xml 与命令行别名（Commands）、一份打开的图纸
+#                               AppDocument（持有文档与存盘策略）、文档的存盘策略
 #                               DocumentFileService（自动保存、备份、打开失败的处理）、
 #                               宿主服务接口 GuiDialogFactoryInterface（实现在 shell/ 的
 #                               UIDialogFactory）
