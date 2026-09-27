@@ -1204,12 +1204,4 @@ void UITabDrawWidget::tabChangeEvent()
 		m_pBottomWidget->getWidget()->setEnabled(true);
 		m_pBottomWidget->redrawBottomWidget(m_pActionHandler, m_currentMdiWindow);
 	}
-
-	// todo: 新painer事否考虑类似处理？
-	//if (m_currentMdiWindow)
-	//{
-	//	m_currentMdiWindow->getDocument()->getCacheDrawData()->setUpdateDrawEnts();
-	//	m_currentMdiWindow->getDocument()->getCacheDrawData()->setUpdateSelcetedEnts();
-	//	m_currentMdiWindow->getDocument()->getCacheDrawData()->setUpdateHighlightedEnts();
-	//}
 }

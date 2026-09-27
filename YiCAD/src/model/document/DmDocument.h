@@ -44,7 +44,6 @@
 class DmVariableDict;
 class DmTextStyle;
 class DmLineTypeTable;
-class DmCacheDrawData;
 class DmDocumentListener;
 
 constexpr const char* DOCDEFAULTFORMAT = "Drawing Exchange YCD 2023 (*.ycd)";
@@ -256,10 +255,6 @@ public:
     /// @return 如果已修改则返回true
     bool isModified() const;
 
-    /// @brief 获取缓存绘制数据
-    /// @return 共享指针
-    std::shared_ptr<DmCacheDrawData> getCacheDrawData();
-
 public:
     /// @brief 获取命令管理器
     /// @return 命令管理器指针
@@ -282,8 +277,6 @@ private:
     DmVariableDict                      m_variableDict; ///< 变量字典
     CmdManager*                         m_cmdManager = nullptr; ///< 命令管理器
     DmBlock*                            m_editingBlock = nullptr; ///< 当前编辑的块
-
-    std::shared_ptr<DmCacheDrawData>    m_pCacheDrawData; ///< 缓存绘制数据
 
     size_t                              m_savedUndoCount = 0; ///< 保存时的 undo 栈大小，用于判断文档是否需要保存
     std::vector<DmDocumentListener*>    m_listeners; ///< 监听者（如画布），不拥有

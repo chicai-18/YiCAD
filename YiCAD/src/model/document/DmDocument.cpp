@@ -472,11 +472,6 @@ bool DmDocument::isModified() const
     return m_cmdManager->getUndoCount() != m_savedUndoCount;
 }
 
-std::shared_ptr<DmCacheDrawData> DmDocument::getCacheDrawData()
-{
-    return m_pCacheDrawData;
-}
-
 void DmDocument::redo() {
     m_cmdManager->redo();
     regenerate();
