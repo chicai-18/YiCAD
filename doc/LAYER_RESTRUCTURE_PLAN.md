@@ -1285,7 +1285,8 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 
 | 事项 | 现状 | 说明 |
 |------|------|------|
-| 选择集移出 Model | 选择状态是实体上的标志位（`DmEntity::setSelected`，`Datamodel.h:63` 的 `FlagSelected`），`Selection` 操作这些标志 | 本方案把 `Selection` 留在 `model/edit/`（D2），只去掉它对视图的依赖。选择集概念上是编辑会话的状态而不是图纸数据（AutoCAD 的选择集在 AcEd 而非 AcDb，FreeCAD 的 `Gui::Selection` 在 Gui 层）。移出时状态改由 Application 持有的选择集对象保存，Render 经接口读取高亮，`Selection` 随状态进 Application；窗选、交叉选里的几何查询留在 Model，即 `test_geometry` 覆盖的部分 |
+| 选择集移出 Model | 选择状态是实体上的标志位（`DmEntity::setSelected`，`Datamodel.h:63` 的 `FlagSelected`），`Selection` 操作这些标志 | 本方案把 `Selection` 留在 `model/edit/`（D2），只去掉它对视图的依赖。选择集概念上是编辑会话的状态而不是图纸数据（AutoCAD 的选择集在 AcEd 而非 AcDb，FreeCAD 的 `Gui::Selection` 在 Gui 层）。移出时状态改由 Application 持有的选择集对象保存，Render 经接口读取高亮，`Selection` 随状态进 Application；窗选、交叉选里的几何查询留在 Model，即 `test_geometry` 覆盖的部分。执行方案见 `SELECTION_SET_PLAN.md`（2026-09-27） |
+| 其他会话状态移出 Model | 悬停高亮是实体上的 `FlagHighlighted`（Render 读它，`DmCachePainter.cpp:221`）；块列表的选中是 `DmBlock::selectedInBlockList` | 与选择集同属编辑会话的状态。`SELECTION_SET_PLAN.md` 的 D3 定为那次不动，留到之后，可仿照选择集的做法 |
 | 块编辑模式重做 | 编辑模式在 `ExclusiveCommandBus` 里 | 另行设计；本方案只在 S1、S3 做最小适配 |
 | 渲染专项 | `ARCHITECTURE_EVOLUTION_PLAN.md` 已声明不在其排期 | 本方案同样不改 `render/` 内部实现 |
 
