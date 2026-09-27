@@ -24,6 +24,8 @@
 #include "DmIdManager.h"
 #include "EntityTableCmd.h"
 #include "Cmd.h"
+#include "DmSolid.h"
+#include "DmTriangle.h"
 #include <algorithm>
 #include <limits>
 #include <unordered_set>
@@ -51,6 +53,80 @@ void collectSearchEntitiesRecursive(DmEntity* entity, std::vector<DmEntity*>& en
     }
 
     ents.emplace_back(entity);
+}
+
+/// @brief 交叉选（从右往左）时判断实体是否与窗口相交
+/// @details 基本实体直接与窗口四条边求交；文字等有子实体的复杂实体逐个判断子实体。
+///          放在 entitiesInRect 之外：逐实体的快速判断保持短小，只有需要时才进入这里。
+bool crossesWindow(DmEntity* e, const DmVector& v1, const DmVector& v2)
+{
+    bool included = false;
+    DmEntityContainer l;
+    l.addRectangle(v1, v2);
+    DmVectorSolutions sol;
+
+    auto subEntities = e->getSubEntities();
+    // 直线，圆弧，Solid，样条线等基本实体
+    if (subEntities.size() == 0)
+    {
+        if (e->getEntityType() == DM::EntityTriangle)
+        {
+            included = static_cast<DmTriangle*>(e)->isInCrossWindow(v1, v2);
+        }
+        else if (e->getEntityType() == DM::EntitySolid)
+        {
+            included = static_cast<DmSolid*>(e)->isInCrossWindow(v1, v2);
+        }
+        else
+        {
+            for (auto line : l)
+            {
+                sol = Information::getIntersection(e, line, true);
+                if (sol.hasValid())
+                {
+                    included = true;
+                    break;
+                }
+            }
+        }
+    }
+    // 文字等复杂实体，判断子实体是否相交
+    else
+    {
+        for (auto subEnt : subEntities)
+        {
+            if (subEnt->isInWindow(v1, v2))
+            {
+                included = true;
+            }
+            else if (subEnt->getEntityType() == DM::EntityTriangle)
+            {
+                included = static_cast<DmTriangle*>(subEnt)->isInCrossWindow(v1, v2);
+            }
+            else if (subEnt->getEntityType() == DM::EntitySolid)
+            {
+                included = static_cast<DmSolid*>(subEnt)->isInCrossWindow(v1, v2);
+            }
+            else
+            {
+                for (auto line : l)
+                {
+                    sol = Information::getIntersection(subEnt, line, true);
+                    if (sol.hasValid())
+                    {
+                        included = true;
+                        break;
+                    }
+                }
+            }
+
+            if (included)
+            {
+                break;
+            }
+        }
+    }
+    return included;
 }
 }
 
@@ -150,6 +226,83 @@ void EntityTable::searchEntities(const DmVector &min, const DmVector &max, std::
         ents.erase(std::remove_if(ents.begin(), ents.end(),
             [](DmEntity* e) { return !e->isVisible() || e->isErased(); }), ents.end());
     }
+}
+
+/// @brief 完全落在矩形内的顶层实体（窗选）
+std::vector<DmEntity*> EntityTable::entitiesInsideRect(const DmVector& corner1, const DmVector& corner2,
+    const std::list<DM::EntityType>& types)
+{
+    return entitiesInRect(corner1, corner2, false, types);
+}
+
+/// @brief 落在矩形内或与矩形边界相交的顶层实体（交叉选）
+std::vector<DmEntity*> EntityTable::entitiesCrossingRect(const DmVector& corner1, const DmVector& corner2,
+    const std::list<DM::EntityType>& types)
+{
+    return entitiesInRect(corner1, corner2, true, types);
+}
+
+/// @brief 两个矩形查询的共同实现
+std::vector<DmEntity*> EntityTable::entitiesInRect(const DmVector& corner1, const DmVector& corner2,
+    bool crossing, const std::list<DM::EntityType>& types)
+{
+    DmVector min(std::min(corner1.x, corner2.x), std::min(corner1.y, corner2.y));
+    DmVector max(std::max(corner1.x, corner2.x), std::max(corner1.y, corner2.y));
+
+    std::vector<DmEntity*> hits;
+
+    // 判断单个顶层实体是否命中
+    auto collectIfHit = [&](DmEntity* e)
+    {
+        if (!types.empty() && std::find(types.begin(), types.end(), e->getEntityType()) == types.end())
+        {
+            return;
+        }
+
+        if (!e->isVisible() || e->isErased())
+        {
+            return;
+        }
+
+        // 先用顶层实体包围盒做一次粗过滤，避免全量跑几何相交判断。
+        if (e->getMax().x < min.x || e->getMin().x > max.x
+            || e->getMax().y < min.y || e->getMin().y > max.y)
+        {
+            return;
+        }
+
+        // 完全包含；交叉选时与矩形相交也算
+        if (e->isInWindow(corner1, corner2) || (crossing && crossesWindow(e, corner1, corner2)))
+        {
+            hits.push_back(e);
+        }
+    };
+
+    // 候选实体的取法（P10）：矩形盖住全部实体的包围框时每个实体都会命中，
+    // 顺序遍历实体表最快；否则用空间搜索树只取包围盒与矩形重叠的顶层实体，
+    // 取法与点选（Snapper::catchEntity 的 ResolveNone 分支）相同。两条路径对每个
+    // 实体做同样的判断，结果一致，只是快慢不同。
+    DmVector allMin, allMax;
+    bool coversAll = getSearchBounds(allMin, allMax)
+        && min.x <= allMin.x && min.y <= allMin.y && max.x >= allMax.x && max.y >= allMax.y;
+    if (coversAll)
+    {
+        for (auto e : *this)
+        {
+            collectIfHit(e);
+        }
+    }
+    else
+    {
+        // 可见性留给 collectIfHit 判断，不让 searchEntities 再过滤一遍
+        std::vector<DmEntity*> candidates;
+        searchEntities(min, max, candidates, false, false);
+        for (auto e : candidates)
+        {
+            collectIfHit(e);
+        }
+    }
+    return hits;
 }
 
 /// @brief 获得第一个未被删除的索引

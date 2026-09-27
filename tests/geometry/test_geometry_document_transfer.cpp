@@ -37,7 +37,7 @@ std::map<DM::EntityType, int> countByType(const EntityTable& table)
     return counts;
 }
 
-/// @brief 构造样本，另加一个没有实体用到的图层与文字样式，全选后复制到剪贴板，然后关闭样本
+/// @brief 构造样本，另加一个没有实体用到的图层与文字样式，把全部实体复制到剪贴板，然后关闭样本
 void copySampleToClipboard()
 {
     DmDocument source;
@@ -51,17 +51,13 @@ void copySampleToClipboard()
     unusedStyle->setDocument(&source);
     ASSERT_TRUE(source.getTextStyleTable()->add_direct(unusedStyle));
 
-    // 样本的隐藏线图层冻结、锁定，上面的实体选不中（DmEntity::setSelected、isSelected），先解冻、解锁
-    DmLayer* hidden = source.getLayerTable()->find(kLayerHidden);
-    ASSERT_NE(hidden, nullptr);
-    hidden->freeze(false);
-    hidden->lock(false);
+    // 复制接收显式的实体列表，隐藏线图层冻结、锁定也照样复制
+    std::vector<DmEntity*> all;
     for (DmEntity* e : *source.getEntityTable())
     {
-        e->setSelected(true);
-        ASSERT_TRUE(e->isSelected()) << static_cast<int>(e->getEntityType());
+        all.push_back(e);
     }
-    Modification(&source).copy(DmVector(0.0, 0.0), false);
+    Modification(&source).copy(all, DmVector(0.0, 0.0), false);
 }
 
 /// @brief 把剪贴板里的实体逐个克隆、改归目标文档，按 add 放进目标文档的实体表

@@ -16,7 +16,7 @@
  */
 
 /// @file Modification.h
-/// @brief 实体修改操作类，提供复制、移动、偏移、裁剪、倒角、倒圆、打断等功能
+/// @brief 实体修改操作类，提供复制、移动、裁剪、倒角、倒圆、打断等功能
 
 #ifndef MODIFICATION_H
 #define MODIFICATION_H
@@ -44,17 +44,6 @@ class CopyData
 public:
 	int number;         ///< 复制的个数
 	DmVector offset;    ///< 偏移量
-};
-
-/// @brief Holds the data needed for offset modifications.
-class OffsetData
-{
-public:
-	int number;               ///< 偏移数量
-	bool useCurrentAttributes; ///< 是否使用当前属性
-	bool useCurrentLayer;      ///< 是否使用当前图层
-	DmVector coord;            ///< 偏移参考坐标
-	double distance;           ///< 偏移距离
 };
 
 /// @brief 旋转信息
@@ -128,7 +117,8 @@ public:
 
 /// @brief 实体修改操作类
 ///
-/// 提供实体的复制、移动、偏移、裁剪、倒角、倒圆、打断等修改功能。
+/// 提供实体的复制、移动、裁剪、倒角、倒圆、打断等修改功能。删除、复制、移动与移动引用点不读写选中状态：
+/// 要操作的实体由调用方给出，操作后是否取消选中也由调用方决定。
 class Modification
 {
 public:
@@ -138,13 +128,15 @@ public:
 	/// @param doc 要修改的文档
 	explicit Modification(DmDocument* doc);
 
-	/// @brief 删除选中的实体
-	void remove();
+	/// @brief 删除实体
+	/// @param ents 要删除的实体
+	void remove(const std::vector<DmEntity*>& ents);
 
-	/// @brief 复制或剪切选中的实体到剪贴板
+	/// @brief 复制或剪切实体到剪贴板
+	/// @param ents 要复制的实体
 	/// @param ref 参考点，实体将平移-ref
 	/// @param cut true表示剪切，false表示复制
-	void copy(const DmVector& ref, const bool cut);
+	void copy(const std::vector<DmEntity*>& ents, const DmVector& ref, const bool cut);
 
 private:
 	/// @brief 复制单个实体到剪贴板；实体引用的图层、样式与块由剪贴板随实体复制（DmClipboard::addEntity）
@@ -170,9 +162,10 @@ private:
 public:
 	//void paste(const PasteData& data, DmDocument* source = NULL);
 
-	/// @brief 移动选中的实体
+	/// @brief 移动实体
+	/// @param ents 要移动的实体
 	/// @param offset 偏移量
-	void move(const DmVector& offset);
+	void move(const std::vector<DmEntity*>& ents, const DmVector& offset);
 
 	/// @brief 裁剪实体，支持直线，圆弧，圆，椭圆、椭圆弧、多段线、样条线
 	/// @param ents 剪切实体列表，被剪实体可在此列表内，剪切成功后从此列表移除
@@ -189,11 +182,6 @@ public:
 	/// @param deleteEnt 输出待删除实体
 	/// @return 操作是否成功
 	static bool tryTrim(const std::vector<DmEntity*>& ents, DmEntity* entBeenCut, const DmVector& mousePt, std::vector<DmEntity*>& remainResults, DmEntity*& deleteEnt);
-
-	/// @brief 偏移实体
-	/// @param data 偏移参数
-	/// @return 操作是否成功
-	bool offset(const OffsetData& data);
 
 	/// @brief 实体是否可被打断
 	/// @param ent 实体指针
@@ -225,9 +213,10 @@ public:
 	//bool bevel(const DmVector& coord1, DmAtomicEntity* entity1, const DmVector& coord2, DmAtomicEntity* entity2, BevelData& data);
 
 	/// @brief 根据引用点移动实体
+	/// @param ents 要移动引用点的实体
 	/// @param data 移动参考数据
 	/// @return 操作是否成功
-	bool moveRef(MoveRefData& data);
+	bool moveRef(const std::vector<DmEntity*>& ents, MoveRefData& data);
 
 	/// @brief 由另一实体更新实体信息。支持直线、圆弧、椭圆、多段线、样条线
 	/// @param ent 目标实体
@@ -235,10 +224,6 @@ public:
 	static void updateEntityData(DmEntity* ent, DmEntity* entDataCopyFrom);
 
 private:
-	/// @brief 取消选中所有实体，并可选择删除
-	/// @param remove true表示同时删除实体
-	void deselectOriginals(bool remove);
-
 	/// @brief 单点打断实体（核心实现）
 	/// @param cutCoord 打断点坐标
 	/// @param ent 待打断实体

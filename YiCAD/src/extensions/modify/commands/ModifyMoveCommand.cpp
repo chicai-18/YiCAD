@@ -35,6 +35,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
+#include "Selection.h"
 
 namespace
 {
@@ -187,8 +188,18 @@ void ModifyMoveCommand::clearPreview()
 
 void ModifyMoveCommand::commitMove(const DmVector& reference, const DmVector& target)
 {
+    std::vector<DmEntity*> ents;
+    for (auto e : *document()->getEntityTable())
+    {
+        if (e->isSelected())
+        {
+            ents.push_back(e);
+        }
+    }
     Modification m(document());
-    m.move(target - reference);
+    m.move(ents, target - reference);
+    // 移动之后取消选中
+    Selection(document()).selectAll(false);
 
     GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
     finish();

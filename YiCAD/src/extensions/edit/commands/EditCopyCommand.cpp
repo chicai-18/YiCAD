@@ -33,6 +33,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
+#include "Selection.h"
 
 namespace
 {
@@ -109,8 +110,18 @@ bool EditCopyCommand::onSelectionReady()
 
 void EditCopyCommand::commitCopy(const DmVector& referencePoint)
 {
+    std::vector<DmEntity*> ents;
+    for (auto e : *document()->getEntityTable())
+    {
+        if (e->isSelected())
+        {
+            ents.push_back(e);
+        }
+    }
     Modification m(document());
-    m.copy(referencePoint, !m_copy);
+    m.copy(ents, referencePoint, !m_copy);
+    // 复制、剪切之后取消选中
+    Selection(document()).selectAll(false);
 
     finish();
     GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());

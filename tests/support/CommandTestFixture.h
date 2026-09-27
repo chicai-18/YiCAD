@@ -3,8 +3,9 @@
 ///
 /// 业务工具化第三步（doc/COMMAND_TOOL_MIGRATION_PLAN.md）迁移的命令都经它测试：
 /// 命令经 CommandRegistry 按 ID 构造，由命令总线运行；视图是 FakeDocumentView，
-/// 文档是空文档，实体用 EntityTable::add_direct 放进表。默认构造的 DmDocument
-/// 走事务会崩溃（test_geometry_spatial_query 的说明），因此用例不执行提交。
+/// 文档是空文档，实体用 EntityTable::add_direct 放进表：默认构造的 DmDocument 不开事务
+/// 直接调 add() 会崩溃（test_geometry_spatial_query 的说明）。先开事务再改动可以运行，需要时
+/// 用例照常执行提交（test_modify_commands 的粘贴、删除、移动与复制用例）。
 
 #ifndef YICAD_TEST_COMMAND_TEST_FIXTURE_H
 #define YICAD_TEST_COMMAND_TEST_FIXTURE_H

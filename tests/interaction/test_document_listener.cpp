@@ -2,8 +2,9 @@
 /// @brief 文档监听接口 DmDocumentListener 的单元测试
 ///
 /// 分层重组 S3 让文档不再持有视图，改为通知任意多个监听者（doc/LAYER_RESTRUCTURE_PLAN.md
-/// 7.2 节）。覆盖：注册与注销；Selection、Modification 操作后监听者收到"已修改"与"重绘"；
-/// 块编辑进入与退出时收到绘制容器切换；画布 GuiDocumentView 关联文档时注册，换文档或析构时注销。
+/// 7.2 节）。覆盖：注册与注销；Selection 操作后监听者收到"已修改"与"重绘"；Modification 复制
+/// 不改选中状态，也不通知；块编辑进入与退出时收到绘制容器切换；画布 GuiDocumentView 关联文档时注册，
+/// 换文档或析构时注销。
 ///
 /// 实体用 EntityTable::add_direct 放进表，块编辑直接执行 BlockEditEnterCmd/BlockEditExitCmd，
 /// 都不经事务：默认构造的 DmDocument 走事务会崩溃（CommandTestFixture.h 的说明）。
@@ -135,17 +136,20 @@ TEST_F(DocumentListenerFixture, Selection的各种选择都通知修改并重绘
     EXPECT_EQ(listener.redrawCount, 4);
 }
 
-TEST_F(DocumentListenerFixture, Modification复制选中实体时通知修改并重绘)
+TEST_F(DocumentListenerFixture, Modification复制不改选中状态也不通知)
 {
+    // 复制接收显式的实体列表，取消选中由调用方决定（doc/SELECTION_SET_PLAN.md 3.1 节）；
+    // 复制到剪贴板不改文档，所以也不通知。
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0));
     line->setSelected(true);
 
     Modification modification(&doc);
-    modification.copy(DmVector(0.0, 0.0), false);
+    modification.copy({line}, DmVector(0.0, 0.0), false);
 
-    EXPECT_FALSE(line->isSelected());
-    EXPECT_EQ(listener.modifiedCount, 1);
-    EXPECT_EQ(listener.redrawCount, 1);
+    EXPECT_EQ(DMCLIPBOARD->count(), 1u);
+    EXPECT_TRUE(line->isSelected());
+    EXPECT_EQ(listener.modifiedCount, 0);
+    EXPECT_EQ(listener.redrawCount, 0);
 
     DMCLIPBOARD->clear();
 }

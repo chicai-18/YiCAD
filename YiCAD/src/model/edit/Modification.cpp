@@ -69,7 +69,7 @@ Modification::Modification(DmDocument* doc)
 	document = doc;
 }
 
-void Modification::remove()
+void Modification::remove(const std::vector<DmEntity*>& ents)
 {
 	if (!document)
 	{
@@ -79,21 +79,18 @@ void Modification::remove()
 	Transaction t(QObject::tr("Delete Entities").toStdString(), document);
 	t.start();
 	auto table = document->getEntityTable();
-	for (auto it = table->begin(); it != table->end(); ++it)
+	for (auto e : ents)
 	{
-		if ((*it)->isSelected())
-		{
-			table->remove((*it)->getId());
-		}
+		table->remove(e->getId());
 	}
 	t.commit();
 }
 
-/// @brief Copies all selected entities from the given container to the clipboard.
-///	Layers and blocks that are needed are also copied if the container is or is part of an DmDocument.
-/// @param ref Reference point. The entities will be moved by -ref.
-/// @param cut true: cut instead of copying, false: copy
-void Modification::copy(const DmVector& ref, const bool cut)
+/// @brief 复制或剪切实体到剪贴板，实体引用的图层、样式与块随实体复制
+/// @param ents 要复制的实体
+/// @param ref 参考点，实体将平移-ref
+/// @param cut true表示剪切，false表示复制
+void Modification::copy(const std::vector<DmEntity*>& ents, const DmVector& ref, const bool cut)
 {
 	DMCLIPBOARD->clear();
 	if (document)
@@ -111,24 +108,18 @@ void Modification::copy(const DmVector& ref, const bool cut)
 	{
 		Transaction t(QObject::tr("Cut").toStdString(), document);
 		t.start();
-		for (auto e : *entTable)
+		for (auto e : ents)
 		{
-			if (e && e->isSelected())
-			{
-				copyEntity(e, ref);
-				entTable->remove(e->getId());
-			}
+			copyEntity(e, ref);
+			entTable->remove(e->getId());
 		}
 		t.commit();
 	}
 	else
 	{
-		for (auto e : *entTable)
+		for (auto e : ents)
 		{
-			if (e && e->isSelected())
-			{
-				copyEntity(e, ref);
-			}
+			copyEntity(e, ref);
 		}
 	}
 }
@@ -139,7 +130,7 @@ void Modification::copy(const DmVector& ref, const bool cut)
 /// @param ref Reference point. The entities will be moved by -ref.
 void Modification::copyEntity(DmEntity* e, const DmVector& ref)
 {
-	if (!e || !e->isSelected())
+	if (!e)
 	{
 		return;
 	}
@@ -150,13 +141,6 @@ void Modification::copyEntity(DmEntity* e, const DmVector& ref)
 
 	// 剪贴板把克隆改归自己的文档，连同它引用的图层、线型、样式与块
 	DMCLIPBOARD->addEntity(c);
-
-	e->setSelected(false);
-	if (document)
-	{
-		document->notifyDocumentModified();
-		document->requestRedraw();
-	}
 }
 
 //TODO : 重构undo时注释
@@ -411,74 +395,22 @@ bool Modification::pasteEntity(DmEntity* entity, DmEntityContainer* container)
 	return true;
 }
 
-void Modification::move(const DmVector& offset)
+void Modification::move(const std::vector<DmEntity*>& ents, const DmVector& offset)
 {
 	Transaction t(QObject::tr("Move").toStdString(), document);
 	t.start();
 	auto entTable = document->getEntityTable();
-	for (auto e : *entTable)
+	for (auto e : ents)
 	{
-		if (e->isSelected())
-		{
-			e->setSelected(false);
-			entTable->startModify(e);
-			e->move(offset);
-			// TODO: Modification 废弃，块相关代码已注释
-			//if (e->getEntityType() == DM::EntityBlockReference)
-			//{
-			//    ((DmBlockReference*)e)->update();
-			//}
-		}
+		entTable->startModify(e);
+		e->move(offset);
+		// TODO: Modification 废弃，块相关代码已注释
+		//if (e->getEntityType() == DM::EntityBlockReference)
+		//{
+		//    ((DmBlockReference*)e)->update();
+		//}
 	}
 	t.commit();
-}
-
-bool Modification::offset(const OffsetData& data)
-{
-	auto entTable = document->getEntityTable();
-	for (int num = 1; num <= data.number || (data.number == 0 && num <= 1); num++)
-	{
-		for (auto e : *entTable)
-		{
-			if (e)
-			{
-				e->setHighlighted(false);
-
-				if (!e->offset(data.coord, num * data.distance))
-				{
-					if (e->getEntityType() == DM::EntityPolyline)
-					{
-						return false;
-					}
-					continue;
-				}
-				if (data.useCurrentLayer)
-				{
-					e->setLayerToActive();
-				}
-				if (data.useCurrentAttributes)
-				{
-					e->setPenToActive();
-				}
-				// TODO: Modification 废弃，块相关代码已注释
-				//if (e->getEntityType() == DM::EntityBlockReference)
-				//{
-				//	static_cast<DmBlockReference*>(e)->update();
-				//}
-				e->setSelected(true);
-				if (document)
-				{
-					document->specifyModifiedEntity(e);
-				}
-			}
-		}
-	}
-
-	// TODO undo: undo 重构标记
-	//DmUndoSection undo(document, handleUndo); // bundle remove/add entities in one undoCycle
-	deselectOriginals(data.number == 0);
-
-	return true;
 }
 
 bool Modification::trim(std::vector<DmEntity*>& ents, DmEntity* entBeenCut, const DmVector& mousePt)
@@ -729,38 +661,6 @@ bool Modification::tryTrim(const std::vector<DmEntity*>& boundryEnts, DmEntity* 
 		}
 	}
 	return true;
-}
-
-///	Deselects all selected entities and removes them if remove is true;
-///	@param remove true: Remove entities.
-void Modification::deselectOriginals(bool remove)
-{
-	// TODO undo: undo 重构标记
-	//DmUndoSection undo(document, handleUndo);
-
-	auto entTable = document->getEntityTable();
-	for (auto e : *entTable)
-	{
-		if (e)
-		{
-			bool selected = false;
-			if (e->isSelected())
-			{
-				selected = true;
-			}
-
-			if (selected)
-			{
-				e->setSelected(false);
-				if (remove)
-				{
-					// TODO undo: undo 重构标记
-					//e->changeUndoState();
-					//undo.addUndoable(e);
-				}
-			}
-		}
-	}
 }
 
 bool Modification::cut(const DmVector& cutCoord, DmEntity* ent)
@@ -1335,19 +1235,15 @@ void Modification::getIntersectionOfContainer(const DmEntityContainer* container
 	}
 }
 
-bool Modification::moveRef(MoveRefData& data)
+bool Modification::moveRef(const std::vector<DmEntity*>& ents, MoveRefData& data)
 {
 	Transaction t(QObject::tr("move ref").toStdString(), document);
 	t.start();
 	auto entTable = document->getEntityTable();
-	for (auto e : *entTable)
+	for (auto e : ents)
 	{
-		if (e && e->isSelected())
-		{
-			entTable->startModify(e);
-			e->moveRef(data.ref, data.offset);
-			e->setSelected(true);
-		}
+		entTable->startModify(e);
+		e->moveRef(data.ref, data.offset);
 	}
 	t.commit();
 	return true;

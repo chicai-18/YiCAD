@@ -21,6 +21,7 @@
 #ifndef ENTITYTABLE_H
 #define ENTITYTABLE_H
 
+#include <list>
 #include <vector>
 #include "DmId.h"
 #include "DmConstructionLine.h"
@@ -79,6 +80,20 @@ public:
     DmEntityContainer* getEntityContainer() {return &m_entContainer;}
     /// @brief 搜索包围框与指定区域有重叠的实体
     void searchEntities(const DmVector& min, const DmVector& max, std::vector<DmEntity*>& ents, bool onlyVisible = true, bool searchSubEnts = true);
+    /// @brief 完全落在矩形内的顶层实体（窗选），不改任何状态
+    /// @param corner1 矩形的一个角点（世界坐标）
+    /// @param corner2 矩形的对角点（世界坐标）
+    /// @param types 限定的实体类型，为空时不限
+    /// @return 命中的实体，不含不可见与已删除的实体
+    std::vector<DmEntity*> entitiesInsideRect(const DmVector& corner1, const DmVector& corner2,
+        const std::list<DM::EntityType>& types = {});
+    /// @brief 落在矩形内或与矩形边界相交的顶层实体（交叉选），不改任何状态
+    /// @param corner1 矩形的一个角点（世界坐标）
+    /// @param corner2 矩形的对角点（世界坐标）
+    /// @param types 限定的实体类型，为空时不限
+    /// @return 命中的实体，不含不可见与已删除的实体
+    std::vector<DmEntity*> entitiesCrossingRect(const DmVector& corner1, const DmVector& corner2,
+        const std::list<DM::EntityType>& types = {});
     /// @brief 空间搜索树中全部实体包围框的并集；表中没有可索引的实体时返回 false
     bool getSearchBounds(DmVector& min, DmVector& max) const { return m_searchTree.getBounds(min, max); }
     /// @brief 通知实体已修改，更新空间搜索树中的包围盒
@@ -86,6 +101,10 @@ public:
 private:
     /// @brief 获得第一个未被删除的索引，没有则返回 -1
     int getFirstValidIndex() const;
+    /// @brief 两个矩形查询的共同实现
+    /// @param crossing true 时与矩形边界相交也算命中
+    std::vector<DmEntity*> entitiesInRect(const DmVector& corner1, const DmVector& corner2,
+        bool crossing, const std::list<DM::EntityType>& types);
     friend class EntityTableAddCmd;
     friend class EntityTableRemoveCmd;
     friend class EntityTableModifyCmd;

@@ -1,11 +1,13 @@
 /// @file test_geometry_spatial_query.cpp
 /// @brief 走空间搜索树的两处查询的单元测试（P10）
 ///
-/// Selection::selectWindow 与 EntityTable::getNearestVirtualIntersection
-/// 原先遍历全部实体，改为在 SpacialSearchTree 上取候选（框选）与做最近邻
-/// 查询（虚拟交点）。除针对性用例外，另有随机用例把结果与原全量扫描的算法
-/// 逐一比对，锁定"只换查询方式、不改语义"；唯一的语义差异（圆弧圆心落在
-/// 包围盒外）单独用一个用例写明。
+/// 框选与 EntityTable::getNearestVirtualIntersection 原先遍历全部实体，改为在
+/// SpacialSearchTree 上取候选（框选）与做最近邻查询（虚拟交点）。框选的几何判断
+/// 原在 Selection::selectWindow 里，现在是实体表的两个矩形查询 entitiesInsideRect、
+/// entitiesCrossingRect（doc/SELECTION_SET_PLAN.md 3.1 节），用例直接断言查询结果，
+/// 只有"可反选"一例还经 Selection 置位。除针对性用例外，另有随机用例把结果与原
+/// 全量扫描的算法逐一比对，锁定"只换查询方式、不改语义"；唯一的语义差异（圆弧
+/// 圆心落在包围盒外）单独用一个用例写明。
 ///
 /// 虚拟交点的两条既有语义直接决定了下面用例的构造方式，先写在这里：
 /// - "最近"按 DmEntity::getDistanceToPoint 计，它取到曲线距离与到
@@ -21,6 +23,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <list>
 #include <random>
 #include <set>
 #include <vector>
@@ -65,6 +68,14 @@ DmArc* addArc(DmDocument& doc, const DmVector& center, double radius, double sta
     arc->calculateBorders();
     EXPECT_TRUE(doc.getEntityTable()->add_direct(arc));
     return arc;
+}
+
+/// @brief 矩形查询的结果转成集合，并检查没有重复
+std::set<DmEntity*> hitSet(const std::vector<DmEntity*>& hits)
+{
+    std::set<DmEntity*> result(hits.begin(), hits.end());
+    EXPECT_EQ(result.size(), hits.size()) << "查询结果有重复";
+    return result;
 }
 
 std::set<DmEntity*> selectedEntities(DmDocument& doc)
@@ -125,16 +136,15 @@ void expectPoint(const DmVector& actual, double x, double y)
 }
 }  // namespace
 
-TEST(SpatialQueryTest, 窗选只选完全落在窗口内的实体)
+TEST(SpatialQueryTest, 窗选只取完全落在矩形内的实体)
 {
     DmDocument doc;
     DmLine* inside = addLine(doc, DmVector(1.0, 1.0), DmVector(2.0, 2.0));
-    addLine(doc, DmVector(1.0, 1.0), DmVector(10.0, 1.0));      // 跨出窗口
-    addLine(doc, DmVector(100.0, 100.0), DmVector(101.0, 101.0));  // 远离窗口
+    addLine(doc, DmVector(1.0, 1.0), DmVector(10.0, 1.0));      // 跨出矩形
+    addLine(doc, DmVector(100.0, 100.0), DmVector(101.0, 101.0));  // 远离矩形
 
-    Selection(&doc).selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), true, false);
-
-    EXPECT_EQ(selectedEntities(doc), std::set<DmEntity*>{inside});
+    EXPECT_EQ(hitSet(doc.getEntityTable()->entitiesInsideRect(DmVector(0.0, 0.0), DmVector(5.0, 5.0))),
+        std::set<DmEntity*>{inside});
 }
 
 TEST(SpatialQueryTest, 交叉选按几何相交而非包围盒重叠判定)
@@ -142,25 +152,62 @@ TEST(SpatialQueryTest, 交叉选按几何相交而非包围盒重叠判定)
     DmDocument doc;
     DmLine* inside = addLine(doc, DmVector(1.0, 1.0), DmVector(2.0, 2.0));
     DmLine* crossing = addLine(doc, DmVector(1.0, 1.0), DmVector(10.0, 1.0));
-    // 包围盒 (4,4)-(10,10) 与窗口的右上角重叠，但线段 x+y=14 不经过窗口。
+    // 包围盒 (4,4)-(10,10) 与矩形的右上角重叠，但线段 x+y=14 不经过矩形。
     addLine(doc, DmVector(4.0, 10.0), DmVector(10.0, 4.0));
     addLine(doc, DmVector(100.0, 100.0), DmVector(101.0, 101.0));
 
-    Selection(&doc).selectWindow(DmVector(5.0, 5.0), DmVector(0.0, 0.0), true, true);
-
-    EXPECT_EQ(selectedEntities(doc), (std::set<DmEntity*>{inside, crossing}));
+    EXPECT_EQ(hitSet(doc.getEntityTable()->entitiesCrossingRect(DmVector(5.0, 5.0), DmVector(0.0, 0.0))),
+        (std::set<DmEntity*>{inside, crossing}));
 }
 
-TEST(SpatialQueryTest, 框选跳过不可见实体且可反选)
+TEST(SpatialQueryTest, 矩形查询跳过不可见实体)
 {
     DmDocument doc;
     DmLine* visible = addLine(doc, DmVector(1.0, 1.0), DmVector(2.0, 2.0));
     DmLine* hidden = addLine(doc, DmVector(2.0, 2.0), DmVector(3.0, 3.0));
     hidden->setVisible(false);
 
+    EntityTable* table = doc.getEntityTable();
+    EXPECT_EQ(hitSet(table->entitiesInsideRect(DmVector(0.0, 0.0), DmVector(5.0, 5.0))),
+        std::set<DmEntity*>{visible});
+    EXPECT_EQ(hitSet(table->entitiesCrossingRect(DmVector(0.0, 0.0), DmVector(5.0, 5.0))),
+        std::set<DmEntity*>{visible});
+}
+
+TEST(SpatialQueryTest, 矩形查询按类型过滤并跳过已删除实体)
+{
+    DmDocument doc;
+    DmLine* line = addLine(doc, DmVector(1.0, 1.0), DmVector(2.0, 2.0));
+    DmCircle* circle = addCircle(doc, DmVector(3.0, 3.0), 1.0);
+    // 只打删除标记、不移出空间搜索树：走树的路径要靠查询自己过滤。
+    DmLine* erased = addLine(doc, DmVector(2.0, 1.0), DmVector(3.0, 2.0));
+    erased->setErased(true);
+
+    EntityTable* table = doc.getEntityTable();
+    const DmVector origin(0.0, 0.0);
+    const std::list<DM::EntityType> linesOnly{DM::EntityLine};
+
+    // 盖住全部实体：顺序遍历实体表。
+    const DmVector coverAll(100.0, 100.0);
+    EXPECT_EQ(hitSet(table->entitiesInsideRect(origin, coverAll)), (std::set<DmEntity*>{line, circle}));
+    EXPECT_EQ(hitSet(table->entitiesInsideRect(origin, coverAll, linesOnly)), std::set<DmEntity*>{line});
+
+    // 没盖住全部实体：走空间搜索树。圆的包围盒 (2,2)-(4,4) 跨出矩形，只有交叉选取得到。
+    const DmVector partial(3.5, 3.5);
+    EXPECT_EQ(hitSet(table->entitiesInsideRect(origin, partial)), std::set<DmEntity*>{line});
+    EXPECT_EQ(hitSet(table->entitiesCrossingRect(origin, partial)), (std::set<DmEntity*>{line, circle}));
+    EXPECT_EQ(hitSet(table->entitiesCrossingRect(origin, partial, linesOnly)), std::set<DmEntity*>{line});
+}
+
+TEST(SpatialQueryTest, 框选可反选)
+{
+    // 置位与反选属于选择集，第 3 步随 Selection 并入 SelectionSet 移到 test_interaction。
+    DmDocument doc;
+    DmLine* line = addLine(doc, DmVector(1.0, 1.0), DmVector(2.0, 2.0));
+
     Selection selection(&doc);
     selection.selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), true, false);
-    EXPECT_EQ(selectedEntities(doc), std::set<DmEntity*>{visible});
+    EXPECT_EQ(selectedEntities(doc), std::set<DmEntity*>{line});
 
     selection.selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), false, false);
     EXPECT_TRUE(selectedEntities(doc).empty());
@@ -168,7 +215,7 @@ TEST(SpatialQueryTest, 框选跳过不可见实体且可反选)
 
 TEST(SpatialQueryTest, 盖住全部实体的框选与局部框选结果一致)
 {
-    // 窗口盖住全部实体的包围框时 selectWindow 改为顺序遍历实体表，
+    // 矩形盖住全部实体的包围框时矩形查询改为顺序遍历实体表，
     // 两条路径对每个实体的判断相同。
     DmDocument doc;
     EntityTable* table = doc.getEntityTable();
@@ -185,18 +232,13 @@ TEST(SpatialQueryTest, 盖住全部实体的框选与局部框选结果一致)
     expectPoint(allMin, -5.0, -6.0);
     expectPoint(allMax, 22.0, 3.0);
 
-    Selection selection(&doc);
-    // 恰好等于全部包围框的窗口（盖住全部）与只差一点的窗口（走树），窗选结果一致。
-    selection.selectWindow(allMin, allMax, true, false);
-    EXPECT_EQ(selectedEntities(doc), (std::set<DmEntity*>{a, b, c}));
-    selection.selectAll(false);
-    selection.selectWindow(allMin, allMax - DmVector(0.5, 0.0), true, false);
-    EXPECT_EQ(selectedEntities(doc), (std::set<DmEntity*>{a, b}));
+    // 恰好等于全部包围框的矩形（盖住全部）与只差一点的矩形（走树），窗选结果一致。
+    EXPECT_EQ(hitSet(table->entitiesInsideRect(allMin, allMax)), (std::set<DmEntity*>{a, b, c}));
+    EXPECT_EQ(hitSet(table->entitiesInsideRect(allMin, allMax - DmVector(0.5, 0.0))), (std::set<DmEntity*>{a, b}));
 
     // 交叉选：盖住全部时同样跳过不可见实体。
-    selection.selectAll(false);
-    selection.selectWindow(DmVector(100.0, 100.0), DmVector(-100.0, -100.0), true, true);
-    EXPECT_EQ(selectedEntities(doc), (std::set<DmEntity*>{a, b, c}));
+    EXPECT_EQ(hitSet(table->entitiesCrossingRect(DmVector(100.0, 100.0), DmVector(-100.0, -100.0))),
+        (std::set<DmEntity*>{a, b, c}));
 }
 
 TEST(SpatialQueryTest, 重复插入同一实体只更新不重复)
@@ -378,14 +420,13 @@ TEST(SpatialQueryTest, 随机图纸上与原全量扫描结果一致)
     // 防止比对退化成"两边都原样返回查询点"。
     EXPECT_GT(nonTrivial, 100);
 
-    Selection selection(&doc);
     for (int i = 0; i < 100; ++i)
     {
         DmVector v1 = randomPoint();
         DmVector v2 = v1 + randomOffset(0.0) * 5.0;
         if (i % 5 == 0)
         {
-            // 盖住全部实体：selectWindow 走顺序遍历实体表的路径（窗选、交叉选各半）。
+            // 盖住全部实体：矩形查询走顺序遍历实体表的路径（窗选、交叉选各半）。
             v1 = DmVector(-2000.0, -2000.0);
             v2 = DmVector(2000.0, 2000.0);
         }
@@ -400,8 +441,7 @@ TEST(SpatialQueryTest, 随机图纸上与原全量扫描结果一致)
             }
         }
 
-        selection.selectAll(false);
-        selection.selectWindow(v1, v2, true, cross);
-        EXPECT_EQ(selectedEntities(doc), expected) << "window " << i << (cross ? " cross" : " window");
+        std::vector<DmEntity*> hits = cross ? table->entitiesCrossingRect(v1, v2) : table->entitiesInsideRect(v1, v2);
+        EXPECT_EQ(hitSet(hits), expected) << "window " << i << (cross ? " cross" : " window");
     }
 }

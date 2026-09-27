@@ -41,8 +41,16 @@ void ModifyDeleteCommand::deleteSelection(DmDocument* doc, IDocumentView* view)
     {
         return;
     }
+    std::vector<DmEntity*> ents;
+    for (auto e : *doc->getEntityTable())
+    {
+        if (e->isSelected())
+        {
+            ents.push_back(e);
+        }
+    }
     Modification m(doc);
-    m.remove();
+    m.remove(ents);
     GUIDIALOGFACTORY->updateSelectionWidget(doc->getEntityTable()->countSelect());
 }
 

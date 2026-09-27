@@ -19,6 +19,7 @@
 #include "DmClipboard.h"
 #include "DmDimLinear.h"
 #include "DmDimensionStyleTable.h"
+#include "DmDocumentListener.h"
 #include "DmLayer.h"
 #include "DmLayerTable.h"
 #include "DmLine.h"
@@ -570,5 +571,80 @@ TEST_F(ModifyFixture, 粘贴提交时只复制用到的图层并随撤销移除)
     doc.getCmdManager()->undo();
     EXPECT_EQ(doc.getEntityTable()->count(), 0);
     EXPECT_EQ(doc.getLayerTable()->find(QStringLiteral("用到")), nullptr);
+    DMCLIPBOARD->clear();
+}
+
+// 删除、移动、复制与剪切的提交把调用方收集的选中实体交给 Modification，操作后的选中状态由
+// 调用方处理（doc/SELECTION_SET_PLAN.md 第 1 步）；下面几例锁定提交后的选中状态与改前一致。
+// 与上一例相同，这里走了事务。
+
+TEST_F(ModifyFixture, 删除提交只删选中实体撤销后恢复为未选中)
+{
+    DmLine* selected = addLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0));
+    DmLine* other = addLine(DmVector(0.0, 5.0), DmVector(10.0, 5.0));
+    selected->setSelected(true);
+
+    ASSERT_TRUE(start("ext.modify.delete"));
+    // 删除总是先进入选择阶段（test_select_first_commands 的 P8），回车用已有的选择集
+    pressKey(Qt::Key_Enter);
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_TRUE(selected->isErased());
+    EXPECT_FALSE(other->isErased());
+
+    doc.getCmdManager()->undo();
+    EXPECT_FALSE(selected->isErased());
+    EXPECT_FALSE(selected->isSelected());
+}
+
+TEST_F(ModifyFixture, 移动提交只移动选中实体并取消选中)
+{
+    DmLine* selected = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    DmLine* other = addLine(DmVector(10.0, 30.0), DmVector(50.0, 30.0));
+    selected->setSelected(true);
+
+    ASSERT_TRUE(start("ext.modify.move"));
+    typeCoordinate(0.0, 0.0);
+    typeCoordinate(5.0, 5.0);
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_EQ(selected->getStartpoint(), DmVector(15.0, 15.0));
+    EXPECT_EQ(other->getStartpoint(), DmVector(10.0, 30.0));
+    EXPECT_FALSE(selected->isSelected());
+
+    doc.getCmdManager()->undo();
+    EXPECT_EQ(selected->getStartpoint(), DmVector(10.0, 10.0));
+    EXPECT_FALSE(selected->isSelected());
+}
+
+TEST_F(ModifyFixture, 复制到剪贴板后取消选中并通知视图剪切还删掉实体)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    addLine(DmVector(10.0, 30.0), DmVector(50.0, 30.0));
+    line->setSelected(true);
+
+    ASSERT_TRUE(start("ext.edit.copy"));
+    // 复制不经事务，取消选中后要另行通知视图重建缓存
+    struct ModifiedCounter : DmDocumentListener
+    {
+        int modified = 0;
+        void documentModified() override { ++modified; }
+        void redrawRequested() override {}
+        void paintContainerChanged(DmEntityContainer*) override {}
+    } counter;
+    doc.addListener(&counter);
+    typeCoordinate(10.0, 10.0);
+    doc.removeListener(&counter);
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_EQ(DMCLIPBOARD->count(), 1u);
+    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(line->isErased());
+    EXPECT_GT(counter.modified, 0);
+
+    line->setSelected(true);
+    ASSERT_TRUE(start("ext.edit.cut"));
+    typeCoordinate(10.0, 10.0);
+    EXPECT_FALSE(bus.hasActiveCommand());
+    EXPECT_EQ(DMCLIPBOARD->count(), 1u);
+    EXPECT_TRUE(line->isErased());
+    EXPECT_EQ(doc.getEntityTable()->count(), 1);
     DMCLIPBOARD->clear();
 }

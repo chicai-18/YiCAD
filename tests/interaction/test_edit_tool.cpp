@@ -8,8 +8,8 @@
 /// 业务栈由 test_exclusive_command_bus 覆盖，选择阶段（有命令在运行）不激活夹点由
 /// test_select_first_commands 覆盖。
 ///
-/// 落位不在这里测：落位经 Modification 走撤销事务，默认构造的 DmDocument 走事务会崩溃
-/// （CommandTestFixture.h 的说明）。
+/// 落位经 Modification::moveRef 走撤销事务。先开事务再改实体在默认构造的 DmDocument 上
+/// 可以运行（test_modify_commands 的粘贴用例），落位用例照此执行真正的提交与撤销。
 ///
 /// FakeDocumentView 的预览容器与捕捉标记容器是同一个，选择层清除捕捉标记（Esc、鼠标
 /// 离开画布）时也会清空预览；要断言 EditTool 自己清除了预览，用例只走选择层不参与的路径。
@@ -19,6 +19,7 @@
 #include <QKeyEvent>
 #include <QMouseEvent>
 
+#include "CmdManager.h"
 #include "DmDocument.h"
 #include "DmLine.h"
 #include "EditTool.h"
@@ -137,6 +138,22 @@ TEST_F(EditToolFixture, 激活后移动画出预览且不改动文档)
 
     EXPECT_EQ(move(60, 60), ViewToolResult::Handled);
     EXPECT_EQ(previewCount(), 1);
+    EXPECT_EQ(line->getStartpoint(), DmVector(10.0, 10.0));
+}
+
+TEST_F(EditToolFixture, 单击落位移动夹点并保持选中)
+{
+    // 修改的撤销命令构造时取消了选中（EntityTableModifyCmd），落位后由 EditTool 恢复
+    // （doc/SELECTION_SET_PLAN.md 第 1 步）
+    DmLine* line = activateGrip();
+
+    EXPECT_EQ(press(70, 60), ViewToolResult::Handled);
+    EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
+    EXPECT_EQ(line->getStartpoint(), DmVector(70.0, 60.0));
+    EXPECT_EQ(line->getEndpoint(), DmVector(50.0, 10.0));
+    EXPECT_TRUE(line->isSelected());
+
+    doc.getCmdManager()->undo();
     EXPECT_EQ(line->getStartpoint(), DmVector(10.0, 10.0));
 }
 

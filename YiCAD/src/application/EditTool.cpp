@@ -266,11 +266,25 @@ void EditTool::commit(QMouseEvent* e)
     }
     clearPreview();
 
+    std::vector<DmEntity*> ents;
+    for (auto entity : *m_pDocument->getEntityTable())
+    {
+        if (entity->isSelected())
+        {
+            ents.push_back(entity);
+        }
+    }
     Modification m(m_pDocument);
     MoveRefData data;
     data.ref = m_base;
     data.offset = target - m_base;
-    m.moveRef(data);
+    m.moveRef(ents, data);
+    // 夹点编辑之后保持选中：修改的撤销命令构造时取消了选中（EntityTableModifyCmd），这里恢复。
+    // 提交时已通知视图重建缓存，重建在下一次绘制时进行，看得到恢复后的状态。
+    for (auto entity : ents)
+    {
+        entity->setSelected(true);
+    }
     m_status = Neutral;
     GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
 }

@@ -5,7 +5,7 @@
 `model/edit/`，只去掉它对视图的依赖，并注明"选择集连同状态移到 Application 是另一件事"。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `6378f1b` 实测。引用 `LAYER_RESTRUCTURE_PLAN.md`
-> 的章节时写作"分层方案 x.y 节"。状态：未开工；第 7 节的决策全部已定（2026-09-27）。
+> 的章节时写作"分层方案 x.y 节"。状态：第 1 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
 
 ---
 
@@ -281,4 +281,48 @@ python tools/check_layering.py
 
 ## 9. 执行记录
 
-（开工后填写）
+### 9.1 第 1 步：Model 先改接口
+
+2026-09-27 完成，基线 `4ced7bc`，一个提交。行为不变。
+
+**方案未写、执行时定的**：
+
+1. **调用方怎么收集列表**：四处调用方（`EditTool::commit`、`EditCopyCommand::commitCopy`、`ModifyDeleteCommand::deleteSelection`、
+   `ModifyMoveCommand::commitMove`）就地遍历实体表、取 `isSelected()` 的实体，与旋转、缩放等命令的写法相同。没有在 Model 或
+   `Selection` 上加"取选中实体"的函数，第 3 步这几处换成 `selection().entities()`。
+2. **复制、剪切、移动之后取消选中**：调用方调 `Selection(doc).selectAll(false)`。列表就是全部选中实体，与逐个取消等价
+   （`selectAll(false)` 只动可见实体，`isSelected()` 本来就要求可见）。复制不经事务，原先靠 `copyEntity` 里的
+   `notifyDocumentModified()` 让视图重建缓存，`selectAll` 同样经文档通知。第 3 步换成 `selection().clear()`。
+3. **夹点落位之后保持选中**：`startModify` 构造的 `EntityTableModifyCmd` 会取消选中（2.2 节"撤销命令构造时取消选中"，第 4 步删除），
+   原先由 `moveRef` 在提交前重新置位，现在由 `EditTool::commit` 在提交后对列表重新置位。`Transaction::commit` 调
+   `regenerate()` 只把视图的缓存标为待重建，重建在下一次绘制时进行，所以显示的是恢复后的状态。重做快照（提交时存下的
+   `m_newData`）原先带选中位，现在不带；`DmEntity::restoreStream` 对可见实体本来就清掉这一位，重做后的结果相同。
+   第 4 步选择集按 `DmId` 保存、撤销命令不再取消选中，这段恢复随之删除。
+4. `OffsetData` 只有 `Modification::offset` 用，一并删除。
+5. 框选耗时埋点 `selection.selectWindow` 留在 `Selection::selectWindow`，量的是查询加置位，与 `BASELINE.md` 的定义一致；
+   第 3 步随它进 `SelectionSet::selectWindow`。
+
+**改动**：
+
+| 位置 | 改法 |
+|------|------|
+| `EntityTable` | 新增 `entitiesInsideRect`、`entitiesCrossingRect`，共用私有的 `entitiesInRect`；候选取法、类型过滤、可见与已删除过滤、包围盒粗筛照搬 `Selection::selectWindow`，`crossesWindow` 移进 `EntityTable.cpp` 的匿名命名空间 |
+| `Selection::selectWindow` | 调用两个矩形查询，对结果置位后照旧经文档通知 |
+| `Modification` | `remove`、`copy`、`move`、`moveRef` 第一个参数改为 `const std::vector<DmEntity*>&`，不再读写选中位；`copyEntity` 去掉选中检查、取消选中与文档通知；删除 `offset`、`deselectOriginals`、`OffsetData` |
+| 四处调用方 | 见上 1 至 3 条 |
+
+**测试**：
+
+- `test_geometry_spatial_query`：5 个用例改为断言矩形查询的结果，结果转集合时检查没有重复。"框选跳过不可见实体且可反选"拆成
+  "矩形查询跳过不可见实体"与"框选可反选"，后者仍经 `Selection`，第 3 步移到 `test_interaction`。新增"矩形查询按类型过滤并跳过
+  已删除实体"，两条取候选的路径各走一遍（已删除实体只打标记、留在空间搜索树里）。
+- `test_document_listener`：方案没有提到的一例。"Modification复制选中实体时通知修改并重绘"断言的正是移走的行为，改为
+  "Modification复制不改选中状态也不通知"。
+- `test_geometry_document_transfer`：复制改为传入全部实体，不再为了能选中而先解冻、解锁隐藏线图层。
+- 新增提交路径的用例，锁定提交后的选中状态与改前一致：`test_modify_commands` 的删除（撤销后恢复为未选中）、移动（取消选中）、
+  复制到剪贴板与剪切（取消选中，复制时文档发出修改通知），`test_edit_tool` 的夹点落位（保持选中）。`test_edit_tool` 与
+  `CommandTestFixture.h` 原说明"默认构造的 DmDocument 走事务会崩溃"不准确：崩溃的是不开事务直接调 `add()`，
+  `test_modify_commands` 的粘贴用例早已走过事务，两处说明一并改正。
+
+**验证**：`cmake --build --preset Release`、`ctest`（4 个测试二进制全部通过）、`python tools/check_layering.py` 通过；安装后启动程序，
+能正常响应并正常退出。界面走查（点选、框选、删除、移动、夹点编辑、块编辑进出）由用户完成，没有发现问题。
