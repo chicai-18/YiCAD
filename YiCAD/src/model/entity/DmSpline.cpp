@@ -77,7 +77,6 @@ DmEntity* DmSpline::clone() const
 {
 	DmSpline* l = new DmSpline(*this);
     l->m_ulID = DmId();
-    l->setHighlighted(false);
 	l->pLineStrip = new DmLineStrip(l);
 	l->update();
 	return l;
@@ -1621,12 +1620,6 @@ DmVector DmSpline::getNearestPointOnEntity(const DmVector& coord, bool onEntity,
 //	{
 //		return false;
 //	}
-//}
-//
-//void DmSpline::setHighlighted(bool highlight)
-//{
-//	DmEntity::setHighlighted(highlight);
-//	pLineStrip->setHighlighted(highlight);
 //}
 
 

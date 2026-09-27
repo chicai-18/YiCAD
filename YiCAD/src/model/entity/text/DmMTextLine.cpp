@@ -524,18 +524,6 @@ void DmMTextLine::setVisible(bool v)
     }
 }
 
-void DmMTextLine::setHighlighted(bool highlight)
-{
-    DmEntity::setHighlighted(highlight);
-    for (auto e : chars)
-    {
-        if (e->isVisible())
-        {
-            e->setHighlighted(highlight);
-        }
-    }
-}
-
 void DmMTextLine::move(const DmVector& offset)
 {
     for (auto e : chars)

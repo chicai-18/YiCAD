@@ -153,7 +153,6 @@ public:
     DmVector getNearestCenter(const DmVector& coord, double* dist = nullptr) const override;
     DmVector getNearestMiddle(const DmVector& coord, double* dist = nullptr, int middlePoints = 1) const override;
     void setVisible(bool v) override;
-    void setHighlighted(bool highlight = true) override;
 
     /// @brief 清空字符
     void clear();

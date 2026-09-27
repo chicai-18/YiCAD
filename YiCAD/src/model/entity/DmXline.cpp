@@ -71,7 +71,6 @@ DmEntity* DmXline::clone() const
 {
 	DmXline* c = new DmXline(*this);
     c->m_ulID = DmId();
-    c->setHighlighted(false);
 	return c;
 }
 

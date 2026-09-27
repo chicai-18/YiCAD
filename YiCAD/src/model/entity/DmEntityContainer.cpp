@@ -152,21 +152,6 @@ double DmEntityContainer::getLength() const
     return ret;
 }
 
-void DmEntityContainer::setHighlighted(bool highlight)
-{
-    DmEntity::setHighlighted(highlight);
-    for (auto e : entities)
-    {
-        if (e)
-        {
-            if (e->isVisible())
-            {
-                e->setHighlighted(highlight);
-            }
-        }
-    }
-}
-
 std::list<DmEntity*> DmEntityContainer::selectEntitiesInWindow(DmVector v1, DmVector v2, bool cross)
 {
     std::list<DmEntity*> entitiesInWindow = std::list<DmEntity*>();

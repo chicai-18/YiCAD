@@ -431,18 +431,6 @@ void DmChar::setVisible(bool v)
 	}
 }
 
-void DmChar::setHighlighted(bool highlight)
-{
-	DmEntity::setHighlighted(highlight);
-	for (auto e : entities)
-	{
-		if (e->isVisible())
-		{
-			e->setHighlighted(highlight);
-		}
-	}
-}
-
 void DmChar::rotate(const DmVector& center, const DmVector& angleVector)
 {
 	for (auto e : entities)

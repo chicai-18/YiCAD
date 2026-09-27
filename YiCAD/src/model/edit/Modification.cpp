@@ -458,8 +458,6 @@ bool Modification::trim(std::vector<DmEntity*>& ents, DmEntity* entBeenCut, cons
 			//修剪后剩下有实体，第一个用原来的id
 			if (remainEnts.size() > 0)
 			{
-				// 先取消高亮，undo才不会变成变成高亮
-				entBeenCut->setHighlighted(false);
 				table->startModify(entBeenCut);
 				updateEntityData(entBeenCut, remainEnts.front());
 				for (auto it3 = remainEnts.begin() + 1; it3 != remainEnts.end(); ++it3)

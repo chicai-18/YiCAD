@@ -49,7 +49,6 @@ DmEntity* DmCircle::clone() const
 {
     DmCircle* c = new DmCircle(*this);
     c->m_ulID = DmId();
-    c->setHighlighted(false);
     return c;
 }
 

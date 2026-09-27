@@ -50,7 +50,6 @@ DmEntity* DmArc::clone() const
 {
     DmArc* a = new DmArc(*this);
     a->m_ulID = DmId();
-    a->setHighlighted(false);
     return a;
 }
 

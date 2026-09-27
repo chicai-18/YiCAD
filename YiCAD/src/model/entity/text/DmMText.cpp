@@ -2175,18 +2175,6 @@ void DmMText::setVisible(bool v)
     }
 }
 
-void DmMText::setHighlighted(bool highlight)
-{
-    DmEntity::setHighlighted(highlight);
-    for (auto e : paragraphs)
-    {
-        if (e->isVisible())
-        {
-            e->setHighlighted(highlight);
-        }
-    }
-}
-
 void DmMText::saveStream(OutputStream& str) const
 {
     DmEntity::saveStream(str);

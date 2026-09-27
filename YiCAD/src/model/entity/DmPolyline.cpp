@@ -63,7 +63,6 @@ DmEntity* DmPolyline::clone() const
 {
     DmPolyline* p = new DmPolyline(*this);
     p->m_ulID = DmId();
-    p->setHighlighted(false);
     p->entities.clear();
     p->update();
     return p;
@@ -280,19 +279,6 @@ void DmPolyline::setLayer(DmLayer* l)
     for (auto* e : entities)
     {
         e->setLayer(layer);
-    }
-}
-
-void DmPolyline::setHighlighted(bool highlight)
-{
-    DmEntity::setHighlighted(highlight);
-
-    for (auto e : entities)
-    {
-        if (e->isVisible())
-        {
-            e->setHighlighted(highlight);
-        }
     }
 }
 

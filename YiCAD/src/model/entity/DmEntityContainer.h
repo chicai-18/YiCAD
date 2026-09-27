@@ -54,8 +54,6 @@ public:
 
     void setVisible(bool v) override;
 
-    void setHighlighted(bool highlight = true) override;
-
     std::list<DmEntity*> selectEntitiesInWindow(DmVector v1, DmVector v2, bool cross = false);
 
     virtual void addEntity(DmEntity* entity);

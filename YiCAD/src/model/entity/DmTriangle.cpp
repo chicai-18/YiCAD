@@ -40,7 +40,6 @@ DmEntity* DmTriangle::clone() const
 {
     DmTriangle* s = new DmTriangle(*this);
     s->m_ulID = DmId();
-    s->setHighlighted(false);
     return s;
 }
 

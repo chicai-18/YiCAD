@@ -345,12 +345,6 @@ void DmDimension::setVisible(bool v)
 	container->setVisible(v);
 }
 
-void DmDimension::setHighlighted(bool highlight)
-{
-	DmEntity::setHighlighted(highlight);
-	container->setHighlighted(highlight);
-}
-
 void DmDimension::move(const DmVector& offset)
 {
 	data.definitionPoint.move(offset);

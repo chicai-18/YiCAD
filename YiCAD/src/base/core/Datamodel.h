@@ -62,8 +62,7 @@ namespace DM
         FlagInvalid = 128,      // Used for invalid pens.
         FlagClosed = 512,       // Polyline closed?
         FlagTemp = 1024,        // Flag for temporary entities (e.g. hatch)
-        FlagProcessed = 2048,   // Flag for processed entities (optcontour)
-        FlagHighlighted = 16384 // Entity is highlighted temporarily (as a user action feedback)
+        FlagProcessed = 2048    // Flag for processed entities (optcontour)
     };
 
     // Variable types used by VariableDict and Variable.

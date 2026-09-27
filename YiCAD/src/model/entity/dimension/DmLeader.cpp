@@ -336,12 +336,6 @@ void DmLeader::setVisible(bool v)
 	container->setVisible(v);
 }
 
-void DmLeader::setHighlighted(bool highlight)
-{
-	DmEntity::setHighlighted(highlight);
-	container->setHighlighted(highlight);
-}
-
 void DmLeader::move(const DmVector& offset)
 {
 	for (auto& v : data.vertextes)

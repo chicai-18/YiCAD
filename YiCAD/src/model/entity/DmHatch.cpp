@@ -91,7 +91,6 @@ DmHatch* DmHatch::clone() const
 {
     DmHatch* t = new DmHatch(*this);
     t->m_ulID = DmId();
-    t->setHighlighted(false);
     return t;
 }
 

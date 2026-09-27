@@ -50,7 +50,6 @@ DmEntity* DmRegion::clone() const
     RegionData d = getCloneData();
     r->setData(d);
     r->m_ulID = DmId();
-    r->setHighlighted(false);
     return r;
 }
 

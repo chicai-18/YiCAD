@@ -45,7 +45,6 @@ DmEntity* DmPoint::clone() const
 {
     DmPoint* p = new DmPoint(*this);
     p->m_ulID = DmId();
-    p->setHighlighted(false);
     return p;
 }
 

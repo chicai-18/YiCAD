@@ -925,18 +925,6 @@ void DmMTextParagraph::setVisible(bool v)
     }
 }
 
-void DmMTextParagraph::setHighlighted(bool highlight)
-{
-    DmEntity::setHighlighted(highlight);
-    for (auto e : lines)
-    {
-        if (e->isVisible())
-        {
-            e->setHighlighted(highlight);
-        }
-    }
-}
-
 void DmMTextParagraph::move(const DmVector& offset)
 {
     for (auto e : lines)

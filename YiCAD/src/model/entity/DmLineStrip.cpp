@@ -52,7 +52,6 @@ DmEntity* DmLineStrip::clone() const
 {
     DmLineStrip* l = new DmLineStrip(*this);
     l->m_ulID = DmId();
-    l->setHighlighted(false);
     l->update();
     return l;
 }

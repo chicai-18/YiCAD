@@ -251,18 +251,6 @@ void DmEntity::setVisible(bool v)
     }
 }
 
-void DmEntity::setHighlighted(bool on)
-{
-    if (on)
-    {
-        setFlag(DM::FlagHighlighted);
-    }
-    else
-    {
-        delFlag(DM::FlagHighlighted);
-    }
-}
-
 DmVector DmEntity::getStartpoint() const
 {
     return {};
@@ -296,11 +284,6 @@ DmVector DmEntity::getTangentDirection(const DmVector& /*point*/) const
 DmVector DmEntity::getMiddlePoint(void) const
 {
     return DmVector(false);
-}
-
-bool DmEntity::isHighlighted() const
-{
-    return getFlag(DM::FlagHighlighted);
 }
 
 DmVector DmEntity::getWidthHeight() const
@@ -756,10 +739,4 @@ void DmEntity::restoreStream(InputStream& reader)
     }
     auto pen = DmPen(color, (DM::LineWidth)lineWidth, lineType);
     this->setPen(std::move(pen));
-
-    // 导入实体不允许高亮
-    if (this->isHighlighted())
-    {
-        this->setHighlighted(false);
-    }
 }

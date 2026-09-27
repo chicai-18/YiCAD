@@ -53,7 +53,6 @@ void EntityTableAddCmd::execute()
         e->setErased(false);
         m_table->m_searchTree.insert(e);
     }
-    e->setHighlighted(false);
     ICmd::execute();
 }
 
@@ -133,7 +132,6 @@ void EntityTableRemoveCmd::execute()
     }
     else
     {
-        e->setHighlighted(false);
         e->setErased(true);
         m_table->m_searchTree.remove(e);
     }
@@ -179,7 +177,6 @@ EntityTableModifyCmd::EntityTableModifyCmd(EntityTable *table, DmEntity *modifie
 :m_table(table)
 ,m_modifiedEnt(modifiedEnt)
 {
-    modifiedEnt->setHighlighted(false);
     std::ostringstream oss;
     OutputStream str(oss);
     m_modifiedEnt->saveStream(str);

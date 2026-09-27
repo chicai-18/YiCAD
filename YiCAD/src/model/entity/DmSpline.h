@@ -141,7 +141,6 @@ public:
 	DmVector getNearestPointOnEntity(const DmVector& coord, bool onEntity = true, double* dist = nullptr, DmEntity** entity = nullptr) const override;
 	//void setVisible(bool v) override;
 	//bool setSelected(bool select = true) override;
-	//void setHighlighted(bool highlight = true) override;
     /// @brief 在端点处计算方向，如果实体类型支持该方向，则派生实体必须实现该方向
     virtual double getDirection1() const;
     virtual double getDirection2() const;

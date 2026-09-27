@@ -80,8 +80,6 @@ public:
     /// @param l 图层指针
     void setLayer(DmLayer* l);
 
-    void setHighlighted(bool highlight = true) override;
-
     /// @brief 获取终点
     /// @return 终点坐标
     DmVector getEndpoint() const override;

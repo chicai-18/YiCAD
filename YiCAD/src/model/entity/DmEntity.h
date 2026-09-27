@@ -131,8 +131,6 @@ public:
     virtual bool isVisible() const;
 
     virtual void setVisible(bool v);
-    virtual void setHighlighted(bool on);
-    virtual bool isHighlighted() const;
 
     bool isLocked() const;
 

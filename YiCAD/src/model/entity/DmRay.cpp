@@ -46,7 +46,6 @@ DmEntity* DmRay::clone() const
 {
     DmRay* c = new DmRay(*this);
     c->m_ulID = DmId();
-    c->setHighlighted(false);
     return c;
 }
 

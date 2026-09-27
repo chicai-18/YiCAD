@@ -85,7 +85,6 @@ DmEntity* DmImage::clone() const
 {
     DmImage* i = new DmImage(*this);
     i->m_ulID = DmId();
-    i->setHighlighted(false);
     i->setHandle(getHandle());
     i->update();
     return i;

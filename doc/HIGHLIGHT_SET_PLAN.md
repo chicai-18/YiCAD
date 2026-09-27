@@ -6,8 +6,8 @@
 不在本方案（D5）。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `0834829` 实测。引用 `SELECTION_SET_PLAN.md` 的章节时写作
-> "选择集方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。状态：第 0、1、2 步已完成（第 2 步的
-> 界面走查待做，见 8.2 节），第 6 节的决策全部已定（2026-09-27）；第 3 步起尚未开始。
+> "选择集方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。状态：第 0 至 3 步已完成（第 2 步起的
+> 界面走查待做，见 8.2 节），第 6 节的决策全部已定（2026-09-27）；第 4 步尚未开始。
 
 ---
 
@@ -356,3 +356,36 @@ Render 只按高亮集分高亮组；Model 里的标志位与清位留到第 3 �
 
 **界面走查（待做）**：本会话不能操作程序界面，第 7 节的走查没有做，第 5 节前两行"按代码推断"的差异也就还没有实测。
 走查后在此补记结果。
+
+### 8.3 第 3 步：删除 Model 里的高亮
+
+2026-09-27 完成，基线 `ece7cf5`。行为不变：第 2 步之后已没有代码置高亮位，这一步删的是标志位本身、接口与各处清位。
+
+**方案未写、执行时定的**：
+
+1. **grep 结果比第 4 节预期的更干净**：第 4 节写"只剩注释掉的旧代码"，而 3.1 节把唯一一段注释掉的重写（`DmSpline`）也删了，
+   所以代码里 `FlagHighlighted`、`setHighlighted`、`isHighlighted` 一处不剩。着色器的 uniform `u_isHighlighted`（`common.inl`、
+   `image.shader`，由 `GLPainterCommon` 设置）是 Render 画高亮组用的绘制参数，不是 Model 的状态，保留。
+2. **`DmSpline` 的注释块**：只删 `setHighlighted` 那一段和它前面的分隔行 `//`；同一处注释掉的 `setVisible`、`setSelected`
+   不在本方案，留着。
+3. `FlagProcessed` 成了 `DM::Flags` 的最后一项，去掉它后面的逗号。
+4. 测试里"原先由修改命令清位"一类注释说的是迁移前的做法，用来解释用例为什么这样断言，不改。
+
+**改动**：
+
+| 位置 | 改法 |
+|------|------|
+| `Datamodel.h` | 删除 `FlagHighlighted`，编号不保留（3.1 节） |
+| `DmEntity` | 删除 `setHighlighted`、`isHighlighted`，`restoreStream` 末尾的清位 |
+| 9 个重写（`DmEntityContainer`、`DmPolyline`、`DmText`、`DmMText`、`DmMTextParagraph`、`DmMTextLine`、`DmChar`、`DmDimension`、`DmLeader`） | 删除声明与定义 |
+| `DmSpline` | 删除注释掉的重写，见上第 2 条 |
+| 16 个 `clone()` | 删除副本的清位 |
+| `EntityTableCmd.cpp` | 删除添加、删除命令 `execute` 与修改命令构造里的清位 |
+| `Modification::trim` | 删除清位与它的注释 |
+
+**测试**：没有新增或修改用例。第 2 步已把 6 个用例的断言改为高亮集，Model 里没有留下要测的东西。
+
+**验证**：`cmake --build --preset Release`（改了 `DmEntity.h`，整个工程重编，没有新增警告）、`ctest`（4 个测试二进制全部通过，
+`test_interaction` 335 例，其中一例是原有的 DXF 基准图纸用例 SKIPPED）、`python tools/check_layering.py` 通过。第 7 节的编译期
+保证：在 `DmLine.cpp` 末尾临时加一个调用 `setHighlighted`、`isHighlighted` 并引用 `DM::FlagHighlighted` 的函数，构建 `YiCadModel`
+报 C2039、C2065，恢复后通过。安装后启动程序能正常响应，关闭后退出码为 0。界面走查与第 2 步的一起待做（8.2 节末）。
