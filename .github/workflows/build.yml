@@ -45,6 +45,9 @@ permissions:
 env:
   QT_VERSION: '6.8.0'
   QT_ARCH: 'win64_msvc2022_64'
+  # The tools/ scripts print Chinese; the runner's console encoding is cp1252,
+  # so Python would fail with UnicodeEncodeError without UTF-8 mode.
+  PYTHONUTF8: '1'
 
 jobs:
   # ---------------------------------------------------------------------------
