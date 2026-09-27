@@ -736,10 +736,14 @@ endforeach()
 # Install the deployed runtime bundle produced by the build. On Windows this
 # includes the files copied by windeployqt.
 # 测试二进制统一以 test_ 开头，不进安装包。
+# 该目录同时是 ARCHIVE 输出目录，静态库和 DLL/插件的导入库 .lib、导出文件 .exp
+# 都落在这里，运行期用不到；按扩展名排除，复用的构建目录里残留的旧库也一并挡掉。
 INSTALL(DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
         DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT Runtime
-        PATTERN "test_*" EXCLUDE)
+        PATTERN "test_*" EXCLUDE
+        PATTERN "*.lib" EXCLUDE
+        PATTERN "*.exp" EXCLUDE)
 
 #structure files
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/ui" PREFIX "UIs" FILES ${YICAD_UI_FORMS})
