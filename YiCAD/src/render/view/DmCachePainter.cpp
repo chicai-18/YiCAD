@@ -36,6 +36,7 @@
 #include "DmSpline.h"
 #include "DmLineStrip.h"
 #include "DmImage.h"
+#include "IHighlightSource.h"
 #include "ISelectionSource.h"
 #include <QImage>
 #include <GL/glew.h>
@@ -165,6 +166,12 @@ void DmCachePainter::setSelectionSource(const ISelectionSource* source)
     specifyModified();
 }
 
+void DmCachePainter::setHighlightSource(const IHighlightSource* source)
+{
+    m_highlightSource = source;
+    specifyModified();
+}
+
 bool DmCachePainter::isSelected(const DmEntity* e) const
 {
     return m_selectionSource && m_selectionSource->isSelected(*e);
@@ -215,6 +222,18 @@ void DmCachePainter::regroup()
         for (auto e : *en)
         {
             addGroupEntity(e);
+        }
+    }
+    // 来源给出的都是可见的顶层实体；选中优先，与 addGroupEntity 相同。
+    // 过渡期间实体上的高亮位仍有效（doc/HIGHLIGHT_SET_PLAN.md 第 1 步），置了位的已在上面进了高亮组
+    if (m_highlightSource)
+    {
+        for (auto e : m_highlightSource->highlightedEntities())
+        {
+            if (!isSelected(e) && !e->isHighlighted())
+            {
+                addGroupEntity_subRoutine(e, &m_highlightEntities);
+            }
         }
     }
 }

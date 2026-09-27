@@ -2,8 +2,8 @@
 /// @brief 测试用的命令宿主：像 UIView 一样实现 ICommandHost，并随命令启停让出、收回空闲态的工具
 ///
 /// UIView 是 QOpenGLWidget，单测不构造它。夹具照 UIView 装配导航层、选择层、夹点编辑工具与
-/// 工具控制器，本类补上 UIView 作为宿主的那部分：宿主能力，以及 UIView::onCommandStarting()/
-/// onCommandFinished() 的同样做法。改动 UIView 的这部分时要同步这里。
+/// 工具控制器，本类补上 UIView 作为宿主的那部分：宿主能力，像 UIView 一样持有视图的高亮集，
+/// 以及 UIView::onCommandStarting()/onCommandFinished() 的同样做法。改动 UIView 的这部分时要同步这里。
 
 #ifndef YICAD_TEST_TEST_COMMAND_HOST_H
 #define YICAD_TEST_TEST_COMMAND_HOST_H
@@ -13,6 +13,7 @@
 #include "DmDocument.h"
 #include "EditTool.h"
 #include "ExclusiveCommandBus.h"
+#include "HighlightSet.h"
 #include "ICommandHost.h"
 #include "IDocumentView.h"
 #include "SelectTool.h"
@@ -31,6 +32,7 @@ public:
                     SelectTool& selectTool, EditTool* editTool = nullptr)
         : m_doc(doc)
         , m_selection(selection)
+        , m_highlight(doc)
         , m_view(view)
         , m_control(control)
         , m_selectTool(selectTool)
@@ -53,6 +55,7 @@ public:
 
     DmDocument* document() override { return &m_doc; }
     SelectionSet* selection() override { return &m_selection; }
+    HighlightSet* highlight() override { return &m_highlight; }
     IDocumentView* view() override { return &m_view; }
     ViewToolControl* viewToolControl() override { return &m_control; }
     ExclusiveCommandBus* commandBus() override { return m_bus; }
@@ -76,6 +79,7 @@ private:
     /// @brief 同 UIView::onCommandFinished()
     void onCommandFinished()
     {
+        m_highlight.clear();
         if (m_selectTool.inSelectionPhase())
         {
             m_selectTool.endSelectionPhase();
@@ -89,6 +93,7 @@ private:
 
     DmDocument& m_doc;
     SelectionSet& m_selection;
+    HighlightSet m_highlight;  ///< 视图的高亮集，同 UIView 由宿主持有
     IDocumentView& m_view;
     ViewToolControl& m_control;
     SelectTool& m_selectTool;

@@ -26,6 +26,7 @@
 /// ExclusiveCommandBus，接收画布的 Qt 输入事件交给 ViewToolControl 分发
 /// （doc/COMMAND_TOOL_MIGRATION_PLAN.md）。夹点编辑工具与选择层是空闲态的工具：
 /// 总线通知命令即将启动、已经结束时，由本类让出、收回它们（DS 的 SyncEditActivation）。
+/// 本类还持有本视图的高亮集 HighlightSet（命令进行中的拾取反馈），把它交给画布，命令结束时清空。
 ///
 /// 放在 kernel/interaction/（YiCadInteraction 分区），不和画布同在
 /// kernel/view/（YiCadRender 分区）：一个目录归一个分区，渲染层不能依赖交互层。
@@ -55,6 +56,7 @@
 class AppDocument;
 class EditTool;
 class ExclusiveCommandBus;
+class HighlightSet;
 class IExclusiveCommand;
 class ISnapService;
 class PanZoomTool;
@@ -140,6 +142,7 @@ private:
     // ---- ICommandHost：命令与总线经接口调用 ----
     DmDocument* document() override { return getDocument(); }
     SelectionSet* selection() override { return m_pSelection; }
+    HighlightSet* highlight() override { return m_pHighlight.get(); }
     IDocumentView* view() override { return this; }
     ViewToolControl* viewToolControl() override { return m_pViewToolControl.get(); }
     void beginSelectionPhase(const EntityTypeList& entityTypes) override;
@@ -147,7 +150,7 @@ private:
 
     /// @brief 命令即将激活：夹点编辑工具移出业务栈，挂起选择层
     void onCommandStarting();
-    /// @brief 命令已结束：清除残留的选择阶段约束，恢复选择层，夹点编辑工具放回业务栈顶
+    /// @brief 命令已结束：清空高亮集，清除残留的选择阶段约束，恢复选择层，夹点编辑工具放回业务栈顶
     void onCommandFinished();
 
     /// @brief 活动命令的捕捉器；没有活动命令或它没有捕捉器时返回 nullptr。捕捉设置同步给它
@@ -169,8 +172,10 @@ private:
     // ViewToolControl 都还在；m_pViewToolControl 随后析构，向各层工具发
     // onDeactivate()，被它引用的工具此时都还在；工具之间的裸指针（SelectTool
     // 与 EditTool 引用 PanZoomTool、捕捉器与预览容器）也按被引用者在前排列。全部成员都在
-    // 基类析构之前析构，基类持有的预览容器这时仍然有效。
+    // 基类析构之前析构，基类持有的预览容器这时仍然有效。高亮集在总线之前声明：总线析构时结束命令、
+    // 发 commandFinished()，高亮集这时还在；它先于基类析构，析构函数里先把画布的来源置空。
     SelectionSet*                           m_pSelection = nullptr; ///< 图纸的选择集，不持有；没有文档时为空
+    std::unique_ptr<HighlightSet>           m_pHighlight;           ///< 本视图的高亮集，命令结束时清空；没有文档时为空
     std::unique_ptr<PanZoomTool>            m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
     std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层与夹点编辑工具的捕捉器，空闲态的捕捉提示也读它
     std::unique_ptr<Preview>                m_pSelectPreview;       ///< 夹点编辑工具移动夹点时的预览容器，选择层选择完成时清除它

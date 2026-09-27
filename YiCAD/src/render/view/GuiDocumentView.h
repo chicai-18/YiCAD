@@ -51,6 +51,7 @@ class DmDocument;
 class DmEntityContainer;
 class GuiCommandEvent;
 class GuiGrid;
+class IHighlightSource;
 class ISelectionSource;
 
 namespace opengl
@@ -93,6 +94,9 @@ public:
     /// @brief 设置文档画笔判断实体是否选中的来源（文档的选择集）；预览画笔不设来源，预览里没有选中的实体
     /// @param source 非持有指针，可为空（没有实体按选中绘制）；必须比本画布活得久或在释放前置空
     void setDocumentSelectionSource(const ISelectionSource* source);
+    /// @brief 设置文档画笔取要高亮的实体的来源（视图的高亮集）；预览画笔不设来源，预览不涉及高亮
+    /// @param source 非持有指针，可为空（没有实体按来源高亮）；必须比本画布活得久或在释放前置空
+    void setDocumentHighlightSource(const IHighlightSource* source);
     /// @brief 设置文档对象：从原文档注销监听，在新文档注册
     /// @param pDoc 文档对象指针，可为空
     void setDocument(DmDocument* pDoc);
@@ -318,6 +322,7 @@ private:
     DmCachePainter*                     m_pPreviewPainter;          ///< 预览画笔
     opengl::GLPainter*                  m_pForegroundPainter;       ///< 前景画笔
     const ISelectionSource*             m_pDocumentSelection = nullptr; ///< 文档画笔判断选中的来源，建画笔时交给它
+    const IHighlightSource*             m_pDocumentHighlight = nullptr; ///< 文档画笔取高亮实体的来源，建画笔时交给它
 
     DmVector                            m_currentMousePt;           ///< 当前鼠标位置（世界坐标）
     DM::CursorType                      m_eCursorType;              ///< 当前鼠标类型

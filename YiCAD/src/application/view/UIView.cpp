@@ -33,6 +33,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateInput.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
@@ -58,6 +59,14 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
         // 文档画笔按图纸的选择集判断实体是否选中；选择改变不经文档通知，这里重建缓存并重绘
         setDocumentSelectionSource(m_pSelection);
         connect(m_pSelection, &SelectionSet::changed, this, [this]()
+        {
+            specifyDocumentModified();
+            redraw();
+        });
+        // 文档画笔从本视图的高亮集取要高亮的实体，高亮改变时同样重建缓存并重绘
+        m_pHighlight = std::make_unique<HighlightSet>(*document);
+        setDocumentHighlightSource(m_pHighlight.get());
+        connect(m_pHighlight.get(), &HighlightSet::changed, this, [this]()
         {
             specifyDocumentModified();
             redraw();
@@ -108,6 +117,8 @@ UIView::~UIView()
 {
     // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
+    // 高亮集随成员先于基类释放，基类画布析构时不再读它
+    setDocumentHighlightSource(nullptr);
 }
 
 void UIView::beginSelectionPhase(const EntityTypeList& entityTypes)
@@ -133,6 +144,8 @@ void UIView::onCommandStarting()
 
 void UIView::onCommandFinished()
 {
+    // 高亮是命令进行中的拾取反馈，命令结束时由视图统一清空（doc/HIGHLIGHT_SET_PLAN.md D2）
+    m_pHighlight->clear();
     // 命令没有退出选择阶段就结束时，由视图清除约束（SelectFirstCommand 自己会退出，这里是兜底）
     if (m_pSelectTool->inSelectionPhase())
     {

@@ -28,6 +28,7 @@
 
 class DmDocument;
 class ExclusiveCommandBus;
+class HighlightSet;
 class ICommandHost;
 class IDocumentView;
 class SelectionSet;
@@ -60,6 +61,8 @@ public:
     /// @brief 文档的选择集；只在活动期间有效。命令的放置工具经 BasePlaceTool::command() 取用，
     ///        所以公开（工具的文档与视图在构造时传入）
     SelectionSet* selection() const;
+    /// @brief 视图的高亮集；只在活动期间有效，命令结束时由视图清空。公开的理由同 selection()
+    HighlightSet* highlight() const;
 
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等

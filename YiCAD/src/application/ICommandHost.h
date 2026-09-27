@@ -29,6 +29,7 @@
 
 class DmDocument;
 class ExclusiveCommandBus;
+class HighlightSet;
 class IDocumentView;
 class SelectionSet;
 class ViewToolControl;
@@ -43,6 +44,8 @@ public:
     virtual DmDocument* document() = 0;
     /// @brief 文档的选择集，同一文档的各个视图共用
     virtual SelectionSet* selection() = 0;
+    /// @brief 视图的高亮集：命令进行中的拾取反馈，命令结束时由视图清空
+    virtual HighlightSet* highlight() = 0;
     /// @brief 视图
     virtual IDocumentView* view() = 0;
     /// @brief 视图的工具控制器：命令在其业务栈上激活自己的工具

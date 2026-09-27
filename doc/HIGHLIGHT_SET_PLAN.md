@@ -6,8 +6,8 @@
 不在本方案（D5）。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `0834829` 实测。引用 `SELECTION_SET_PLAN.md` 的章节时写作
-> "选择集方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。状态：第 0 步已完成，第 6 节的决策
-> 全部已定（2026-09-27）；第 1 步起尚未开始。
+> "选择集方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。状态：第 0、1 步已完成，第 6 节的
+> 决策全部已定（2026-09-27）；第 2 步起尚未开始。
 
 ---
 
@@ -260,4 +260,51 @@ python tools/check_layering.py
 
 ## 8. 执行记录
 
-（第 1 步开工后填写）
+### 8.1 第 1 步：引入 `HighlightSet` 与 `IHighlightSource`，还没有调用方
+
+2026-09-27 完成，基线 `be34287`。行为不变：没有工具写高亮集，画笔照旧按实体上的高亮位分组。
+
+**方案未写、执行时定的**：
+
+1. **`add` 另外拒绝已删除的实体**：3.3 节只写了"只接受当前实体表里的实体"，而 `EntityTable::find` 按 id 也找得到已删除的
+   实体（`m_entMap` 含已删除的）。锁定图层上的实体照样加入，与 `SelectionSet` 不同：3.3 节没有这一条，高亮是拾取反馈，
+   能不能拾取由工具与捕捉器决定，高亮集不另加限制。
+2. **`entities()` 的开销只随集合大小**（D3 的用意）：先对集合里的每个 id 在当前实体表里查，过滤已删除与不可见的；
+   只有一个时直接返回（悬停的常态），多于一个时遍历实体表按顺序排，只比较指针、不取 id、不查哈希，找齐即止。
+   没有照搬 `SelectionSet::entities()` 对每个实体取 id 查集合的写法，否则每次重建缓存都要对整张图做一遍 D3 想避开的查找。
+3. **`contains` 同时要求 `find(id)` 是这个实体本身**，与 `entities()` 的结果一致；集合很小，多查一次不算开销。
+4. **"内容真正改变"按集合算**：`add` 已有的、`remove` 没有的、`clear` 空集合都不发 `changed()`；集合里只剩已删除实体的 id 时
+   `clear()` 仍发，画面上看不出差别，只多重建一次缓存。
+5. **`UIView`**：高亮集与选择层等成员一样只在有文档时创建，声明紧跟 `m_pSelection`，在 `m_pCommandBus` 之前；
+   `onCommandFinished()` 第一件事清空；析构函数在释放总线之后把画布的来源置空。
+6. **`DmCachePainter` 的过渡写法**：`regroup` 遍历完实体后，对来源给出的实体里未选中、且没有置高亮位的放进高亮组；
+   置了位的已经由 `addGroupEntity` 放进去，这样不会重复。第 2 步随 `isHighlighted()` 分支一并去掉这个判断。
+7. **放置工具的入口不用改**：`BaseExclusiveCommand::highlight()` 是公开的，工具经 `command().highlight()` 就能取到，
+   `BasePlaceTool` 不动。
+8. **`TestCommandHost` 自己持有高亮集**（以构造时的文档构造），与 `UIView` 一样在命令结束时清空；夹具不用改，
+   用例经 `host.highlight()` 取。
+9. `YiCAD/CMakeLists.txt` 分区说明里的目录清单随之加上两者（同选择集方案第 3 步的做法）；`AGENTS.md` 按第 4 节留到第 4 步。
+
+**改动**：
+
+| 位置 | 改法 |
+|------|------|
+| `render/view/IHighlightSource.h`（新增） | 只读接口 `highlightedEntities()` |
+| `DmCachePainter` | 持有可为空的来源 `setHighlightSource()`，`regroup` 见上第 6 条 |
+| `GuiDocumentView` | `setDocumentHighlightSource()`，先存为成员，建画笔时交给文档画笔；预览画笔不设 |
+| `application/HighlightSet.*`（新增） | 见 3.3 节与上第 1 至 4 条 |
+| `ICommandHost`、`BaseExclusiveCommand` | 各加 `highlight()`，后者公开 |
+| `UIView` | 见上第 5 条 |
+| `tests/support/TestCommandHost.h` | 见上第 8 条 |
+| `YiCAD/CMakeLists.txt`、`tests/interaction/CMakeLists.txt` | 说明里加上两者，登记新用例文件 |
+
+**测试**：新增 `test_highlight_set.cpp`（`test_interaction`）六例：只接受当前实体表里的实体（空指针、不在表里的、克隆、
+多段线的一段子实体都不加入，不发 `changed()`）、内容不变时不发 `changed()`、已删除与不可见的实体不交出（不可见的重新可见后
+仍高亮，已删除的不能再加入）、按实体表的顺序给出（第 4 节没有列，3.3 节写了顺序，补上）、实体被 `remove_direct` 释放后查询
+不出错（同一地址的新实体不算高亮）、命令结束时视图清空（命令经 `BaseExclusiveCommand::highlight()` 加入，取到的是宿主的
+高亮集）。
+
+**验证**：`cmake --build --preset Release`（没有新增警告）、`ctest`（4 个测试二进制全部通过，`test_interaction` 331 例）、
+`python tools/check_layering.py` 通过；在 `DmCachePainter.cpp` 临时包含 `HighlightSet.h`，构建 `YiCadRender` 报 C1083，恢复后
+通过。安装后启动程序（新建第一张图纸即构造 `UIView` 的高亮集并交给文档画笔），能正常响应，关闭后退出码为 0。这一步没有调用方，
+第 7 节的界面走查从第 2 步起做。
