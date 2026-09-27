@@ -269,7 +269,7 @@ Qt 输入事件并分发。它不管文件，也不管文档的生死。
 |------|------|------|------|
 | D1 | `SelectionSet` 由谁持有 | 三种做法：A. `MDIWindow` 直接持有，与 `DocumentFileService` 并列，改动最少，但把 Application 层的每文档状态继续放在 Shell 的控件里，以后提取时要再搬；B. 先按 6.3 节提取每文档对象 `AppDocument`（第 2 步，约 5 个文件），选择集放在那里；C. 作为 `UIView` 的成员，最省事，但选择集变成按视口而不是按文档，与第 1 节的目标相悖。定为 B | 已定（2026-09-27） |
 | D2 | 撤销、重做后选择集怎么办 | A. 接受第 5 节的差异，只让已删除的实体掉出，改动最小；B. 撤销、重做时清空整个选择集，但这会让"选中 X 后撤销与 X 无关的操作"也丢掉 X，而现在不会。定为 A | 已定（2026-09-27） |
-| D3 | 范围 | 悬停高亮 `FlagHighlighted`（Render 同样读它，`DmCachePainter.cpp:221`）与块列表的 `DmBlock::selectedInBlockList` 也是会话状态。这次不动，已记入分层方案 11.2 节 | 已定（2026-09-27） |
+| D3 | 范围 | 悬停高亮 `FlagHighlighted`（Render 同样读它，`DmCachePainter.cpp:221`）与块列表的 `DmBlock::selectedInBlockList` 也是会话状态。这次不动，已记入分层方案 11.2 节。（高亮随后由 `HIGHLIGHT_SET_PLAN.md` 移到 Application 的 `HighlightSet`，2026-09-27 完成；块列表的选中仍未动。） | 已定（2026-09-27） |
 | D4 | 约 20 处散落的 `GUIDIALOGFACTORY->updateSelectionWidget(...)` | 这次只换数据来源；改成订阅 `SelectionSet::changed()` 另做，因为空闲态与选择阶段的通知时机不同（`SelectTool.h:183`），要单独核对 | 已定（2026-09-27） |
 | D5 | 命名与合并 | 每文档对象 `AppDocument`（理由见 6.3 节）；选择集 `SelectionSet`；Render 接口 `ISelectionSource`；几何查询为 `EntityTable::entitiesInsideRect`、`entitiesCrossingRect`，不设按图层的 Model 查询（理由见 3.1 节；曾暂名 `SelectionQuery`，因为把"选择"带回 Model、`Window` 易被读成界面窗口而放弃）。`Selection` 并入 `SelectionSet`：这是本文的选择，分层方案 11.2 节原文只说"`Selection` 随状态进 Application" | 已定（2026-09-27） |
 

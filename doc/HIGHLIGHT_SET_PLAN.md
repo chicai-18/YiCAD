@@ -6,8 +6,8 @@
 不在本方案（D5）。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `0834829` 实测。引用 `SELECTION_SET_PLAN.md` 的章节时写作
-> "选择集方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。状态：第 0 至 3 步已完成（第 2 步起的
-> 界面走查待做，见 8.2 节），第 6 节的决策全部已定（2026-09-27）；第 4 步尚未开始。
+> "选择集方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。状态：全部完成（2026-09-27，第 0 至 4 步，
+> 见第 8 节），第 2 步起的界面走查待做（8.2 节末）；第 6 节的决策全部已定（2026-09-27）。
 
 ---
 
@@ -262,7 +262,7 @@ python tools/check_layering.py
 
 ### 8.1 第 1 步：引入 `HighlightSet` 与 `IHighlightSource`，还没有调用方
 
-2026-09-27 完成，基线 `be34287`。行为不变：没有工具写高亮集，画笔照旧按实体上的高亮位分组。
+2026-09-27 完成，基线 `be34287`，一个提交（`d45b48a`）。行为不变：没有工具写高亮集，画笔照旧按实体上的高亮位分组。
 
 **方案未写、执行时定的**：
 
@@ -311,7 +311,7 @@ python tools/check_layering.py
 
 ### 8.2 第 2 步：迁移 15 个工具
 
-2026-09-27 完成代码与单测，基线 `d45b48a`；界面走查待做（见本节末）。扩展里已没有 `setHighlighted`、`isHighlighted` 的调用，
+2026-09-27 完成代码与单测，基线 `d45b48a`，一个提交（`ece7cf5`）；界面走查待做（见本节末）。扩展里已没有 `setHighlighted`、`isHighlighted` 的调用，
 Render 只按高亮集分高亮组；Model 里的标志位与清位留到第 3 步。
 
 **方案未写、执行时定的**：
@@ -359,7 +359,7 @@ Render 只按高亮集分高亮组；Model 里的标志位与清位留到第 3 �
 
 ### 8.3 第 3 步：删除 Model 里的高亮
 
-2026-09-27 完成，基线 `ece7cf5`。行为不变：第 2 步之后已没有代码置高亮位，这一步删的是标志位本身、接口与各处清位。
+2026-09-27 完成，基线 `ece7cf5`，一个提交（`5c29d88`）。行为不变：第 2 步之后已没有代码置高亮位，这一步删的是标志位本身、接口与各处清位。
 
 **方案未写、执行时定的**：
 
@@ -389,3 +389,32 @@ Render 只按高亮集分高亮组；Model 里的标志位与清位留到第 3 �
 `test_interaction` 335 例，其中一例是原有的 DXF 基准图纸用例 SKIPPED）、`python tools/check_layering.py` 通过。第 7 节的编译期
 保证：在 `DmLine.cpp` 末尾临时加一个调用 `setHighlighted`、`isHighlighted` 并引用 `DM::FlagHighlighted` 的函数，构建 `YiCadModel`
 报 C2039、C2065，恢复后通过。安装后启动程序能正常响应，关闭后退出码为 0。界面走查与第 2 步的一起待做（8.2 节末）。
+
+### 8.4 第 4 步：收尾
+
+2026-09-27 完成，基线 `5c29d88`，一个提交。只改文档，行为不变。
+
+**检查**：
+
+1. `FlagHighlighted`、`setHighlighted`、`isHighlighted` 在 `YiCAD/src`、`tests` 里一处不剩（同 8.3 节第 1 条）。名字里带 highlight 的
+   其余代码都不是实体上的高亮：`HighlightSet`、`IHighlightSource` 及其调用处，工具里记下上次悬停实体的成员（如 `prevHighlighted`），
+   着色器参数 `u_isHighlighted`（`GLPainterCommon.cpp:477`），选项对话框里的高亮颜色设置；注释掉的 `setUpdateHighlightedEnts()`
+   见下"发现、未处理"。
+2. 源码里的目录说明第 1 步已经更新（`YiCAD/CMakeLists.txt` 分区说明、`tests/interaction/CMakeLists.txt`，8.1 节第 9 条），这一步不改。
+
+**回填**：
+
+1. 8.1 至 8.3 节补上各步的提交号；文首状态改为全部完成，注明界面走查仍待做。
+2. 分层方案：2.2 节目录在 `render/view/` 加上 `IHighlightSource`，在 `application/` 根目录加上高亮集 `HighlightSet`，目录下
+   说明改动来由的一段补上高亮；11.2 节"高亮移出 Model"注明已完成、界面走查待做。
+3. `AGENTS.md` 的源码布局说明在 `SelectionSet` 之后加上 `HighlightSet`：每个视图一个，命令经 `highlight()` 取，命令结束时由视图
+   清空，画布经 `render/view/` 的 `IHighlightSource` 读取。
+4. 第 4 节没有列、执行时加的：选择集方案 D3 注明高亮后来的去向，决策本身照旧（同选择集方案第 5 步给分层方案 D2 注明去向的做法）。
+
+**发现、未处理**：`DmDocument::getCacheDrawData()` 与成员 `m_pCacheDrawData`（`DmDocument.h:261`、`:286`）的类型 `DmCacheDrawData`
+只有前置声明、没有定义，成员从不赋值；唯一的使用是 `UITabDrawWidget.cpp:1208` 起注释掉的一段旧代码，其中有
+`setUpdateHighlightedEnts()`（`:1213`）。它是旧画笔留下的死代码，不是高亮状态，本方案不删，另行处理。
+
+**验证**：`cmake --build --preset Release`（构建目录与 `5c29d88` 一致，没有重新编译源码）、`ctest`（4 个测试二进制全部通过，
+`test_interaction` 335 例，其中一例是原有的 DXF 基准图纸用例 SKIPPED）、`python tools/check_layering.py` 通过。程序代码没有改动，
+没有重新安装；第 7 节的界面走查仍待做（8.2 节末）。

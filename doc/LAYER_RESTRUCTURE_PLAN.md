@@ -123,10 +123,12 @@ YiCAD/src/
 ├─ render/              YiCadRender
 │  ├─ painter/          绘制抽象
 │  ├─ opengl/           OpenGL 实现
-│  └─ view/             画布 GuiDocumentView、IDocumentView、ISnapService、ISelectionSource、网格、预览窗
+│  └─ view/             画布 GuiDocumentView、IDocumentView、ISnapService、ISelectionSource、
+│                       IHighlightSource、网格、预览窗
 ├─ application/         YiCadApplication（沿用 DS 的 Application 命名）
 │  ├─ （根）            命令、命令总线与注册表、视图工具、捕捉、预览、命令别名、宿主服务接口、
-│  │                    每文档对象 AppDocument、选择集 SelectionSet、文档文件服务
+│  │                    每文档对象 AppDocument、选择集 SelectionSet、高亮集 HighlightSet、
+│  │                    文档文件服务
 │  ├─ framework/        进程内扩展框架、IDocumentManager
 │  └─ view/             交互视图 UIView
 ├─ ui/                  YiCadUi：可复用控件、对话框运行器、文件对话框、Ribbon 注册表（forms/、ribbon/）
@@ -142,7 +144,8 @@ YiCAD/src/
 只有壳层用的、依赖主窗口的进 `shell/`。
 
 本方案结束时 `Selection` 在 `model/edit/`（D2）。2026-09-27 按 `SELECTION_SET_PLAN.md` 把它连同选中状态并入
-`application/` 的 `SelectionSet`，并新增 `AppDocument`、`ISelectionSource`，上面的目录已按此更新。
+`application/` 的 `SelectionSet`，并新增 `AppDocument`、`ISelectionSource`；同日按 `HIGHLIGHT_SET_PLAN.md` 把实体上的
+临时高亮移到 `application/` 的 `HighlightSet`，并新增 `IHighlightSource`。上面的目录已按此更新。
 
 ### 2.3 文件去向
 
@@ -1290,7 +1293,7 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 | 事项 | 现状 | 说明 |
 |------|------|------|
 | 选择集移出 Model | 选择状态是实体上的标志位（`DmEntity::setSelected`，`Datamodel.h:63` 的 `FlagSelected`），`Selection` 操作这些标志 | 本方案把 `Selection` 留在 `model/edit/`（D2），只去掉它对视图的依赖。选择集概念上是编辑会话的状态而不是图纸数据（AutoCAD 的选择集在 AcEd 而非 AcDb，FreeCAD 的 `Gui::Selection` 在 Gui 层）。移出时状态改由 Application 持有的选择集对象保存，Render 经接口读取高亮，`Selection` 随状态进 Application；窗选、交叉选里的几何查询留在 Model，即 `test_geometry` 覆盖的部分。执行方案见 `SELECTION_SET_PLAN.md`（2026-09-27）。已完成（2026-09-27，见该文第 9 节） |
-| 高亮移出 Model | 临时高亮是实体上的标志位（`DmEntity::setHighlighted`，`Datamodel.h:66` 的 `FlagHighlighted`），由 15 个命令放置工具写，作命令进行中的拾取反馈；Render 读它（`DmCachePainter.cpp:233`）。原先与下一项写在一起，称"悬停高亮"，不全面 | 与选择集同属编辑会话的状态，`SELECTION_SET_PLAN.md` 的 D3 定为那次不动。状态改由 Application 的 `HighlightSet` 保存，每个视图一个、命令结束时由视图清空，Render 经 `IHighlightSource` 读取。执行方案见 `HIGHLIGHT_SET_PLAN.md`（2026-09-27） |
+| 高亮移出 Model | 临时高亮是实体上的标志位（`DmEntity::setHighlighted`，`Datamodel.h:66` 的 `FlagHighlighted`），由 15 个命令放置工具写，作命令进行中的拾取反馈；Render 读它（`DmCachePainter.cpp:233`）。原先与下一项写在一起，称"悬停高亮"，不全面 | 与选择集同属编辑会话的状态，`SELECTION_SET_PLAN.md` 的 D3 定为那次不动。状态改由 Application 的 `HighlightSet` 保存，每个视图一个、命令结束时由视图清空，Render 经 `IHighlightSource` 读取。执行方案见 `HIGHLIGHT_SET_PLAN.md`（2026-09-27）。已完成（2026-09-27，见该文第 8 节；界面走查待做） |
 | 其他会话状态移出 Model | 块列表的选中是 `DmBlock::selectedInBlockList`（`DmBlock.h:53`）；修剪、延伸、两点打断在预览时不经事务、直接把文档实体设为不可见（`ModifyTrimCommand.cpp:207`、`ModifyExtendCommand.cpp:262`、`ModifyCutCommands.cpp:350`），改的是存盘的 `FlagVisible` | 同属编辑会话的状态。`SELECTION_SET_PLAN.md` 的 D3、`HIGHLIGHT_SET_PLAN.md` 的 D5 都定为不动，留到之后。前者可仿照选择集的做法；后者的做法要另议，例如画笔按"隐藏集"跳过这些实体。编辑多行文字时隐藏原文字（`DrawMTextCommand.cpp:278`）经事务进撤销历史，是图纸修改，不在此列 |
 | 块编辑模式重做 | 编辑模式在 `ExclusiveCommandBus` 里 | 另行设计；本方案只在 S1、S3 做最小适配 |
 | 渲染专项 | `ARCHITECTURE_EVOLUTION_PLAN.md` 已声明不在其排期 | 本方案同样不改 `render/` 内部实现 |
