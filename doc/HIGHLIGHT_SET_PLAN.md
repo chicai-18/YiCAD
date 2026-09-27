@@ -414,6 +414,7 @@ Render 只按高亮集分高亮组；Model 里的标志位与清位留到第 3 �
 **发现、未处理**：`DmDocument::getCacheDrawData()` 与成员 `m_pCacheDrawData`（`DmDocument.h:261`、`:286`）的类型 `DmCacheDrawData`
 只有前置声明、没有定义，成员从不赋值；唯一的使用是 `UITabDrawWidget.cpp:1208` 起注释掉的一段旧代码，其中有
 `setUpdateHighlightedEnts()`（`:1213`）。它是旧画笔留下的死代码，不是高亮状态，本方案不删，另行处理。
+后已在 `03a7590` 删除（前置声明、`getCacheDrawData()` 的声明与定义、成员，以及那段注释和它上面的 todo）。
 
 **验证**：`cmake --build --preset Release`（构建目录与 `5c29d88` 一致，没有重新编译源码）、`ctest`（4 个测试二进制全部通过，
 `test_interaction` 335 例，其中一例是原有的 DXF 基准图纸用例 SKIPPED）、`python tools/check_layering.py` 通过。程序代码没有改动，
