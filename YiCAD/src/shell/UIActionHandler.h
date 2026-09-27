@@ -29,6 +29,7 @@
 
 class UISnapWidget;
 class DmLayer;
+class SelectionSet;
 
 /// @class UIActionHandler
 /// @brief 这个类可以触发操作（菜单、按钮等）
@@ -62,6 +63,8 @@ public:
     DM::SnapRestriction getSnapRestriction();
     void set_view(GuiDocumentView* pDocumentView);
     void set_document(DmDocument* document);
+    /// @brief 当前图纸的选择集，随 set_document() 一起设置；没有打开的图纸时为空
+    void set_selection(SelectionSet* selection);
     void redrawAll();
     void updateGrids();
 
@@ -107,6 +110,7 @@ private:
     UISnapWidget*       m_pSnapToolbar = nullptr;
     GuiDocumentView*    m_pView = nullptr;
     DmDocument*         m_pDocument = nullptr;
+    SelectionSet*       m_pSelection = nullptr;
     MDIWindow*          m_pMdiWin = nullptr;
     QMdiArea*           m_pDrawingArea = nullptr;
     UITabDrawWidget*    m_pTabDrawWidget = nullptr;

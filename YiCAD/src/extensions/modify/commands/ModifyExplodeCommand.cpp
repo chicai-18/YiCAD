@@ -42,6 +42,7 @@
 #include "EntityTable.h"
 #include "GeometryMethods.h"
 #include "GuiDialogFactory.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -68,9 +69,9 @@ bool ModifyExplodeCommand::explode(const bool remove)
     auto entTable = document()->getEntityTable();
 
     std::vector<DmEntity*> toExplode;
-    for (auto e : *entTable)
+    for (auto e : selection()->entities())
     {
-        if (e->isLocked() || !e->isSelected())
+        if (e->isLocked())
             continue;
         toExplode.emplace_back(e);
     }

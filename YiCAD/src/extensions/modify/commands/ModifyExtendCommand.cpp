@@ -52,6 +52,7 @@
 #include "Math2d.h"
 #include "Modification.h"
 #include "PlaceCommand.h"
+#include "SelectionSet.h"
 #include "Tools.h"
 #include "Transaction.h"
 
@@ -175,12 +176,9 @@ void ModifyExtendTool::resetState()
     m_seleltedEnts.clear();
 
     // 判断是否有选择的实体
-    for (auto e : *document()->getEntityTable())
+    for (auto e : command().selection()->entities())
     {
-        if (e->isSelected())
-        {
-            m_seleltedEnts.emplace_back(e);
-        }
+        m_seleltedEnts.emplace_back(e);
     }
     m_bExtendToSelect = m_seleltedEnts.size() > 0;
     if (!m_bExtendToSelect)

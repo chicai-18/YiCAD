@@ -30,6 +30,7 @@
 #include "UIWidthBox.h"
 #include "DmDocument.h"
 #include "IDocumentManager.h"
+#include "SelectionSet.h"
 #include "DocumentCmd.h"
 #include "Transaction.h"
 
@@ -132,7 +133,8 @@ void UICurrentActivePen::slotSelectChanged()
     t.commit();
     
 	//修改当前选择实体的pen
-	unsigned int selectedCount = doc->getEntityTable()->countSelect();
+	SelectionSet* selection = m_documents.selection(doc);
+	unsigned int selectedCount = selection ? selection->count() : 0;
 	if (selectedCount == 0)
 	{
         tg.commit();
@@ -142,16 +144,13 @@ void UICurrentActivePen::slotSelectChanged()
     Transaction t2(tr("Modify current selected entities").toStdString(), doc);
     t2.start();
     EntityTable* entityTable = doc->getEntityTable();
-	for (auto& e : *entityTable)
+	for (auto e : selection->entities())
 	{
-		if (e->isSelected())
-		{
-            entityTable->startModify(e);
-			e->setPen(pen);
-			//对于简单实体（比如直线）不用update()。
-			//但是对于文字（DmText）这种包含DmBlockReference的实体，里面的DmBlockReference的子实体颜色要从DmText及DmBlock获得，因此要update()
-			e->update();
-		}
+        entityTable->startModify(e);
+		e->setPen(pen);
+		//对于简单实体（比如直线）不用update()。
+		//但是对于文字（DmText）这种包含DmBlockReference的实体，里面的DmBlockReference的子实体颜色要从DmText及DmBlock获得，因此要update()
+		e->update();
 	}
     t2.commit();
     tg.commit();

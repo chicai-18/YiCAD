@@ -1,5 +1,5 @@
 /// @file FakeDocumentManager.h
-/// @brief 单测用的 IDocumentManager 替身：文档、视图与未命名文档的名字按预设返回，
+/// @brief 单测用的 IDocumentManager 替身：文档、视图、选择集与未命名文档的名字按预设返回，
 ///        文件操作只记录调用
 
 #ifndef YICAD_TEST_FAKE_DOCUMENT_MANAGER_H
@@ -23,6 +23,7 @@ public:
     GuiDocumentView* currentView = nullptr;               ///< currentDocumentView() 的返回值
     std::vector<DmDocument*> open;                        ///< documents() 的返回值
     std::vector<GuiDocumentView*> views;                  ///< documentViews() 的返回值
+    std::map<const DmDocument*, SelectionSet*> selections; ///< selection() 按文档返回，没有时为空
     std::map<const DmDocument*, QString> untitledNames;   ///< untitledDocumentName() 按文档返回，没有时为空
     QStringList calls;                                    ///< 文件操作的调用记录，按调用顺序
 
@@ -30,6 +31,11 @@ public:
     GuiDocumentView* currentDocumentView() const override { return currentView; }
     std::vector<DmDocument*> documents() const override { return open; }
     std::vector<GuiDocumentView*> documentViews() const override { return views; }
+    SelectionSet* selection(const DmDocument* document) const override
+    {
+        const auto it = selections.find(document);
+        return it == selections.end() ? nullptr : it->second;
+    }
 
     void newDocument() override { calls.append(QStringLiteral("new")); }
     void openDocument() override { calls.append(QStringLiteral("open")); }

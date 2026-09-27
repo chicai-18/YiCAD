@@ -31,6 +31,7 @@
 #include "DmEntityContainer.h"
 
 class DmLineStrip;
+class ISelectionSource;
 
 /// @brief 对GLCachePainter及分组的封装
 class DmCachePainter
@@ -105,6 +106,10 @@ public:
     /// @brief 设置高亮实体颜色
     void setHighlightColor(const QColor& c);
 
+    /// @brief 设置判断实体是否选中的来源，并标记需要重新缓存
+    /// @param source 非持有指针，可为空；为空时没有实体按选中绘制
+    void setSelectionSource(const ISelectionSource* source);
+
 private:
     void recache();
 
@@ -134,8 +139,12 @@ private:
     /// @brief 缓存拖拽点
     void cacheSelectedPoints();
 
+    /// @brief 实体是否按选中绘制，见 setSelectionSource()
+    bool isSelected(const DmEntity* e) const;
+
 private:
     opengl::GLCachePainter* m_cachePainter = nullptr; ///< 画笔
+    const ISelectionSource* m_selectionSource = nullptr; ///< 判断实体是否选中的来源，为空时没有实体选中
 
     std::unordered_map<int, std::list<opengl::CacheType>> m_recacheTypes;
 

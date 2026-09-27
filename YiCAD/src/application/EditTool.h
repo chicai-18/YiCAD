@@ -54,6 +54,7 @@ class PanZoomTool;
 class Preview;
 class QKeyEvent;
 class QMouseEvent;
+class SelectionSet;
 
 class EditTool : public IViewTool
 {
@@ -70,12 +71,13 @@ public:
     using EnabledQuery = std::function<bool()>;
 
     /// @param doc 文档指针
+    /// @param selection 文档的选择集，夹点取自其中的实体
     /// @param docView 文档视图指针
     /// @param snapService 非持有指针，与选择层共用视图的捕捉器
     /// @param preview 非持有指针，由视图持有的预览容器
     /// @param panTool 非持有指针，可为空；用于查询导航层是否正在平移中，为空时视为"从不平移"
-    EditTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
-             PanZoomTool* panTool = nullptr);
+    EditTool(DmDocument* doc, SelectionSet* selection, IDocumentView* docView, ISnapService* snapService,
+             Preview* preview, PanZoomTool* panTool = nullptr);
 
     /// @brief 设置"此刻按在夹点上是否归本类"的查询，由视图装配时设置
     /// @param query 为空时视为总是可用
@@ -117,6 +119,7 @@ private:
     bool isPanning() const;
 
     DmDocument* m_pDocument = nullptr;
+    SelectionSet* m_selection = nullptr;
     IDocumentView* m_docView = nullptr;
     ISnapService* m_snapService = nullptr;
     Preview* m_preview = nullptr;

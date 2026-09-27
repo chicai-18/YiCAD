@@ -30,6 +30,7 @@ class GuiDocumentView;
 class DmDocument;
 class IDocumentManager;
 class QCloseEvent;
+class SelectionSet;
 
 /// @brief 图纸窗口：持有一份打开的图纸，承载它的视图，处理文件对话框
 class MDIWindow : public QMdiSubWindow
@@ -68,6 +69,10 @@ public:
     /// @brief 获取文档对象
     /// @return 文档对象指针
     DmDocument* getDocument() const;
+
+    /// @brief 获取文档的选择集
+    /// @return 选择集指针，不为空
+    SelectionSet* getSelection() const;
 
 signals:
     void signalClosing(MDIWindow*);

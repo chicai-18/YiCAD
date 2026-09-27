@@ -37,6 +37,7 @@
 #include "ISnapService.h"
 #include "Math2d.h"
 #include "Modification.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -163,7 +164,7 @@ ModifyRotateCommand::~ModifyRotateCommand() = default;
 
 bool ModifyRotateCommand::onSelectionReady()
 {
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     auto tool = std::make_unique<ModifyRotateTool>(*this, document(), view());
     tool->setPreview(m_preview.get());
     activateTool(std::move(tool));
@@ -188,21 +189,18 @@ void ModifyRotateCommand::commitRotate(const DmVector& center, double angle)
     Transaction t(tr("Rotate").toStdString(), document());
     t.start();
     auto entTable = document()->getEntityTable();
-    for (auto e : *entTable)
+    for (auto e : selection()->entities())
     {
-        if (e->isSelected())
+        selection()->remove(e);
+        entTable->startModify(e);
+        e->rotateAngle(center, angle);
+        if (e->getEntityType() == DM::EntityBlockReference)
         {
-            e->setSelected(false);
-            entTable->startModify(e);
-            e->rotateAngle(center, angle);
-            if (e->getEntityType() == DM::EntityBlockReference)
-            {
-                static_cast<DmBlockReference*>(e)->update();
-            }
+            static_cast<DmBlockReference*>(e)->update();
         }
     }
     t.commit();
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
     finish();
 }
 

@@ -150,7 +150,7 @@ namespace counters
 TimerCounter& paintGL();
 /// @brief Snapper::catchEntity 的拾取耗时
 TimerCounter& catchEntity();
-/// @brief Selection::selectWindow 的框选耗时
+/// @brief SelectionSet::selectWindow 的框选耗时
 TimerCounter& selectWindow();
 /// @brief EntityTable::getNearestVirtualIntersection 的虚拟交点捕捉耗时
 TimerCounter& nearestVirtualIntersection();

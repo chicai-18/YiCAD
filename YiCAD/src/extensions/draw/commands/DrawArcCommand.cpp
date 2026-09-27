@@ -409,7 +409,7 @@ public:
     void switchToCenterArc()
     {
         std::unique_ptr<IExclusiveCommand> next = CommandRegistry::instance().createCommand(
-            QStringLiteral("ext.draw.arc"), CommandContext{document(), view()});
+            QStringLiteral("ext.draw.arc"), CommandContext{document(), view(), selection()});
         if (next && bus())
         {
             bus()->start(std::move(next));

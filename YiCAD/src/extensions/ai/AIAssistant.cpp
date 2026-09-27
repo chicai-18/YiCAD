@@ -35,15 +35,15 @@ AIAssistant::~AIAssistant()
 {
 }
 
-void AIAssistant::show(DmDocument* doc, GuiDocumentView* docView)
+void AIAssistant::show(DmDocument* doc, GuiDocumentView* docView, SelectionSet* selection)
 {
-    ensureCreated(doc, docView);
+    ensureCreated(doc, docView, selection);
     m_dialog->show();
     m_dialog->raise();
     m_dialog->activateWindow();
 }
 
-void AIAssistant::ensureCreated(DmDocument* doc, GuiDocumentView* docView)
+void AIAssistant::ensureCreated(DmDocument* doc, GuiDocumentView* docView, SelectionSet* selection)
 {
     if (m_dialog)
         return;
@@ -55,7 +55,7 @@ void AIAssistant::ensureCreated(DmDocument* doc, GuiDocumentView* docView)
     const QString readmePath = appDir + "/README.md";
 
     m_pipeline = new AIPipeline(docsDir, readmePath,
-                                doc, docView, this);
+                                doc, docView, selection, this);
 
     // ---- 2. 信号连接 ----
     connect(m_dialog, &AIDialog::sendRequested,

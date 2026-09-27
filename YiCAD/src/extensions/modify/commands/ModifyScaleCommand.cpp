@@ -36,6 +36,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Math2d.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -168,18 +169,14 @@ bool ModifyScaleCommand::onSelectionReady()
 {
     // 选择集包围框宽高的较大值，作为鼠标距离换算比例的基准
     DmEntityContainer ec(nullptr, false);
-    auto table = document()->getEntityTable();
-    for (auto e : *table)
+    for (auto e : selection()->entities())
     {
-        if (e->isSelected())
-        {
-            ec.addEntity(e);
-        }
+        ec.addEntity(e);
     }
     DmVector deltaXY = ec.getMax() - ec.getMin();
     m_boxRange = (deltaXY.x > deltaXY.y) ? deltaXY.x : deltaXY.y;
 
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     auto tool = std::make_unique<ModifyScaleTool>(*this, document(), view());
     tool->setPreview(m_preview.get());
     activateTool(std::move(tool));
@@ -211,18 +208,15 @@ void ModifyScaleCommand::commitScale(const DmVector& reference, double factor)
 
     auto table = document()->getEntityTable();
     DmVector scaleVec(factor, factor);
-    for (auto e : *table)
+    for (auto e : selection()->entities())
     {
-        if (e->isSelected())
-        {
-            table->startModify(e);
-            e->scale(reference, scaleVec);
-        }
+        table->startModify(e);
+        e->scale(reference, scaleVec);
     }
 
     t.commit();
 
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
     finish();
 }
 

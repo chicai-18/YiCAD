@@ -22,17 +22,21 @@
 
 #include "DmDocument.h"
 #include "DocumentFileService.h"
+#include "SelectionSet.h"
 
 AppDocument::AppDocument(const IDocumentManager& documents)
     : m_document(std::make_unique<DmDocument>())
 {
     m_document->initDoc();
     m_fileService = std::make_unique<DocumentFileService>(*m_document, &documents);
+    m_selection = std::make_unique<SelectionSet>(*m_document);
 }
 
-/// 文档文件服务的自动保存定时器会写文档，要在文档之前停下。显式按顺序释放，不依赖成员的声明顺序。
+/// 选择集引用文档，文档文件服务的自动保存定时器会写文档，两者都要在文档之前释放。
+/// 显式按顺序释放，不依赖成员的声明顺序。
 AppDocument::~AppDocument()
 {
+    m_selection.reset();
     m_fileService.reset();
     m_document.reset();
 }

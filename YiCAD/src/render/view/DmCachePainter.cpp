@@ -36,6 +36,7 @@
 #include "DmSpline.h"
 #include "DmLineStrip.h"
 #include "DmImage.h"
+#include "ISelectionSource.h"
 #include <QImage>
 #include <GL/glew.h>
 
@@ -158,6 +159,17 @@ void DmCachePainter::setHighlightColor(const QColor& c)
     m_cachePainter->setHighlightColor(c);
 }
 
+void DmCachePainter::setSelectionSource(const ISelectionSource* source)
+{
+    m_selectionSource = source;
+    specifyModified();
+}
+
+bool DmCachePainter::isSelected(const DmEntity* e) const
+{
+    return m_selectionSource && m_selectionSource->isSelected(*e);
+}
+
 void DmCachePainter::recache()
 {
     if (m_recacheTypes.size() == 0)
@@ -214,7 +226,7 @@ void DmCachePainter::addGroupEntity(DmEntity* pEnt)
         return;
     }
     addGroupEntity_subRoutine(pEnt, &m_groupEntities);
-    if (pEnt->isSelected())
+    if (isSelected(pEnt))
     {
         addGroupEntity_subRoutine(pEnt, &m_selectedEntities);
     }
@@ -512,7 +524,7 @@ void DmCachePainter::cacheSelectedPoints()
             {
                 return;
             }
-            if (e->isSelected())
+            if (isSelected(e))
             {
                 for (auto pt : e->getRefPoints())
                 {

@@ -37,6 +37,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
+#include "SelectionSet.h"
 
 namespace
 {
@@ -55,14 +56,14 @@ public:
         {
         case CommandKind::Instant:
             // 属性对话框是模态的，本命令留着，可以接着点下一个实体（与原先一致）
-            registry.runInstant(editor, CommandContext{document(), view(), nullptr, entity});
+            registry.runInstant(editor, CommandContext{document(), view(), selection(), nullptr, entity});
             break;
         case CommandKind::Exclusive:
         {
             // 属性面板（多行文字）不是模态对话框，由它接替本命令（总线先请本命令让位）；面板结束后
             // 回到空闲态（原先把属性编辑的旧 Action 叠在本命令之上，结束后回到本命令）
             std::unique_ptr<IExclusiveCommand> next =
-                registry.createCommand(editor, CommandContext{document(), view(), nullptr, entity});
+                registry.createCommand(editor, CommandContext{document(), view(), selection(), nullptr, entity});
             if (next && bus())
             {
                 bus()->start(std::move(next));
@@ -107,7 +108,7 @@ protected:
         DmEntity* entity = snapper()->catchEntity(e);
         if (entity)
         {
-            entity->setSelected(true);
+            command().selection()->add(entity);
             view()->emitSelectedChanged();
             m_command.modify(entity);
         }

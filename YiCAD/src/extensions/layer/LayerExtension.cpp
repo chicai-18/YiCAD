@@ -49,6 +49,7 @@
 #include "DmSystem.h"
 #include "EntityTable.h"
 #include "IExtensionContext.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIDialogRunner.h"
 #include "UILayerDialog.h"
@@ -73,10 +74,10 @@ public:
         Transaction t(tr("Activate Layer").toStdString(), doc);
         t.start();
         doc->getLayerTable()->activate(layer);
-        for (DmEntity* entity : *doc->getEntityTable())
+        for (DmEntity* entity : ctx.selection->entities())
         {
             // 只改顶层实体的图层：子实体绘制时取到的画笔随之改变（非随层的不变）
-            if (entity->isSelected() && entity->getLayer() != layer)
+            if (entity->getLayer() != layer)
             {
                 entity->setLayer(layer);
             }
@@ -216,11 +217,11 @@ public:
         layer->lock(!layer->isLocked());
         t.commit();
 
-        for (DmEntity* entity : *ctx.document->getEntityTable())
+        for (DmEntity* entity : ctx.selection->entities())
         {
-            if (entity->getLayer() == layer && entity->isSelected())
+            if (entity->getLayer() == layer)
             {
-                entity->setSelected(false);
+                ctx.selection->remove(entity);
             }
         }
     }
@@ -267,10 +268,7 @@ public:
         }
         if (locked)
         {
-            for (DmEntity* entity : *ctx.document->getEntityTable())
-            {
-                entity->setSelected(false);
-            }
+            ctx.selection->clear();
         }
         Transaction t(tr("Lock All Layers").toStdString(), ctx.document);
         t.start();

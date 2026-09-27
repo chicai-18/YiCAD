@@ -5,7 +5,7 @@
 `model/edit/`，只去掉它对视图的依赖，并注明"选择集连同状态移到 Application 是另一件事"。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `6378f1b` 实测。引用 `LAYER_RESTRUCTURE_PLAN.md`
-> 的章节时写作"分层方案 x.y 节"。状态：第 1、2 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
+> 的章节时写作"分层方案 x.y 节"。状态：第 1 至 3 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
 
 ---
 
@@ -363,3 +363,87 @@ python tools/check_layering.py
 **验证**：`cmake --build --preset Release`（没有新增警告）、`ctest`（4 个测试二进制全部通过）、`python tools/check_layering.py`
 通过；安装后启动程序（新建第一张图纸即构造 `AppDocument`），能正常响应，关闭后退出码为 0。界面走查（点选、框选、删除、移动、
 夹点编辑、块编辑进出，以及新建、打开、保存、关闭图纸）交由用户进行，用户确认后提交。
+
+### 9.3 第 3 步：引入 `SelectionSet` 与 `ISelectionSource`，迁移全部调用方
+
+2026-09-27 完成，基线 `b7c5260`，一个提交。行为不变：选中状态仍是实体的 `FlagSelected` 位，`SelectionSet` 读写它、
+修改后仍经文档通知监听者，只换入口。
+
+**方案未写、执行时定的**：
+
+1. **`UIView` 接收 `AppDocument*`**：构造函数的文档参数由 `DmDocument*` 改为 `AppDocument*`，画布照旧拿其中的文档，
+   选择层、夹点工具、预览与命令拿其中的选择集。没有另加一个选择集参数，免得"文档与选择集同为空或同不为空"要靠调用方保证。
+2. **入口的形式**：`ICommandHost::selection()`、`BaseExclusiveCommand::selection()` 返回指针，与同类的 `document()` 一致
+   （不活动时为空）。`BaseExclusiveCommand::selection()` 是公开的：放置工具里有 7 处读选择集（倒角、圆角、两点打断、多段线加点与
+   删点刷新计数，延伸取边界，修改实体属性选中被点的实体），工具经 `BasePlaceTool::command()` 取用；工具的文档与视图在构造时
+   传入，给几十个工具的构造函数再加一个参数不划算。3.4 节表里的 `selection().count()` 因此写作 `selection()->count()`。
+3. **`CommandContext::selection` 放在 `view` 之后**：带 `sender`、`entity` 的构造不补上就编译不过。源码里的构造是 10 处，
+   不是 2.2 节说的 9 处（`UIActionHandler::activateCommand` 写作 `const CommandContext ctx{...}`）。读它的即时命令：图层的
+   激活、锁定与全部锁定，选中实体信息，删除选择集（`delete_no_select`），文字的选择变化。`ModifyDeleteCommand::deleteSelection`
+   与 `InfoSelectedCommand::run` 的参数随之换成（或加上）选择集。
+4. **Shell 的取法**：`MDIWindow` 加 `getSelection()`（第 2 步说的"需要时再加访问器"）；`UIActionHandler` 加 `set_selection()`，
+   在 `UITabDrawWidget` 设文档的三处一并设置；`ApplicationWindow` 本来就经当前图纸窗口取文档，选择集也经它取；
+   `ApplicationWindowDocumentManager::selection()` 按文档找标签页的图纸窗口。
+5. **AI 上下文**：`AIExtension` 在按钮回调里经 `documentManager()->selection(doc)` 取选择集，与文档一起经 `AIAssistant::show`、
+   `AIPipeline` 传给 `ContextResolver`，与原先传文档指针的做法相同。
+6. **每次修改都通知**：`SelectionSet` 的每个修改函数都经文档通知监听者（`notifyDocumentModified()` 与 `requestRedraw()`），
+   包括 `add`、`remove`。原先直接调 `setSelected` 的地方（旋转、镜像、创建块、复制到图层、锁定图层、夹点落位后的恢复等）
+   因此多了通知。监听者只有画布，收到后只把缓存标为待重建、请求一次重绘，这些地方随后本来就提交事务或重绘，界面上看不出
+   差别。第 4 步改为每次修改发 `changed()`，调用处不用再动。`toggle` 沿用 `Selection::selectSingle`：锁定图层上的实体不变，
+   也不通知。
+7. **`SelectionSet` 的接口**：`contains` 接收 `const DmEntity*`，空指针为假；`selectWindow`、`selectLayer` 保留 `Selection` 的
+   `select` 参数；`selectAll()` 不带参数，取消全部用 `clear()`；没有调用者的 `deselectLayer` 不再保留。`selectAll()` 自 `init`
+   起就没有调用者，`selectLayer` 只有测试调用，3.3 节列了它们，照列保留。`count`、`isEmpty`、`nearestRef` 暂时委托给
+   `EntityTable` 的三个选中查询，`entities()` 遍历当前实体表取 `isSelected()`；第 4 步改为按 `DmId` 实现、删除那三个查询。
+8. **`Preview`**：构造参数由文档改为选择集（原先只有 `addSelectionFromDocument` 用文档），`CommandPreview` 同样，7 处
+   `make_unique<CommandPreview>(document(), view())` 改为传 `selection()`。`Preview` 实现 `ISelectionSource`，暂时读实体的
+   选中位；`UIView` 把自己的预览（选择层与夹点工具共用的那个）交给预览画笔。
+9. **画布**：画笔在 `initializeGL` 里才创建，晚于 `UIView` 的构造，所以 `GuiDocumentView` 把两个来源存为成员，建画笔时交给它们；
+   已有画笔时立即交给。`DmCachePainter::setSelectionSource` 同时把缓存标为待重建。`UIView` 析构时先把预览画笔的来源置空
+   （预览随成员先于基类释放）。`GuiPreviewWidget`（块预览、多行文字编辑器）的画笔不设来源，没有实体按选中绘制：它们画的都是
+   克隆，克隆出来的实体原先也是未选中。
+10. **留到第 4 步的**：克隆后的 `setSelected(false)`（`Preview` 两处、复制到图层、嵌套块选择对话框）暂不删除：36 个 `clone()`
+    里只有 2.2 节说的 16 个清掉选中位，文字、标注、块参照等的克隆带着原实体的位，现在删掉，选中的多行文字在移动预览里会画成
+    选中色。预览引导线的三处 `setSelected(true)` 与 `Preview::isSelected` 读位也留着，第 4 步随"`Preview` 改用自己的集合"一起改。
+11. **第 4 步要先定的一点**：一个视图有多个 `Preview` 对象（`UIView` 的一个，加上每个命令的 `CommandPreview` 各一个），共用
+    视图的预览容器与唯一的预览画笔，而引导线除了夹点工具，还由移动、复制命令经自己的 `CommandPreview` 加入。现在 `Preview`
+    读实体的位，交给画笔的是哪一个都一样；第 4 步各自维护集合后，画笔只认识 `UIView` 的那一个，移动、复制的引导线会失去选中色。
+    3.3 节"`Preview` 实现 `ISelectionSource`，交给预览画笔"要补上多个预览怎么共用这一个来源。
+12. 另一处第 4 步要注意的：`test_text_extension` 的"属性面板不可打断单击取消选中并结束"选中的是一个不在实体表里的多行文字，
+    现在按位判断能通过；改存 `DmId`、`contains` 按当前实体表过滤后，要么把文字放进表，要么说明这种用法。
+13. 只为选中查询包含的 `EntityTable.h` 随之去掉（`UIView`、`EditTool`、`SelectFirstCommand`、选中实体信息、编辑块、文字扩展）。
+
+**改动**：
+
+| 位置 | 改法 |
+|------|------|
+| `render/view/ISelectionSource.h`（新增） | 只读接口 `isSelected(const DmEntity&)` |
+| `DmCachePainter` | 持有可为空的来源，`addGroupEntity`、`cacheSelectedPoints` 改为查它，为空时没有实体选中 |
+| `GuiDocumentView` | `setDocumentSelectionSource`、`setPreviewSelectionSource`，见上第 9 条 |
+| `application/SelectionSet.*`（新增） | 并入 `Selection`，见上第 6、7 条；框选耗时埋点 `selection.selectWindow` 随之进 `SelectionSet::selectWindow`（`ScopedTimer.h`、`BASELINE.md` 改名） |
+| `model/edit/Selection.*` | 删除 |
+| `AppDocument` | 持有 `SelectionSet`，析构时先于文档释放 |
+| `ICommandHost`、`BaseExclusiveCommand`、`CommandContext`、`IDocumentManager` | 各加选择集入口，见上第 2、3 条 |
+| `UIView`、`SelectTool`、`EditTool`、`SelectFirstCommand`、`Preview`、`CommandPreview`、`PlaceCommand` | 见上第 1、8 条；选择层与夹点工具的构造函数在文档之后加选择集 |
+| `UICurrentActivePen`、`ApplicationWindow`、`MDIWindow`、`UIActionHandler`、`UITabDrawWidget` | 见上第 4 条 |
+| 扩展（`ai`、`block`、`draw`、`edit`、`hatch`、`layer`、`measure`、`modify`、`text`，37 个文件） | 按 3.4 节机械替换 |
+| `AGENTS.md`、`YiCAD/CMakeLists.txt`、`tests/interaction/CMakeLists.txt` | 说明里加上 `SelectionSet`、`ISelectionSource` |
+
+**测试**：
+
+- 夹具：`CommandTestFixture.h` 与自己装配的夹具（`test_edit_tool`、`test_exclusive_command_bus`、`test_select_first_commands`、
+  `test_select_tool`）加一个 `SelectionSet`，交给预览、选择层、夹点工具与 `TestCommandHost`；`TestCommandHost` 实现
+  `selection()`；`FakeDocumentManager` 按文档返回预设的选择集。
+- 用例里对实体的 `setSelected`、`isSelected` 换成选择集的 `add`、`remove`、`contains`（8 个文件），带文档的 `CommandContext`
+  补上选择集。
+- `test_document_listener`：`Selection` 用例改为"选择集的各种修改都通知修改并重绘"，补上 `add`、`remove`、`selectAll`；复制用例
+  经选择集选中后把计数清零，只数复制的通知。
+- `test_geometry_spatial_query` 的"框选可反选"移到新增的 `test_selection_set.cpp`（`test_interaction`），同文件另加三例锁住现在的
+  语义，第 4 步改存储后应照样通过：锁定图层上的实体选不中（`add`、`toggle`、`selectAll`、框选），不可见的实体不算选中、重新可见后
+  仍选中，`entities()` 按实体表的顺序。
+- `test_app_document` 加一例：选择集选的是 `AppDocument` 持有的文档里的实体。
+
+**验证**：`cmake --build --preset Release`（没有新增警告）、`ctest`（4 个测试二进制全部通过，`test_interaction` 318 例）、
+`python tools/check_layering.py` 通过；在 `DmCachePainter.cpp` 临时包含 `SelectionSet.h`，构建 `YiCadRender` 报 C1083，恢复后
+通过。安装后启动程序（新建第一张图纸即构造 `AppDocument`、`SelectionSet`，并把选择来源交给两个画笔），能正常响应，关闭后退出码
+为 0。界面走查（点选、框选、删除、移动、夹点编辑、块编辑进出）交由用户进行，用户确认后提交。

@@ -4,9 +4,9 @@
 /// 框选与 EntityTable::getNearestVirtualIntersection 原先遍历全部实体，改为在
 /// SpacialSearchTree 上取候选（框选）与做最近邻查询（虚拟交点）。框选的几何判断
 /// 原在 Selection::selectWindow 里，现在是实体表的两个矩形查询 entitiesInsideRect、
-/// entitiesCrossingRect（doc/SELECTION_SET_PLAN.md 3.1 节），用例直接断言查询结果，
-/// 只有"可反选"一例还经 Selection 置位。除针对性用例外，另有随机用例把结果与原
-/// 全量扫描的算法逐一比对，锁定"只换查询方式、不改语义"；唯一的语义差异（圆弧
+/// entitiesCrossingRect（doc/SELECTION_SET_PLAN.md 3.1 节），用例直接断言查询结果；置位与
+/// "可反选"属于选择集，在 test_interaction 的 test_selection_set.cpp。除针对性用例外，另有
+/// 随机用例把结果与原全量扫描的算法逐一比对，锁定"只换查询方式、不改语义"；唯一的语义差异（圆弧
 /// 圆心落在包围盒外）单独用一个用例写明。
 ///
 /// 虚拟交点的两条既有语义直接决定了下面用例的构造方式，先写在这里：
@@ -39,7 +39,6 @@
 #include "DmVector.h"
 #include "EntityTable.h"
 #include "Information.h"
-#include "Selection.h"
 #include "SpacialSearchTree.h"
 
 namespace
@@ -75,19 +74,6 @@ std::set<DmEntity*> hitSet(const std::vector<DmEntity*>& hits)
 {
     std::set<DmEntity*> result(hits.begin(), hits.end());
     EXPECT_EQ(result.size(), hits.size()) << "查询结果有重复";
-    return result;
-}
-
-std::set<DmEntity*> selectedEntities(DmDocument& doc)
-{
-    std::set<DmEntity*> result;
-    for (auto e : *doc.getEntityTable())
-    {
-        if (e->isSelected())
-        {
-            result.insert(e);
-        }
-    }
     return result;
 }
 
@@ -197,20 +183,6 @@ TEST(SpatialQueryTest, 矩形查询按类型过滤并跳过已删除实体)
     EXPECT_EQ(hitSet(table->entitiesInsideRect(origin, partial)), std::set<DmEntity*>{line});
     EXPECT_EQ(hitSet(table->entitiesCrossingRect(origin, partial)), (std::set<DmEntity*>{line, circle}));
     EXPECT_EQ(hitSet(table->entitiesCrossingRect(origin, partial, linesOnly)), std::set<DmEntity*>{line});
-}
-
-TEST(SpatialQueryTest, 框选可反选)
-{
-    // 置位与反选属于选择集，第 3 步随 Selection 并入 SelectionSet 移到 test_interaction。
-    DmDocument doc;
-    DmLine* line = addLine(doc, DmVector(1.0, 1.0), DmVector(2.0, 2.0));
-
-    Selection selection(&doc);
-    selection.selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), true, false);
-    EXPECT_EQ(selectedEntities(doc), std::set<DmEntity*>{line});
-
-    selection.selectWindow(DmVector(0.0, 0.0), DmVector(5.0, 5.0), false, false);
-    EXPECT_TRUE(selectedEntities(doc).empty());
 }
 
 TEST(SpatialQueryTest, 盖住全部实体的框选与局部框选结果一致)

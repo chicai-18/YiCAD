@@ -34,6 +34,7 @@
 
 class DmDocument;
 class IDocumentView;
+class SelectionSet;
 
 /// @brief 删除命令
 class ModifyDeleteCommand : public SelectFirstCommand
@@ -43,8 +44,9 @@ public:
 
     /// @brief 删除文档的选择集并刷新选择计数
     /// @param doc 文档；为空时什么也不做
+    /// @param selection 文档的选择集；为空时什么也不做
     /// @param view 视图；为空时什么也不做
-    static void deleteSelection(DmDocument* doc, IDocumentView* view);
+    static void deleteSelection(DmDocument* doc, SelectionSet* selection, IDocumentView* view);
 
 protected:
     /// @brief 删除选择集后结束

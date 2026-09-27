@@ -29,34 +29,28 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "Modification.h"
+#include "SelectionSet.h"
 
 ModifyDeleteCommand::ModifyDeleteCommand()
     : SelectFirstCommand(SelectionEntry::Always)
 {
 }
 
-void ModifyDeleteCommand::deleteSelection(DmDocument* doc, IDocumentView* view)
+void ModifyDeleteCommand::deleteSelection(DmDocument* doc, SelectionSet* selection, IDocumentView* view)
 {
-    if (!doc || !view)
+    if (!doc || !selection || !view)
     {
         return;
     }
-    std::vector<DmEntity*> ents;
-    for (auto e : *doc->getEntityTable())
-    {
-        if (e->isSelected())
-        {
-            ents.push_back(e);
-        }
-    }
+    const std::vector<DmEntity*> ents = selection->entities();
     Modification m(doc);
     m.remove(ents);
-    GUIDIALOGFACTORY->updateSelectionWidget(doc->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection->count());
 }
 
 bool ModifyDeleteCommand::onSelectionReady()
 {
-    deleteSelection(document(), view());
+    deleteSelection(document(), selection(), view());
     finish();
     return true;
 }
@@ -68,5 +62,6 @@ ExclusiveCommandFactory ModifyCommands::remove()
 
 InstantCommand ModifyCommands::deleteSelection()
 {
-    return [](const CommandContext& ctx) { ModifyDeleteCommand::deleteSelection(ctx.document, ctx.view); };
+    return [](const CommandContext& ctx)
+    { ModifyDeleteCommand::deleteSelection(ctx.document, ctx.selection, ctx.view); };
 }

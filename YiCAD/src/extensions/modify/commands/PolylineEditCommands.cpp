@@ -40,6 +40,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -267,7 +268,7 @@ void PolylineAddTool::trigger()
         t.commit();
 
         addCoord = {};
-        GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+        GUIDIALOGFACTORY->updateSelectionWidget(command().selection()->count());
     }
 
     view()->redraw();
@@ -692,7 +693,7 @@ void PolylineDelTool::trigger()
         t.commit();
 
         delPoint = DmVector(false);
-        GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+        GUIDIALOGFACTORY->updateSelectionWidget(command().selection()->count());
     }
 }
 

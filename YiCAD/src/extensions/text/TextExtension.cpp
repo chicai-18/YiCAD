@@ -33,13 +33,13 @@
 #include "DmSystem.h"
 #include "DrawMTextCommand.h"
 #include "DrawTextCommand.h"
-#include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "IExtensionContext.h"
 #include "DmText.h"
 #include "ModifyMTextCommand.h"
+#include "SelectionSet.h"
 #include "UIDialogRunner.h"
 #include "UIDlgText.h"
 #include "UIDlgTextStyle.h"
@@ -60,7 +60,7 @@ DmMText* mtextOf(const CommandContext& ctx)
 ///        同一个图层上、且第一个是多行文字时，显示它的属性面板
 void onSelectionChanged(const CommandContext& ctx)
 {
-    if (!ctx.document || !ctx.view)
+    if (!ctx.document || !ctx.view || !ctx.selection)
     {
         return;
     }
@@ -74,12 +74,8 @@ void onSelectionChanged(const CommandContext& ctx)
 
     DmLayer* firstLayer = nullptr;
     DmEntity* first = nullptr;
-    for (DmEntity* entity : *ctx.document->getEntityTable())
+    for (DmEntity* entity : ctx.selection->entities())
     {
-        if (!entity->isSelected())
-        {
-            continue;
-        }
         if (!first)
         {
             first = entity;
@@ -96,7 +92,7 @@ void onSelectionChanged(const CommandContext& ctx)
         return;
     }
     if (std::unique_ptr<IExclusiveCommand> command = CommandRegistry::instance().createCommand(
-            QStringLiteral("ext.text.modify_mtext"), CommandContext{ctx.document, ctx.view, nullptr, first}))
+            QStringLiteral("ext.text.modify_mtext"), CommandContext{ctx.document, ctx.view, ctx.selection, nullptr, first}))
     {
         view->startCommand(std::move(command));
     }

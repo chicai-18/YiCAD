@@ -36,6 +36,7 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -158,7 +159,7 @@ CopyToLayerCommand::~CopyToLayerCommand() = default;
 
 bool CopyToLayerCommand::onSelectionReady()
 {
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     auto tool = std::make_unique<CopyToLayerTool>(*this, document(), view());
     tool->setPreview(m_preview.get());
     activateTool(std::move(tool));
@@ -173,18 +174,14 @@ void CopyToLayerCommand::previewAt(const DmVector& basePoint, const DmVector& mo
         // 第一次：把选择集的克隆按原位放进预览，记下它对应的基点
         m_preview->clear();
         m_previewPos = basePoint;
-        auto table = document()->getEntityTable();
-        for (auto it = table->begin(); it != table->end(); ++it)
+        for (auto e : selection()->entities())
         {
-            if ((*it)->isSelected())
-            {
-                DmEntity* clone = (*it)->clone();
-                clone->setLayer(m_targetLayer->getName());
-                clone->setPen(m_targetLayer->getPen());
-                clone->setSelected(false);
-                clone->setParent(nullptr);
-                preview.addEntity(clone);
-            }
+            DmEntity* clone = e->clone();
+            clone->setLayer(m_targetLayer->getName());
+            clone->setPen(m_targetLayer->getPen());
+            clone->setSelected(false);
+            clone->setParent(nullptr);
+            preview.addEntity(clone);
         }
         preview.setVisible(true);
         m_preview->draw();
@@ -207,18 +204,14 @@ void CopyToLayerCommand::commitCopy(const DmVector& basePoint, const DmVector& e
 {
     // 复制选择的实体
     std::vector<DmEntity*> vec;
-    auto table = document()->getEntityTable();
-    for (auto it = table->begin(); it != table->end(); ++it)
+    for (auto e : selection()->entities())
     {
-        if ((*it)->isSelected())
-        {
-            (*it)->setSelected(false);
-            DmEntity* ent = (*it)->clone();
-            ent->move(endPoint - basePoint);
-            ent->setLayer(m_targetLayer->getName());
-            ent->setPen(m_targetLayer->getPen());
-            vec.emplace_back(ent);
-        }
+        selection()->remove(e);
+        DmEntity* ent = e->clone();
+        ent->move(endPoint - basePoint);
+        ent->setLayer(m_targetLayer->getName());
+        ent->setPen(m_targetLayer->getPen());
+        vec.emplace_back(ent);
     }
 
     // 添加到文档

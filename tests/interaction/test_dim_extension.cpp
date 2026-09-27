@@ -135,6 +135,6 @@ TEST_F(DimFixture, 登记标注的属性编辑修改标注文字)
     }
     EXPECT_EQ(registry.kind(QStringLiteral("ext.dim.properties")), CommandKind::Instant);
     // 没有实体时什么也不做
-    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.dim.properties"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.dim.properties"), CommandContext{&doc, &view, &selection}));
     EXPECT_TRUE(dialogs.shown.empty());
 }

@@ -28,16 +28,16 @@
 
 #include "Preview.h"
 
-class DmDocument;
 class IDocumentView;
+class SelectionSet;
 
 /// @brief 命令的预览
 class CommandPreview
 {
 public:
-    /// @param doc 文档，预览选择集时从它取
+    /// @param selection 文档的选择集，预览选择集时从它取
     /// @param view 视图，预览画在它的预览容器里
-    CommandPreview(DmDocument* doc, IDocumentView* view);
+    CommandPreview(SelectionSet* selection, IDocumentView* view);
     ~CommandPreview();
 
     CommandPreview(const CommandPreview&) = delete;

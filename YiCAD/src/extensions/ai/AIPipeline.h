@@ -29,7 +29,7 @@
 ///
 /// 使用方式：
 ///   @code
-///     auto* pipeline = new AIPipeline(docsDir, readmePath, doc, docView, this);
+///     auto* pipeline = new AIPipeline(docsDir, readmePath, doc, docView, selection, this);
 ///     connect(pipeline, &AIPipeline::responseReady,
 ///             dialog, &AIDialog::appendMessage);
 ///     pipeline->handleUserInput("draw a circle", "auto");
@@ -51,6 +51,7 @@ class ContextResolver;
 class DirectEntityExecutor;
 class DmDocument;
 class GuiDocumentView;
+class SelectionSet;
 
 #include "RAGTypes.h"
 struct RouterResult;
@@ -69,11 +70,13 @@ public:
     /// @param readmePath README.md 路径（用于 RAG 知识库）
     /// @param doc        当前文档指针（用于建模执行器，可为 nullptr）
     /// @param docView     当前文档视图指针（用于建模执行器 UI 刷新，可为 nullptr）
+    /// @param selection   当前文档的选择集（用于上下文解析取当前选择；doc 不为空时不为空）
     /// @param parent      父 QObject
     explicit AIPipeline(const QString& docsDir,
                         const QString& readmePath,
                         DmDocument* doc,
                         GuiDocumentView* docView,
+                        SelectionSet* selection,
                         QObject* parent = nullptr);
 
     /// @brief 析构函数

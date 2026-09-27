@@ -25,10 +25,10 @@
 #include <QTabletEvent>
 #include <QWheelEvent>
 
+#include "AppDocument.h"
 #include "DmDocument.h"
 #include "DmSettings.h"
 #include "EditTool.h"
-#include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateInput.h"
@@ -36,13 +36,14 @@
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
+#include "SelectionSet.h"
 #include "Snapper.h"
 #include "ViewToolControl.h"
 
 using DispatchScope = ExclusiveCommandBus::DispatchScope;
 
-UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
-    : GuiDocumentView(parent, fl, doc)
+UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
+    : GuiDocumentView(parent, fl, doc ? &doc->document() : nullptr)
 {
     m_pPanZoomTool = std::make_unique<PanZoomTool>(this);
     m_pViewToolControl = std::make_unique<ViewToolControl>(this);
@@ -50,15 +51,20 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
 
     if (doc)
     {
-        m_pSelectSnapper = std::make_unique<Snapper>(doc, this);
-        m_pSelectPreview = std::make_unique<Preview>(doc, this);
-        m_pSelectTool = std::make_unique<SelectTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
-                                                     m_pPanZoomTool.get());
+        DmDocument* document = &doc->document();
+        m_pSelection = &doc->selection();
+        m_pSelectSnapper = std::make_unique<Snapper>(document, this);
+        m_pSelectPreview = std::make_unique<Preview>(m_pSelection, this);
+        // 文档画笔按图纸的选择集、预览画笔按预览判断实体是否选中
+        setDocumentSelectionSource(m_pSelection);
+        setPreviewSelectionSource(m_pSelectPreview.get());
+        m_pSelectTool = std::make_unique<SelectTool>(document, m_pSelection, this, m_pSelectSnapper.get(),
+                                                     m_pSelectPreview.get(), m_pPanZoomTool.get());
         m_pViewToolControl->setSelectionTool(m_pSelectTool.get());
         // 夹点编辑工具与选择层共用捕捉器与预览容器：两者轮流使用，同一时刻只有一个在编辑夹点或选择。
         // 没有活动命令时它在业务栈上（onCommandStarting()/onCommandFinished()），选择阶段因此自然不激活夹点
-        m_pEditTool = std::make_unique<EditTool>(doc, this, m_pSelectSnapper.get(), m_pSelectPreview.get(),
-                                                 m_pPanZoomTool.get());
+        m_pEditTool = std::make_unique<EditTool>(document, m_pSelection, this, m_pSelectSnapper.get(),
+                                                 m_pSelectPreview.get(), m_pPanZoomTool.get());
         // 框选时点第二个角点不激活夹点，那次按下仍是框选的角点
         m_pEditTool->setEnabledQuery([this]()
         {
@@ -88,7 +94,7 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, DmDocument* doc)
         m_pSelectTool->setCommandStarter([this](const QString& commandId, DmEntity* entity, const DmVector& point)
         {
             std::unique_ptr<IExclusiveCommand> command = CommandRegistry::instance().createCommand(
-                commandId, CommandContext{getDocument(), this, nullptr, entity, point});
+                commandId, CommandContext{getDocument(), this, m_pSelection, nullptr, entity, point});
             return command && startCommand(std::move(command));
         });
     }
@@ -98,6 +104,8 @@ UIView::~UIView()
 {
     // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
+    // 预览随成员先于基类释放，预览画笔不再经它判断选中
+    setPreviewSelectionSource(nullptr);
 }
 
 void UIView::beginSelectionPhase(const EntityTypeList& entityTypes)
@@ -420,11 +428,11 @@ void UIView::tabletEvent(QTabletEvent* e)
             const QPoint pos = e->position().toPoint();
             m_pSelectTool->pickAt(pos.x(), pos.y());
 
-            if (pDocument->getEntityTable()->hasSelect())
+            if (!m_pSelection->isEmpty())
             {
                 prepareInstantCommand();
                 CommandRegistry::instance().runInstant(QStringLiteral("ext.modify.delete_no_select"),
-                                                       CommandContext{pDocument, this});
+                                                       CommandContext{pDocument, this, m_pSelection});
             }
         }
         return;

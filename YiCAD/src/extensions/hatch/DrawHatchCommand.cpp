@@ -40,6 +40,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Preview.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIDialogRunner.h"
 #include "UIDlgHatch.h"
@@ -96,15 +97,7 @@ DrawHatchCommand::~DrawHatchCommand()
 
 std::unique_ptr<BasePlaceTool> DrawHatchCommand::createTool()
 {
-    bool hasSelection = false;
-    for (DmEntity* entity : *document()->getEntityTable())
-    {
-        if (entity->isSelected())
-        {
-            hasSelection = true;
-            break;
-        }
-    }
+    const bool hasSelection = !selection()->isEmpty();
 
     DmHatch tmp(nullptr, *m_data);
     tmp.setDocument(document());
@@ -121,12 +114,9 @@ std::unique_ptr<BasePlaceTool> DrawHatchCommand::createTool()
 
     if (hasSelection)
     {
-        for (DmEntity* entity : *document()->getEntityTable())
+        for (DmEntity* entity : selection()->entities())
         {
-            if (entity->isSelected())
-            {
-                m_findMethod.addEntity(entity);
-            }
+            m_findMethod.addEntity(entity);
         }
     }
     else

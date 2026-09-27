@@ -30,7 +30,7 @@ PlaceCommand::~PlaceCommand() = default;
 
 bool PlaceCommand::onActivate()
 {
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     m_tool = createTool();
     if (!m_tool)
     {

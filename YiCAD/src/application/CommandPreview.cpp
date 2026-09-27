@@ -22,9 +22,9 @@
 
 #include "IDocumentView.h"
 
-CommandPreview::CommandPreview(DmDocument* doc, IDocumentView* view)
+CommandPreview::CommandPreview(SelectionSet* selection, IDocumentView* view)
     : m_view(view)
-    , m_preview(doc, view)
+    , m_preview(selection, view)
 {
 }
 

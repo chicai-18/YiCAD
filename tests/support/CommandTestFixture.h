@@ -32,6 +32,7 @@
 #include "PanZoomTool.h"
 #include "Preview.h"
 #include "SelectTool.h"
+#include "SelectionSet.h"
 #include "Snapper.h"
 #include "ViewToolControl.h"
 #include "support/CommandExtensions.h"
@@ -85,14 +86,15 @@ struct CommandFixture : ::testing::Test
     UiRecorder ui;
     DialogRecorder dialogs;
     DmDocument doc;
+    SelectionSet selection{doc};
     FakeDocumentView view;
-    Preview preview{&doc, &view};
+    Preview preview{&selection, &view};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
-    SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
-    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
+    SelectTool selectTool{&doc, &selection, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &selection, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    TestCommandHost host{doc, view, control, selectTool, &editTool};
+    TestCommandHost host{doc, selection, view, control, selectTool, &editTool};
     ExclusiveCommandBus bus{host};
 
     CommandFixture()
@@ -119,7 +121,7 @@ struct CommandFixture : ::testing::Test
     bool start(const char* id)
     {
         std::unique_ptr<IExclusiveCommand> command =
-            CommandRegistry::instance().createCommand(QString::fromLatin1(id), CommandContext{&doc, &view});
+            CommandRegistry::instance().createCommand(QString::fromLatin1(id), CommandContext{&doc, &view, &selection});
         EXPECT_NE(command, nullptr) << id;
         return command && bus.start(std::move(command));
     }

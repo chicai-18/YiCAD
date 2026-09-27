@@ -258,7 +258,7 @@ TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复可见)
     DmLine* boundary = addLine(DmVector(10, -10), DmVector(10, 10));
     DmLine* target = addLine(DmVector(0, 0), DmVector(5, 0));
     // 命令开始时有选中的实体：以它们为边界
-    boundary->setSelected(true);
+    selection.add(boundary);
     ASSERT_TRUE(start("ext.modify.extend"));
 
     move(4, 0);
@@ -411,7 +411,7 @@ TEST_F(ModifyFixture, 修改实体属性选中实体并弹出对话框)
 
     ASSERT_TRUE(start("ext.modify.entity"));
     click(5, 0);
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     // 绘图扩展登记的属性编辑命令弹出直线的属性对话框；对话框是模态的，本命令留着
     EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgLine")});
     EXPECT_TRUE(bus.hasActiveCommand());
@@ -441,7 +441,7 @@ TEST_F(ModifyFixture, 修改实体属性由交互式属性编辑命令接替)
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
     ASSERT_TRUE(start("ext.modify.entity"));
     click(5, 0);
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     EXPECT_TRUE(dialogs.shown.empty());
     // 修改实体命令让位，由属性编辑命令接替
     EXPECT_EQ(bus.activeCommandId(), QStringLiteral("test.modify.panel"));
@@ -461,7 +461,7 @@ TEST_F(ModifyFixture, 绘图扩展登记几类实体的属性对话框)
     }
 
     // 没有实体时什么也不做
-    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.draw.properties"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.draw.properties"), CommandContext{&doc, &view, &selection}));
     EXPECT_TRUE(dialogs.shown.empty());
 }
 
@@ -582,7 +582,7 @@ TEST_F(ModifyFixture, 删除提交只删选中实体撤销后恢复为未选中)
 {
     DmLine* selected = addLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0));
     DmLine* other = addLine(DmVector(0.0, 5.0), DmVector(10.0, 5.0));
-    selected->setSelected(true);
+    selection.add(selected);
 
     ASSERT_TRUE(start("ext.modify.delete"));
     // 删除总是先进入选择阶段（test_select_first_commands 的 P8），回车用已有的选择集
@@ -593,14 +593,14 @@ TEST_F(ModifyFixture, 删除提交只删选中实体撤销后恢复为未选中)
 
     doc.getCmdManager()->undo();
     EXPECT_FALSE(selected->isErased());
-    EXPECT_FALSE(selected->isSelected());
+    EXPECT_FALSE(selection.contains(selected));
 }
 
 TEST_F(ModifyFixture, 移动提交只移动选中实体并取消选中)
 {
     DmLine* selected = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     DmLine* other = addLine(DmVector(10.0, 30.0), DmVector(50.0, 30.0));
-    selected->setSelected(true);
+    selection.add(selected);
 
     ASSERT_TRUE(start("ext.modify.move"));
     typeCoordinate(0.0, 0.0);
@@ -608,18 +608,18 @@ TEST_F(ModifyFixture, 移动提交只移动选中实体并取消选中)
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(selected->getStartpoint(), DmVector(15.0, 15.0));
     EXPECT_EQ(other->getStartpoint(), DmVector(10.0, 30.0));
-    EXPECT_FALSE(selected->isSelected());
+    EXPECT_FALSE(selection.contains(selected));
 
     doc.getCmdManager()->undo();
     EXPECT_EQ(selected->getStartpoint(), DmVector(10.0, 10.0));
-    EXPECT_FALSE(selected->isSelected());
+    EXPECT_FALSE(selection.contains(selected));
 }
 
 TEST_F(ModifyFixture, 复制到剪贴板后取消选中并通知视图剪切还删掉实体)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     addLine(DmVector(10.0, 30.0), DmVector(50.0, 30.0));
-    line->setSelected(true);
+    selection.add(line);
 
     ASSERT_TRUE(start("ext.edit.copy"));
     // 复制不经事务，取消选中后要另行通知视图重建缓存
@@ -635,11 +635,11 @@ TEST_F(ModifyFixture, 复制到剪贴板后取消选中并通知视图剪切还�
     doc.removeListener(&counter);
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(DMCLIPBOARD->count(), 1u);
-    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(selection.contains(line));
     EXPECT_FALSE(line->isErased());
     EXPECT_GT(counter.modified, 0);
 
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.edit.cut"));
     typeCoordinate(10.0, 10.0);
     EXPECT_FALSE(bus.hasActiveCommand());

@@ -52,6 +52,7 @@
 #include "GuiDocumentView.h"
 #include "ICommandHost.h"
 
+class AppDocument;
 class EditTool;
 class ExclusiveCommandBus;
 class IExclusiveCommand;
@@ -59,6 +60,7 @@ class ISnapService;
 class PanZoomTool;
 class Preview;
 class SelectTool;
+class SelectionSet;
 class Snapper;
 class ViewToolControl;
 
@@ -70,8 +72,9 @@ class UIView : public GuiDocumentView, public ICommandHost
 public:
     /// @param parent 父控件
     /// @param fl 窗口标志
-    /// @param doc 关联的文档；为空时不建选择层与命令总线
-    UIView(QWidget* parent = nullptr, Qt::WindowFlags fl = Qt::WindowFlags(), DmDocument* doc = nullptr);
+    /// @param doc 显示的图纸：画它的文档，选择与命令作用于它的选择集；为空时不建选择层与命令总线。
+    ///            必须比本视图活得久
+    UIView(QWidget* parent = nullptr, Qt::WindowFlags fl = Qt::WindowFlags(), AppDocument* doc = nullptr);
     ~UIView() override;
 
     /// @brief 启动交互命令（UIActionHandler 按注册类型分派到这里）
@@ -136,6 +139,7 @@ protected:
 private:
     // ---- ICommandHost：命令与总线经接口调用 ----
     DmDocument* document() override { return getDocument(); }
+    SelectionSet* selection() override { return m_pSelection; }
     IDocumentView* view() override { return this; }
     ViewToolControl* viewToolControl() override { return m_pViewToolControl.get(); }
     void beginSelectionPhase(const EntityTypeList& entityTypes) override;
@@ -166,6 +170,7 @@ private:
     // onDeactivate()，被它引用的工具此时都还在；工具之间的裸指针（SelectTool
     // 与 EditTool 引用 PanZoomTool、捕捉器与预览容器）也按被引用者在前排列。全部成员都在
     // 基类析构之前析构，基类持有的预览容器这时仍然有效。
+    SelectionSet*                           m_pSelection = nullptr; ///< 图纸的选择集，不持有；没有文档时为空
     std::unique_ptr<PanZoomTool>            m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
     std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层与夹点编辑工具的捕捉器，空闲态的捕捉提示也读它
     std::unique_ptr<Preview>                m_pSelectPreview;       ///< 夹点编辑工具移动夹点时的预览容器，选择层选择完成时清除它

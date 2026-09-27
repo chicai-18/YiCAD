@@ -31,6 +31,7 @@
 #include "DmSpline.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 bool ModifyReverseCommand::onSelectionReady()
@@ -39,12 +40,8 @@ bool ModifyReverseCommand::onSelectionReady()
     t.start();
     auto table = document()->getEntityTable();
     int count = 0;
-    for (auto ent : *table)
+    for (auto ent : selection()->entities())
     {
-        if (!ent->isSelected())
-        {
-            continue;
-        }
         switch (ent->getEntityType())
         {
             case DM::EntityLine:

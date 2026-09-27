@@ -43,6 +43,7 @@
 #include "Information.h"
 #include "Math2d.h"
 #include "Modification.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -284,7 +285,7 @@ void ModifyRoundTool::trigger()
     entity2 = nullptr;
     setStatus(SetEntity1);
 
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(command().selection()->count());
 }
 
 DmVector ModifyRoundTool::setmousePoint(const DmVector& m_p, DmEntity* e)

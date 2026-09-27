@@ -82,7 +82,7 @@ yicad_collect_sources(BASE
 #   src/model/entity_data/  实体的数据结构 *Data；dimension/、text/ 同上
 #   src/model/table/        符号表、实体表、空间索引
 #   src/model/history/      撤销重做（Cmd/CmdManager/MacroCmd/Transaction 与各 *Cmd）
-#   src/model/edit/         Modification、Selection
+#   src/model/edit/         Modification（选择集在 application/ 的 SelectionSet）
 #   src/model/algorithm/    求交、面积、闭合区域、三角剖分
 #   src/model/io/           原生格式 FilterOcdIO、格式注册表 FilterRegistry、覆盖写时的
 #                           编号备份、迁移基类；meta/ 是各类型的
@@ -112,7 +112,8 @@ yicad_collect_sources(MODEL
 #   src/render/painter/  绘制抽象（Painter/PainterCreator）
 #   src/render/opengl/   OpenGL 实现（GL*）
 #   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter，
-#                        以及命令与工具眼中的视图接口 IDocumentView、捕捉接口 ISnapService
+#                        以及命令与工具眼中的视图接口 IDocumentView、捕捉接口 ISnapService，
+#                        绘制时判断实体是否选中的接口 ISelectionSource
 #
 # 画布不认识命令与视图工具；装配工具的交互视图 UIView 在 application/view/。
 # 文档经 DmDocumentListener 通知画布，Model 不认识本分区。
@@ -128,7 +129,8 @@ yicad_collect_sources(RENDER
 #                               后建的基类）、视图工具框架（IViewTool/ViewToolControl/
 #                               PanZoomTool）、选择层 SelectTool、捕捉器 Snapper、预览、
 #                               keyconfig.xml 与命令行别名（Commands）、一份打开的图纸
-#                               AppDocument（持有文档与存盘策略）、文档的存盘策略
+#                               AppDocument（持有文档、存盘策略与选择集）、文档的选择集
+#                               SelectionSet、文档的存盘策略
 #                               DocumentFileService（自动保存、备份、打开失败的处理）、
 #                               宿主服务接口 GuiDialogFactoryInterface（实现在 shell/ 的
 #                               UIDialogFactory）

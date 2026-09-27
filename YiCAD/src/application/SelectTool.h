@@ -64,6 +64,7 @@ class Preview;
 class PanZoomTool;
 class QKeyEvent;
 class QMouseEvent;
+class SelectionSet;
 
 class SelectTool : public IViewTool
 {
@@ -100,14 +101,15 @@ public:
     };
 
     /// @param doc 文档指针
+    /// @param selection 文档的选择集，点选与框选改的是它
     /// @param docView 文档视图指针
     /// @param snapService 非持有指针，由视图持有；空闲态的捕捉提示也读它
     /// @param preview 非持有指针，由视图持有的预览容器；本类不往里画，只在选择完成、
     ///                取消与挂起时清除它（与原 `ActionDefault` 相同）
     /// @param panTool 非持有指针，可为空；用于查询导航层是否正在平移中，
     ///                 为空时视为"从不平移"
-    SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
-               PanZoomTool* panTool = nullptr);
+    SelectTool(DmDocument* doc, SelectionSet* selection, IDocumentView* docView, ISnapService* snapService,
+               Preview* preview, PanZoomTool* panTool = nullptr);
 
     /// @brief 复位到 Neutral：清除预览与捕捉点，重新初始化捕捉器
     /// @note 结束全部命令（`UIView::killAllActions()`）时调用
@@ -190,6 +192,7 @@ private:
     std::optional<DM::CursorType> cursorForStatus() const;
 
     DmDocument* m_pDocument = nullptr;
+    SelectionSet* m_selection = nullptr;
     IDocumentView* m_docView = nullptr;
     ISnapService* m_snapService = nullptr;
     Preview* m_preview = nullptr;

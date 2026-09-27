@@ -26,6 +26,7 @@
 class QWidget;
 class DmDocument;
 class GuiDocumentView;
+class SelectionSet;
 class AIDialog;
 class AIPipeline;
 
@@ -48,7 +49,8 @@ public:
     /// @brief 显示 AI 助手对话框（首次调用时创建 AIDialog + AIPipeline）
     /// @param doc     当前文档指针（可为 nullptr，仅首次调用用于 AIPipeline 初始化）
     /// @param docView 当前文档视图指针（可为 nullptr）
-    void show(DmDocument* doc, GuiDocumentView* docView);
+    /// @param selection 当前文档的选择集（doc 为空时为空，同样仅首次调用使用）
+    void show(DmDocument* doc, GuiDocumentView* docView, SelectionSet* selection);
 
 private slots:
     void onSendRequested(const QString& text, const QString& mode);
@@ -57,7 +59,7 @@ private slots:
     void onPipelineResponse(const QString& sender, const QString& text);
 
 private:
-    void ensureCreated(DmDocument* doc, GuiDocumentView* docView);
+    void ensureCreated(DmDocument* doc, GuiDocumentView* docView, SelectionSet* selection);
 
     QWidget*            m_parentWindow = nullptr;
     AIDialog*           m_dialog       = nullptr;

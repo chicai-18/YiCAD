@@ -41,6 +41,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -113,7 +114,7 @@ public:
             entTable->add(clone);
         }
         t.commit();
-        GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+        GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
         finish();
     }
 

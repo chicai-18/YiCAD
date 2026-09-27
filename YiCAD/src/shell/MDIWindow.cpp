@@ -28,6 +28,7 @@
 #include "AppDocument.h"
 #include "DmDocument.h"
 #include "DocumentFileService.h"
+#include "SelectionSet.h"
 #include "UIFileDialog.h"
 #include "UIView.h"
 
@@ -41,7 +42,7 @@ MDIWindow::MDIWindow(const IDocumentManager& documents, QWidget* parent, Qt::Win
 {
     setAttribute(Qt::WA_DeleteOnClose);
 
-    docView = new UIView(this, Qt::WindowFlags(), &appDocument->document());
+    docView = new UIView(this, Qt::WindowFlags(), appDocument.get());
     docView->setObjectName("documentview");
 
     setWidget(docView);
@@ -51,8 +52,8 @@ MDIWindow::MDIWindow(const IDocumentManager& documents, QWidget* parent, Qt::Win
 
 /// @brief 析构函数，先释放视图，再释放图纸
 ///
-/// 视图是文档的监听者，析构时从文档注销，必须先于文档释放。它是本窗口的子控件，
-/// 不在这里删就要等基类析构时才释放，那时文档已经删除。图纸内部先释放文档文件服务、再释放文档。
+/// 视图是文档的监听者，析构时从文档注销，还引用图纸的选择集，必须先于图纸释放。它是本窗口的子控件，
+/// 不在这里删就要等基类析构时才释放，那时文档已经删除。图纸内部先释放选择集与文档文件服务、再释放文档。
 MDIWindow::~MDIWindow()
 {
     delete docView;
@@ -68,6 +69,11 @@ GuiDocumentView* MDIWindow::getDocumentView() const
 DmDocument* MDIWindow::getDocument() const
 {
     return &appDocument->document();
+}
+
+SelectionSet* MDIWindow::getSelection() const
+{
+    return &appDocument->selection();
 }
 
 /// @brief 关闭事件处理（由Qt在用户关闭此MDI窗口时调用）

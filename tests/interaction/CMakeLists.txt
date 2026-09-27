@@ -2,7 +2,8 @@
 # src/application/framework/ 与 keyconfig.xml 的解析 Commands）、内置命令与各扩展的命令，
 # 插件命令与按钮接入宿主注册表（src/shell/plugin_runtime/PluginUiAdapter），文档经
 # DmDocumentListener 通知画布（分层重组 S3），文档的存盘策略 DocumentFileService（S4c），
-# 以及持有文档与存盘策略的每文档对象 AppDocument（选择集方案第 2 步）。
+# 持有文档与存盘策略的每文档对象 AppDocument（选择集方案第 2 步），以及文档的选择集
+# SelectionSet（第 3 步）。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
 yicad_add_test(interaction
@@ -18,6 +19,7 @@ yicad_add_test(interaction
         test_document_listener.cpp
         test_document_file_service.cpp
         test_app_document.cpp
+        test_selection_set.cpp
         test_command_registry.cpp
         test_command_dispatch.cpp
         test_keyconfig.cpp

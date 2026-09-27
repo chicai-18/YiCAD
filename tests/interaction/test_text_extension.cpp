@@ -95,7 +95,8 @@ TEST_F(TextFixture, 按钮挂进宿主占位的文字面板)
 
 TEST_F(TextFixture, 文字样式弹出文字样式对话框)
 {
-    EXPECT_TRUE(CommandRegistry::instance().runInstant(QStringLiteral("ext.text.style"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(CommandRegistry::instance().runInstant(QStringLiteral("ext.text.style"),
+                                                       CommandContext{&doc, &view, &selection}));
     EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgTextStyle")});
 }
 
@@ -117,7 +118,8 @@ TEST_F(TextFixture, 登记单行文字的属性对话框与多行文字的属性
     // 不是单行文字时什么也不做（属性定义也是 DmText，归块扩展）
     auto* line = new DmLine(nullptr, LineData(DmVector(0, 0), DmVector(10, 0)));
     ASSERT_TRUE(doc.getEntityTable()->add_direct(line));
-    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.text.properties"), CommandContext{&doc, &view, nullptr, line}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.text.properties"),
+                                    CommandContext{&doc, &view, &selection, nullptr, line}));
     EXPECT_TRUE(dialogs.shown.empty());
 }
 
@@ -155,28 +157,28 @@ TEST_F(TextFixture, 编辑与属性面板命令只接受多行文字)
     for (const char* id : {"ext.text.edit_mtext", "ext.text.modify_mtext"})
     {
         SCOPED_TRACE(id);
-        EXPECT_EQ(registry.createCommand(id, CommandContext{&doc, &view}), nullptr);
-        EXPECT_EQ(registry.createCommand(id, CommandContext{&doc, &view, nullptr, line.get()}), nullptr);
+        EXPECT_EQ(registry.createCommand(id, CommandContext{&doc, &view, &selection}), nullptr);
+        EXPECT_EQ(registry.createCommand(id, CommandContext{&doc, &view, &selection, nullptr, line.get()}), nullptr);
     }
     // 编辑命令构造时要复制文字，默认构造的 DmMText 没有样式复制不了，这里只看属性面板
     auto text = std::make_unique<DmMText>(nullptr, MTextData());
     EXPECT_NE(registry.createCommand(QStringLiteral("ext.text.modify_mtext"),
-                                     CommandContext{&doc, &view, nullptr, text.get()}),
+                                     CommandContext{&doc, &view, &selection, nullptr, text.get()}),
               nullptr);
 }
 
 TEST_F(TextFixture, 属性面板不可打断单击取消选中并结束)
 {
     auto text = std::make_unique<DmMText>(nullptr, MTextData());
-    text->setSelected(true);
+    selection.add(text.get());
     std::unique_ptr<IExclusiveCommand> command = CommandRegistry::instance().createCommand(
-        QStringLiteral("ext.text.modify_mtext"), CommandContext{&doc, &view, nullptr, text.get()});
+        QStringLiteral("ext.text.modify_mtext"), CommandContext{&doc, &view, &selection, nullptr, text.get()});
     ASSERT_NE(command, nullptr);
     EXPECT_TRUE(command->isUninterruptible());
     ASSERT_TRUE(bus.start(std::move(command)));
 
     click(5, 5);
-    EXPECT_FALSE(text->isSelected());
+    EXPECT_FALSE(selection.contains(text.get()));
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 
@@ -185,7 +187,7 @@ TEST_F(TextFixture, 没有视图时选择变化的监听者什么也不做)
     EXPECT_TRUE(CommandRegistry::instance().runInstant(QStringLiteral("ext.text.selection_changed"), CommandContext{}));
     // 假视图不是 UIView：不启动属性面板
     EXPECT_TRUE(CommandRegistry::instance().runInstant(QStringLiteral("ext.text.selection_changed"),
-                                                       CommandContext{&doc, &view}));
+                                                       CommandContext{&doc, &view, &selection}));
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 
@@ -218,7 +220,7 @@ TEST_F(SelectEditorFixture, 选择层双击优先启动编辑命令没有时运�
         [&properties](const CommandContext& ctx) { properties.push_back({QString(), ctx.entity, ctx.point}); }));
     ASSERT_TRUE(
         CommandRegistry::instance().registerPropertyEditor(DM::EntityLine, QStringLiteral("test.text.line_properties")));
-    line->setSelected(false);
+    selection.remove(line);
     doubleClick(5, 0);
     EXPECT_TRUE(started.empty());
     ASSERT_EQ(properties.size(), 1u);
@@ -230,7 +232,7 @@ TEST_F(SelectEditorFixture, 选择层双击优先启动编辑命令没有时运�
         QStringLiteral("test.text.line_editor"),
         [](const CommandContext&) -> std::unique_ptr<IExclusiveCommand> { return nullptr; }));
     ASSERT_TRUE(CommandRegistry::instance().registerEntityEditor(DM::EntityLine, QStringLiteral("test.text.line_editor")));
-    line->setSelected(false);
+    selection.remove(line);
     doubleClick(5, 0);
     ASSERT_EQ(started.size(), 1u);
     EXPECT_EQ(started.front().commandId, QStringLiteral("test.text.line_editor"));

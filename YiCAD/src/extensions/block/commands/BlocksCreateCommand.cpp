@@ -33,6 +33,7 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIBlockDialog.h"
 #include "UIDialogRunner.h"
@@ -140,17 +141,14 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
     // 创建块定义
     DmBlock* block = new DmBlock(document(), blockData);
 
-    // 遍历实体表，找选中的实体，克隆到块容器，移除原始实体
-    for (auto entity : *document()->getEntityTable())
+    // 选中的实体取消选中后克隆到块容器，移除原始实体
+    for (auto entity : selection()->entities())
     {
-        if (entity && entity->isSelected())
-        {
-            entity->setSelected(false);
-            DmEntity* clonedEntity = entity->clone();
-            clonedEntity->move(-referencePoint);
-            block->getEntityTable().add_direct(clonedEntity);
-            document()->getEntityTable()->remove(entity);
-        }
+        selection()->remove(entity);
+        DmEntity* clonedEntity = entity->clone();
+        clonedEntity->move(-referencePoint);
+        block->getEntityTable().add_direct(clonedEntity);
+        document()->getEntityTable()->remove(entity);
     }
 
     // 通过块表添加块（走命令系统）

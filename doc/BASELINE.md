@@ -72,7 +72,7 @@ $env:YICAD_LOG = "render:info"
 |--------|------|----------------|
 | `render.paintGL` | `GuiDocumentView::paintGL` | 稳态帧耗时 |
 | `snap.catchEntity` | `Snapper::catchEntity` | 点选耗时 |
-| `selection.selectWindow` | `Selection::selectWindow` | 全选框选耗时 |
+| `selection.selectWindow` | `SelectionSet::selectWindow` | 全选框选耗时 |
 | `snap.nearestVirtualIntersection` | `EntityTable::getNearestVirtualIntersection` | 虚拟交点捕捉耗时 |
 | `document.open` | 尚未接入 | 打开文档耗时 |
 

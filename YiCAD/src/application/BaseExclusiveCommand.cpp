@@ -65,6 +65,11 @@ DmDocument* BaseExclusiveCommand::document() const
     return m_host ? m_host->document() : nullptr;
 }
 
+SelectionSet* BaseExclusiveCommand::selection() const
+{
+    return m_host ? m_host->selection() : nullptr;
+}
+
 IDocumentView* BaseExclusiveCommand::view() const
 {
     return m_host ? m_host->view() : nullptr;

@@ -22,6 +22,7 @@
 #include "GuiDialogFactoryAdapter.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
+#include "SelectionSet.h"
 #include "SelectTool.h"
 #include "Snapper.h"
 #include "ViewToolControl.h"
@@ -47,11 +48,12 @@ QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button, Q
 struct SelectToolFixture : ::testing::Test
 {
     DmDocument doc;
+    SelectionSet selection{doc};
     FakeDocumentView view;
     Preview preview{nullptr, nullptr};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
-    SelectTool tool{&doc, &view, &snapper, &preview, &panTool};
+    SelectTool tool{&doc, &selection, &view, &snapper, &preview, &panTool};
 };
 }  // namespace
 
@@ -284,11 +286,12 @@ public:
 struct IdleDispatchFixture : ::testing::Test
 {
     DmDocument doc;
+    SelectionSet selection{doc};
     FakeDocumentView view;
     Preview preview{nullptr, nullptr};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
-    DispatchSelectTool tool{&doc, &view, &snapper, &preview, &panTool};
+    DispatchSelectTool tool{&doc, &selection, &view, &snapper, &preview, &panTool};
     BusinessToolStub businessTool;
     ViewToolControl control{&view};
 

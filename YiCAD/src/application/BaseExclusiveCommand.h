@@ -30,6 +30,7 @@ class DmDocument;
 class ExclusiveCommandBus;
 class ICommandHost;
 class IDocumentView;
+class SelectionSet;
 class ViewToolControl;
 
 /// @brief 命令的通用基类
@@ -55,6 +56,10 @@ public:
     /// @details 在自己工具的事件处理中调用时，总线在这次分发返回后才结束并销毁
     ///          命令，调用之后仍可安全访问成员（见 ExclusiveCommandBus::requestFinish）
     void finish();
+
+    /// @brief 文档的选择集；只在活动期间有效。命令的放置工具经 BasePlaceTool::command() 取用，
+    ///        所以公开（工具的文档与视图在构造时传入）
+    SelectionSet* selection() const;
 
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等

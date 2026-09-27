@@ -20,6 +20,7 @@
 #include "BlockEditTool.h"
 #include "BlockExtension.h"
 #include "ExtensionManager.h"
+#include "SelectionSet.h"
 #include "support/CommandExtensions.h"
 #include "support/FakeExtensionHost.h"
 #include "CircleData.h"
@@ -105,14 +106,15 @@ struct SelectFirstFixture : ::testing::Test
 {
     UiRecorder ui;
     DmDocument doc;
+    SelectionSet selection{doc};
     FakeDocumentView view;
-    Preview preview{&doc, &view};
+    Preview preview{&selection, &view};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
-    SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
-    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
+    SelectTool selectTool{&doc, &selection, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &selection, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    yicad_test::TestCommandHost host{doc, view, control, selectTool, &editTool};
+    yicad_test::TestCommandHost host{doc, selection, view, control, selectTool, &editTool};
     ExclusiveCommandBus bus{host};
     /// @brief 创建块、编辑块在块扩展里（第三步⑥），其余先选后建命令在修改、编辑、查询扩展里
     ///        （第四步），用例期间启动它们
@@ -150,7 +152,7 @@ struct SelectFirstFixture : ::testing::Test
     bool start(const char* id)
     {
         std::unique_ptr<IExclusiveCommand> command =
-            CommandRegistry::instance().createCommand(QString::fromLatin1(id), CommandContext{&doc, &view});
+            CommandRegistry::instance().createCommand(QString::fromLatin1(id), CommandContext{&doc, &view, &selection});
         EXPECT_NE(command, nullptr) << id;
         return command && bus.start(std::move(command));
     }
@@ -259,7 +261,7 @@ TEST_F(SelectFirstFixture, P2P3框选后回车开始真正的命令)
     ASSERT_TRUE(start("ext.measure.total_length"));
 
     boxSelect(0, 0, 100, 100);
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     // 选择阶段只刷新选择计数，不发 selectedChanged（否则会启动多行文字属性编辑）
     EXPECT_GT(ui.selectionUpdates, 0);
     EXPECT_EQ(view.selectedChangedCount, 0);
@@ -326,7 +328,7 @@ TEST_F(SelectFirstFixture, P6空格被选择阶段接受命令继续)
 TEST_F(SelectFirstFixture, P7已有选择集时跳过选择阶段)
 {
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(30.0, 40.0));
-    line->setSelected(true);
+    selection.add(line);
 
     EXPECT_TRUE(start("ext.measure.total_length"));
     EXPECT_FALSE(selectTool.inSelectionPhase());
@@ -339,12 +341,12 @@ TEST_F(SelectFirstFixture, P7已有选择集时跳过选择阶段)
 TEST_F(SelectFirstFixture, P8已有选择集时删除仍先进入选择阶段)
 {
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(30.0, 40.0));
-    line->setSelected(true);
+    selection.add(line);
 
     ASSERT_TRUE(start("ext.modify.delete"));
     EXPECT_TRUE(bus.hasActiveCommand());
     EXPECT_TRUE(selectTool.inSelectionPhase());
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
 }
 
 TEST_F(SelectFirstFixture, 选择阶段双击无反应)
@@ -354,14 +356,14 @@ TEST_F(SelectFirstFixture, 选择阶段双击无反应)
 
     QMouseEvent dbl = makeMouse(QEvent::MouseButtonDblClick, 30, 10, Qt::LeftButton);
     EXPECT_EQ(dispatch([&] { return control.mouseDoubleClickEvent(&dbl); }), ViewToolResult::Handled);
-    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(selection.contains(line));
     EXPECT_EQ(selectTool.getStatus(), SelectTool::Neutral);
 }
 
 TEST_F(SelectFirstFixture, 选择阶段拖动不拖夹点也不拖实体)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.delete"));
 
     // 在端点上按下并拖动超过阈值：空闲态按下即归夹点编辑工具；选择阶段有命令在运行，
@@ -400,8 +402,8 @@ TEST_F(SelectFirstFixture, 选择阶段按实体类型过滤)
     selectTool.beginSelectionPhase(SelectTool::SelectionPhase{EntityTypeList{DM::EntityCircle}});
 
     boxSelect(0, 0, 100, 100);
-    EXPECT_FALSE(line->isSelected());
-    EXPECT_TRUE(circle->isSelected());
+    EXPECT_FALSE(selection.contains(line));
+    EXPECT_TRUE(selection.contains(circle));
 
     selectTool.endSelectionPhase();
 }
@@ -427,11 +429,11 @@ TEST_F(SelectFirstFixture, P3回车确认后进入命令的第一步)
     for (const FirstStep& step : kPlaceToolCommands)
     {
         SCOPED_TRACE(step.id);
-        line->setSelected(false);
+        selection.remove(line);
         ASSERT_TRUE(start(step.id));
         ASSERT_TRUE(selectTool.inSelectionPhase());
 
-        line->setSelected(true);
+        selection.add(line);
         ui.hints.clear();
         EXPECT_EQ(pressKey(Qt::Key_Enter), ViewToolResult::Handled);
         EXPECT_TRUE(bus.hasActiveCommand());
@@ -453,7 +455,7 @@ TEST_F(SelectFirstFixture, P7已有选择集时直接进入命令的第一步)
     for (const FirstStep& step : kPlaceToolCommands)
     {
         SCOPED_TRACE(step.id);
-        line->setSelected(true);
+        selection.add(line);
         ui.hints.clear();
         ASSERT_TRUE(start(step.id));
         EXPECT_TRUE(bus.hasActiveCommand());
@@ -468,7 +470,7 @@ TEST_F(SelectFirstFixture, P7已有选择集时直接进入命令的第一步)
 TEST_F(SelectFirstFixture, 复制到图层的提示写在命令行且右键在第一步结束命令)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.copy_to_layer"));
     ASSERT_FALSE(ui.messages.empty());
     EXPECT_EQ(ui.messages.back(), QStringLiteral("Select the object on the target layer"));
@@ -484,7 +486,7 @@ TEST_F(SelectFirstFixture, 复制到图层的提示写在命令行且右键在�
 TEST_F(SelectFirstFixture, 移动工具右键退回上一步第一步时结束命令)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.move"));
 
     click(0, 0);
@@ -508,7 +510,7 @@ TEST_F(SelectFirstFixture, 移动工具右键退回上一步第一步时结束�
 TEST_F(SelectFirstFixture, 放置工具接收命令行坐标但不接受文本)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.move"));
 
     EXPECT_EQ(dispatch([&] { return control.coordinateEvent(DmVector(5.0, 6.0)); }), ViewToolResult::Handled);
@@ -525,7 +527,7 @@ TEST_F(SelectFirstFixture, 放置工具接收命令行坐标但不接受文本)
 TEST_F(SelectFirstFixture, 放置工具不接受Esc且把中键平移让给导航层)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.move"));
 
     QKeyEvent* esc = nullptr;
@@ -547,7 +549,7 @@ TEST_F(SelectFirstFixture, 放置工具不接受Esc且把中键平移让给导�
 TEST_F(SelectFirstFixture, 旋转工具设置中心时不接受文本设置角度时接受)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.rotate"));
 
     GuiCommandEvent early("30");
@@ -567,7 +569,7 @@ TEST_F(SelectFirstFixture, 旋转工具设置中心时不接受文本设置角�
 TEST_F(SelectFirstFixture, 缩放工具设置基点时文本被接受但不起作用)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.scale"));
 
     GuiCommandEvent text("2");
@@ -580,7 +582,7 @@ TEST_F(SelectFirstFixture, 缩放工具设置基点时文本被接受但不起�
 TEST_F(SelectFirstFixture, 复制工具随时可输入复制数量)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.copy"));
     auto* command = dynamic_cast<ModifyCopyCommand*>(bus.activeCommand());
     ASSERT_NE(command, nullptr);
@@ -602,7 +604,7 @@ TEST_F(SelectFirstFixture, 复制工具随时可输入复制数量)
 TEST_F(SelectFirstFixture, 镜像工具输入YN切换复制方式)
 {
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
     ASSERT_TRUE(start("ext.modify.mirror"));
     auto* command = dynamic_cast<ModifyMirrorCommand*>(bus.activeCommand());
     ASSERT_NE(command, nullptr);
@@ -630,7 +632,7 @@ TEST_F(SelectFirstFixture, 编辑块时选择集里没有块参照则启动失�
     ASSERT_TRUE(start("ext.block.edit"));
     ASSERT_TRUE(selectTool.inSelectionPhase());
 
-    line->setSelected(true);
+    selection.add(line);
     pressKey(Qt::Key_Enter);
     ASSERT_FALSE(ui.messages.empty());
     EXPECT_EQ(ui.messages.back(), QStringLiteral("No block reference selected. Command cancelled."));
@@ -651,7 +653,7 @@ TEST_F(SelectFirstFixture, B1块编辑模式显示提示与选项条且选择层
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
     const size_t hintsBefore = ui.hints.size();
     boxSelect(0, 0, 100, 100);
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     EXPECT_EQ(ui.hints.size(), hintsBefore);
     // 选择层照常给出光标
     ASSERT_TRUE(selectTool.getCursor().has_value());
@@ -662,12 +664,12 @@ TEST_F(SelectFirstFixture, B4块编辑中Esc清空选择仍在块编辑)
 {
     enterBlockEdit();
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
 
     QKeyEvent* esc = nullptr;
     EXPECT_EQ(pressKey(Qt::Key_Escape, &esc), ViewToolResult::Handled);
     EXPECT_TRUE(esc->isAccepted());
-    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(selection.contains(line));
     EXPECT_NE(bus.editMode(), nullptr);
 }
 
@@ -683,7 +685,7 @@ TEST_F(SelectFirstFixture, B6块编辑中启动的命令结束后回到块编辑
 {
     enterBlockEdit();
     DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
-    line->setSelected(true);
+    selection.add(line);
 
     ASSERT_TRUE(start("ext.modify.move"));
     // 命令叠在模式之上：选项条收起，提示归命令

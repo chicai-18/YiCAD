@@ -32,6 +32,7 @@
 #include "IViewTool.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
+#include "SelectionSet.h"
 #include "SelectTool.h"
 #include "Snapper.h"
 #include "ViewToolControl.h"
@@ -158,14 +159,15 @@ struct BusFixture : ::testing::Test
     int startingCount = 0; ///< commandStarting() 的次数
     int finishedCount = 0; ///< commandFinished() 的次数
     DmDocument doc;
+    SelectionSet selection{doc};
     FakeDocumentView view;
-    Preview preview{&doc, &view};
+    Preview preview{&selection, &view};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
-    SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
-    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
+    SelectTool selectTool{&doc, &selection, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &selection, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
-    yicad_test::TestCommandHost host{doc, view, control, selectTool, &editTool};
+    yicad_test::TestCommandHost host{doc, selection, view, control, selectTool, &editTool};
     ExclusiveCommandBus bus{host};
 
     BusFixture()
@@ -188,7 +190,7 @@ struct BusFixture : ::testing::Test
         auto* line = new DmLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
         line->calculateBorders();
         ASSERT_TRUE(doc.getEntityTable()->add_direct(line));
-        line->setSelected(true);
+        selection.add(line);
     }
 
     /// @brief 单击直线起点附近的夹点
@@ -531,7 +533,7 @@ TEST_F(BusFixture, 析构时结束活动命令且不回调)
     CommandLog& log = newLog();
     int finished = 0;
     {
-        yicad_test::TestCommandHost localHost{doc, view, control, selectTool};
+        yicad_test::TestCommandHost localHost{doc, selection, view, control, selectTool};
         ExclusiveCommandBus local{localHost};
         localHost.attach(local);
         QObject::connect(&local, &ExclusiveCommandBus::commandFinished, [&finished]() { ++finished; });

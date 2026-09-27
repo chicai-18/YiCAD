@@ -30,6 +30,7 @@
 class DmDocument;
 class ExclusiveCommandBus;
 class IDocumentView;
+class SelectionSet;
 class ViewToolControl;
 
 /// @brief 命令的宿主
@@ -40,6 +41,8 @@ public:
 
     /// @brief 视图的文档
     virtual DmDocument* document() = 0;
+    /// @brief 文档的选择集，同一文档的各个视图共用
+    virtual SelectionSet* selection() = 0;
     /// @brief 视图
     virtual IDocumentView* view() = 0;
     /// @brief 视图的工具控制器：命令在其业务栈上激活自己的工具

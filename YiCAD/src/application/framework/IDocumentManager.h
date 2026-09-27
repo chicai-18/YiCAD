@@ -16,14 +16,14 @@
  */
 
 /// @file IDocumentManager.h
-/// @brief 宿主管理的打开图纸：取当前与全部文档、视图，新建、打开、保存、导出图纸
+/// @brief 宿主管理的打开图纸：取当前与全部文档、视图与选择集，新建、打开、保存、导出图纸
 ///
 /// 由壳层实现（委托给图纸标签页），扩展经 IExtensionContext::documentManager() 取得，
 /// ui/ 的控件与文档文件服务由宿主注入。使用方因此不认识具体的标签页控件与主窗口
 /// （doc/LAYER_RESTRUCTURE_PLAN.md 9.2 节）。
 ///
 /// 文件操作面向用户：打开、另存为、导出会弹出文件对话框，结果与提示都由宿主处理，
-/// 没有返回值。返回的文档与视图归宿主所有，调用方不得保留到图纸关闭之后。
+/// 没有返回值。返回的文档、视图与选择集归宿主所有，调用方不得保留到图纸关闭之后。
 
 #ifndef IDOCUMENTMANAGER_H
 #define IDOCUMENTMANAGER_H
@@ -34,6 +34,7 @@
 
 class DmDocument;
 class GuiDocumentView;
+class SelectionSet;
 
 /// @brief 宿主管理的打开图纸，见文件说明
 class IDocumentManager
@@ -52,6 +53,11 @@ public:
 
     /// @brief 绘图区域里全部图纸的视图，按子窗口顺序（如改了显示选项后逐个刷新）
     virtual std::vector<GuiDocumentView*> documentViews() const = 0;
+
+    /// @brief 文档的选择集
+    /// @param document 文档
+    /// @return 不是宿主打开的文档（含空指针）时返回 nullptr
+    virtual SelectionSet* selection(const DmDocument* document) const = 0;
 
     /// @brief 新建一张空白图纸，设为当前
     virtual void newDocument() = 0;

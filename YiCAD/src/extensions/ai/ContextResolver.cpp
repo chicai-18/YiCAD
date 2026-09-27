@@ -22,8 +22,9 @@
 
 #include "Datamodel.h"       // DM::EntityType
 #include "DmDocument.h"      // DmDocument, getEntityTable()
-#include "DmEntity.h"        // DmEntity, isSelected(), getId(), getEntityType()
+#include "DmEntity.h"        // DmEntity, getId(), getEntityType()
 #include "EntityTable.h"     // EntityTable, iterator
+#include "SelectionSet.h"    // SelectionSet::entities()
 
 #include <QJsonObject>
 #include <QJsonValue>
@@ -117,9 +118,10 @@ QVector<DmId> ResolvedSelection::entityIds() const
 // ContextResolver 构造 & 历史管理
 // ============================================================================
 
-ContextResolver::ContextResolver(DmDocument* doc, QObject* parent)
+ContextResolver::ContextResolver(DmDocument* doc, SelectionSet* selection, QObject* parent)
     : QObject(parent)
     , m_doc(doc)
+    , m_selection(selection)
 {
 }
 
@@ -370,21 +372,15 @@ QVector<ResolvedEntityRef> ContextResolver::collectSelectedEntities() const
 {
     QVector<ResolvedEntityRef> entities;
 
-    if (!m_doc)
+    if (!m_selection)
         return entities;
 
-    EntityTable* table = m_doc->getEntityTable();
-    if (!table)
-        return entities;
-
-    for (auto e : *table) {
-        if (e && e->isSelected()) {
-            ResolvedEntityRef ref;
-            ref.entityId    = e->getId();
-            ref.entityType  = entityTypeName(e->getEntityType());
-            ref.howResolved = QStringLiteral("selected");
-            entities.append(ref);
-        }
+    for (auto e : m_selection->entities()) {
+        ResolvedEntityRef ref;
+        ref.entityId    = e->getId();
+        ref.entityType  = entityTypeName(e->getEntityType());
+        ref.howResolved = QStringLiteral("selected");
+        entities.append(ref);
     }
 
     return entities;

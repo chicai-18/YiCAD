@@ -38,6 +38,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Math2d.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -182,7 +183,7 @@ bool ModifyCopyCommand::onSelectionReady()
     m_copyCount = DMSETTINGS->readNumEntry("/CopyCount", DEFAULT_COPY_COUNT);
     DMSETTINGS->endGroup();
 
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     auto tool = std::make_unique<ModifyCopyTool>(*this, document(), view());
     tool->setPreview(m_preview.get());
     activateTool(std::move(tool));
@@ -210,22 +211,19 @@ bool ModifyCopyCommand::setCopyCount(const QString& input)
 
 std::vector<DmEntity*> ModifyCopyCommand::cloneSelection(const DmVector& offset) const
 {
-    auto entTable = document()->getEntityTable();
+    const std::vector<DmEntity*> selected = selection()->entities();
     std::vector<DmEntity*> addedEnts;
     for (int num = 1; num <= m_copyCount; num++)
     {
-        for (auto e : *entTable)
+        for (auto e : selected)
         {
-            if (e->isSelected())
+            auto cloneEnt = e->clone();
+            cloneEnt->move(offset * num);
+            if (cloneEnt->getEntityType() == DM::EntityBlockReference)
             {
-                auto cloneEnt = e->clone();
-                cloneEnt->move(offset * num);
-                if (cloneEnt->getEntityType() == DM::EntityBlockReference)
-                {
-                    static_cast<DmBlockReference*>(cloneEnt)->update();
-                }
-                addedEnts.emplace_back(cloneEnt);
+                static_cast<DmBlockReference*>(cloneEnt)->update();
             }
+            addedEnts.emplace_back(cloneEnt);
         }
     }
     return addedEnts;
@@ -265,7 +263,7 @@ void ModifyCopyCommand::commitCopy(const DmVector& reference, const DmVector& ta
     }
     t.commit();
 
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
     finish();
 }
 

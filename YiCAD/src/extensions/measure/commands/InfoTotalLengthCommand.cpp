@@ -26,18 +26,15 @@
 #include "MeasureCommands.h"
 #include "DmDocument.h"
 #include "GuiDialogFactory.h"
+#include "SelectionSet.h"
 
 bool InfoTotalLengthCommand::onSelectionReady()
 {
     DmDocument* doc = document();
     double totalLength = 0.0;
-    auto table = doc->getEntityTable();
-    for (auto it = table->begin(); it != table->end(); ++it)
+    for (auto e : selection()->entities())
     {
-        if ((*it)->isSelected())
-        {
-            totalLength += (*it)->getLength();
-        }
+        totalLength += e->getLength();
     }
     if (totalLength > 0.0)
     {

@@ -35,7 +35,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
-#include "Selection.h"
+#include "SelectionSet.h"
 
 namespace
 {
@@ -157,7 +157,7 @@ ModifyMoveCommand::~ModifyMoveCommand() = default;
 
 bool ModifyMoveCommand::onSelectionReady()
 {
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     auto tool = std::make_unique<ModifyMoveTool>(*this, document(), view());
     tool->setPreview(m_preview.get());
     activateTool(std::move(tool));
@@ -188,20 +188,13 @@ void ModifyMoveCommand::clearPreview()
 
 void ModifyMoveCommand::commitMove(const DmVector& reference, const DmVector& target)
 {
-    std::vector<DmEntity*> ents;
-    for (auto e : *document()->getEntityTable())
-    {
-        if (e->isSelected())
-        {
-            ents.push_back(e);
-        }
-    }
+    const std::vector<DmEntity*> ents = selection()->entities();
     Modification m(document());
     m.move(ents, target - reference);
     // 移动之后取消选中
-    Selection(document()).selectAll(false);
+    selection()->clear();
 
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
     finish();
 }
 

@@ -176,8 +176,8 @@ TEST_F(BlockFixture, 块参照的属性对话框)
                                                                       0.0, 1, 1, DmVector(0, 0)));
     insert->setDocument(&doc);
     ASSERT_TRUE(doc.getEntityTable()->add_direct(insert));
-    EXPECT_TRUE(
-        registry.runInstant(QStringLiteral("ext.block.properties"), CommandContext{&doc, &view, nullptr, insert}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.block.properties"),
+                                    CommandContext{&doc, &view, &selection, nullptr, insert}));
     EXPECT_EQ(dialogs.shown, std::vector<QString>{QStringLiteral("UIDlgInsert")});
 }
 
@@ -186,7 +186,7 @@ TEST_F(BlockFixture, 创建块指定基点后弹出块对话框取消时不建�
     auto* line = new DmLine(DmVector(0, 0), DmVector(10, 0));
     line->calculateBorders();
     ASSERT_TRUE(doc.getEntityTable()->add_direct(line));
-    line->setSelected(true);
+    selection.add(line);
     const unsigned blocks = doc.getBlockTable()->count();
 
     ASSERT_TRUE(start("ext.block.create"));
@@ -207,6 +207,6 @@ TEST_F(BlockFixture, 没有文档时即时命令什么也不做)
         EXPECT_TRUE(registry.runInstant(QString::fromLatin1(id), CommandContext{})) << id;
     }
     // 有文档但不在块编辑中：不进入编辑模式
-    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.block.reenter_edit"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.block.reenter_edit"), CommandContext{&doc, &view, &selection}));
     EXPECT_EQ(bus.editMode(), nullptr);
 }

@@ -1206,6 +1206,20 @@ void GuiDocumentView::setHighlightColor(const QColor& c)
         m_pPreviewPainter->setHighlightColor(c);
 }
 
+void GuiDocumentView::setDocumentSelectionSource(const ISelectionSource* source)
+{
+    m_pDocumentSelection = source;
+    if (m_pDocumentPainter)
+        m_pDocumentPainter->setSelectionSource(source);
+}
+
+void GuiDocumentView::setPreviewSelectionSource(const ISelectionSource* source)
+{
+    m_pPreviewSelection = source;
+    if (m_pPreviewPainter)
+        m_pPreviewPainter->setSelectionSource(source);
+}
+
 DmDocument* GuiDocumentView::getDocument() const
 {
     return pDocument;
@@ -1360,6 +1374,8 @@ void GuiDocumentView::createPainters(unsigned int width, unsigned int height)
     m_pDocumentPainter->setHighlightColor(highlightColor);
     m_pPreviewPainter->setSelectedColor(selectedColor);
     m_pPreviewPainter->setHighlightColor(highlightColor);
+    m_pDocumentPainter->setSelectionSource(m_pDocumentSelection);
+    m_pPreviewPainter->setSelectionSource(m_pPreviewSelection);
     m_pForegroundPainter = new opengl::GLPainter();
 }
 

@@ -26,6 +26,7 @@
 #include "EntityTable.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
+#include "SelectionSet.h"
 #include "SelectTool.h"
 #include "Snapper.h"
 #include "ViewToolControl.h"
@@ -43,12 +44,13 @@ QMouseEvent makeMouse(QEvent::Type type, int x, int y, Qt::MouseButton button,
 struct EditToolFixture : ::testing::Test
 {
     DmDocument doc;
+    SelectionSet selection{doc};
     FakeDocumentView view;
-    Preview preview{&doc, &view};
+    Preview preview{&selection, &view};
     Snapper snapper{&doc, &view};
     PanZoomTool panTool{&view};
-    SelectTool selectTool{&doc, &view, &snapper, &preview, &panTool};
-    EditTool editTool{&doc, &view, &snapper, &preview, &panTool};
+    SelectTool selectTool{&doc, &selection, &view, &snapper, &preview, &panTool};
+    EditTool editTool{&doc, &selection, &view, &snapper, &preview, &panTool};
     ViewToolControl control{&view};
 
     EditToolFixture()
@@ -65,7 +67,10 @@ struct EditToolFixture : ::testing::Test
         auto* line = new DmLine(a, b);
         line->calculateBorders();
         EXPECT_TRUE(doc.getEntityTable()->add_direct(line));
-        line->setSelected(selected);
+        if (selected)
+        {
+            selection.add(line);
+        }
         return line;
     }
 
@@ -125,7 +130,7 @@ TEST_F(EditToolFixture, 单击夹点激活且不取消选中)
     EXPECT_EQ(editTool.getStatus(), EditTool::MovingRef);
     EXPECT_EQ(selectTool.getStatus(), SelectTool::Neutral);
     // 拆分前这次单击会切换选中，取消直线的选中
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     // 相对零点移到参考点，与拆分前一致
     EXPECT_EQ(view.getRelativeZero(), DmVector(10.0, 10.0));
     ASSERT_TRUE(view.lastCursor().has_value());
@@ -151,7 +156,7 @@ TEST_F(EditToolFixture, 单击落位移动夹点并保持选中)
     EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
     EXPECT_EQ(line->getStartpoint(), DmVector(70.0, 60.0));
     EXPECT_EQ(line->getEndpoint(), DmVector(50.0, 10.0));
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
 
     doc.getCmdManager()->undo();
     EXPECT_EQ(line->getStartpoint(), DmVector(10.0, 10.0));
@@ -190,7 +195,7 @@ TEST_F(EditToolFixture, 单击选中实体的线身仍切换选中)
     EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
     EXPECT_EQ(selectTool.getStatus(), SelectTool::Dragging);
     release(30, 10);
-    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(selection.contains(line));
 }
 
 TEST_F(EditToolFixture, 在选中实体的线身上拖动开始框选)
@@ -202,7 +207,7 @@ TEST_F(EditToolFixture, 在选中实体的线身上拖动开始框选)
     move(30, 60);
     EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
     EXPECT_EQ(selectTool.getStatus(), SelectTool::SetCorner2);
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
 }
 
 TEST_F(EditToolFixture, 未选中实体的端点归选择层)
@@ -257,7 +262,7 @@ TEST_F(EditToolFixture, 右键取消夹点并清除预览)
     EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
     EXPECT_EQ(previewCount(), 0);
     EXPECT_FALSE(editTool.getCursor().has_value());
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
 }
 
 TEST_F(EditToolFixture, Esc取消夹点后选择层照常清空选择)
@@ -267,7 +272,7 @@ TEST_F(EditToolFixture, Esc取消夹点后选择层照常清空选择)
     QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
     EXPECT_EQ(control.keyPressEvent(&esc), ViewToolResult::Handled);
     EXPECT_EQ(editTool.getStatus(), EditTool::Neutral);
-    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(selection.contains(line));
 }
 
 TEST_F(EditToolFixture, 夹点激活时中键平移不取消夹点)

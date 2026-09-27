@@ -24,10 +24,9 @@
 #include <QMouseEvent>
 
 #include "BasePlaceTool.h"
-#include "DmDocument.h"
-#include "EntityTable.h"
 #include "ICommandHost.h"
 #include "IViewTool.h"
+#include "SelectionSet.h"
 #include "ViewToolControl.h"
 
 /// @brief 选择阶段工具：接管确认、取消与按键，鼠标选择交给选择层
@@ -101,7 +100,7 @@ SelectFirstCommand::~SelectFirstCommand() = default;
 
 bool SelectFirstCommand::onActivate()
 {
-    const bool hasSelection = document()->getEntityTable()->hasSelect();
+    const bool hasSelection = !selection()->isEmpty();
     if (m_entry == SelectionEntry::Always || !hasSelection)
     {
         m_selecting = true;
@@ -136,7 +135,7 @@ void SelectFirstCommand::onDeactivate()
 
 bool SelectFirstCommand::confirmSelection()
 {
-    if (!m_selecting || !document()->getEntityTable()->hasSelect())
+    if (!m_selecting || selection()->isEmpty())
     {
         return false;
     }

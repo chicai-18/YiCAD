@@ -16,6 +16,7 @@
 #include "ICommandHost.h"
 #include "IDocumentView.h"
 #include "SelectTool.h"
+#include "SelectionSet.h"
 #include "ViewToolControl.h"
 
 namespace yicad_test
@@ -24,10 +25,12 @@ namespace yicad_test
 class TestCommandHost : public ICommandHost
 {
 public:
+    /// @param selection 文档的选择集，同 UIView 取自 AppDocument
     /// @param editTool 夹点编辑工具；可为空，此时不装
-    TestCommandHost(DmDocument& doc, IDocumentView& view, ViewToolControl& control, SelectTool& selectTool,
-                    EditTool* editTool = nullptr)
+    TestCommandHost(DmDocument& doc, SelectionSet& selection, IDocumentView& view, ViewToolControl& control,
+                    SelectTool& selectTool, EditTool* editTool = nullptr)
         : m_doc(doc)
+        , m_selection(selection)
         , m_view(view)
         , m_control(control)
         , m_selectTool(selectTool)
@@ -49,6 +52,7 @@ public:
     }
 
     DmDocument* document() override { return &m_doc; }
+    SelectionSet* selection() override { return &m_selection; }
     IDocumentView* view() override { return &m_view; }
     ViewToolControl* viewToolControl() override { return &m_control; }
     ExclusiveCommandBus* commandBus() override { return m_bus; }
@@ -84,6 +88,7 @@ private:
     }
 
     DmDocument& m_doc;
+    SelectionSet& m_selection;
     IDocumentView& m_view;
     ViewToolControl& m_control;
     SelectTool& m_selectTool;

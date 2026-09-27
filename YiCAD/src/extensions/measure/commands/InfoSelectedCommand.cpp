@@ -26,13 +26,12 @@
 #include <QCoreApplication>
 
 #include "MeasureCommands.h"
-#include "DmDocument.h"
 #include "DmEntityHelper.h"
 #include "DmLayer.h"
 #include "DmSpline.h"
-#include "EntityTable.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
+#include "SelectionSet.h"
 
 /// @brief 选中实体信息的实现；只提供翻译上下文与静态方法，没有命令对象
 class InfoSelectedCommand
@@ -41,22 +40,19 @@ class InfoSelectedCommand
 
 public:
     /// @brief 在命令行输出选中实体的信息
-    /// @param doc 文档；为空时什么也不做
+    /// @param selection 文档的选择集；为空（没有打开的图纸）时什么也不做
     /// @param view 视图；可为空
-    static void run(DmDocument* doc, IDocumentView* view)
+    static void run(const SelectionSet* selection, IDocumentView* view)
     {
-        if (!doc)
+        if (!selection)
         {
             return;
         }
         QString str;
-        for (auto e : *doc->getEntityTable())
+        for (auto e : selection->entities())
         {
-            if (e->isSelected())
-            {
-                getInfo(e, str);
-                str.append("\n");
-            }
+            getInfo(e, str);
+            str.append("\n");
         }
         GUIDIALOGFACTORY->commandMessage(str);
         // 原 ActionInfoSelected 设置了 Action 类型，结束时复位正交零点
@@ -163,5 +159,5 @@ private:
 
 InstantCommand MeasureCommands::selected()
 {
-    return [](const CommandContext& ctx) { InfoSelectedCommand::run(ctx.document, ctx.view); };
+    return [](const CommandContext& ctx) { InfoSelectedCommand::run(ctx.selection, ctx.view); };
 }

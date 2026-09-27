@@ -62,6 +62,6 @@ TEST_F(HatchFixture, 登记填充的属性对话框)
     const CommandRegistry& registry = CommandRegistry::instance();
     EXPECT_EQ(registry.propertyEditor(DM::EntityHatch), QStringLiteral("ext.hatch.properties"));
     EXPECT_EQ(registry.kind(QStringLiteral("ext.hatch.properties")), CommandKind::Instant);
-    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.hatch.properties"), CommandContext{&doc, &view}));
+    EXPECT_TRUE(registry.runInstant(QStringLiteral("ext.hatch.properties"), CommandContext{&doc, &view, &selection}));
     EXPECT_TRUE(dialogs.shown.empty());
 }

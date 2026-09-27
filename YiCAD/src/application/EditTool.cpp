@@ -25,13 +25,13 @@
 
 #include "DmDocument.h"
 #include "DmLine.h"
-#include "EntityTable.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
+#include "SelectionSet.h"
 
 namespace
 {
@@ -43,9 +43,10 @@ constexpr double kDragThresholdGui = 10.0;
 constexpr double kAngleSnapStep = 15.0;
 }  // namespace
 
-EditTool::EditTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
-                   PanZoomTool* panTool)
+EditTool::EditTool(DmDocument* doc, SelectionSet* selection, IDocumentView* docView, ISnapService* snapService,
+                   Preview* preview, PanZoomTool* panTool)
     : m_pDocument(doc)
+    , m_selection(selection)
     , m_docView(docView)
     , m_snapService(snapService)
     , m_preview(preview)
@@ -139,7 +140,7 @@ ViewToolResult EditTool::mousePressEvent(QMouseEvent* e)
 
     const DmVector press = m_docView->toGraph(e->pos().x(), e->pos().y());
     double dist;
-    const DmVector ref = m_pDocument->getEntityTable()->getNearestSelectedRef(press, &dist);
+    const DmVector ref = m_selection->nearestRef(press, &dist);
     if (!ref.valid || m_docView->toGuiDX(dist) >= kRefSnapGuiDist)
     {
         // 不在夹点上：点选、框选归选择层
@@ -266,14 +267,7 @@ void EditTool::commit(QMouseEvent* e)
     }
     clearPreview();
 
-    std::vector<DmEntity*> ents;
-    for (auto entity : *m_pDocument->getEntityTable())
-    {
-        if (entity->isSelected())
-        {
-            ents.push_back(entity);
-        }
-    }
+    const std::vector<DmEntity*> ents = m_selection->entities();
     Modification m(m_pDocument);
     MoveRefData data;
     data.ref = m_base;
@@ -283,8 +277,8 @@ void EditTool::commit(QMouseEvent* e)
     // 提交时已通知视图重建缓存，重建在下一次绘制时进行，看得到恢复后的状态。
     for (auto entity : ents)
     {
-        entity->setSelected(true);
+        m_selection->add(entity);
     }
     m_status = Neutral;
-    GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(m_selection->count());
 }

@@ -56,13 +56,15 @@ class DmDocument;
 class DmEntity;
 class IDocumentView;
 class IExclusiveCommand;
+class SelectionSet;
 class QObject;
 class QWidget;
 
 /// @brief 构造命令所需的运行时环境。
 ///
-/// 绝大多数命令只用 document/view；sender 供图层命令透传触发的按钮。即时命令在
-/// 没有打开图纸时 document/view 为空。entity/point 是命令要作用的实体与位置：
+/// 绝大多数命令只用 document/view，作用于选择集的即时命令用 selection（文档的选择集）；
+/// sender 供图层命令透传触发的按钮。即时命令在没有打开图纸时 document/view/selection
+/// 为空。entity/point 是命令要作用的实体与位置：
 /// 选择层双击实体启动它的编辑命令（registerEntityEditor）时为双击的实体与位置，
 /// 修改实体属性时为被修改的实体。原先供 ActionSelect 回调的 handler 字段随先选后建
 /// 命令的迁移删除（doc/COMMAND_TOOL_MIGRATION_PLAN.md 第二步）。
@@ -70,6 +72,7 @@ struct CommandContext
 {
     DmDocument* document = nullptr;
     IDocumentView* view = nullptr;
+    SelectionSet* selection = nullptr;
     QObject* sender = nullptr;
     DmEntity* entity = nullptr;
     DmVector point{false};

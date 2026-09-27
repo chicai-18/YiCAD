@@ -37,6 +37,7 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -179,7 +180,7 @@ bool ModifyMirrorCommand::onSelectionReady()
     m_copy = static_cast<bool>(DMSETTINGS->readNumEntry("/MirrorCopy", 1));
     DMSETTINGS->endGroup();
 
-    m_preview = std::make_unique<CommandPreview>(document(), view());
+    m_preview = std::make_unique<CommandPreview>(selection(), view());
     auto tool = std::make_unique<ModifyMirrorTool>(*this, document(), view());
     tool->setPreview(m_preview.get());
     activateTool(std::move(tool));
@@ -229,34 +230,31 @@ void ModifyMirrorCommand::commitMirror(const DmVector& axisPoint1, const DmVecto
     auto entTable = document()->getEntityTable();
 
     std::vector<DmEntity*> addEnts;
-    for (auto e : *entTable)
+    for (auto e : selection()->entities())
     {
-        if (e->isSelected())
+        selection()->remove(e);
+        DmEntity* theEnt = nullptr;
+
+        if (m_copy)
         {
-            e->setSelected(false);
-            DmEntity* theEnt = nullptr;
+            // 复制
+            theEnt = e->clone();
+        }
+        else
+        {
+            // 删除原始
+            theEnt = e;
+            entTable->startModify(theEnt);
+        }
 
-            if (m_copy)
-            {
-                // 复制
-                theEnt = e->clone();
-            }
-            else
-            {
-                // 删除原始
-                theEnt = e;
-                entTable->startModify(theEnt);
-            }
-
-            theEnt->mirror(axisPoint1, axisPoint2);
-            if (theEnt->getEntityType() == DM::EntityBlockReference)
-            {
-                static_cast<DmBlockReference*>(theEnt)->update();
-            }
-            if (m_copy)
-            {
-                addEnts.emplace_back(theEnt);
-            }
+        theEnt->mirror(axisPoint1, axisPoint2);
+        if (theEnt->getEntityType() == DM::EntityBlockReference)
+        {
+            static_cast<DmBlockReference*>(theEnt)->update();
+        }
+        if (m_copy)
+        {
+            addEnts.emplace_back(theEnt);
         }
     }
 
@@ -267,7 +265,7 @@ void ModifyMirrorCommand::commitMirror(const DmVector& axisPoint1, const DmVecto
     }
     t.commit();
 
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
     finish();
 }
 

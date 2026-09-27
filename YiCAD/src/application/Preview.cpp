@@ -25,10 +25,10 @@
 #include "IDocumentView.h"
 #include "Information.h"
 #include "DmSettings.h"
-#include "DmDocument.h"
+#include "SelectionSet.h"
 
-Preview::Preview(DmDocument* pDocument, IDocumentView* view)
-    : m_pDocument(pDocument)
+Preview::Preview(SelectionSet* selection, IDocumentView* view)
+    : m_pSelection(selection)
     , m_pView(view)
     , m_pPreviewContainer(nullptr)
 {
@@ -71,20 +71,16 @@ void Preview::addAllFrom(DmEntityContainer& container)
 
 void Preview::addSelectionFromDocument()
 {
-    if (!m_pDocument)
+    if (!m_pSelection)
     {
         return;
     }
-    auto table = m_pDocument->getEntityTable();
-    for (auto e : *table)
+    for (auto e : m_pSelection->entities())
     {
-        if (e->isSelected())
-        {
-            DmEntity* clone = e->clone();
-            clone->setSelected(false);
-            clone->setParent(nullptr);
-            addEntity(clone);
-        }
+        DmEntity* clone = e->clone();
+        clone->setSelected(false);
+        clone->setParent(nullptr);
+        addEntity(clone);
     }
 }
 
@@ -148,6 +144,11 @@ void Preview::setVisible(bool isVisble)
 DmEntityContainer* Preview::getEntityContainer()
 {
     return m_pPreviewContainer;
+}
+
+bool Preview::isSelected(const DmEntity& entity) const
+{
+    return entity.isSelected();
 }
 
 /// @brief 通知视图预览内容已修改，触发重绘

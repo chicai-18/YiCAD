@@ -22,18 +22,23 @@
 #define PREVIEW_H
 
 #include "DmEntityContainer.h"
+#include "ISelectionSource.h"
 
 class IDocumentView;
+class SelectionSet;
 
 /// @brief 预览
-class Preview : public DmFlags
+///
+/// 实现 ISelectionSource，视图把它交给预览画笔：预览里的引导线借选中色绘制。暂时仍读实体的
+/// 选中位（doc/SELECTION_SET_PLAN.md 第 4 步改为预览自己的集合）。
+class Preview : public DmFlags, public ISelectionSource
 {
 public:
     /// @brief 预览到指定视图的预览容器（视图可以是测试替身）
-    /// @param pDocument 文档，addSelectionFromDocument() 从它取选择集
+    /// @param selection 文档的选择集，addSelectionFromDocument() 从它取实体
     /// @param view 视图；为空时没有预览容器
-    Preview(DmDocument* pDocument, IDocumentView* view);
-    ~Preview() = default;
+    Preview(SelectionSet* selection, IDocumentView* view);
+    ~Preview() override = default;
 
     DM::EntityType getEntityType() const;
 
@@ -62,12 +67,15 @@ public:
 
     DmEntityContainer* getEntityContainer();
 
+    /// @brief 预览里的实体是否按选中绘制
+    bool isSelected(const DmEntity& entity) const override;
+
 private:
     /// @brief 通知视图预览已修改
     void specifyPreviewModified();
 
 private:
-    DmDocument*         m_pDocument = nullptr;          ///< 关联的文档指针
+    SelectionSet*       m_pSelection = nullptr;         ///< 文档的选择集
     IDocumentView*      m_pView = nullptr;              ///< 预览所在的视图
     DmEntityContainer*  m_pPreviewContainer = nullptr;  ///< 预览容器指针
 };

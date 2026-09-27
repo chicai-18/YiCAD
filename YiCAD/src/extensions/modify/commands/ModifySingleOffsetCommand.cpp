@@ -35,6 +35,7 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 void ModifySingleOffsetCommand::previewOffset(DmEntity* original, const DmVector& coord)
@@ -76,7 +77,7 @@ void ModifySingleOffsetCommand::commitOffset(DmEntity* original, const DmVector&
     t.commit();
 
     view()->redraw();
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(selection()->count());
     finish();
 }
 

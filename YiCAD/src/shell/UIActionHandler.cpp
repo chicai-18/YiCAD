@@ -30,7 +30,7 @@
 
 #include "ExclusiveCommandBus.h"
 
-#include "Selection.h"
+#include "SelectionSet.h"
 
 #include "Debug.h"
 #include "DmSettings.h"
@@ -69,9 +69,8 @@ void UIActionHandler::slotEditKillAllActions()
 			return;
 		}
 
-		Selection s(m_pDocument);
-		s.selectAll(false);
-		GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+		m_pSelection->clear();
+		GUIDIALOGFACTORY->updateSelectionWidget(m_pSelection->count());
 	}
 }
 
@@ -137,7 +136,7 @@ bool UIActionHandler::runKeyconfigCommand(const QString& commandId, bool fromCom
 void UIActionHandler::activateCommand(const QString& commandId, QObject* source)
 {
 	CommandRegistry& registry = CommandRegistry::instance();
-	const CommandContext ctx{m_pDocument, m_pView, source ? source : sender()};
+	const CommandContext ctx{m_pDocument, m_pView, m_pSelection, source ? source : sender()};
 
 	switch (registry.kind(commandId))
 	{
@@ -410,9 +409,9 @@ void UIActionHandler::slotSecectedChanged()
 	{
 		return;
 	}
-	GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+	GUIDIALOGFACTORY->updateSelectionWidget(m_pSelection->count());
 	CommandRegistry::instance().runInstant(QStringLiteral("ext.text.selection_changed"),
-	                                       CommandContext{m_pDocument, m_pView});
+	                                       CommandContext{m_pDocument, m_pView, m_pSelection});
 }
 
 void UIActionHandler::slotCmdStateChanged()
@@ -433,7 +432,7 @@ void UIActionHandler::slotCmdStateChanged()
 		// 撤销/重做后重新进入块编辑：文档已处于块编辑，由块扩展恢复编辑模式
 		// （只有块扩展的命令会让文档进入块编辑，没有它时不会走到这里）
 		CommandRegistry::instance().runInstant(QStringLiteral("ext.block.reenter_edit"),
-		                                       CommandContext{m_pDocument, m_pView});
+		                                       CommandContext{m_pDocument, m_pView, m_pSelection});
 	}
 	else if (!editingBlock && inBlockEdit)
 	{
@@ -445,6 +444,10 @@ void UIActionHandler::slotCmdStateChanged()
 void UIActionHandler::set_view(GuiDocumentView* pDocumentView)
 {
 	m_pView = pDocumentView;
+}
+void UIActionHandler::set_selection(SelectionSet* selection)
+{
+	m_pSelection = selection;
 }
 void UIActionHandler::set_document(DmDocument* doc)
 {

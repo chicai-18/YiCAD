@@ -25,6 +25,7 @@
 #include "DmDocument.h"
 #include "DmSystem.h"
 #include "GuiDocumentView.h"
+#include "IDocumentManager.h"
 #include "IExtensionContext.h"
 #include "LLMSettingsPage.h"
 #include "LLMSettingsService.h"
@@ -61,7 +62,8 @@ void AIExtension::OnRegister(IExtensionContext& ctx)
             {
                 DmDocument* doc = m_ctx->currentDocument();
                 GuiDocumentView* docView = m_ctx->currentDocumentView();
-                m_assistant->show(doc, docView);
+                IDocumentManager* documents = m_ctx->documentManager();
+                m_assistant->show(doc, docView, documents ? documents->selection(doc) : nullptr);
             },
         .objectName = QStringLiteral("ai-assistant"),
     });

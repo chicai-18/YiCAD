@@ -95,7 +95,7 @@
 #include "DmPen.h"
 #include "GuiDialogFactory.h"
 #include "UIDialogFactory.h"
-#include "Selection.h"
+#include "SelectionSet.h"
 #include "DmSystem.h"
 #include "Debug.h"
 #include "GuiDialogFactory.h"
@@ -203,6 +203,13 @@ public:
     {
         UITabDrawWidget* tabs = m_window.getTabDrawWidget();
         return tabs ? tabs->getDocumentViews() : std::vector<GuiDocumentView*>();
+    }
+
+    SelectionSet* selection(const DmDocument* document) const override
+    {
+        UITabDrawWidget* tabs = m_window.getTabDrawWidget();
+        SingleTabDrawDataRibbon* tab = tabs && document ? tabs->getTabDrawDataOfDocument(document) : nullptr;
+        return tab && tab->mdiWindow ? tab->mdiWindow->getSelection() : nullptr;
     }
 
     void newDocument() override
@@ -795,10 +802,10 @@ void ApplicationWindow::slotKillAllActions()
 			return;
 		}
 
-		Selection s(m_pCurrentMdiWin->getDocument());
-		s.selectAll(false);
+		SelectionSet* selection = m_pCurrentMdiWin->getSelection();
+		selection->clear();
 		m_pCurrentMdiWin->getDocumentView()->emitSelectedChanged();
-		GUIDIALOGFACTORY->updateSelectionWidget(m_pCurrentMdiWin->getDocument()->getEntityTable()->countSelect());
+		GUIDIALOGFACTORY->updateSelectionWidget(selection->count());
 
 		gv->redraw();
 	}
@@ -907,22 +914,19 @@ void ApplicationWindow::updateLayerTable()
     DmLayer* firstSelectedLayer = nullptr;
     int selectedNumType = 0;    //0表示无选择，1表示1个图层选择，2表示多于1个图层选择
     DmEntity* singleSelectedEnt = nullptr;
-    for (auto ent : *document->getEntityTable())
+    for (auto ent : m_pCurrentMdiWin->getSelection()->entities())
     {
-        if (ent->isSelected())
+        DmLayer* layer = ent->getLayer();
+        if (firstSelectedLayer == nullptr)
         {
-            DmLayer* layer = ent->getLayer();
-            if (firstSelectedLayer == nullptr)
-            {
-                firstSelectedLayer = layer;
-                selectedNumType = 1;
-                singleSelectedEnt = ent;
-            }
-            else if (firstSelectedLayer != layer)
-            {
-                selectedNumType = 2;
-                break;
-            }
+            firstSelectedLayer = layer;
+            selectedNumType = 1;
+            singleSelectedEnt = ent;
+        }
+        else if (firstSelectedLayer != layer)
+        {
+            selectedNumType = 2;
+            break;
         }
     }
 

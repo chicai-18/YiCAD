@@ -47,6 +47,7 @@
 #include "MTextEditContext.h"
 #include "MTextEditWidget.h"
 #include "Preview.h"
+#include "SelectionSet.h"
 #include "TextConsts.h"
 #include "Transaction.h"
 #include "UIMTextOptions.h"
@@ -376,7 +377,7 @@ void DrawMTextCommand::commit()
             document()->getEntityTable()->startModify(m_pOriginText);
             m_pOriginText->setData(m_pEditingText->getData());
             m_pOriginText->setVisible(true);
-            m_pOriginText->setSelected(false);
+            selection()->remove(m_pOriginText);
             m_pOriginText->update();
             t.commit();
             delete m_pEditingText;

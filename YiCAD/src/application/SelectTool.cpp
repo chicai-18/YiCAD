@@ -20,7 +20,7 @@
 
 #include "SelectTool.h"
 
-#include <list>
+#include <vector>
 
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -32,7 +32,7 @@
 #include "ISnapService.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
-#include "Selection.h"
+#include "SelectionSet.h"
 
 namespace
 {
@@ -40,9 +40,10 @@ namespace
 constexpr double kDragThresholdGui = 10.0;
 }  // namespace
 
-SelectTool::SelectTool(DmDocument* doc, IDocumentView* docView, ISnapService* snapService, Preview* preview,
-                       PanZoomTool* panTool)
+SelectTool::SelectTool(DmDocument* doc, SelectionSet* selection, IDocumentView* docView, ISnapService* snapService,
+                       Preview* preview, PanZoomTool* panTool)
     : m_pDocument(doc)
+    , m_selection(selection)
     , m_docView(docView)
     , m_snapService(snapService)
     , m_preview(preview)
@@ -164,9 +165,8 @@ DmEntity* SelectTool::pickAt(int guiX, int guiY)
     DmEntity* en = m_snapService->catchEntity(DmVector(m_docView->toGraphX(guiX), m_docView->toGraphY(guiY)));
     if (en)
     {
-        Selection s(m_pDocument);
-        s.selectSingle(en);
-        GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+        m_selection->toggle(en);
+        GUIDIALOGFACTORY->updateSelectionWidget(m_selection->count());
     }
     return en;
 }
@@ -180,7 +180,7 @@ void SelectTool::notifySelectionChanged()
 {
     if (inSelectionPhase())
     {
-        GUIDIALOGFACTORY->updateSelectionWidget(m_pDocument->getEntityTable()->countSelect());
+        GUIDIALOGFACTORY->updateSelectionWidget(m_selection->count());
     }
     else
     {
@@ -275,8 +275,7 @@ ViewToolResult SelectTool::keyPressEvent(QKeyEvent* e)
         deletePreview();
         m_snapService->deleteSnapper();
         setStatus(Neutral);
-        Selection s(m_pDocument);
-        s.selectAll(false);
+        m_selection->clear();
         e->accept();
         break;
     }
@@ -404,8 +403,7 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
             {
                 deletePreview();
 
-                Selection s(m_pDocument);
-                s.selectSingle(en);
+                m_selection->toggle(en);
                 notifySelectionChanged();
                 e->accept();
                 setStatus(Neutral);
@@ -424,10 +422,9 @@ ViewToolResult SelectTool::mouseReleaseEvent(QMouseEvent* e)
             deletePreview();
 
             bool cross = (m_points.v1.x > m_points.v2.x);
-            Selection s(m_pDocument);
             bool select = (e->modifiers() & Qt::ShiftModifier) ? false : true;
-            s.selectWindow(m_points.v1, m_points.v2, select, cross,
-                           m_phase ? m_phase->entityTypes : EntityTypeList{});
+            m_selection->selectWindow(m_points.v1, m_points.v2, select, cross,
+                                      m_phase ? m_phase->entityTypes : EntityTypeList{});
             notifySelectionChanged();
             setStatus(Neutral);
             e->accept();
@@ -456,14 +453,7 @@ ViewToolResult SelectTool::mouseDoubleClickEvent(QMouseEvent* e)
     DmVector clickPos = m_docView->toGraph(e->pos().x(), e->pos().y());
 
     // 获得选择的实体，如果超过1个，不进入编辑状态
-    std::list<DmEntity*> ents;
-    for (auto& ent : *m_pDocument->getEntityTable())
-    {
-        if (ent->isSelected())
-        {
-            ents.emplace_back(ent);
-        }
-    }
+    const std::vector<DmEntity*> ents = m_selection->entities();
     auto selectCount = ents.size();
     if (selectCount > 1)
     {
@@ -487,7 +477,7 @@ ViewToolResult SelectTool::mouseDoubleClickEvent(QMouseEvent* e)
         }
         if (registry.kind(editor) == CommandKind::Instant)
         {
-            registry.runInstant(editor, CommandContext{m_pDocument, m_docView, nullptr, en, clickPos});
+            registry.runInstant(editor, CommandContext{m_pDocument, m_docView, m_selection, nullptr, en, clickPos});
         }
         else if (!editor.isEmpty() && m_commandStarter)
         {

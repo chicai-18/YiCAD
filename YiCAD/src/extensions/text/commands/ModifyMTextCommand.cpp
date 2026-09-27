@@ -32,6 +32,7 @@
 #include "EntityTable.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIMTextModifyOptions.h"
 
@@ -115,7 +116,7 @@ void ModifyMTextCommand::deselectAndFinish()
 {
     if (m_pMText)
     {
-        m_pMText->setSelected(false);
+        selection()->remove(m_pMText);
     }
     finish();
     // 结束在分发返回后才生效：选择变化的监听者此时仍看到本命令，不会再启动它

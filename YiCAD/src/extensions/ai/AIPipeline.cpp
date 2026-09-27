@@ -41,6 +41,7 @@ AIPipeline::AIPipeline(const QString& docsDir,
                        const QString& readmePath,
                        DmDocument* doc,
                        GuiDocumentView* docView,
+                       SelectionSet* selection,
                        QObject* parent)
     : QObject(parent)
     , m_router(new AIIntentRouter(this))
@@ -48,7 +49,7 @@ AIPipeline::AIPipeline(const QString& docsDir,
     , m_ragPipeline(new RAGPipeline(this))
     , m_modelingProvider(new DeepSeekProvider(this))
     , m_bridge()
-    , m_contextResolver(doc ? new ContextResolver(doc, this) : nullptr)
+    , m_contextResolver(doc ? new ContextResolver(doc, selection, this) : nullptr)
     , m_drawExecutor(doc ? new DirectEntityExecutor(doc, this) : nullptr)
     , m_doc(doc)
 {

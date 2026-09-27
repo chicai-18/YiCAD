@@ -2,7 +2,8 @@
 /// @brief 文档监听接口 DmDocumentListener 的单元测试
 ///
 /// 分层重组 S3 让文档不再持有视图，改为通知任意多个监听者（doc/LAYER_RESTRUCTURE_PLAN.md
-/// 7.2 节）。覆盖：注册与注销；Selection 操作后监听者收到"已修改"与"重绘"；Modification 复制
+/// 7.2 节）。覆盖：注册与注销；选择集 SelectionSet 修改后监听者收到"已修改"与"重绘"（方案第 4 步
+/// 改为经选择集自己的信号通知，doc/SELECTION_SET_PLAN.md）；Modification 复制
 /// 不改选中状态，也不通知；块编辑进入与退出时收到绘制容器切换；画布 GuiDocumentView 关联文档时注册，
 /// 换文档或析构时注销。
 ///
@@ -25,7 +26,7 @@
 #include "EntityTable.h"
 #include "GuiDocumentView.h"
 #include "Modification.h"
-#include "Selection.h"
+#include "SelectionSet.h"
 
 namespace
 {
@@ -110,30 +111,45 @@ TEST_F(DocumentListenerFixture, 重复注册只通知一次注销后不再通知
     EXPECT_EQ(listener.redrawCount, 1);
 }
 
-TEST_F(DocumentListenerFixture, Selection的各种选择都通知修改并重绘)
+TEST_F(DocumentListenerFixture, 选择集的各种修改都通知修改并重绘)
 {
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0));
-    Selection selection(&doc);
+    SelectionSet selection(doc);
 
-    selection.selectSingle(line);
-    EXPECT_TRUE(line->isSelected());
+    selection.toggle(line);
+    EXPECT_TRUE(selection.contains(line));
     EXPECT_EQ(listener.modifiedCount, 1);
     EXPECT_EQ(listener.redrawCount, 1);
 
-    selection.selectAll(false);
-    EXPECT_FALSE(line->isSelected());
+    selection.clear();
+    EXPECT_FALSE(selection.contains(line));
     EXPECT_EQ(listener.modifiedCount, 2);
     EXPECT_EQ(listener.redrawCount, 2);
 
     selection.selectWindow(DmVector(-1.0, -1.0), DmVector(11.0, 1.0));
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     EXPECT_EQ(listener.modifiedCount, 3);
     EXPECT_EQ(listener.redrawCount, 3);
 
     selection.selectLayer(QStringLiteral("0"), false);
-    EXPECT_FALSE(line->isSelected());
+    EXPECT_FALSE(selection.contains(line));
     EXPECT_EQ(listener.modifiedCount, 4);
     EXPECT_EQ(listener.redrawCount, 4);
+
+    selection.add(line);
+    EXPECT_TRUE(selection.contains(line));
+    EXPECT_EQ(listener.modifiedCount, 5);
+    EXPECT_EQ(listener.redrawCount, 5);
+
+    selection.remove(line);
+    EXPECT_FALSE(selection.contains(line));
+    EXPECT_EQ(listener.modifiedCount, 6);
+    EXPECT_EQ(listener.redrawCount, 6);
+
+    selection.selectAll();
+    EXPECT_TRUE(selection.contains(line));
+    EXPECT_EQ(listener.modifiedCount, 7);
+    EXPECT_EQ(listener.redrawCount, 7);
 }
 
 TEST_F(DocumentListenerFixture, Modification复制不改选中状态也不通知)
@@ -141,13 +157,17 @@ TEST_F(DocumentListenerFixture, Modification复制不改选中状态也不通知
     // 复制接收显式的实体列表，取消选中由调用方决定（doc/SELECTION_SET_PLAN.md 3.1 节）；
     // 复制到剪贴板不改文档，所以也不通知。
     DmLine* line = addLine(DmVector(0.0, 0.0), DmVector(10.0, 0.0));
-    line->setSelected(true);
+    SelectionSet selection(doc);
+    selection.add(line);
+    // 选中本身也通知，只数复制的
+    listener.modifiedCount = 0;
+    listener.redrawCount = 0;
 
     Modification modification(&doc);
     modification.copy({line}, DmVector(0.0, 0.0), false);
 
     EXPECT_EQ(DMCLIPBOARD->count(), 1u);
-    EXPECT_TRUE(line->isSelected());
+    EXPECT_TRUE(selection.contains(line));
     EXPECT_EQ(listener.modifiedCount, 0);
     EXPECT_EQ(listener.redrawCount, 0);
 

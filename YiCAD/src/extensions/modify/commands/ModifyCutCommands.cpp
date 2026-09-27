@@ -41,6 +41,7 @@
 #include "ISnapService.h"
 #include "Modification.h"
 #include "PlaceCommand.h"
+#include "SelectionSet.h"
 
 namespace
 {
@@ -190,7 +191,7 @@ private:
             secondCoord = DmVector(false);
             command().finish();
 
-            GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+            GUIDIALOGFACTORY->updateSelectionWidget(command().selection()->count());
         }
     }
 

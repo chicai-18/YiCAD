@@ -53,7 +53,6 @@
 #include "UICurrentActivePen.h"
 #include "DmBlockReference.h"
 
-#include "Selection.h"
 #include <set>
 #include "qevent.h"
 
@@ -455,6 +454,7 @@ MDIWindow* UITabDrawWidget::createMdiWindow()
     connect(view, SIGNAL(selectedChanged()), ApplicationWindow::getAppWindow(), SLOT(updateLayerTable()));
 	m_pActionHandler->set_view(view);
 	m_pActionHandler->set_document(w->getDocument());
+	m_pActionHandler->set_selection(w->getSelection());
 	DmDocument* document = w->getDocument();
 
     connect(document->getCmdManager(), SIGNAL(cmdChanged()), ApplicationWindow::getAppWindow(), SLOT(updateUndoRedo()));
@@ -1031,6 +1031,7 @@ void UITabDrawWidget::setChangeTabDrawArea()
 	GuiDocumentView* view = m_currentMdiWindow->getDocumentView();
 	m_pActionHandler->set_view(view);
 	m_pActionHandler->set_document(m_currentMdiWindow->getDocument());
+	m_pActionHandler->set_selection(m_currentMdiWindow->getSelection());
 	m_pCurrentActivePen->setPen(m_currentMdiWindow->getDocument());
 
 	tabChangeEvent();
@@ -1042,6 +1043,7 @@ void UITabDrawWidget::tabClearEvent()
 	m_pBottomWidget->getWidget()->setEnabled(false);
 	m_pActionHandler->set_view(nullptr);
 	m_pActionHandler->set_document(nullptr);
+	m_pActionHandler->set_selection(nullptr);
 }
 
 void UITabDrawWidget::layoutTabButtons()

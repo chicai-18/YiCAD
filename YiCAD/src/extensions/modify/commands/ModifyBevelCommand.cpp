@@ -43,6 +43,7 @@
 #include "LineData.h"
 #include "Math2d.h"
 #include "Modification.h"
+#include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
@@ -301,7 +302,7 @@ void ModifyBevelTool::trigger()
     entity2 = nullptr;
     setStatus(SetEntity1);
 
-    GUIDIALOGFACTORY->updateSelectionWidget(document()->getEntityTable()->countSelect());
+    GUIDIALOGFACTORY->updateSelectionWidget(command().selection()->count());
 }
 
 DmVector ModifyBevelTool::setmousePoint(const DmVector& m_p, DmEntity* e)

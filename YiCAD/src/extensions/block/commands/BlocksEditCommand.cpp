@@ -31,17 +31,17 @@
 #include "CommandRegistry.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
-#include "EntityTable.h"
 #include "ExclusiveCommandBus.h"
 #include "GuiDialogFactory.h"
 #include "ICommandHost.h"
+#include "SelectionSet.h"
 
 bool BlocksEditCommand::onSelectionReady()
 {
     DmBlockReference* selectedRef = nullptr;
-    for (auto e : *document()->getEntityTable())
+    for (auto e : selection()->entities())
     {
-        if (e && e->isSelected() && e->getEntityType() == DM::EntityBlockReference)
+        if (e->getEntityType() == DM::EntityBlockReference)
         {
             selectedRef = static_cast<DmBlockReference*>(e);
             break;

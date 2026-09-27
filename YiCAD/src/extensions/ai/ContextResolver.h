@@ -77,6 +77,7 @@
 
 class DmDocument;
 class DmEntity;
+class SelectionSet;
 
 // ============================================================================
 // 解析出的实体引用
@@ -135,7 +136,7 @@ struct TurnRecord
 /// 无状态（除对话历史外）；一个实例可反复调用 resolve()。
 ///
 /// 典型调用序列：
-///   1. 构造时传入 DmDocument*
+///   1. 构造时传入 DmDocument* 与它的选择集
 ///   2. 每轮调用 resolve(spec) 解析实体引用
 ///   3. 执行完成后调用 recordTurn() 记录本轮结果
 ///   4. 用户"新建"或"重置对话"时调用 clearHistory()
@@ -145,8 +146,9 @@ class ContextResolver : public QObject
 public:
     /// @brief 构造函数
     /// @param doc 目标文档（非空，用于查询 EntityTable）
+    /// @param selection 目标文档的选择集（非空，用于取当前选择）
     /// @param parent 父 QObject（可选）
-    explicit ContextResolver(DmDocument* doc, QObject* parent = nullptr);
+    ContextResolver(DmDocument* doc, SelectionSet* selection, QObject* parent = nullptr);
 
     ~ContextResolver() = default;
 
@@ -157,7 +159,7 @@ public:
     /// @return ResolvedSelection  调用方应首先检查 ok 字段
     ///
     /// 解析优先级：
-    ///   1. CurrentSelection → 从文档 EntityTable 遍历 isSelected() 实体
+    ///   1. CurrentSelection → 文档选择集里的实体
     ///   2. LastCreated       → 优先查 TurnRecord，其次查文档所有实体(回退)
     ///   3. All               → 所有可见实体
     ///   4. None              → 空列表，ok=true
@@ -205,7 +207,7 @@ private:
 
     // ---- 工具 ----
 
-    /// @brief 从当前文档的 EntityTable 收集所有 selected 实体
+    /// @brief 从当前文档的选择集收集所有选中的实体
     QVector<ResolvedEntityRef> collectSelectedEntities() const;
 
     /// @brief 从当前文档的 EntityTable 收集所有可见实体
@@ -215,7 +217,8 @@ private:
     static void filterByEntityType(QVector<ResolvedEntityRef>& entities,
                                    int typeHint);
 
-    DmDocument*          m_doc;      ///< 目标文档（非空）
+    DmDocument*          m_doc;       ///< 目标文档（非空）
+    SelectionSet*        m_selection; ///< 目标文档的选择集（非空）
     QVector<TurnRecord>  m_history;  ///< 对话历史（当前版本最多保留 1 条）
 };
 
