@@ -29,46 +29,53 @@
 SelectionSet::SelectionSet(DmDocument& document)
     : m_document(document)
 {
+    m_document.addListener(this);
+}
+
+SelectionSet::~SelectionSet()
+{
+    m_document.removeListener(this);
 }
 
 void SelectionSet::add(DmEntity* entity)
 {
-    if (entity)
+    if (canAdd(entity))
     {
-        // 锁定图层上的实体由 setSelected 拒绝
-        entity->setSelected(true);
+        m_ids.insert(entity->getId());
     }
-    notifyChanged();
+    emit changed();
 }
 
 void SelectionSet::remove(DmEntity* entity)
 {
     if (entity)
     {
-        entity->setSelected(false);
+        m_ids.erase(entity->getId());
     }
-    notifyChanged();
+    emit changed();
 }
 
 void SelectionSet::toggle(DmEntity* entity)
 {
-    if (entity && !(entity->getLayer() && entity->getLayer()->isLocked()))
+    if (!entity || entity->isLocked())
     {
-        entity->toggleSelected();
-        notifyChanged();
+        return;
     }
+    if (contains(entity))
+    {
+        m_ids.erase(entity->getId());
+    }
+    else if (canAdd(entity))
+    {
+        m_ids.insert(entity->getId());
+    }
+    emit changed();
 }
 
 void SelectionSet::clear()
 {
-    for (auto e : *m_document.getEntityTable())
-    {
-        if (e->isVisible())
-        {
-            e->setSelected(false);
-        }
-    }
-    notifyChanged();
+    m_ids.clear();
+    emit changed();
 }
 
 void SelectionSet::selectWindow(const DmVector& corner1, const DmVector& corner2, bool select, bool cross,
@@ -77,66 +84,103 @@ void SelectionSet::selectWindow(const DmVector& corner1, const DmVector& corner2
     // 框选耗时埋点，默认关闭，见 ScopedTimer.h。
     YICAD_SCOPED_TIMER(yicad::counters::selectWindow());
 
-    // 几何判断由实体表的矩形查询完成，这里只置位
+    // 几何判断由实体表的矩形查询完成，命中的都是当前实体表里可见、未删除的实体
     EntityTable* table = m_document.getEntityTable();
     const std::vector<DmEntity*> hits =
         cross ? table->entitiesCrossingRect(corner1, corner2, types) : table->entitiesInsideRect(corner1, corner2, types);
     for (auto e : hits)
     {
-        e->setSelected(select);
+        if (!select)
+        {
+            m_ids.erase(e->getId());
+        }
+        else if (!e->isLocked())
+        {
+            m_ids.insert(e->getId());
+        }
     }
-    notifyChanged();
+    emit changed();
 }
 
 void SelectionSet::selectLayer(const QString& layerName, bool select)
 {
     for (auto e : *m_document.getEntityTable())
     {
-        if (e && e->isVisible() && e->isSelected() != select && !(e->getLayer() && e->getLayer()->isLocked()))
+        if (!e->isVisible() || e->isLocked())
         {
-            DmLayer* layer = e->getLayer(true);
-            if (layer && layer->getName() == layerName)
+            continue;
+        }
+        DmLayer* layer = e->getLayer(true);
+        if (layer && layer->getName() == layerName)
+        {
+            if (select)
             {
-                e->setSelected(select);
+                m_ids.insert(e->getId());
+            }
+            else
+            {
+                m_ids.erase(e->getId());
             }
         }
     }
-    notifyChanged();
+    emit changed();
 }
 
 void SelectionSet::selectAll()
 {
     for (auto e : *m_document.getEntityTable())
     {
-        if (e->isVisible())
+        if (e->isVisible() && !e->isLocked())
         {
-            e->setSelected(true);
+            m_ids.insert(e->getId());
         }
     }
-    notifyChanged();
+    emit changed();
 }
 
 bool SelectionSet::contains(const DmEntity* entity) const
 {
-    return entity && entity->isSelected();
+    // 集合为空是常态，先判断，画布重建缓存时对每个实体都要问一次
+    return entity && !m_ids.empty() && entity->isVisible() && !entity->isErased()
+           && m_ids.find(entity->getId()) != m_ids.end();
 }
 
 int SelectionSet::count() const
 {
-    return m_document.getEntityTable()->countSelect();
+    int n = 0;
+    for (const DmId& id : m_ids)
+    {
+        if (findVisible(id))
+        {
+            ++n;
+        }
+    }
+    return n;
 }
 
 bool SelectionSet::isEmpty() const
 {
-    return !m_document.getEntityTable()->hasSelect();
+    for (const DmId& id : m_ids)
+    {
+        if (findVisible(id))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::vector<DmEntity*> SelectionSet::entities() const
 {
     std::vector<DmEntity*> selected;
+    if (m_ids.empty())
+    {
+        return selected;
+    }
+    // 实体表的迭代跳过已删除的实体
     for (auto e : *m_document.getEntityTable())
     {
-        if (e->isSelected())
+        if (e->isVisible() && m_ids.find(e->getId()) != m_ids.end())
         {
             selected.push_back(e);
         }
@@ -146,7 +190,24 @@ std::vector<DmEntity*> SelectionSet::entities() const
 
 DmVector SelectionSet::nearestRef(const DmVector& coord, double* dist) const
 {
-    return m_document.getEntityTable()->getNearestSelectedRef(coord, dist);
+    double minDist = DM_MAXDOUBLE;
+    DmVector closest(false);
+    // 按实体表的顺序，距离相等时取在前的实体的夹点，与原 EntityTable::getNearestSelectedRef 相同
+    for (auto e : entities())
+    {
+        double curDist = DM_MAXDOUBLE;
+        const DmVector point = e->getNearestRef(coord, &curDist);
+        if (point.valid && curDist < minDist)
+        {
+            closest = point;
+            minDist = curDist;
+            if (dist)
+            {
+                *dist = minDist;
+            }
+        }
+    }
+    return closest;
 }
 
 bool SelectionSet::isSelected(const DmEntity& entity) const
@@ -154,8 +215,47 @@ bool SelectionSet::isSelected(const DmEntity& entity) const
     return contains(&entity);
 }
 
-void SelectionSet::notifyChanged()
+void SelectionSet::documentModified()
 {
-    m_document.notifyDocumentModified();
-    m_document.requestRedraw();
+    EntityTable* table = m_document.getEntityTable();
+    const size_t before = m_ids.size();
+    for (auto it = m_ids.begin(); it != m_ids.end();)
+    {
+        const DmEntity* e = table->find(*it);
+        if (!e || e->isErased())
+        {
+            it = m_ids.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    if (m_ids.size() != before)
+    {
+        emit changed();
+    }
+}
+
+void SelectionSet::paintContainerChanged(DmEntityContainer* /*container*/)
+{
+    m_ids.clear();
+    emit changed();
+}
+
+bool SelectionSet::canAdd(const DmEntity* entity) const
+{
+    if (!entity || entity->isErased() || entity->isLocked())
+    {
+        return false;
+    }
+    // 预览里的实体、克隆出来还没加入实体表的实体 id 都无效（"0"），不能记录，否则它们会彼此算作选中
+    const DmId id = entity->getId();
+    return id.isValid() && m_document.getEntityTable()->find(id) == entity;
+}
+
+DmEntity* SelectionSet::findVisible(const DmId& id) const
+{
+    DmEntity* e = m_document.getEntityTable()->find(id);
+    return (e && !e->isErased() && e->isVisible()) ? e : nullptr;
 }

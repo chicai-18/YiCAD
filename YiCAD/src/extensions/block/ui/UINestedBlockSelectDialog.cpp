@@ -45,7 +45,6 @@ void appendPreviewEntities(DmEntityContainer* previewContainer, DmEntity* entity
 
     DmEntity* clone = entity->clone();
     clone->setParent(previewContainer);
-    clone->setSelected(false);
     clone->setHighlighted(false);
     previewContainer->addEntity(clone);
 }

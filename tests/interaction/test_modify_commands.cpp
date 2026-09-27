@@ -622,7 +622,7 @@ TEST_F(ModifyFixture, 复制到剪贴板后取消选中并通知视图剪切还�
     selection.add(line);
 
     ASSERT_TRUE(start("ext.edit.copy"));
-    // 复制不经事务，取消选中后要另行通知视图重建缓存
+    // 复制不经事务，也不改文档：取消选中经选择集的 changed() 通知视图重建缓存，文档不发通知
     struct ModifiedCounter : DmDocumentListener
     {
         int modified = 0;
@@ -630,14 +630,19 @@ TEST_F(ModifyFixture, 复制到剪贴板后取消选中并通知视图剪切还�
         void redrawRequested() override {}
         void paintContainerChanged(DmEntityContainer*) override {}
     } counter;
+    int changed = 0;
+    const QMetaObject::Connection connection =
+        QObject::connect(&selection, &SelectionSet::changed, [&changed]() { ++changed; });
     doc.addListener(&counter);
     typeCoordinate(10.0, 10.0);
     doc.removeListener(&counter);
+    QObject::disconnect(connection);
     EXPECT_FALSE(bus.hasActiveCommand());
     EXPECT_EQ(DMCLIPBOARD->count(), 1u);
     EXPECT_FALSE(selection.contains(line));
     EXPECT_FALSE(line->isErased());
-    EXPECT_GT(counter.modified, 0);
+    EXPECT_GT(changed, 0);
+    EXPECT_EQ(counter.modified, 0);
 
     selection.add(line);
     ASSERT_TRUE(start("ext.edit.cut"));

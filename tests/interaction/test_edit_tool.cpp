@@ -242,14 +242,15 @@ TEST_F(EditToolFixture, Ctrl左键按在夹点上归导航层平移)
     release(12, 10);
 }
 
-TEST_F(EditToolFixture, 按住Shift移动时多一条引导线)
+TEST_F(EditToolFixture, 按住Shift移动时只做角度吸附不另画引导线)
 {
+    // 原先另画一条借选中色的引导线，选择集移出 Model 时去掉（doc/SELECTION_SET_PLAN.md 第 5 节）
     activateGrip();
 
     move(60, 60);
     ASSERT_EQ(previewCount(), 1);
     move(60, 60, Qt::ShiftModifier);
-    EXPECT_EQ(previewCount(), 2);
+    EXPECT_EQ(previewCount(), 1);
 }
 
 TEST_F(EditToolFixture, 右键取消夹点并清除预览)

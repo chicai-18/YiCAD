@@ -430,29 +430,6 @@ EntityTable::const_iterator EntityTable::end() const
     return EntityTable::const_iterator(m_ents.end());
 }
 
-/// @brief 检查是否有选中的实体
-bool EntityTable::hasSelect() const
-{
-    for (auto it = m_ents.begin(); it != m_ents.end(); ++it)
-    {
-        if (!(*it)->isErased() && (*it)->isSelected())
-            return true;
-    }
-    return false;
-}
-
-/// @brief 获取选中实体数量
-int EntityTable::countSelect() const
-{
-    int c = 0;
-    for (auto it = m_ents.begin(); it != m_ents.end(); ++it)
-    {
-        if (!(*it)->isErased() && (*it)->isSelected())
-            c++;
-    }
-    return c;
-}
-
 /// @brief 获得实体数（不含已删除）
 int EntityTable::count() const
 {
@@ -463,33 +440,6 @@ int EntityTable::count() const
             c++;
     }
     return c;
-}
-
-/// @brief 获得选中实体中最近的拖拽点
-DmVector EntityTable::getNearestSelectedRef(const DmVector& coord, double* dist /*= nullptr*/) const
-{
-    double minDist = DM_MAXDOUBLE;  // minimum measured distance
-    double curDist;                 // currently measured distance
-    DmVector closestPoint(false);   // closest found endpoint
-    DmVector point;                 // endpoint found
-
-    for (auto en : m_ents)
-    {
-        if (!en->isErased() && en->isVisible() && en->isSelected() && !en->isParentSelected())
-        {
-            point = en->getNearestSelectedRef(coord, &curDist);
-            if (point.valid && curDist < minDist)
-            {
-                closestPoint = point;
-                minDist = curDist;
-                if (dist)
-                {
-                    *dist = minDist;
-                }
-            }
-        }
-    }
-    return closestPoint;
 }
 
 /// @brief 查找从指定坐标沿指定角度方向延伸的虚拟构造线与最近实体的交点

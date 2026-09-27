@@ -80,7 +80,6 @@ public:
     /// @param l 图层指针
     void setLayer(DmLayer* l);
 
-    bool setSelected(bool select = true) override;
     void setHighlighted(bool highlight = true) override;
 
     /// @brief 获取终点
@@ -129,8 +128,6 @@ public:
     DmVectorSolutions getRefPoints() const override;
     DmVector getNearestRef(const DmVector& coord,
                            double* dist = nullptr) const override;
-    DmVector getNearestSelectedRef(const DmVector& coord,
-                                   double* dist = nullptr) const override;
     DmVector getNearestEndpoint(const DmVector& coord,
                                 double* dist = nullptr) const override;
     DmVector getNearestPointOnEntity(const DmVector& coord,

@@ -50,8 +50,8 @@ public:
     /// @return 输入不是大于 0 的整数时返回 false，数量不变
     bool setCopyCount(const QString& input);
 
-    /// @brief 预览偏移后的各份复制，按住 Shift 时另画一条引导线
-    void previewCopy(const DmVector& reference, const DmVector& target, bool showGuide);
+    /// @brief 预览偏移后的各份复制
+    void previewCopy(const DmVector& reference, const DmVector& target);
     /// @brief 清除预览
     void clearPreview();
     /// @brief 按参考点到目标点的偏移复制选择集，然后结束命令

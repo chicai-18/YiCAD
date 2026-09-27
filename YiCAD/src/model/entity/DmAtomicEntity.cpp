@@ -138,14 +138,6 @@ DM::Ending DmAtomicEntity::getTrimPoint(const DmVector& /*coord*/, const DmVecto
     return DM::EndingNone;
 }
 
-void DmAtomicEntity::moveSelectedRef(const DmVector& ref, const DmVector& offset)
-{
-    if (isSelected())
-    {
-        moveRef(ref, offset);
-    }
-}
-
 void DmAtomicEntity::saveStream(OutputStream& wrt) const
 {
     DmEntity::saveStream(wrt);

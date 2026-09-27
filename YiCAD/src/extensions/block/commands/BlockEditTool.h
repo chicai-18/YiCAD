@@ -61,10 +61,9 @@ public:
     /// @param blockRef 选中的块参照
     /// @return 用户取消或块定义不存在时返回 false（已在命令行说明）
     bool prepare(DmBlockReference* blockRef);
-    /// @brief 正常进入的第二步：取消块参照的选中，以 BlockEditEnterCmd 事务进入块编辑，
-    ///        适屏显示块内容
+    /// @brief 正常进入的第二步：以 BlockEditEnterCmd 事务进入块编辑，适屏显示块内容
     /// @note 在模式交给总线之后调用：事务触发的撤销栈变化通知要能看到模式已经存在
-    void beginEditing(DmBlockReference* blockRef);
+    void beginEditing();
     /// @brief 撤销/重做后重新进入：文档已处于块编辑，只恢复界面
     void reenter(DmBlock* block);
 

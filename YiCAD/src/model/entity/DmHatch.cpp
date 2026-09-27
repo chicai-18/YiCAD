@@ -91,7 +91,6 @@ DmHatch* DmHatch::clone() const
 {
     DmHatch* t = new DmHatch(*this);
     t->m_ulID = DmId();
-    t->setSelected(false);
     t->setHighlighted(false);
     return t;
 }
@@ -119,16 +118,6 @@ void DmHatch::setSolid(bool solid)
 void DmHatch::setData(const HatchData& hdata)
 {
     data = hdata;
-}
-
-bool DmHatch::setSelected(bool select)
-{
-    bool res = DmEntity::setSelected(select);
-    if (m_filledEntities)
-    {
-        m_filledEntities->setSelected(select);
-    }
-    return false;
 }
 
 QString DmHatch::getPattern() const
@@ -750,12 +739,6 @@ void DmHatch::moveRef(const DmVector& ref, const DmVector& offset)
 {
     move(offset);
     calculateBorders();
-}
-
-DmVector DmHatch::getNearestSelectedRef(const DmVector& coord,
-    double* dist) const
-{
-    return DmEntity::getNearestSelectedRef(coord, dist);
 }
 
 DmVector DmHatch::getNearestRef(const DmVector& coord, double* dist) const

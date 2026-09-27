@@ -53,7 +53,6 @@ void EntityTableAddCmd::execute()
         e->setErased(false);
         m_table->m_searchTree.insert(e);
     }
-    e->setSelected(false);//设置非选中状态，undo后是非选中状态
     e->setHighlighted(false);
     ICmd::execute();
 }
@@ -134,7 +133,6 @@ void EntityTableRemoveCmd::execute()
     }
     else
     {
-        e->setSelected(false);//删除前设置非选中状态，undo后是非选中状态
         e->setHighlighted(false);
         e->setErased(true);
         m_table->m_searchTree.remove(e);
@@ -181,7 +179,6 @@ EntityTableModifyCmd::EntityTableModifyCmd(EntityTable *table, DmEntity *modifie
 :m_table(table)
 ,m_modifiedEnt(modifiedEnt)
 {
-    modifiedEnt->setSelected(false);//设置非选中状态，undo后是非选中状态
     modifiedEnt->setHighlighted(false);
     std::ostringstream oss;
     OutputStream str(oss);

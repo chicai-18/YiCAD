@@ -55,9 +55,13 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
         m_pSelection = &doc->selection();
         m_pSelectSnapper = std::make_unique<Snapper>(document, this);
         m_pSelectPreview = std::make_unique<Preview>(m_pSelection, this);
-        // 文档画笔按图纸的选择集、预览画笔按预览判断实体是否选中
+        // 文档画笔按图纸的选择集判断实体是否选中；选择改变不经文档通知，这里重建缓存并重绘
         setDocumentSelectionSource(m_pSelection);
-        setPreviewSelectionSource(m_pSelectPreview.get());
+        connect(m_pSelection, &SelectionSet::changed, this, [this]()
+        {
+            specifyDocumentModified();
+            redraw();
+        });
         m_pSelectTool = std::make_unique<SelectTool>(document, m_pSelection, this, m_pSelectSnapper.get(),
                                                      m_pSelectPreview.get(), m_pPanZoomTool.get());
         m_pViewToolControl->setSelectionTool(m_pSelectTool.get());
@@ -104,8 +108,6 @@ UIView::~UIView()
 {
     // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
-    // 预览随成员先于基类释放，预览画笔不再经它判断选中
-    setPreviewSelectionSource(nullptr);
 }
 
 void UIView::beginSelectionPhase(const EntityTypeList& entityTypes)

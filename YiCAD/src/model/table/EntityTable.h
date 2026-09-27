@@ -62,15 +62,8 @@ public:
     iterator end();
     const_iterator begin() const;
     const_iterator end() const;
-    /// @brief 检查是否有选中的实体
-    bool hasSelect() const;
-    /// @brief 获取选中实体数量
-    int countSelect() const;
     /// @brief 获得实体数（不含已删除）
     int count() const;
-    /// @brief 获得选中实体中最近的拖拽点
-    DmVector getNearestSelectedRef(const DmVector& coord, double* dist = nullptr) const;
-
     /// @brief 查找从指定坐标沿指定角度方向延伸的虚拟构造线与最近实体的交点
     DmVector getNearestVirtualIntersection(const DmVector& coord, const double& angle, double* dist);
 

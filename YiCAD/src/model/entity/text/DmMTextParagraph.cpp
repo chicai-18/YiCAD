@@ -925,25 +925,6 @@ void DmMTextParagraph::setVisible(bool v)
     }
 }
 
-bool DmMTextParagraph::setSelected(bool select)
-{
-    if (DmEntity::setSelected(select))
-    {
-        for (auto e : lines)
-        {
-            if (e->isVisible())
-            {
-                e->setSelected(select);
-            }
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void DmMTextParagraph::setHighlighted(bool highlight)
 {
     DmEntity::setHighlighted(highlight);

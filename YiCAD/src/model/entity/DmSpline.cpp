@@ -77,7 +77,6 @@ DmEntity* DmSpline::clone() const
 {
 	DmSpline* l = new DmSpline(*this);
     l->m_ulID = DmId();
-    l->setSelected(false);
     l->setHighlighted(false);
 	l->pLineStrip = new DmLineStrip(l);
 	l->update();
@@ -1583,11 +1582,6 @@ DmVectorSolutions DmSpline::getRefPoints() const
 DmVector DmSpline::getNearestRef(const DmVector& coord, double* dist /*= nullptr*/) const
 {
 	return DmEntity::getNearestRef(coord, dist);
-}
-
-DmVector DmSpline::getNearestSelectedRef(const DmVector& coord, double* dist /*= nullptr*/) const
-{
-	return DmEntity::getNearestSelectedRef(coord, dist);
 }
 
 DmVector DmSpline::getNearestPointOnEntity(const DmVector& coord, bool onEntity, double* dist, DmEntity** entity) const

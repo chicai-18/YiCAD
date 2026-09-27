@@ -18,9 +18,9 @@
 /// @file ISelectionSource.h
 /// @brief 绘制时判断实体是否选中的只读接口
 ///
-/// 选中状态归 Application 层的选择集（SelectionSet）与预览（Preview），Render 只经本接口读取，
-/// 不认识它们（doc/SELECTION_SET_PLAN.md 3.2 节）。画布把文档的来源交给文档画笔、把预览的来源
-/// 交给预览画笔，见 GuiDocumentView::setDocumentSelectionSource()、setPreviewSelectionSource()。
+/// 选中状态归 Application 层的选择集（SelectionSet），Render 只经本接口读取，不认识它
+/// （doc/SELECTION_SET_PLAN.md 3.2 节）。画布把它交给文档画笔，见
+/// GuiDocumentView::setDocumentSelectionSource()；预览画笔不设来源，预览里的临时实体没有选中状态。
 
 #ifndef ISELECTIONSOURCE_H
 #define ISELECTIONSOURCE_H

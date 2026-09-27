@@ -524,25 +524,6 @@ void DmMTextLine::setVisible(bool v)
     }
 }
 
-bool DmMTextLine::setSelected(bool select)
-{
-    if (DmEntity::setSelected(select))
-    {
-        for (auto e : chars)
-        {
-            if (e->isVisible())
-            {
-                e->setSelected(select);
-            }
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void DmMTextLine::setHighlighted(bool highlight)
 {
     DmEntity::setHighlighted(highlight);

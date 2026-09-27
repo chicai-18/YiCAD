@@ -390,7 +390,6 @@ bool Modification::pasteEntity(DmEntity* entity, DmEntityContainer* container)
 
 	e->setParent(container);
 	container->addEntity(e);
-	e->setSelected(false);
 
 	return true;
 }

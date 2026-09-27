@@ -64,7 +64,6 @@ DmEntity* DmLine::clone() const
 {
     DmLine* l = new DmLine(*this);
     l->m_ulID = DmId();
-    l->setSelected(false);
     l->setHighlighted(false);
     return l;
 }

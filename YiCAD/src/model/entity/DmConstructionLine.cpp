@@ -56,7 +56,6 @@ DmEntity* DmConstructionLine::clone() const
 {
     DmConstructionLine* c = new DmConstructionLine(*this);
     c->m_ulID = DmId();
-    c->setSelected(false);
     c->setHighlighted(false);
     return c;
 }

@@ -5,7 +5,7 @@
 `model/edit/`，只去掉它对视图的依赖，并注明"选择集连同状态移到 Application 是另一件事"。
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `6378f1b` 实测。引用 `LAYER_RESTRUCTURE_PLAN.md`
-> 的章节时写作"分层方案 x.y 节"。状态：第 1 至 3 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
+> 的章节时写作"分层方案 x.y 节"。状态：第 1 至 4 步已完成（2026-09-27，见第 9 节）；第 7 节的决策全部已定（2026-09-27）。
 
 ---
 
@@ -115,7 +115,7 @@ AcEd（编辑器），不在 AcDb（数据库）；FreeCAD 的 `Gui::Selection` 
 - `DmCachePainter` 持有一个可为空的来源指针，`addGroupEntity`、`cacheSelectedPoints` 改为查它；为空时
   没有实体被选中。
 - `GuiDocumentView` 增加两个设置函数，把文档的来源交给 `m_pDocumentPainter`，把预览的来源交给
-  `m_pPreviewPainter`。
+  `m_pPreviewPainter`。（第 4 步去掉了预览的那一个：预览里是临时实体，没有选中状态，见 9.4 节第 1 条。）
 - Render 不认识 `SelectionSet`。选择改变后由 Application 调用视图已有的 `specifyDocumentModified()` 与 `redraw()`。
 
 ### 3.3 Application
@@ -151,6 +151,9 @@ AcEd（编辑器），不在 AcDb（数据库）；FreeCAD 的 `Gui::Selection` 
 **`Preview`**：自己维护一个"按选中色绘制"的实体集合，引导线加入后登记进去。集合存指针即可：
 预览实体归预览容器所有，随清空一起释放。`Preview` 实现 `ISelectionSource`，交给预览画笔；
 `CommandPreview::entities()` 返回的也是它。`addSelectionFromDocument` 改为从 `SelectionSet` 取实体。
+
+> 第 4 步没有照这一段做：引导线借选中色是唯一的用法，改为去掉引导线，`Preview` 不涉及选中，
+> 不实现 `ISelectionSource`，见 9.4 节第 1 条。
 
 ### 3.4 Ui、Shell、扩展
 
@@ -189,9 +192,15 @@ AcEd（编辑器），不在 AcDb（数据库）；FreeCAD 的 `Gui::Selection` 
 | 场景 | 现在 | 之后 |
 |------|------|------|
 | 撤销、重做 | 被撤销命令触及的实体失去选中（2.3 节） | 已删除的实体自动掉出选择集；被撤销修改、仍然存在的实体留在选择集里（D2） |
+| 删除后撤销 | 实体回来是未选中 | 不变（文档通知修改时剔除已删除的实体，9.4 节第 2 条） |
+| 选中后撤销添加再重做 | 实体回来仍是选中 | 实体回来是未选中（撤销时已剔除） |
 | 进出块编辑 | 只取消被编辑的块参照；模型空间里其他实体退出后仍显示为选中 | 进、出都清空选择集 |
+| 取消全部（Esc，复制、移动之后等） | 只取消可见实体：关掉图层上的选中实体，重新打开后仍显示为选中 | 连不可见的一起取消（9.4 节第 3 条） |
+| 按住 Shift 拖夹点、移动、复制 | 另画一条参考点到吸附点的连线，借选中色加粗 | 不再画这条线，吸附照旧（9.4 节第 1 条） |
+| 复制命令的预览 | 文字、标注、块参照的克隆带着原实体的选中位，画成选中色 | 按普通颜色画（预览没有选中状态） |
 | 选择改变 | 触发 `DmDocumentListener::documentModified` | 不再触发；视图经 `SelectionSet::changed()` 重建缓存 |
 | 保存文件 | 标志字里可能带选中位 | 选中位恒为 0 |
+| 大图纸全部选中 | 查询读标志位 | 按 `DmId` 查找，50 万实体全选时各项操作多约 0.3 s（9.4 节第 7 条） |
 
 关掉图层后重新打开的效果不变：两种做法都保留选中记录、只在查询时过滤不可见实体，所以重新打开后
 实体仍显示为选中。锁定图层时取消选中由图层扩展显式完成（`LayerExtension.cpp:221`、`:272`），
@@ -447,3 +456,74 @@ python tools/check_layering.py
 `python tools/check_layering.py` 通过；在 `DmCachePainter.cpp` 临时包含 `SelectionSet.h`，构建 `YiCadRender` 报 C1083，恢复后
 通过。安装后启动程序（新建第一张图纸即构造 `AppDocument`、`SelectionSet`，并把选择来源交给两个画笔），能正常响应，关闭后退出码
 为 0。界面走查（点选、框选、删除、移动、夹点编辑、块编辑进出）交由用户进行，用户确认后提交。
+
+### 9.4 第 4 步：换存储，删除实体上的选中接口
+
+2026-09-27 完成，基线 `96bca76`，一个提交。行为差异见第 5 节。
+
+**方案未写或与方案不同、执行时定的**（第 1 至 3、7 条与用户讨论后定）：
+
+1. **预览不涉及选中，去掉引导线**：3.2、3.3 节原写"`Preview` 维护按选中色绘制的集合、实现 `ISelectionSource`、交给预览画笔"。
+   这个集合只为一种用法：按住 Shift 拖夹点、移动、复制时，预览里另画一条参考点到吸附点的连线（代码里叫引导线），
+   加入后 `setSelected(true)`，借选中色加粗绘制。9.3 节第 11 条记下的问题（一个视图有多个 `Preview` 共用一个预览容器与画笔，
+   各自的集合只有一个能交给画笔）也由它而来。用户的判断是：预览是命令的临时实体，没有选中状态，只有文档里的实体有；
+   这条线也没有必要显示。于是删掉三处引导线（`EditTool::updatePreview` 的 Shift 分支，`ModifyMoveCommand::previewMove`、
+   `ModifyCopyCommand::previewCopy` 去掉 `showGuide` 参数），吸附照旧；`Preview` 不再实现 `ISelectionSource`，
+   `GuiDocumentView::setPreviewSelectionSource` 删除，预览画笔不设来源（`DmCachePainter` 为空时没有实体按选中绘制）。
+   `Preview`、`CommandPreview` 仍是每个命令一个，不需要共用。
+2. **已删除的实体怎样掉出**：只在查询时过滤的话，删除后撤销，实体回来仍是选中。`SelectionSet` 作为文档监听者
+   （私有继承 `DmDocumentListener`），在 `documentModified`（事务提交、撤销、重做都会发）时剔除已删除或已不在当前实体表里的 id，
+   剔除了就发 `changed()`；查询时照样过滤已删除、不可见的实体。删除后撤销与改前一样是未选中；选中后撤销添加再重做，
+   实体回来是未选中（改前是选中）。
+3. **`clear()` 清空整个集合**：原 `selectAll(false)` 只取消可见实体，改为连不可见的一起取消。
+4. **只记当前实体表里的实体**：`add`、`toggle` 拒绝 id 无效或 `EntityTable::find(id)` 不是它本身的实体。预览实体、刚克隆出来的
+   实体 id 都是 `"0"`，不拒绝会彼此算作选中。`test_text_extension` 那一例（9.3 节第 12 条）改为把文字放进实体表。
+5. **通知**：`SelectionSet` 是 `QObject`，每个修改函数调用后发一次 `changed()`（一次框选算一次；`toggle` 遇到锁定图层上的实体
+   不变、也不发），时机与第 3 步经文档通知时相同，调用处不用动。`UIView` 构造时订阅它：`specifyDocumentModified()` 再 `redraw()`，
+   与原先文档通知画布时做的一样。进出块编辑（`paintContainerChanged`）清空后也发。
+6. **查询的实现**：`contains` 先判断集合是否为空（常态，画布重建缓存时对每个顶层实体都问一次），再看可见、未删除、id 是否在集合里；
+   `count`、`isEmpty` 对集合里的每个 id 在当前实体表里查；`entities`、`nearestRef` 按实体表的顺序遍历，`nearestRef` 对选中实体取
+   `getNearestRef`，距离相等时取在前的，与原 `EntityTable::getNearestSelectedRef` 相同。
+7. **性能**：无头测 50 万条直线全部选中（Release）：逐个 `contains` 约 300 ms（读标志位约 10 ms），`count` 约 320 ms，全选约 450 ms，
+   覆盖全图的框选约 360 ms，文档通知修改时的剔除约 290 ms；集合为空时逐个 `contains` 约 2 ms。开销主要在以 36 字符字符串为键的
+   哈希查找（缓存未命中与字符串比较）。试过两种改法：`DmObject::getId()`、`DmId::asString()` 改为返回常量引用，只快约 10%；以实体指针为键、
+   命中后比对 id，快约 40%，但离读标志位仍差一个数量级，约定也更绕。用户选定照方案存 `DmId`，两种改法都没有采用；GUI 实测觉得慢时
+   再单独优化（比如 `DmId` 改为二进制 UUID）。
+8. **块编辑**：`BlockEditTool::beginEditing` 原先先取消被编辑块参照的选中，进出块编辑时选择集自己清空，这一句删除，参数随之去掉。
+9. `EditTool::commit` 夹点落位后重新选中的那段删除（9.1 节第 3 条预告的）：撤销命令不再取消选中，选择集按 id 记录，修改实体不影响它。
+10. `Modification.cpp` 里注释掉的旧代码中还有几处 `setSelected`，是注释，未动。
+
+**改动**：
+
+| 位置 | 改法 |
+|------|------|
+| `DmEntity` | 删除 `setSelected`、`toggleSelected`、`isSelected`、`isParentSelected`、`getNearestSelectedRef`、`moveSelectedRef`；`restoreStream` 无条件清掉 `FlagSelected` |
+| 11 个 `setSelected` 重写、5 个 `getNearestSelectedRef` 重写、`DmEntityContainer::toggleSelected`、两个 `moveSelectedRef` | 删除 |
+| 16 个 `clone()`、`Modification::pasteEntity`、`DmBlockReference` 重建子实体时的抄写 | 删除对选中位的读写 |
+| `EntityTable` | 删除 `hasSelect`、`countSelect`、`getNearestSelectedRef` |
+| `EntityTableCmd` | 删除 3 处取消选中 |
+| `Datamodel.h`、`DmDocumentListener.h` | `FlagSelected` 注明已废弃、编号保留；`documentModified` 的注释去掉"选中状态" |
+| `SelectionSet` | 改存 `std::unordered_set<DmId>`，是 `QObject` 并私有继承 `DmDocumentListener`，见上第 2 至 6 条 |
+| `UIView` | 订阅 `SelectionSet::changed()`；不再给预览画笔设来源 |
+| `Preview`、`GuiDocumentView`、`ISelectionSource.h` | 见上第 1 条；`Preview` 两处克隆后的取消选中删除 |
+| `EditTool`、`ModifyMoveCommand`、`ModifyCopyCommand` | 删除引导线（第 1 条）；`EditTool` 见第 9 条 |
+| `CopyToLayerCommand`、`UINestedBlockSelectDialog` | 克隆后的取消选中删除 |
+| `BlockEditTool`、`BlocksEditCommand` | 见上第 8 条 |
+
+**测试**：
+
+- `test_selection_set`：原有四例照样通过；新增六例：只记当前实体表里的实体（不在表里的、克隆的都不算），取消全部连不可见的一起清掉，
+  已删除的实体掉出、删除后撤销回来是未选中（走事务与 `DmDocument::undo`，并断言剔除时发一次 `changed()`），被撤销修改的实体仍然选中
+  （撤销、重做后都在），实体被 `remove_direct` 释放后查询不出错、同处新加的实体不算选中，进出块编辑时清空（块编辑时选的是块里的实体）。
+- `test_document_listener`：选择集用例改为"各种修改发出 changed 而不通知文档"，逐个断言 `changed()` 的次数，文档监听者收不到通知；
+  复制用例不再需要把选中产生的通知清零。
+- `test_modify_commands`："复制到剪贴板后取消选中并通知视图"原断言文档发出修改通知（第 1 步时取消选中经文档通知），改为断言选择集
+  发出 `changed()`、文档不再通知。
+- `test_edit_tool`："按住Shift移动时多一条引导线"改为"只做角度吸附不另画引导线"，预览里只有被拖的实体。
+- `test_text_extension`：见上第 4 条，并先断言文字已选中，免得用例空过。
+- 测性能用的临时用例测完即删，没有提交。
+
+**验证**：`cmake --build --preset Release`（改过的文件没有新增警告）、`ctest`（4 个测试二进制全部通过，`test_interaction` 325 例）、
+`python tools/check_layering.py` 通过；在 `DmCachePainter.cpp` 临时包含 `SelectionSet.h`，构建 `YiCadRender` 报 C1083，恢复后通过。
+grep 确认 `FlagSelected` 只剩枚举定义与 `DmEntity::restoreStream` 里的清除两处（第 5 步的检查项）。安装后启动程序能正常响应，
+关闭后退出码为 0。界面走查（点选、框选、删除后撤销、移动、夹点编辑、块编辑进出，Shift 吸附）交由用户进行，用户确认后提交。

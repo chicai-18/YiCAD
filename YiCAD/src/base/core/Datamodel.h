@@ -60,7 +60,7 @@ namespace DM
         FlagDefFrozen = 32,     // Layer frozen by default.
         FlagLocked = 64,        // Layer locked.
         FlagInvalid = 128,      // Used for invalid pens.
-        FlagSelected = 256,     // Entity in current selection.
+        FlagSelected = 256,     // 已废弃：选中状态不再存在实体上（doc/SELECTION_SET_PLAN.md）。编号保留、不再复用；旧文件里可能带着这一位，读回时清掉
         FlagClosed = 512,       // Polyline closed?
         FlagTemp = 1024,        // Flag for temporary entities (e.g. hatch)
         FlagProcessed = 2048,   // Flag for processed entities (optcontour)

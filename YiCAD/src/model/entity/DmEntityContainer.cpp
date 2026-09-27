@@ -152,40 +152,6 @@ double DmEntityContainer::getLength() const
     return ret;
 }
 
-bool DmEntityContainer::setSelected(bool select)
-{
-    // This entity's select:
-    if (DmEntity::setSelected(select))
-    {
-        // All sub-entity's select:
-        for (auto e : entities)
-        {
-            if (e->isVisible())
-            {
-                e->setSelected(select);
-            }
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-bool DmEntityContainer::toggleSelected()
-{
-    // Toggle this entity's select:
-    if (DmEntity::toggleSelected())
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void DmEntityContainer::setHighlighted(bool highlight)
 {
     DmEntity::setHighlighted(highlight);
@@ -1216,15 +1182,6 @@ void DmEntityContainer::moveRef(const DmVector& ref, const DmVector& offset)
     for (auto e : entities)
     {
         e->moveRef(ref, offset);
-    }
-    adjustBorders();
-}
-
-void DmEntityContainer::moveSelectedRef(const DmVector& ref, const DmVector& offset)
-{
-    for (auto e : entities)
-    {
-        e->moveSelectedRef(ref, offset);
     }
     adjustBorders();
 }

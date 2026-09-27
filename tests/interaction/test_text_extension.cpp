@@ -169,16 +169,19 @@ TEST_F(TextFixture, 编辑与属性面板命令只接受多行文字)
 
 TEST_F(TextFixture, 属性面板不可打断单击取消选中并结束)
 {
-    auto text = std::make_unique<DmMText>(nullptr, MTextData());
-    selection.add(text.get());
+    // 选择集只记当前实体表里的实体，文字要先放进表（表持有它）
+    auto* text = new DmMText(nullptr, MTextData());
+    ASSERT_TRUE(doc.getEntityTable()->add_direct(text));
+    selection.add(text);
+    ASSERT_TRUE(selection.contains(text));
     std::unique_ptr<IExclusiveCommand> command = CommandRegistry::instance().createCommand(
-        QStringLiteral("ext.text.modify_mtext"), CommandContext{&doc, &view, &selection, nullptr, text.get()});
+        QStringLiteral("ext.text.modify_mtext"), CommandContext{&doc, &view, &selection, nullptr, text});
     ASSERT_NE(command, nullptr);
     EXPECT_TRUE(command->isUninterruptible());
     ASSERT_TRUE(bus.start(std::move(command)));
 
     click(5, 5);
-    EXPECT_FALSE(selection.contains(text.get()));
+    EXPECT_FALSE(selection.contains(text));
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 

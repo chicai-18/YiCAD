@@ -62,7 +62,7 @@ bool BlocksEditCommand::onSelectionReady()
     // UIActionHandler 据此判断是否要"重新进入"块编辑，这时要能看到模式已经存在
     BlockEditTool* blockEdit = mode.get();
     bus()->enterEditMode(std::move(mode));
-    blockEdit->beginEditing(selectedRef);
+    blockEdit->beginEditing();
     finish();
     return true;
 }

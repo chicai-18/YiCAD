@@ -49,7 +49,6 @@ DmEntity* DmSolid::clone() const
 {
 	DmSolid* s = new DmSolid(*this);
     s->m_ulID = DmId();
-    s->setSelected(false);
     s->setHighlighted(false);
 	return s;
 }

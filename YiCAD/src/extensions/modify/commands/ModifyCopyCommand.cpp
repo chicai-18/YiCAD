@@ -30,7 +30,6 @@
 #include "ModifyCommands.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
-#include "DmLine.h"
 #include "DmSettings.h"
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
@@ -108,7 +107,7 @@ protected:
                     mouse = snapper()->snapToAngle(mouse, m_referencePoint, SNAP_ANGLE_THRESHOLD);
                 }
                 m_targetPoint = mouse;
-                m_command.previewCopy(m_referencePoint, m_targetPoint, shift);
+                m_command.previewCopy(m_referencePoint, m_targetPoint);
             }
             break;
 
@@ -229,20 +228,12 @@ std::vector<DmEntity*> ModifyCopyCommand::cloneSelection(const DmVector& offset)
     return addedEnts;
 }
 
-void ModifyCopyCommand::previewCopy(const DmVector& reference, const DmVector& target, bool showGuide)
+void ModifyCopyCommand::previewCopy(const DmVector& reference, const DmVector& target)
 {
     m_preview->clear();
     for (auto ent : cloneSelection(target - reference))
     {
         m_preview->entities().addEntity(ent);
-    }
-    if (showGuide)
-    {
-        DmLine* line = new DmLine(nullptr, reference, target);
-        m_preview->entities().addEntity(line);
-        line->setSelected(true);
-        line->setLayerToActive();
-        line->setPenToActive();
     }
     m_preview->draw();
 }

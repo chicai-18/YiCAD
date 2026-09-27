@@ -90,12 +90,9 @@ public:
     void setSelectedColor(const QColor& c);
     /// @brief 设置高亮颜色
     void setHighlightColor(const QColor& c);
-    /// @brief 设置文档画笔判断实体是否选中的来源（文档的选择集）
+    /// @brief 设置文档画笔判断实体是否选中的来源（文档的选择集）；预览画笔不设来源，预览里没有选中的实体
     /// @param source 非持有指针，可为空（没有实体按选中绘制）；必须比本画布活得久或在释放前置空
     void setDocumentSelectionSource(const ISelectionSource* source);
-    /// @brief 设置预览画笔判断实体是否选中的来源（预览）
-    /// @param source 同 setDocumentSelectionSource()
-    void setPreviewSelectionSource(const ISelectionSource* source);
     /// @brief 设置文档对象：从原文档注销监听，在新文档注册
     /// @param pDoc 文档对象指针，可为空
     void setDocument(DmDocument* pDoc);
@@ -321,7 +318,6 @@ private:
     DmCachePainter*                     m_pPreviewPainter;          ///< 预览画笔
     opengl::GLPainter*                  m_pForegroundPainter;       ///< 前景画笔
     const ISelectionSource*             m_pDocumentSelection = nullptr; ///< 文档画笔判断选中的来源，建画笔时交给它
-    const ISelectionSource*             m_pPreviewSelection = nullptr;  ///< 预览画笔判断选中的来源，建画笔时交给它
 
     DmVector                            m_currentMousePt;           ///< 当前鼠标位置（世界坐标）
     DM::CursorType                      m_eCursorType;              ///< 当前鼠标类型

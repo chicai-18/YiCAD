@@ -110,12 +110,6 @@ DmVector DmDimension::getNearestRef(const DmVector& coord, double* dist /*= null
 	return DmEntity::getNearestRef(coord, dist);
 }
 
-DmVector DmDimension::getNearestSelectedRef(const DmVector& coord, double* dist /*= nullptr*/) const
-{
-	// override the DmEntityContainer method
-	return DmEntity::getNearestSelectedRef(coord, dist);
-}
-
 DmDimensionData DmDimension::getData() const
 {
 	return data;
@@ -349,19 +343,6 @@ void DmDimension::setVisible(bool v)
 {
 	DmEntity::setVisible(v);
 	container->setVisible(v);
-}
-
-bool DmDimension::setSelected(bool select)
-{
-	if (DmEntity::setSelected(select))
-	{
-		container->setSelected(select);
-		return true;
-	}
-	else
-	{
-		return false;
-	}
 }
 
 void DmDimension::setHighlighted(bool highlight)

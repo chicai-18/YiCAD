@@ -66,8 +66,6 @@ public:
     /// @brief 设置填充数据
     void setData(const HatchData& hdata);
 
-    bool setSelected(bool select) override;
-
     /// @brief 是否为实体填充
     bool isSolid() const;
 
@@ -156,7 +154,6 @@ public:
 
     DmVectorSolutions getRefPoints() const override;
     void moveRef(const DmVector& ref, const DmVector& offset) override;
-    DmVector getNearestSelectedRef(const DmVector& coord, double* dist = nullptr) const override;
     DmVector getNearestRef(const DmVector& coord, double* dist = nullptr) const override;
 
     DmVector getNearestEndpoint(const DmVector& coord, double* dist = nullptr) const override;

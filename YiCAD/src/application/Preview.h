@@ -22,16 +22,14 @@
 #define PREVIEW_H
 
 #include "DmEntityContainer.h"
-#include "ISelectionSource.h"
 
 class IDocumentView;
 class SelectionSet;
 
 /// @brief 预览
 ///
-/// 实现 ISelectionSource，视图把它交给预览画笔：预览里的引导线借选中色绘制。暂时仍读实体的
-/// 选中位（doc/SELECTION_SET_PLAN.md 第 4 步改为预览自己的集合）。
-class Preview : public DmFlags, public ISelectionSource
+/// 预览里是命令的临时实体，没有选中状态：预览画笔不设选择来源（doc/SELECTION_SET_PLAN.md 3.2 节）。
+class Preview : public DmFlags
 {
 public:
     /// @brief 预览到指定视图的预览容器（视图可以是测试替身）
@@ -49,7 +47,7 @@ public:
     /// @brief 将文档中的选中实体克隆到预览
     void addSelectionFromDocument();
 
-    /// @brief 将容器中的所有实体添加到预览中（不选中）
+    /// @brief 将容器中的所有实体克隆到预览中
     /// @param container 实体容器引用
     void addAllFrom(DmEntityContainer& container);
 
@@ -66,9 +64,6 @@ public:
     void setVisible(bool isVisble);
 
     DmEntityContainer* getEntityContainer();
-
-    /// @brief 预览里的实体是否按选中绘制
-    bool isSelected(const DmEntity& entity) const override;
 
 private:
     /// @brief 通知视图预览已修改

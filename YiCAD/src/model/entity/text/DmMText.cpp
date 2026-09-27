@@ -2175,25 +2175,6 @@ void DmMText::setVisible(bool v)
     }
 }
 
-bool DmMText::setSelected(bool select)
-{
-    if (DmEntity::setSelected(select))
-    {
-        for (auto e : paragraphs)
-        {
-            if (e->isVisible())
-            {
-                e->setSelected(select);
-            }
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void DmMText::setHighlighted(bool highlight)
 {
     DmEntity::setHighlighted(highlight);

@@ -286,7 +286,6 @@ public:
     DmVector getNearestMiddle(const DmVector& coord, double* dist = nullptr,
         int middlePoints = 1) const override;
     void setVisible(bool v) override;
-    bool setSelected(bool select = true) override;
     void setHighlighted(bool highlight = true) override;
 
     /// @brief 更新以生成文字实体

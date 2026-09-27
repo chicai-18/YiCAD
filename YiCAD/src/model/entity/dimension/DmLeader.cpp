@@ -336,19 +336,6 @@ void DmLeader::setVisible(bool v)
 	container->setVisible(v);
 }
 
-bool DmLeader::setSelected(bool select)
-{
-	if (DmEntity::setSelected(select))
-	{
-		container->setSelected(select);
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 void DmLeader::setHighlighted(bool highlight)
 {
 	DmEntity::setHighlighted(highlight);

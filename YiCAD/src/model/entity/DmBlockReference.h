@@ -77,8 +77,6 @@ public:
 
     virtual void update();
 
-    virtual bool setSelected(bool select) override;
-
     QString getName() const;
     void setName(const QString& newName);
 

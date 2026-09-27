@@ -431,25 +431,6 @@ void DmChar::setVisible(bool v)
 	}
 }
 
-bool DmChar::setSelected(bool select)
-{
-	if (DmEntity::setSelected(select))
-	{
-		for (auto e : entities)
-		{
-			if (e->isVisible())
-			{
-				e->setSelected(select);
-			}
-		}
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
 void DmChar::setHighlighted(bool highlight)
 {
 	DmEntity::setHighlighted(highlight);

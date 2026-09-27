@@ -122,10 +122,6 @@ public:
     /// @return 如果是容器则返回true
     virtual bool isContainer() const = 0;
 
-    virtual bool setSelected(bool select);
-    virtual bool toggleSelected();      // 切换选中状态
-    virtual bool isSelected() const;
-    bool isParentSelected() const;
     virtual bool isProcessed() const;
     virtual void setProcessed(bool on);
     bool isInWindow(DmVector v1, DmVector v2) const;
@@ -181,9 +177,6 @@ public:
     /// @brief 获取最近捕捉点(参考点)
     virtual DmVector getNearestRef(const DmVector& coord, double* dist = nullptr) const;
 
-    /// @brief 获取选中实体的最近捕捉点(参考点)
-    virtual DmVector getNearestSelectedRef(const DmVector& coord, double* dist = nullptr) const;
-
     /// @brief 获取点到实体的距离
     virtual DmVector getNearestOrthTan(const DmVector& /*coord*/, const DmLine& /*normal*/, bool onEntity = false) const;
     virtual double getDistanceToPoint(const DmVector& coord, DmEntity** entity = nullptr, DM::ResolveLevel level = DM::ResolveNone) const;
@@ -213,9 +206,6 @@ public:
 
     // Implementations must drag the reference point(s) of all (sub-)entities that are very close to ref by offset.
     virtual void moveRef(const DmVector& /*ref*/, const DmVector& /*offset*/);
-
-    // Implementations must drag the reference point(s) of selected (sub-)entities that are very close to ref by offset.
-    virtual void moveSelectedRef(const DmVector& /*ref*/, const DmVector& /*offset*/);
 
     // 实体扩展属性集合(类似于AutoCAD的XData)
     QString getUserDefVar(const QString& key) const;

@@ -179,7 +179,6 @@ void CopyToLayerCommand::previewAt(const DmVector& basePoint, const DmVector& mo
             DmEntity* clone = e->clone();
             clone->setLayer(m_targetLayer->getName());
             clone->setPen(m_targetLayer->getPen());
-            clone->setSelected(false);
             clone->setParent(nullptr);
             preview.addEntity(clone);
         }

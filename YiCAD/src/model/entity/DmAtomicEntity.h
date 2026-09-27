@@ -67,8 +67,6 @@ public:
 
     virtual DM::Ending getTrimPoint(const DmVector& /*coord*/, const DmVector& /*trimPoint*/);
 
-    void moveSelectedRef(const DmVector& ref, const DmVector& offset) override;
-
     virtual void saveStream(OutputStream& wrt) const override;
     virtual void restoreStream(InputStream& rdr, const std::vector<PAIR>& revs) override;
     virtual void restoreStreamWithRev(InputStream& rdr, int rev) override;

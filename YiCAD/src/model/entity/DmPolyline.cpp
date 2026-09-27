@@ -63,7 +63,6 @@ DmEntity* DmPolyline::clone() const
 {
     DmPolyline* p = new DmPolyline(*this);
     p->m_ulID = DmId();
-    p->setSelected(false);
     p->setHighlighted(false);
     p->entities.clear();
     p->update();
@@ -284,26 +283,6 @@ void DmPolyline::setLayer(DmLayer* l)
     }
 }
 
-bool DmPolyline::setSelected(bool select)
-{
-    if (DmEntity::setSelected(select))
-    {
-        for (auto e : entities)
-        {
-            if (e->isVisible())
-            {
-                e->setSelected(select);
-            }
-        }
-
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void DmPolyline::setHighlighted(bool highlight)
 {
     DmEntity::setHighlighted(highlight);
@@ -449,12 +428,6 @@ DmVector DmPolyline::getNearestRef(const DmVector& coord,
                                    double* dist /*= nullptr*/) const
 {
     return DmEntity::getNearestRef(coord, dist);
-}
-
-DmVector DmPolyline::getNearestSelectedRef(const DmVector& coord,
-                                           double* dist /*= nullptr*/) const
-{
-    return DmEntity::getNearestSelectedRef(coord, dist);
 }
 
 DmVector DmPolyline::getNearestPointOnEntity(const DmVector& coord,

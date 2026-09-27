@@ -36,7 +36,7 @@ class DmDocumentListener
 public:
     virtual ~DmDocumentListener() = default;
 
-    /// @brief 文档内容已修改（实体、选中状态、画笔），绘制缓存需要更新
+    /// @brief 文档内容已修改（实体、画笔），绘制缓存需要更新。选中状态不在文档里，选择改变不经这里通知
     virtual void documentModified() = 0;
 
     /// @brief 请求重绘

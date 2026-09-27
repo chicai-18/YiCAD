@@ -54,8 +54,6 @@ public:
 
     void setVisible(bool v) override;
 
-    bool setSelected(bool select = true) override;
-    bool toggleSelected() override; // 切换选中状态
     void setHighlighted(bool highlight = true) override;
 
     std::list<DmEntity*> selectEntitiesInWindow(DmVector v1, DmVector v2, bool cross = false);
@@ -117,7 +115,6 @@ public:
     void mirror(const DmVector& axisPoint1, const DmVector& axisPoint2a) override;
 
     void moveRef(const DmVector& ref, const DmVector& offset) override;
-    void moveSelectedRef(const DmVector& ref, const DmVector& offset) override;
 
     bool isOwner() const;
     void setOwner(bool owner);

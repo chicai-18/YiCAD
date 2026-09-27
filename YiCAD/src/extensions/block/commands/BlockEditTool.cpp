@@ -38,7 +38,6 @@
 #include "ICommandHost.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
-#include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIBlockEditOptions.h"
 #include "UIDialogRunner.h"
@@ -101,11 +100,8 @@ bool BlockEditTool::prepare(DmBlockReference* blockRef)
     return true;
 }
 
-void BlockEditTool::beginEditing(DmBlockReference* blockRef)
+void BlockEditTool::beginEditing()
 {
-    // 进入编辑前取消所有选中状态，避免 undo 退出后块参照仍显示为选中
-    m_host.selection()->remove(blockRef);
-
     // 使用 BlockEditEnterCmd 创建事务
     // 使用 addToCurrentCmd()，不要使用 addAndExecuteCmd()，避免重复执行
     Transaction t("Block Edit Begin", m_document);

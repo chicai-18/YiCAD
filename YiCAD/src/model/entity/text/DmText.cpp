@@ -322,25 +322,6 @@ void DmText::setVisible(bool v)
     }
 }
 
-bool DmText::setSelected(bool select)
-{
-    if (DmEntity::setSelected(select))
-    {
-        for (auto e : chars)
-        {
-            if (e->isVisible())
-            {
-                e->setSelected(select);
-            }
-        }
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void DmText::setHighlighted(bool highlight)
 {
     DmEntity::setHighlighted(highlight);
@@ -373,11 +354,6 @@ void DmText::addChar(DmChar* c)
 DmVector DmText::getNearestRef(const DmVector& coord, double* dist) const
 {
     return DmEntity::getNearestRef(coord, dist);
-}
-
-DmVector DmText::getNearestSelectedRef(const DmVector& coord, double* dist) const
-{
-    return DmEntity::getNearestSelectedRef(coord, dist);
 }
 
 DmVectorSolutions DmText::getRefPoints() const

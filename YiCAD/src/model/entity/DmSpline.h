@@ -133,7 +133,6 @@ public:
 
     DmVectorSolutions getRefPoints() const override;
     DmVector getNearestRef(const DmVector& coord, double* dist = nullptr) const override;
-    DmVector getNearestSelectedRef(const DmVector& coord, double* dist = nullptr) const override;
     DmVector getStartpoint() const override;
     DmVector getEndpoint() const override;
 	DmVector getNearestEndpoint(const DmVector& coord, double* dist = nullptr) const override;

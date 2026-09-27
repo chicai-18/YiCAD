@@ -101,56 +101,6 @@ void DmEntity::scaleBorders(const DmVector& center, const DmVector& factor)
     maxV.scale(center, factor);
 }
 
-/// @param select True to select, false to deselect.
-bool DmEntity::setSelected(bool select)
-{
-    // layer is locked:
-    if (select && isLocked())
-    {
-        return false;
-    }
-
-    if (select != isSelected())
-    {
-        if (select)
-        {
-            setFlag(DM::FlagSelected);
-        }
-        else
-        {
-            delFlag(DM::FlagSelected);
-        }
-    }
-
-    return true;
-}
-
-bool DmEntity::toggleSelected()
-{
-    return setSelected(!isSelected());
-}
-
-bool DmEntity::isSelected() const
-{
-    return isVisible() && getFlag(DM::FlagSelected);
-}
-
-bool DmEntity::isParentSelected() const
-{
-    DmEntity const* p = this;
-
-    while (p)
-    {
-        p = p->getParent();
-        if (p && p->isSelected() == true)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 /// @param on True to set, false to reset.
 void DmEntity::setProcessed(bool on)
 {
@@ -657,27 +607,10 @@ void DmEntity::moveRef(const DmVector& /*ref*/, const DmVector& /*offset*/)
     return;
 }
 
-void DmEntity::moveSelectedRef(const DmVector& /*ref*/, const DmVector& /*offset*/)
-{
-    return;
-}
-
 DmVector DmEntity::getNearestRef(const DmVector& coord, double* dist) const
 {
     DmVectorSolutions const&& s = getRefPoints();
     return s.getClosest(coord, dist);
-}
-
-DmVector DmEntity::getNearestSelectedRef(const DmVector& coord, double* dist) const
-{
-    if (isSelected())
-    {
-        return getNearestRef(coord, dist);
-    }
-    else
-    {
-        return DmVector(false);
-    }
 }
 
 void DmEntity::setObserver(DmObserver* ob)
@@ -824,13 +757,10 @@ void DmEntity::restoreStream(InputStream& reader)
     auto pen = DmPen(color, (DM::LineWidth)lineWidth, lineType);
     this->setPen(std::move(pen));
 
-    // 导入实体不允许高亮和选中状态
+    // 导入实体不允许高亮；选中状态不属于图纸数据，旧文件的标志字里可能带着选中位，无条件清掉
     if (this->isHighlighted())
     {
         this->setHighlighted(false);
     }
-    if (this->isSelected())
-    {
-        this->setSelected(false);
-    }
+    delFlag(DM::FlagSelected);
 }

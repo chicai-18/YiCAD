@@ -24,7 +24,6 @@
 #include <QMouseEvent>
 
 #include "DmDocument.h"
-#include "DmLine.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
@@ -246,14 +245,6 @@ void EditTool::updatePreview(QMouseEvent* e)
     m_preview->addSelectionFromDocument();
     m_preview->moveRef(m_base, target - m_base);
 
-    if (shift)
-    {
-        // 参考点到吸附点的引导线
-        DmLine* line = new DmLine(nullptr, m_base, mouse);
-        m_preview->addEntity(line);
-        line->setSelected(true);
-    }
-
     m_hasPreview = true;
     m_docView->redraw();
 }
@@ -273,12 +264,7 @@ void EditTool::commit(QMouseEvent* e)
     data.ref = m_base;
     data.offset = target - m_base;
     m.moveRef(ents, data);
-    // 夹点编辑之后保持选中：修改的撤销命令构造时取消了选中（EntityTableModifyCmd），这里恢复。
-    // 提交时已通知视图重建缓存，重建在下一次绘制时进行，看得到恢复后的状态。
-    for (auto entity : ents)
-    {
-        m_selection->add(entity);
-    }
+    // 夹点编辑之后保持选中：选择集按 id 记录，修改实体不影响它
     m_status = Neutral;
     GUIDIALOGFACTORY->updateSelectionWidget(m_selection->count());
 }

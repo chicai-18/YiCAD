@@ -149,7 +149,6 @@ DmEntity* DmEllipse::clone() const
 {
     DmEllipse* e = new DmEllipse(*this);
     e->m_ulID = DmId();
-    e->setSelected(false);
     e->setHighlighted(false);
     return e;
 }

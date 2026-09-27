@@ -143,7 +143,6 @@ public:
 
     /// @brief 通过重写为DmEntity的方法来实现关键点拖拽
     virtual DmVector getNearestRef(const DmVector& coord, double* dist = nullptr) const override;
-    virtual DmVector getNearestSelectedRef(const DmVector& coord, double* dist = nullptr) const override;
     virtual DmVectorSolutions getRefPoints() const override;
 
     bool isContainer() const override;
@@ -154,7 +153,6 @@ public:
     DmVector getNearestCenter(const DmVector& coord, double* dist = nullptr) const override;
     DmVector getNearestMiddle(const DmVector& coord, double* dist = nullptr, int middlePoints = 1) const override;
     void setVisible(bool v) override;
-    bool setSelected(bool select = true) override;
     void setHighlighted(bool highlight = true) override;
 
     /// @brief 清空字符

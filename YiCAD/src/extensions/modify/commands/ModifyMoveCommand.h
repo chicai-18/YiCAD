@@ -45,8 +45,7 @@ public:
     /// @brief 预览选择集从参考点移到目标点
     /// @param reference 参考点
     /// @param target 目标点
-    /// @param showGuide 是否画出参考点到目标点的引导线（按住 Shift 时）
-    void previewMove(const DmVector& reference, const DmVector& target, bool showGuide);
+    void previewMove(const DmVector& reference, const DmVector& target);
     /// @brief 清除预览
     void clearPreview();
     /// @brief 把选择集从参考点移到目标点，然后结束命令

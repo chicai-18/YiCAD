@@ -29,7 +29,6 @@
 #include "CommandPreview.h"
 #include "ModifyCommands.h"
 #include "DmDocument.h"
-#include "DmLine.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
@@ -96,7 +95,7 @@ protected:
                     mouse = snapper()->snapToAngle(mouse, m_referencePoint, MOVE_SNAP_ANGLE);
                 }
                 m_targetPoint = mouse;
-                m_command.previewMove(m_referencePoint, m_targetPoint, shift);
+                m_command.previewMove(m_referencePoint, m_targetPoint);
             }
             break;
 
@@ -164,20 +163,11 @@ bool ModifyMoveCommand::onSelectionReady()
     return true;
 }
 
-void ModifyMoveCommand::previewMove(const DmVector& reference, const DmVector& target, bool showGuide)
+void ModifyMoveCommand::previewMove(const DmVector& reference, const DmVector& target)
 {
     m_preview->clear();
     m_preview->entities().addSelectionFromDocument();
     m_preview->entities().move(target - reference);
-
-    if (showGuide)
-    {
-        DmLine* line = new DmLine(nullptr, reference, target);
-        m_preview->entities().addEntity(line);
-        line->setSelected(true);
-        line->setLayerToActive();
-        line->setPenToActive();
-    }
     m_preview->draw();
 }
 

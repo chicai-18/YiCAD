@@ -209,7 +209,6 @@ void DmBlockReference::update()
                 ne->move(blk->getBasePoint() * -1);
                 ne->scale(data.insertionPoint, data.scaleFactor);
                 ne->rotateAngle(data.insertionPoint, data.angle);
-                ne->setSelected(isSelected());
                 tmpPen = ne->getPen(false);
 
                 // setColor已删除。genPen时根据规则会获取自身或者父辈(祖辈)画笔颜色
@@ -248,20 +247,6 @@ void DmBlockReference::update()
             (*e).setObserver(ob);
         }
     }
-}
-
-bool DmBlockReference::setSelected(bool select)
-{
-    bool result = DmEntity::setSelected(select);
-    if (result)
-    {
-        // 同步子实体的选中状态
-        for (auto e : m_subEntities)
-        {
-            e->setSelected(select);
-        }
-    }
-    return result;
 }
 
 QString DmBlockReference::getName() const
