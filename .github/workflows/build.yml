@@ -9,11 +9,12 @@
 # cppstd=23. Once build-deps.yml has published it to the yicax remote this
 # becomes a cache hit. All other packages still come prebuilt.
 #
-# Pre-build static check:
-#   - lower layers do not include upper ones (base/ -> model/ -> render/ ->
-#     application/ -> ui/ -> extensions -> shell/), application/ outside
-#     application/view/ does not include the interactive view, and extensions
-#     do not include shell/ or each other (tools/check_layering.py)
+# Layering: each layer (base/ -> model/ -> render/ -> application/ -> ui/ ->
+# extensions -> shell/) is its own library, so CMake include paths stop a lower
+# layer, or an extension, from including a higher one. The pre-build static
+# check covers what CMake cannot: header names are unique, and application/
+# outside application/view/ does not include the interactive view
+# (tools/check_layering.py).
 #
 # Unit tests run via ctest after the build.
 #
@@ -110,19 +111,19 @@ jobs:
           conan profile detect
           conan install . --output-folder=build/conan-release --profile=profiles/windows-msvc-release --build="gtest/*" --lockfile=conan.lock
 
-      - name: Check kernel does not depend on UI
+      - name: Check layering rules CMake cannot enforce
         run: python tools/check_layering.py
 
       - name: Configure CMake
         run: cmake -G "Visual Studio 17 2022" -A x64 -S . -B build/Release -DCMAKE_TOOLCHAIN_FILE="build/conan-release/build/generators/conan_toolchain.cmake" -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }};${{ github.workspace }}/external/SARibbonBar/install;${{ github.workspace }}/external/CDT/install" -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/build/package/Release"
 
       - name: Build
-        # -m: MSBuild solution-level parallelism. Since YiCadCore is split
-        # into a YiCadBase -> YiCadModel -> YiCadCore dependency chain
-        # (doc/LAYER_RESTRUCTURE_PLAN.md), the Visual Studio generator builds those projects
-        # in dependency order; without -m each stage under-uses available
-        # cores. See doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 and
-        # tools/measure_build.ps1.
+        # -m: MSBuild solution-level parallelism. The core is a chain of
+        # libraries (YiCadBase -> YiCadModel -> YiCadRender -> YiCadApplication
+        # -> YiCadUi -> YiCadShell, doc/LAYER_RESTRUCTURE_PLAN.md), which the
+        # Visual Studio generator builds in dependency order; without -m each
+        # stage under-uses available cores. See
+        # doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 and tools/measure_build.ps1.
         run: cmake --build build/Release --config Release -- -m
 
       - name: Test

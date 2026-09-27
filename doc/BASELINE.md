@@ -252,15 +252,15 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 
 采集环境：Windows 11 Pro 22621，16 逻辑核，MSVC 19.38.33139（v143 工具集），Visual Studio 17 2022 生成器，
 `/MP` 加 `cmake --build ... -- -m`，Release 配置，CMake 4.1.2（CLion 自带）
-采集日期：2026-09-26（S0、S2）
-提交：S0 为 `17aaeb5` 加 S0 的测试（产品代码与 `17aaeb5` 相同）；S2 为 `5e5a44b`
+采集日期：2026-09-26（S0、S2），2026-09-27（S6）
+提交：S0 为 `17aaeb5` 加 S0 的测试（产品代码与 `17aaeb5` 相同）；S2 为 `5e5a44b`；S6 为 S6 的提交
 
-| 指标 | S0（起点） | S2 | S6 |
-|------|----------:|---:|---:|
-| 全量构建耗时 (Release, 秒) | 203.2 | 191.7 | |
-| 改 `DmArc.cpp` 后增量 (秒) | 10.9 | 10.9 | |
-| 改 `GuiDocumentView.h` 后增量 (秒) | 21.5 | 21.3 | |
-| 改 `Datamodel.h` 后增量 (秒) | 163.4 | 141.1 | |
+| 指标 | S0（起点） | S2 | S6 | S6，Render/Application 加预编译头 | S6，Ninja 生成器 |
+|------|----------:|---:|---:|---:|---:|
+| 全量构建耗时 (Release, 秒) | 203.2 | 191.7 | 218.7 | 205.6 | 182.3 |
+| 改 `DmArc.cpp` 后增量 (秒) | 10.9 | 10.9 | 13.8 | 11.2 | 8.1 |
+| 改 `GuiDocumentView.h` 后增量 (秒) | 21.5 | 21.3 | 33.6 | 27.7 | 30.3 |
+| 改 `Datamodel.h` 后增量 (秒) | 163.4 | 141.1 | 180.4 | 160.9 | 149.0 |
 
 测法与第 5 节不同的地方：
 
@@ -281,18 +281,36 @@ S0 记录起点，S2（目录重组、`YiCadPersistence` 并入 `YiCadModel`）�
 - S2 在 `build/measure-s2` 里照上面的做法测，三个目标文件按新路径（`model/entity/`、`render/view/`、`base/core/`）。
   全量构建快了约 6%，改 `Datamodel.h` 后的增量快了约 14%，另两项持平。S2 只搬目录、没有改代码，差异应来自项目链少了一级
   （`YiCadPersistence` 并入 `YiCadModel`，Visual Studio 生成器少串行一个项目）；各项只测了一次，没有重复取均值。
+- S6 测了三种构建，各在自己的构建目录里，照上面的做法（`measure_build.ps1` 此后支持 Ninja 构建目录，并在全量构建时重放
+  缓存里的 `CMAKE_PREFIX_PATH`，不必再设环境变量）：
+  - "S6"：`build/measure-s6`，S6 提交的库划分原样，Visual Studio 生成器。
+  - "Render/Application 加预编译头"：`build/measure-s6-pch`，测量期间临时给 `YiCadRender`、`YiCadApplication` 各加一句
+    `target_precompile_headers(... PRIVATE YiCadPch.h)`，测完恢复，未提交。
+  - "Ninja 生成器"：`build/measure-s6-ninja`，S6 提交的库划分原样。conan 按 Visual Studio 生成的 toolchain 无条件设置
+    `CMAKE_GENERATOR_PLATFORM`，Ninja 不接受，所以另跑一次
+    `conan install ... --output-folder=build/conan-release-ninja -c tools.cmake.cmaketoolchain:generator=Ninja -c "tools.cmake.cmaketoolchain:user_presets="`
+    （`--build=never`，只换 toolchain，不改包）；在 `vcvars64.bat -vcvars_ver=14.38` 的环境里配置与测量，编译器与另两种相同
+    （MSVC 19.38.33139），ninja 用 CLion 自带的 1.12.1。
+- S6 的第一次测量与另一个 worktree 里的全量构建重叠，Visual Studio 那组作废；表中是三种构建连续重测的结果，期间其他构建目录
+  没有写入。第一次测量中没有重叠的两组与重测相差不到 3.5%（Ninja：180.9 / 8.1 / 30.1 / 148.0；加预编译头：212.8 / 11.3 / 27.5 / 160.1），
+  可以当作重复性的参考。
+- S6 比 S2 四项全部变慢：全量 +14%，`DmArc.cpp` +27%，`GuiDocumentView.h` +58%，`Datamodel.h` +28%。原因有二：Render、Application
+  原先在 `YiCadCore` 里带着预编译头编译，拆出来后没有；Visual Studio 生成器按项目依赖串行构建，库链从三级变成六级。给 Render、
+  Application 加回预编译头后四项都变快（-6%、-19%、-18%、-11%），但仍比 S2 慢。Ninja 按文件而不是按项目排队，同样不加预编译头时
+  比 Visual Studio 生成器四项都快（-17%、-41%、-10%、-17%），全量与 `DmArc.cpp` 比 S2 还快（-5%、-26%），`Datamodel.h` 略慢（+6%），
+  `GuiDocumentView.h` 慢 42%，主要慢在 Render、Application 没有预编译头（Ninja 加预编译头的组合没有测）。结论与决定见 `LAYER_RESTRUCTURE_PLAN.md` 10.5 节。
 
 ### 7.2 自动化测试用例数
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b | S4c | S4d | R4 修复 | 跨文档粘贴 | S5 |
-|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
-| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 50（1 DISABLED） | 50（1 DISABLED） |
-| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） | 65（2 DISABLED） | 65（2 DISABLED） | 68 | 68 | 68 |
-| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 | 305 | 305 | 305 | 306 | 308 |
-| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） | 499（495 启用 + 4 DISABLED） | 499（495 启用 + 4 DISABLED） | 502（500 启用 + 2 DISABLED） | 507（505 启用 + 2 DISABLED） | 509（507 启用 + 2 DISABLED） |
+| 测试二进制 | S0 之前（`17aaeb5`） | S0 | D8 修复步 | S1 | S2 | S3 | S4a | S4b | S4c | S4d | R4 修复 | 跨文档粘贴 | S5 | S6 |
+|------------|--------------------:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `test_math` | 72（1 DISABLED） | 72（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） | 83（1 DISABLED） |
+| `test_geometry` | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 44（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 46（1 DISABLED） | 50（1 DISABLED） | 50（1 DISABLED） | 50（1 DISABLED） |
+| `test_persistence` | 27（1 DISABLED） | 58（20 DISABLED） | 64（5 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 63（4 DISABLED） | 68（4 DISABLED） | 65（2 DISABLED） | 65（2 DISABLED） | 68 | 68 | 68 | 68 |
+| `test_interaction` | 282 | 282 | 282 | 282 | 282 | 291 | 292 | 293 | 305 | 305 | 305 | 306 | 308 | 308 |
+| 合计 | 425（422 启用 + 3 DISABLED） | 456（434 启用 + 22 DISABLED） | 473（466 启用 + 7 DISABLED） | 472（466 启用 + 6 DISABLED） | 472（466 启用 + 6 DISABLED） | 481（475 启用 + 6 DISABLED） | 484（478 启用 + 6 DISABLED） | 490（484 启用 + 6 DISABLED） | 499（495 启用 + 4 DISABLED） | 499（495 启用 + 4 DISABLED） | 502（500 启用 + 2 DISABLED） | 507（505 启用 + 2 DISABLED） | 509（507 启用 + 2 DISABLED） | 509（507 启用 + 2 DISABLED） |
 
 S0 新增的 19 个 `DISABLED_` 对应读回路径的缺陷 R1–R9（`LAYER_RESTRUCTURE_PLAN.md` 4.5 节，
 `tests/persistence/test_persistence_document.cpp` 文件头部），修复后去掉前缀即为验收。
@@ -315,3 +333,5 @@ R4 修复（`LAYER_RESTRUCTURE_PLAN.md` 4.7 节）启用 `test_persistence_docum
 粘贴提交只复制用到的图层并随撤销移除，原有的"粘贴别的图纸复制来的标注"改为来源图纸先关闭、图层与标注样式取本文档的。
 S5（`LAYER_RESTRUCTURE_PLAN.md` 9.5 节）新增 `test_interaction` 2 个：文件命令经宿主管理的打开图纸（`IDocumentManager`）执行，没有打开的图纸时
 未命名文档的自动保存副本名为空；未命名文档的两个自动保存用例改由假的 `IDocumentManager` 给名字，用例数不变。
+S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_interaction` 改链 `YiCadShell`（带上 `YiCadUi` 及以下）与全部扩展库，
+另外三个仍只链 `YiCadModel`。

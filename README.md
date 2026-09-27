@@ -349,12 +349,10 @@ Arrows point from a module to the modules it uses. The partitions are the `yicad
 flowchart TB
     Exe["YiCAD.exe<br/>shell/Main.cpp, shell/BuiltinExtensions.cpp"]
     Ext["YiCadExt_* (one per extension)<br/>extensions/*/"]
-    subgraph Core["YiCadCore (OBJECT library)"]
-        Shell["Shell<br/>shell/"]
-        Ui["UI<br/>ui/"]
-        Appl["Application<br/>application/"]
-        Render["Render<br/>render/"]
-    end
+    Shell["YiCadShell<br/>shell/"]
+    Ui["YiCadUi<br/>ui/"]
+    Appl["YiCadApplication<br/>application/"]
+    Render["YiCadRender<br/>render/"]
     Model["YiCadModel<br/>model/"]
     Base["YiCadBase<br/>base/"]
 
@@ -362,19 +360,17 @@ flowchart TB
     Exe --> Shell
     Ext --> Ui
     Shell --> Ui
-    Ui -. legacy .-> Shell
     Ui --> Appl
     Appl --> Render
     Render --> Model
     Model --> Base
 ```
 
-- Dependencies are transitive: a module may also use whatever its arrows reach, so Application uses Render, Model and Base. Apart from the dashed edge, nothing points upward.
-- `YiCadBase` and `YiCadModel` are separate static libraries, so CMake include paths enforce their direction: Base cannot see Model, and Model cannot see rendering, the command mechanism or UI.
-- Render, Application, UI and Shell compile together into `YiCadCore`. `tools/check_layering.py` (run in CI) checks them by directory: a lower layer must not include headers from a higher one, and nothing outside `application/view/` includes the interactive view `UIView`, so commands and tools know the view only through `IDocumentView`/`GuiDocumentView`.
-- Each extension is its own OBJECT library linking `YiCadCore`. It sees only its own headers, so it cannot include another extension, and it must not include `shell/`. `YiCadCore` never references an extension; only `shell/BuiltinExtensions.cpp`, compiled into the executable, does.
-- UI and Shell depend on each other (dashed edge): widgets such as `UIActionHandler` and `UIBottomWidget` call `ApplicationWindow`/`MDIWindow` for global state such as the current document. These includes are whitelisted in `check_layering.py`.
-- The native file format code and the format registry `FilterRegistry` live in `model/io/`; plugin formats register into the registry too. The document reads and writes files itself (`DmDocument::readFile`/`writeFile`) without the host; the save policy (autosave, `.bak` backups, prompts when opening fails) is Application's `DocumentFileService`. The model knows neither the view (the document notifies it through `DmDocumentListener`) nor the host (the host service interface `GuiDialogFactoryInterface` lives in `application/`); `doc/LAYER_RESTRUCTURE_PLAN.md` lists the remaining steps, which untangle UI and Shell and split `YiCadCore` into four libraries.
+- Dependencies are transitive: a module may also use whatever its arrows reach, so Application uses Render, Model and Base. Nothing points upward.
+- Each layer is its own library, and CMake include paths enforce the direction: a library sees only its own headers and those of the layers below, so including a higher layer's header fails to compile. Base through Ui are static libraries; Shell is an OBJECT library because the Ribbon icon resources are compiled into it, and a static library would drop their unreferenced resource registration.
+- Each extension is its own OBJECT library linking `YiCadUi`. It sees only its own headers and Ui and below, so it cannot include another extension and cannot see `shell/`. No core library references an extension; only `shell/BuiltinExtensions.cpp`, compiled into the executable, does. Extensions register commands, Ribbon entries and settings pages through `IExtensionContext` and reach the open drawings through `IExtensionContext::documentManager()`; they do not know the main window or the drawing tabs.
+- `tools/check_layering.py` (run in CI) checks the two rules CMake cannot: header names are unique (includes use flat file names, so duplicates would shadow each other), and nothing outside `application/view/` includes the interactive view `UIView`, so commands and tools know the view only through `IDocumentView`/`GuiDocumentView`.
+- The native file format code and the format registry `FilterRegistry` live in `model/io/`; plugin formats register into the registry too. The document reads and writes files itself (`DmDocument::readFile`/`writeFile`) without the host; the save policy (autosave, `.bak` backups, prompts when opening fails) is Application's `DocumentFileService`. The model knows neither the view (the document notifies it through `DmDocumentListener`) nor the host (the host service interface `GuiDialogFactoryInterface` lives in `application/`). `doc/LAYER_RESTRUCTURE_PLAN.md` records how the layering came about, step by step.
 
 ## Development
 

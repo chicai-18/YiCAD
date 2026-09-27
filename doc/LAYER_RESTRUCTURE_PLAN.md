@@ -95,11 +95,12 @@ INTERACTION 与 `cmd/` 并入 Application，MATH 更名 Base。每一层存在�
 | `YiCadModel` | Base | STATIC | CMake |
 | `YiCadRender` | Model 及以下 | STATIC（S6） | CMake |
 | `YiCadApplication` | Render 及以下；`application/view/` 以外的文件不得包含 `application/view/` | STATIC（S6） | CMake + `check_layering.py` |
-| `YiCadUi` | Application 及以下 | OBJECT（S6） | CMake |
+| `YiCadUi` | Application 及以下 | STATIC（S6，D3） | CMake |
 | `YiCadShell` | 全部核心库 | OBJECT（S6） | — |
 | `YiCadExt_<扩展>` | Ui 及以下，且只含本扩展的头文件 | OBJECT | CMake |
 
-库类型是本方案的过渡选择（D3）。后续阶段做 C++ SDK 时，除 Shell 外的五个库改为 SHARED（11.1 节）。
+库类型是本方案的过渡选择（D3）。Shell 用 OBJECT 是因为 Ribbon 图标的 `.qrc` 编进它，静态库会丢掉没有显式引用的资源注册；
+其余各库没有这类代码，用 STATIC。后续阶段做 C++ SDK 时，除 Shell 外的五个库改为 SHARED（11.1 节）。
 
 ### 2.2 目录
 
@@ -1146,7 +1147,93 @@ S5b 随后一个（搬移、构建脚本、白名单清空、文档）。
 
 ### 10.5 执行结果
 
-（未开始）
+2026-09-27 完成，基线 `3e375a5`（S5 之后删去 `UIActionGroupManager`），一个提交。
+
+开工前定下（用户确认）：
+
+- **D3**：原建议给 Ui 选 OBJECT 的理由是"含 `.ui` 表单"，核对后不成立：uic 生成的是头文件里的普通代码（`setupUi`），被 `.cpp` 包含后照常引用，
+  不涉及静态注册。静态库只会丢掉"没人引用、靠全局对象的构造函数自己生效"的目标文件，全仓这类代码只有 rcc 为 `ribbon_icon.qrc` 生成的
+  `qrc_*.cpp`（没有一处 `Q_INIT_RESOURCE` 显式引用），它在 Shell。Render、Application、Ui 三个目录里没有 `.qrc`、没有自注册代码、
+  没有按类名动态创建对象。定为 Render、Application、Ui 用 STATIC，Shell 用 OBJECT。Ui 用 STATIC 的好处是扩展链接它之后，
+  它沿依赖传到可执行目标与测试，不必逐个直接链接。
+- **方案未写、执行时定的**：
+  1. 预编译头由 `YiCadUi` 编译，`YiCadShell`、各扩展与可执行目标 `REUSE_FROM YiCadUi`。`YiCadPch.h` 从 `shell/` 搬到 `ui/`
+     （只含标准库与 Qt 头文件），免得下层库去读上层目录里的文件。
+  2. uic 输出分目录：Ui 的表单生成到 `<构建目录>/ui`，公开给使用方（`UIDlgLineType.h`、`UIDlgLoadLineType.h`、`UIWidgetPen.h`
+     在公开头文件里包含 `ui_*.h`）；Shell 的表单生成到 `<构建目录>/shell`，只有 Shell 看得到。原先两者都生成在 `YiCadCore` 公开的
+     `<构建目录>` 下，扩展看得到 `ui_UIExitDialog.h`。
+  3. 第三方依赖按库分配，不再全部挂在一个库上：Render 链 Qt Widgets、OpenGL、OpenGLWidgets 与 GLEW、OpenGL；Application 链 Qt Xml；
+     Shell 链 SARibbonBar 与 Qt Svg；扩展库除 `YiCadUi` 外链 Qt Svg、Qt Network 与 crypt32（AI 扩展与文字扩展要用，原先由 `YiCadCore`
+     一并提供）。`YiCadCore` 重复声明的 Freetype、Dwrite 已在 `YiCadModel`，去掉。
+  4. `check_layering.py` 去掉白名单（S5 之后本来就是空的）与层次表。
+  5. `yicad_add_test` 的 `LINK` 改为必填、可以填多个库，不再默认 `YiCadCore`。
+
+**改动**：
+
+| 任务 | 改法 |
+|------|------|
+| 1 | `YiCadCore` 删去，建 `YiCadRender`、`YiCadApplication`、`YiCadUi`（STATIC）与 `YiCadShell`（OBJECT），各自的 include 目录只有本分区，依赖逐层 PUBLIC 链接。CMake 注释写明库类型的取舍，以及以后往 Render、Application、Ui 加 `.qrc` 或自注册代码时要显式引用或改为 OBJECT |
+| 2 | 扩展链 `YiCadUi`，`REUSE_FROM YiCadUi`；可执行目标链 `YiCadShell` 与全部扩展库，Ui 及以下随 Shell 传递 |
+| 3 | `test_interaction` 链 `YiCadShell` 与全部扩展库；其余三个测试照旧只链 `YiCadModel` |
+| 4 | 预编译头见上；Render、Application 不加（测量结果与决定见下） |
+| 5 | `check_layering.py` 只剩头文件重名检测与"`application/` 里 `application/view/` 以外不包含 `application/view/`"两条 |
+| 6 | `measure_build.ps1` 支持 Ninja 构建目录：生成器从缓存读，只对 Visual Studio 生成器加 `-- -m`（Ninja 不认），全量构建重新配置时另外重放 `CMAKE_PREFIX_PATH`、`CMAKE_BUILD_TYPE`，Ninja 还重放 `CMAKE_MAKE_PROGRAM`。测量结果见下与 `BASELINE.md` 7.1 节 |
+| 7 | `README.md`、`README_zh.md` 的模块依赖图与说明、`AGENTS.md`、`ARCHITECTURE_EVOLUTION_PLAN.md` 6.3 节注记、CI 工作流的注释（生成器不变）、`tests/` 下三个 `CMakeLists.txt` 的注释 |
+
+**与 10.2 节原文的出入**：
+
+- 第 1 项：Ui 改用 STATIC（D3，见上）。2.1 节表格与 11.1 节 B 表格同步改正。
+- 第 2 项：可执行目标不必直接链接 `YiCadUi`，它是静态库，随 `YiCadShell` 传递。
+- 第 3 项举的例子 `test_host_extensions` 其实只用假的宿主（`FakeExtensionHost`），不需要 Shell；需要 Shell 的是 `test_command_dispatch`、
+  `test_command_registry`（`UIActionHandler`）、`test_ribbon_registry`、`test_plugin_ui_adapter`（`UIRibbonManager`、`PluginUiAdapter`）
+  与 `test_dxf_encoding`（插件运行时）。按一个子系统一个测试二进制的约定，`test_interaction` 整体链 Shell。
+- 10.4 节的缓解做法"逐个拆，每拆一个就构建一次"：Render、Application 各拆一次、构建一次；Ui 拆出后 `YiCadCore` 只剩 Shell，
+  改名即是，Ui 与 Shell 一起构建。
+
+**风险核对**（10.4 节）：
+
+- 编译期：每一步都一次构建通过，没有改任何产品源码。S2 以来 `check_layering.py` 已按目录查过全部 include，拆库没有暴露新的包含关系。
+- 链接期：include 路径只管得到头文件，下层还可能引用只在上层定义的符号（例如 S3 遗留里声明在 `render/view/`、定义在
+  `application/Snapper.cpp` 的 `SnapMode`）。用 `dumpbin /symbols` 列出各库未定义、只在更上层定义的外部符号：Render、Application、Ui、
+  Shell 对上层都是 0 个。同一脚本数出的向下引用（如 Application → Render 64 个、扩展 → Ui 55 个）说明查法有效。
+- 只靠前置声明的向上依赖：Application 的 `IExtensionContext.h`、`IExtensionHost.h` 前置声明 Ui 的 `UIRibbonRegistrar`（`ribbon()`、
+  `ribbonFor()` 返回它的引用）；`GuiDialogFactoryInterface.h` 前置声明 Shell 的 `UICommandWidget`、`UIBottomWindow`（S5 遗留已记）。
+  只传引用与指针，编译、链接都不需要上层，记入遗留。
+
+**测试**：只拆库、改构建脚本，用例数不变，509（启用 507，`DISABLED_` 2）。
+
+**验收**：
+
+- Release、Debug 构建通过（Debug 照 S0 的做法先删 `.obj`、`.pdb`）；两种配置的 ctest 全部通过；`check_layering.py` 通过。
+- 在下层临时包含上层的头文件，构建报 C1083（找不到头文件），恢复后通过：Render（`GuiGrid.cpp` 包含 `SelectTool.h`）、
+  Application（`Snapper.cpp` 包含 `UIColorBox.h`）、Ui（`UIColorBox.cpp` 包含 `ApplicationWindow.h`），另抽查扩展
+  （`LayerExtension.cpp` 包含 `UITabDrawWidget.h`）。`check_layering.py` 的两条也各试了一次（`SelectTool.cpp` 包含 `UIView.h`；
+  把 `UIColorBox.h` 复制一份到 `render/view/`），都报错，恢复后通过。
+- 拆 Render、Application 两步的构建里还有 `YiCadCore` 的 `cmake_pch.obj` 被多次指定的 LNK4042 警告，拆完后不再出现。
+- Release `cmake --install` 后启动 `YiCAD.exe`，10 秒后进程在运行、主窗口有响应，关闭后以 0 退出。截图里 Ribbon 图标齐全
+  （`ribbon_icon.qrc` 编进 OBJECT 库 Shell，资源注册没有丢）、画布画出网格、线型框显示 ByLayer。
+- 交互清单没有在界面上手工走查（会话里无法安全驱动界面，S0 以来同样的限制）。本步不改行为，启动截图覆盖了库类型最可能出错的地方（资源）。
+- 构建时间（`BASELINE.md` 7.1 节，Release，秒；依次为全量、改 `DmArc.cpp`、改 `GuiDocumentView.h`、改 `Datamodel.h`）：
+
+  | 构建 | 全量 | `DmArc.cpp` | `GuiDocumentView.h` | `Datamodel.h` |
+  |------|---:|---:|---:|---:|
+  | S2（Visual Studio 生成器） | 191.7 | 10.9 | 21.3 | 141.1 |
+  | S6（Visual Studio 生成器，本步提交的样子） | 218.7 | 13.8 | 33.6 | 180.4 |
+  | S6 + Render、Application 加预编译头 | 205.6 | 11.2 | 27.7 | 160.9 |
+  | S6，Ninja 生成器 | 182.3 | 8.1 | 30.3 | 149.0 |
+
+  S6 比 S2 四项都慢（+14%、+27%、+58%、+28%）：Render、Application 拆出后没有预编译头，Visual Studio 生成器按项目串行构建，
+  库链从三级变成六级。加预编译头四项都变快（-6%、-19%、-18%、-11%）；换 Ninja 比 Visual Studio 生成器四项都快（-17%、-41%、-10%、-17%）。
+  第一次测量与另一个 worktree 里的全量构建重叠，作废重测，做法见 `BASELINE.md` 7.1 节。
+- 第 4 项（Render、Application 的预编译头）与 D4（生成器）：用户决定本步不按构建速度调整，两者都不改，数据留作以后的依据。
+
+**遗留**：
+
+- Application 的扩展框架接口前置声明 Ui 的 `UIRibbonRegistrar`，`GuiDialogFactoryInterface` 前置声明 Shell 的两个类型（见上）。
+- 构建比 S2 慢（见上）。可选的两处改法都已测过：Render、Application 加预编译头（`YiCadPch.h` 届时移到 `render/`，最下层的使用方）；
+  换 Ninja 生成器（要改 `CMakePresets.json`、conan install 加生成器参数、CI 先建 MSVC 开发者环境、README 与 `AGENTS.md` 的构建命令）。
+- 安装规则把 `bin/` 整个目录装进运行期包，静态库也输出在 `bin/`，所以 `YiCadBase.lib`、`YiCadModel.lib` 原本就在包里，现在多了
+  `YiCadRender.lib`、`YiCadApplication.lib`、`YiCadUi.lib`（约 7 MB）。运行期用不到，可在安装规则里排除 `*.lib`。
 
 ---
 
@@ -1182,7 +1269,7 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 
 | 事项 | 现状与依据 | 做法要点 |
 |------|-----------|----------|
-| 库类型 | 本方案结束时 Base、Model、Render、Application 为 STATIC，Ui 为 OBJECT | 五个库改为 SHARED；Shell 仍编进可执行文件；内置扩展不变 |
+| 库类型 | 本方案结束时 Base、Model、Render、Application、Ui 为 STATIC，Shell 为 OBJECT | 五个库改为 SHARED；Shell 仍编进可执行文件；内置扩展不变 |
 | 为什么必须是 DLL | 单例与类型表只能有一份：`CommandRegistry`、`ExtensionManager`、`Commands`、`DmSystem`、`DmSettings`、`DmPenList`、`DmPatternList`、`DmClipboard`、`DmFontList`、`GuiDialogFactory`、`Debug` 的 `instance()`，以及 `Type` 的静态类型表（`Type.h:139`–`:141`） | 静态库被可执行文件与第三方 DLL 各链接一份就会出现两份。这些单例都定义在 `.cpp` 里，进 DLL 后自然唯一；唯一例外是 `TSingleton.hpp` 在头文件里定义静态成员，每个 DLL 各一份，目前只有 `MigratorBase` 使用，届时先改掉 |
 | 导出 | 无 | `GenerateExportHeader` 为每个库生成导出宏，公开头文件里的类、自由函数、全局数据加宏（脚本批量加、人工核对）。不用 `WINDOWS_EXPORT_ALL_SYMBOLS`：它不导出数据符号，而 `Q_OBJECT` 类的 `staticMetaObject` 就是数据符号 |
 | 加载 | C ABI 插件清单是 `<plugin dll="..."/>`，在 `registerExtensions()` 之后加载（`ApplicationWindow.cpp:334`、`:335`） | 清单增加 `<extension dll="..." sdkVersion="..."/>`；在 `registerExtensions()` 里 `BootAll`（`ApplicationWindow.cpp:399`）之前加载并注册，运行期间不卸载 |
@@ -1209,8 +1296,8 @@ YiCAD 每个大版本发布后第三方重新编译。宿主加载时校验 SDK 
 |------|------|-----------|------|--------|
 | D1 | 删除 `kernel/solver/`、`kernel/generators/`、`FilterJsonIO` | 删除。若要保留 JSON 导出，改做扩展，在 S4 注册进 `FilterRegistry` | 已定（2026-09-26），S1 已删除 | — |
 | D2 | `Selection` 留在 Model 还是移到 Application | 留在 `model/edit/`。选中状态是实体上的 `FlagSelected` 位，Model 自己的 `Modification`、`EntityTable` 也读它；只移操作类、不移状态，分层上没有收益，还会让只链接 Model 的 `test_geometry`（5 个框选用例）改链 `YiCadCore`。选择集连同状态移到 Application 是另一件事（11.2 节） | 已定（2026-09-26） | — |
-| D3 | 上层库的类型 | Render、Application 用 STATIC，Ui、Shell 用 OBJECT；后续阶段除 Shell 外改为 SHARED（11.1 节） | 待定 | S6 开工前 |
-| D4 | 是否换 Ninja 生成器 | 以 S6 的实测数据定 | 待定 | S6 验收时 |
+| D3 | 上层库的类型 | 原建议 Render、Application 用 STATIC，Ui、Shell 用 OBJECT。开工前核对：原建议给 Ui 的理由（"含 `.ui` 表单"）不成立，uic 生成的是头文件里的普通代码，不涉及静态注册；需要 OBJECT 的只有编进 Ribbon 图标 `.qrc` 的 Shell。定为 Render、Application、Ui 用 STATIC，Shell 用 OBJECT；后续阶段除 Shell 外改为 SHARED（11.1 节） | 已定（2026-09-27），S6 已执行 | — |
+| D4 | 是否换 Ninja 生成器 | 以 S6 的实测数据定。实测 Ninja 比 Visual Studio 生成器全量快 17%、各项增量快 10%–41%（10.5 节、`BASELINE.md` 7.1 节）；用户决定不按构建速度调整，不切换 | 已定（2026-09-27），不切换 | — |
 | D5 | 存盘策略服务放 Application 还是 Shell | Application：扩展（块的写块与插入）也要用，且能在 `test_interaction` 里测。2.2 节目录与 8.4 节正文已按此写 | 已定（2026-09-26） | — |
 | D6 | 第 2.2 节的新目录命名 | 按 2.2 节；`shell/` 下不建子目录 | 已定（2026-09-26），S2 已执行 | — |
 | D7 | 第三方自定义实体的接口 | C++ SDK（仿 ObjectARX），实施列为后续阶段（11.1 节） | 已定（2026-09-26） | — |

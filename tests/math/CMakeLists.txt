@@ -7,8 +7,8 @@
 # support/yicad_test_main.cpp 要先跑 DmSystem::init（类型系统注册）与
 # DmSettings::init（QSettings 组织名/应用名），这两步是 YiCadModel 的
 # 符号。LINK 因此填 YiCadModel（PUBLIC 依赖链上已经带着 YiCadBase），
-# 而不是 YiCadBase 本身——仍然比链接整个 YiCadCore（含 Render/
-# Application/UI/Shell）小得多，是拆库对增量构建时间的主要收益来源。
+# 而不是 YiCadBase 本身——仍然比链接 Render 以上各层小得多，是拆库对增量
+# 构建时间的主要收益来源。
 yicad_add_test(math
     SOURCES
         test_math_angle.cpp

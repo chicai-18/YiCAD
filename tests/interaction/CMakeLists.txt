@@ -32,6 +32,10 @@ yicad_add_test(interaction
         test_ribbon_registry.cpp
         test_plugin_ui_adapter.cpp
         test_dxf_encoding.cpp
+    # 用例用到壳层：UIActionHandler（test_command_dispatch、test_command_registry）、
+    # UIRibbonManager（test_ribbon_registry、test_plugin_ui_adapter）与插件运行时
+    # （test_plugin_ui_adapter、test_dxf_encoding）。YiCadUi 及以下是静态库，随它带入。
+    LINK YiCadShell
     LABELS "interaction;unit")
 
 # 各扩展是独立的 OBJECT 库（YiCAD/CMakeLists.txt 的 YiCadExt_<扩展>），用例要启动扩展、

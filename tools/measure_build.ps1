@@ -14,6 +14,9 @@
     「改」的方式是给文件追加一行注释再撤销，不改变任何语义，
     只为触发时间戳变化。脚本结束时文件内容与开始时逐字节相同。
 
+    Visual Studio 与 Ninja 生成器的构建目录都能测：生成器从构建目录的缓存里读。
+    Ninja 要在 MSVC 的开发者环境里运行（先调 vcvars64.bat），见 doc/BASELINE.md 7.1 节。
+
     每个阶段结束后重跑一次，把结果追加到附录 B 的表里。
 
 .PARAMETER BuildDir
@@ -52,16 +55,37 @@ $targets = @(
     @{ Name = "Datamodel.h";        Path = "YiCAD/src/base/core/Datamodel.h" }
 )
 
+$cachePath = Join-Path $BuildDir "CMakeCache.txt"
+if (-not (Test-Path $cachePath)) {
+    throw "找不到 $cachePath。先正常配置一次再跑本脚本。"
+}
+$cache = Get-Content $cachePath
+
+function Get-CacheValue($name) {
+    $line = $cache | Where-Object { $_ -match ("^" + [regex]::Escape($name) + ":[^=]*=") } | Select-Object -First 1
+    if ($line) { return ($line -split "=", 2)[1] }
+    return $null
+}
+
+$generator = Get-CacheValue "CMAKE_GENERATOR"
+$isVisualStudio = $generator -like "Visual Studio*"
+
 function Invoke-Build {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     # `-- -m`：MSBuild 的解决方案级并行。阶段 3 把 YiCadCore 拆成
     # YiCadMath -> YiCadModel -> YiCadPersistence -> YiCadCore 一条依赖链后
-    # （分层重组 S2 收为 YiCadBase -> YiCadModel -> YiCadCore），
+    # （分层重组 S2 收为 YiCadBase -> YiCadModel -> YiCadCore，S6 再把 YiCadCore 拆成
+    # YiCadRender -> YiCadApplication -> YiCadUi -> YiCadShell），
     # 没有这个参数时 Visual Studio 生成器按项目依赖顺序逐个构建，各层内部的
     # /MP 并行度用不满，全量构建反而比阶段 1 的单一 OBJECT 库更慢
     # （实测无 -m 时 189.7 秒，比阶段 1 的 129.5 秒还慢）。CI 的构建步骤
     # 同步加了这个参数，见 .github/workflows/build.yml。
-    & cmake --build $BuildDir --config $Config -- -m 2>&1 | Out-Null
+    # Ninja 本来就按文件并行，也不认这个参数。
+    if ($isVisualStudio) {
+        & cmake --build $BuildDir --config $Config -- -m 2>&1 | Out-Null
+    } else {
+        & cmake --build $BuildDir --config $Config 2>&1 | Out-Null
+    }
     $sw.Stop()
     if ($LASTEXITCODE -ne 0) {
         throw "构建失败，退出码 $LASTEXITCODE"
@@ -89,24 +113,16 @@ if (-not $SkipFull) {
     # 不用 `cmake --preset`：仓库里 CMakeUserPresets.json 同时 include 了
     # 多份 conan 生成的 preset，presets 名字重复，cmake 会直接报
     # "Duplicate presets" 拒绝加载。
-    $cachePath = Join-Path $BuildDir "CMakeCache.txt"
-    if (-not (Test-Path $cachePath)) {
-        throw "找不到 $cachePath。先正常配置一次再跑本脚本。"
-    }
-    $cache = Get-Content $cachePath
-
-    function Get-CacheValue($name) {
-        $line = $cache | Where-Object { $_ -match ("^" + [regex]::Escape($name) + ":[^=]*=") } | Select-Object -First 1
-        if ($line) { return ($line -split "=", 2)[1] }
-        return $null
-    }
-
-    $generator = Get-CacheValue "CMAKE_GENERATOR"
+    # CMAKE_PREFIX_PATH（本机的 Qt 6 靠它找到）在缓存里就一并重放；Ninja 是单配置生成器，
+    # 还要重放 CMAKE_BUILD_TYPE 与 CMAKE_MAKE_PROGRAM（ninja.exe 的位置）。
     $platform  = Get-CacheValue "CMAKE_GENERATOR_PLATFORM"
     $configureArgs = @("-S", ".", "-B", $BuildDir)
     if ($generator) { $configureArgs += @("-G", $generator) }
-    if ($platform)  { $configureArgs += @("-A", $platform) }
-    foreach ($v in @("CMAKE_TOOLCHAIN_FILE", "SARIBBON_DIR", "CDT_DIR", "CMAKE_INSTALL_PREFIX")) {
+    if ($platform -and $isVisualStudio) { $configureArgs += @("-A", $platform) }
+    $replayed = @("CMAKE_TOOLCHAIN_FILE", "SARIBBON_DIR", "CDT_DIR", "CMAKE_INSTALL_PREFIX",
+                  "CMAKE_PREFIX_PATH", "CMAKE_BUILD_TYPE")
+    if (-not $isVisualStudio) { $replayed += "CMAKE_MAKE_PROGRAM" }
+    foreach ($v in $replayed) {
         $value = Get-CacheValue $v
         if ($value) { $configureArgs += ("-D{0}={1}" -f $v, $value) }
     }

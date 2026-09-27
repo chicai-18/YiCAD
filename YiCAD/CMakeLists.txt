@@ -32,9 +32,10 @@ set(qrc_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/res/ribbon/ribbon_icon.qrc)
 # 全部加了 CONFIGURE_DEPENDS：新增或删除源文件时构建系统会自己重新收集，
 # 不会出现「文件建好了但没进构建」（方案 P5）。
 #
-# BASE、MODEL 是独立的静态库，依赖方向由 CMake 保证。RENDER 以上四个分区仍合编进
-# YiCadCore，由分层重组方案 S6 拆库；在此之前它们的边界由 tools/check_layering.py 检查。
-# UI 与 SHELL 原先的双向依赖已由 S5 解开（见 UI 分区注释）。
+# 每个分区是一个库，依赖方向由 CMake 保证：每个库只看得到自己与下层的头文件。
+# RENDER 以上四个分区原先合编进 YiCadCore，分层重组 S6 拆开（库类型见 YiCadRender 之前的
+# 说明）。tools/check_layering.py 只检查 CMake 管不到的两条：头文件重名，以及
+# application/view/ 以外不得包含 application/view/。
 # #####################################################
 set(YICAD_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -137,8 +138,8 @@ yicad_collect_sources(RENDER
 #   src/application/view/       交互视图 UIView（对应 DS 的 View/UIView）：继承画布
 #                               GuiDocumentView，装配 ViewToolControl、各层工具与命令总线
 #
-# 本分区不包含 UI/SHELL 的头文件；命令与工具只经 IDocumentView/GuiDocumentView 认识视图，
-# application/view/ 以外的文件不包含 UIView（tools/check_layering.py 检查）。
+# 本分区看不到 UI/SHELL 的头文件；命令与工具只经 IDocumentView/GuiDocumentView 认识视图，
+# application/view/ 以外的文件不包含 UIView（同在一个库里，由 tools/check_layering.py 检查）。
 yicad_collect_sources(APPLICATION
     src/application
     src/application/framework
@@ -148,8 +149,9 @@ yicad_collect_sources(APPLICATION
 # UIFileDialog。forms/ 是 Qt Designer 表单对应的对话框，ribbon/ 是 Ribbon 注册表
 # UIRibbonRegistry，内置类目与扩展共用。
 #
-# 本分区不包含 SHELL 的头文件。要取当前文档的控件（UICurrentActivePen、UILineTypeBox）经
+# 本分区看不到 SHELL 的头文件。要取当前文档的控件（UICurrentActivePen、UILineTypeBox）经
 # 宿主注入的 IDocumentManager 取；管理图纸与主窗口的部件在 SHELL（分层重组 S5）。
+# 预编译头 YiCadPch.h 也在这里：由 YiCadUi 编译，YiCadShell、扩展与可执行目标复用。
 yicad_collect_sources(UI
     src/ui
     src/ui/forms
@@ -161,9 +163,8 @@ yicad_collect_sources(UI
 #                              MDIWindow、状态栏 UIBottomWidget 与捕捉工具栏 UISnapWidget、
 #                              命令行 UICommandWidget、命令分派 UIActionHandler、宿主服务实现
 #                              UIDialogFactory、Ribbon 装配器 UIRibbonManager、只有壳层用的表单
-#                              （UIExitDialog、UISnapMiddleOptions）、预编译头 YiCadPch.h，以及
-#                              只编进可执行目标的 Main.cpp 与扩展注册表 BuiltinExtensions.cpp
-#                              （见下方）
+#                              （UIExitDialog、UISnapMiddleOptions），以及只编进可执行目标的
+#                              Main.cpp 与扩展注册表 BuiltinExtensions.cpp（见下方）
 #   src/shell/plugin_runtime/  C ABI 插件运行时。PluginUiAdapter 把插件命令与按钮登记进
 #                              CommandRegistry 与 UIRibbonRegistry，PluginFormatRegistration
 #                              把插件的文件格式登记进 model/io/ 的 FilterRegistry；公开头文件
@@ -176,7 +177,7 @@ yicad_collect_sources(SHELL
     src/shell/plugin_runtime)
 
 # 进程内扩展：src/extensions/ 下每个子目录是一个扩展，各自建成 OBJECT 库
-# YiCadExt_<扩展>（见下方 YiCadCore 之后），构建系统里没有逐个扩展的登记。目录约定：
+# YiCadExt_<扩展>（见下方 YiCadShell 之后），构建系统里没有逐个扩展的登记。目录约定：
 #   <扩展>/**/*.h、*.cpp   源码，递归收集；含头文件的每个目录自动成为该扩展的 include 路径
 #   <扩展>/**/*.qrc        Qt 资源
 #   <扩展>/**/*.ui         Qt Designer 表单，uic 生成的 ui_*.h 放在该扩展自己的目录里
@@ -259,21 +260,20 @@ install(FILES ${PLUGIN_SDK_HEADERS}
 file(GLOB YICAD_TS_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ts/YiCAD_*.ts")
 file(GLOB YICAD_QT_TS_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/ts/qtbase_*.ts")
 
-# 将.ui转成.h（src/ui、src/shell 的表单；扩展的表单由各扩展库用 yicad_wrap_ui 生成）
+# 将.ui转成.h：src/ui、src/shell 与各扩展的表单都用下方的 yicad_wrap_ui 生成。
 # Qt 6 的 uic 默认按函数指针生成表单里的信号槽连接，槽要在表单根控件的类
 # （QDialog、QWidget）上才能编译；本项目的 .ui 连接的是子类里声明的槽，
 # 所以沿用 Qt 5 的字符串连接（SIGNAL/SLOT），运行期行为与原来一致。
 set(YICAD_UIC_OPTIONS --connections string)
-qt6_wrap_ui(ui_FILES ${YICAD_UI_FORMS} ${YICAD_SHELL_FORMS} OPTIONS ${YICAD_UIC_OPTIONS})
 
-# 将.qrc转成.cpp（主程序的资源；扩展的资源编进各扩展库）
+# 将.qrc转成.cpp（主程序的资源，编进 YiCadShell；扩展的资源编进各扩展库）
 qt6_add_resources(qrc_FILES ${qrc_DIRS})
 
 # ---------------------------------------------------------------------------
 # yicad_wrap_ui(<输出变量> <输出目录> <表单> [<表单> ...])
 #
-# 与 qt6_wrap_ui 相同，但 ui_*.h 生成到给定目录：每个扩展的表单放在自己的目录里，
-# 别的扩展看不到。
+# 与 qt6_wrap_ui 相同，但 ui_*.h 生成到给定目录：YiCadUi、YiCadShell 与每个扩展的表单
+# 各放在自己的目录里，别的库与扩展看不到。
 # ---------------------------------------------------------------------------
 function(yicad_wrap_ui out_var out_dir)
     set(_headers "")
@@ -360,13 +360,12 @@ set_target_properties(TS_YiCAD PROPERTIES FOLDER "CMakePredefinedTargets")
 # ================ YiCadBase / YiCadModel ================
 #
 # BASE、MODEL 两个分区各自是静态库，依赖方向由 CMake 强制：YiCadModel -> YiCadBase。
-# RENDER 以上四个分区仍合编进 YiCadCore（见下）。分层重组 S2 之前还有一层
-# YiCadPersistence（现 model/io/），它只依赖 Model，已并入 YiCadModel；YiCadBase 原名
-# YiCadMath。
+# 分层重组 S2 之前还有一层 YiCadPersistence（现 model/io/），它只依赖 Model，已并入
+# YiCadModel；YiCadBase 原名 YiCadMath。
 #
-# 用 STATIC 而非 OBJECT：这两层不含任何 Qt 元对象类（Q_OBJECT），没有
-# YiCadCore 注释里提到的自动注册符号丢失问题；STATIC 让它们能被
-# tests/math、tests/geometry、tests/persistence 单独链接，不必拖入整个 YiCadCore。
+# 用 STATIC 而非 OBJECT：这两层没有 .qrc，也没有靠全局对象自注册的代码，不会有
+# YiCadShell 注释里说的目标文件被丢掉的问题；STATIC 让它们能被
+# tests/math、tests/geometry、tests/persistence 单独链接，不必拖入上层。
 # #####################################################
 
 add_library(YiCadBase STATIC
@@ -384,7 +383,7 @@ target_include_directories(YiCadBase PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/base/geometry)
 
 # 公共编译定义与选项在最底层设置一次，经 PUBLIC 依赖链自动传播到
-# YiCadModel -> YiCadCore -> 可执行目标/测试目标，不必在每一层重复声明。
+# 上层库 -> 可执行目标/测试目标，不必在每一层重复声明。
 target_compile_definitions(YiCadBase PUBLIC
     _USE_MATH_DEFINES
     _ENABLE_EXTENDED_ALIGNED_STORAGE
@@ -468,92 +467,128 @@ if(WIN32)
 endif()
 
 # #####################################################
-# ==================== YiCadCore ======================
+# ======= YiCadRender / YiCadApplication / YiCadUi / YiCadShell =======
 #
-# RENDER + APPLICATION + UI + SHELL 四个分区。可执行目标和测试二进制
-# 共享同一批目标文件，测试因此不必重新编译这部分代码，也不必为每个测试手工
-# 维护源文件子集。进程内扩展不在其中，各自是 OBJECT 库 YiCadExt_<扩展>（见下方），
-# YiCadCore 不引用任何扩展。
+# 分层重组 S6 把原先合编的 YiCadCore 拆成这四个库，依赖方向由 CMake 保证：每个库只看得到
+# 自己与下层的头文件，在下层包含上层的头文件直接编译失败（C1083）。
 #
-# 选 OBJECT 而非 STATIC：静态库的符号剥离会丢掉 Qt 的静态注册（资源初始化、
-# 插件注册宏等自动注册符号没有显式引用），OBJECT 库没有这个问题。
+# 库类型（分层重组 D3）：Render、Application、Ui 用 STATIC，依赖沿链接传递，使用方只链接
+# 最上面的那一个，链接器只取用到的目标文件。静态库的代价是：没人引用、靠全局对象的构造
+# 函数自己生效的目标文件会被链接器丢掉而且不报错。这三个库里没有这样的代码（没有 .qrc，
+# 没有自注册；uic 生成的是头文件里的普通代码，不受影响）。以后往这三个目录加 .qrc 或
+# 自注册代码时，要改为显式引用（如 Q_INIT_RESOURCE），或把库改为 OBJECT。
+# Shell 用 OBJECT，原因见 YiCadShell。
 #
-# 四个分区之间已是自下而上的单向依赖（UI 与 SHELL 的双向依赖由分层重组 S5 解开），
-# 只是尚未拆库：S6 把本库拆成 YiCadRender、YiCadApplication、YiCadUi、YiCadShell。
+# 后续阶段做 C++ SDK 时，除 Shell 外改为 SHARED（LAYER_RESTRUCTURE_PLAN.md 11.1 节）。
 # #####################################################
-add_library(YiCadCore OBJECT
-    ${YICAD_RENDER_HEADERS}      ${YICAD_RENDER_SOURCES}
-    ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES}
-    ${YICAD_UI_HEADERS}          ${YICAD_UI_SOURCES}
-    ${YICAD_SHELL_HEADERS}       ${YICAD_SHELL_SOURCES}
-    ${YICAD_UI_FORMS}
-    ${YICAD_SHELL_FORMS}
-    ${ui_FILES}
-    ${qrc_FILES})
 
-set_target_properties(YiCadCore PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
+# ---- YiCadRender：画布与 OpenGL 绘制，只依赖 YiCadModel ----
+add_library(YiCadRender STATIC
+    ${YICAD_RENDER_HEADERS} ${YICAD_RENDER_SOURCES})
+set_target_properties(YiCadRender PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
-# 头文件搜索路径挂在目标上（PUBLIC），测试目标通过链接 YiCadCore 继承。
-target_include_directories(YiCadCore PUBLIC
-    # uic 生成的 ui_*.h 落在构建目录
-    ${CMAKE_CURRENT_BINARY_DIR}
+target_include_directories(YiCadRender PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/painter
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/opengl
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/view
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/application
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/application/framework
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/application/view
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/plugin_runtime)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/view)
 
-target_precompile_headers(YiCadCore PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/shell/YiCadPch.h")
-
-# ---- YiCadCore 的依赖 ----
-# 全部用 PUBLIC：可执行目标与测试目标都需要这些库的头文件和符号。
-# YiCadBase/YiCadModel 需要的第三方库已经在各自层级声明，经 PUBLIC 依赖链
-# 传播到这里，此处只声明 RENDER/APPLICATION/UI/SHELL 自己新增的那些。
-
-target_link_libraries(YiCadCore PUBLIC YiCadModel)
-
+# 画布 GuiDocumentView 是 QOpenGLWidget；GL* 直接调 GLEW 与 OpenGL。
+target_link_libraries(YiCadRender PUBLIC
+    YiCadModel Qt6::Widgets Qt6::OpenGL Qt6::OpenGLWidgets)
 if(TARGET GLEW::GLEW)
-    target_link_libraries(YiCadCore PUBLIC GLEW::GLEW)
+    target_link_libraries(YiCadRender PUBLIC GLEW::GLEW)
 endif()
 if(TARGET OpenGL::GL)
-    target_link_libraries(YiCadCore PUBLIC OpenGL::GL OpenGL::GLU)
-endif()
-if(TARGET Freetype::Freetype)
-    target_link_libraries(YiCadCore PUBLIC Freetype::Freetype)
+    target_link_libraries(YiCadRender PUBLIC OpenGL::GL OpenGL::GLU)
 endif()
 
-# Windows system libraries
-if(WIN32)
-    target_link_libraries(YiCadCore PUBLIC Dwrite.lib crypt32.lib)
-endif()
+# ---- YiCadApplication：命令与视图工具机制、扩展框架、交互视图 UIView，只依赖 YiCadRender 及以下 ----
+# application/view/ 以外的文件不得包含 application/view/：同在一个库里，CMake 管不到，
+# 由 tools/check_layering.py 检查。
+add_library(YiCadApplication STATIC
+    ${YICAD_APPLICATION_HEADERS} ${YICAD_APPLICATION_SOURCES})
+set_target_properties(YiCadApplication PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
-# SARibbonBar: imported target from find_package (step 8)
-target_link_libraries(YiCadCore PUBLIC SARibbonBar::SARibbonBar)
+target_include_directories(YiCadApplication PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/application
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/application/framework
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/application/view)
 
-#add QT one by one
-foreach(qtmod ${YICAD_USE_QT_MODULES})
-    target_link_libraries(YiCadCore PUBLIC Qt6::${qtmod})
-endforeach(qtmod)
+# Commands.cpp 用 QDomDocument 读 keyconfig.xml。
+target_link_libraries(YiCadApplication PUBLIC YiCadRender Qt6::Xml)
+
+# ---- YiCadUi：扩展与壳层共用的控件与对话框，只依赖 YiCadApplication 及以下 ----
+# 扩展链接本库，看不到 shell/。
+#
+# 表单生成的 ui_*.h 放在 <构建目录>/ui，公开给使用方：UIWidgetPen.h 等公开头文件直接包含它们。
+#
+# 预编译头 YiCadPch.h 由本库编译，YiCadShell、各扩展与可执行目标 REUSE_FROM 本库。
+# Render、Application 不用预编译头（分层重组 S6，见 LAYER_RESTRUCTURE_PLAN.md 10.5 节的测量）。
+yicad_wrap_ui(YICAD_UI_FORM_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/ui" ${YICAD_UI_FORMS})
+
+add_library(YiCadUi STATIC
+    ${YICAD_UI_HEADERS} ${YICAD_UI_SOURCES}
+    ${YICAD_UI_FORMS} ${YICAD_UI_FORM_HEADERS})
+set_target_properties(YiCadUi PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
+
+target_include_directories(YiCadUi PUBLIC
+    ${CMAKE_CURRENT_BINARY_DIR}/ui
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/forms
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui/ribbon)
+
+target_link_libraries(YiCadUi PUBLIC YiCadApplication)
+
+target_precompile_headers(YiCadUi PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/ui/YiCadPch.h")
+
+# ---- YiCadShell：把各层组装成程序的外壳 ----
+# 主窗口、图纸选项卡、命令行、宿主服务实现、Ribbon 装配器、C ABI 插件运行时。依赖全部
+# 核心库，不引用任何扩展（扩展注册表 BuiltinExtensions.cpp 只编进可执行目标）。
+#
+# 用 OBJECT：Ribbon 图标的 ribbon_icon.qrc 编进本库，rcc 生成的 qrc_*.cpp 靠全局对象的
+# 构造函数注册资源，全仓没有 Q_INIT_RESOURCE 显式引用它，静态库会把它丢掉而不报错
+# （Ribbon 图标变空白）。OBJECT 库的目标文件只从直接链接处带入、不沿依赖传递，
+# 可执行目标与 test_interaction 直接链接本库。
+#
+# 表单生成的 ui_*.h 放在 <构建目录>/shell，只有本库看得到。
+yicad_wrap_ui(YICAD_SHELL_FORM_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/shell" ${YICAD_SHELL_FORMS})
+
+add_library(YiCadShell OBJECT
+    ${YICAD_SHELL_HEADERS} ${YICAD_SHELL_SOURCES}
+    ${YICAD_SHELL_FORMS} ${YICAD_SHELL_FORM_HEADERS}
+    ${qrc_FILES})
+set_target_properties(YiCadShell PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
+
+# 可执行目标（Main.cpp 包含 ApplicationWindow.h）与 test_interaction 要看到 shell/ 的头文件。
+target_include_directories(YiCadShell
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/shell
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/shell/plugin_runtime
+    PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/shell)
+
+# 主窗口与 Ribbon 装配器用 SARibbonBar；UITabDrawWidget 用 QSvgGenerator 导出 SVG。
+target_link_libraries(YiCadShell PUBLIC YiCadUi SARibbonBar::SARibbonBar Qt6::Svg)
+
+target_precompile_headers(YiCadShell REUSE_FROM YiCadUi)
 
 # #####################################################
 # ============== 进程内扩展 YiCadExt_<扩展> ==============
 #
-# src/extensions/ 下每个子目录建一个 OBJECT 库（与 YiCadCore 同样选 OBJECT：扩展里有
-# Qt 资源与元对象类，静态库会丢掉没有显式引用的自动注册符号）。扩展依赖 YiCadCore
-# （内核、命令机制、界面），YiCadCore 不依赖任何扩展；扩展只看得到自己的头文件与
-# uic 生成的 ui_*.h，扩展之间互相包含会直接编译失败（主计划 7.11 节）。
+# src/extensions/ 下每个子目录建一个 OBJECT 库（与 YiCadShell 同样选 OBJECT：扩展里有
+# Qt 资源，静态库会丢掉没有显式引用的资源注册）。扩展链接 YiCadUi（内核、命令机制、
+# 界面控件），看不到 shell/ 的头文件，核心库不依赖任何扩展；扩展只看得到自己的头文件与
+# uic 生成的 ui_*.h，扩展之间互相包含、包含 shell/ 都会直接编译失败（主计划 7.11 节，
+# 分层重组 S6）。
+#
+# 除 YiCadUi 带来的之外，扩展还可以用 Qt Svg、Qt Network 与 Windows 的 crypt32（AI 扩展
+# 调模型接口、加密保存密钥，文字扩展渲染 SVG），原先由合编的 YiCadCore 一并提供。
 #
 # 头文件目录是 PUBLIC 的：链接扩展的只有可执行目标（BuiltinExtensions.cpp 要包含
 # 扩展入口的头文件）与测试。
 #
-# 预编译头沿用 YiCadCore 的：拆出来之前扩展的源码一直带着 YiCadPch.h 编译。
+# 预编译头复用 YiCadUi 的 YiCadPch.h：拆出来之前扩展的源码一直带着它编译。
 #
 # 全部扩展目标记在全局属性 YICAD_EXTENSION_TARGETS 里，供 tests/ 链接。
 # #####################################################
@@ -590,8 +625,11 @@ foreach(_ext_dir IN LISTS YICAD_EXTENSION_DIRS)
     list(REMOVE_DUPLICATES _ext_include_dirs)
     target_include_directories(${_ext_target} PUBLIC ${_ext_include_dirs})
 
-    target_link_libraries(${_ext_target} PUBLIC YiCadCore)
-    target_precompile_headers(${_ext_target} REUSE_FROM YiCadCore)
+    target_link_libraries(${_ext_target} PUBLIC YiCadUi Qt6::Svg Qt6::Network)
+    if(WIN32)
+        target_link_libraries(${_ext_target} PUBLIC crypt32.lib)
+    endif()
+    target_precompile_headers(${_ext_target} REUSE_FROM YiCadUi)
     set_target_properties(${_ext_target} PROPERTIES FOLDER "YiCAD/extensions" QT_NO_UNICODE_DEFINES TRUE)
     GroupSourcesByFolder(${_ext_target})
 
@@ -601,7 +639,7 @@ set_property(GLOBAL PROPERTY YICAD_EXTENSION_TARGETS ${YICAD_EXTENSION_TARGETS})
 
 # #####################################################
 # ================ YiCAD 可执行目标 ====================
-# 只编译 main() 与扩展注册表，其余目标文件来自 YiCadCore 与各扩展库。
+# 只编译 main() 与扩展注册表，其余目标文件来自 YiCadShell、各扩展库与三个核心静态库。
 # #####################################################
 add_executable(${PROJECT_NAME} ${YICAD_MAIN_ENTRY}
                                ${YICAD_BUILTIN_EXTENSIONS}
@@ -610,11 +648,12 @@ add_executable(${PROJECT_NAME} ${YICAD_MAIN_ENTRY}
                                ${QM_FILES})
 
 # 链接 OBJECT 库会同时带入它的目标文件和全部使用要求（include 路径、
-# 编译定义、依赖库），无需再写 $<TARGET_OBJECTS:YiCadCore>。目标文件只从直接链接的
-# OBJECT 库带入，所以扩展库要逐个直接链接。
-target_link_libraries(${PROJECT_NAME} PRIVATE YiCadCore ${YICAD_EXTENSION_TARGETS})
+# 编译定义、依赖库），无需再写 $<TARGET_OBJECTS:YiCadShell>。目标文件只从直接链接的
+# OBJECT 库带入，所以 YiCadShell 与扩展库要逐个直接链接；YiCadUi 及以下是静态库，
+# 沿依赖传递过来。
+target_link_libraries(${PROJECT_NAME} PRIVATE YiCadShell ${YICAD_EXTENSION_TARGETS})
 
-target_precompile_headers(${PROJECT_NAME} REUSE_FROM YiCadCore)
+target_precompile_headers(${PROJECT_NAME} REUSE_FROM YiCadUi)
 set_target_properties(${PROJECT_NAME} PROPERTIES QT_NO_UNICODE_DEFINES TRUE)
 
 # 支持linux相对路径库加载，参考：https://stackoverflow.com/questions/43330165/how-to-link-a-shared-library-with-cmake-with-relative-path/69707790#69707790
@@ -747,6 +786,9 @@ INSTALL(DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>/"
 
 #structure files
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src/ui" PREFIX "UIs" FILES ${YICAD_UI_FORMS})
-GroupSourcesByFolder(YiCadCore)
 GroupSourcesByFolder(YiCadBase)
 GroupSourcesByFolder(YiCadModel)
+GroupSourcesByFolder(YiCadRender)
+GroupSourcesByFolder(YiCadApplication)
+GroupSourcesByFolder(YiCadUi)
+GroupSourcesByFolder(YiCadShell)

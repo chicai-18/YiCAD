@@ -610,6 +610,12 @@ flowchart TB
 > 2026-09-25：`YiCadApp` 更名 `YiCadShell`，CMake 分区 `APP` 相应更名 `SHELL`：原名与
 > `YiCadApplication`、`ApplicationWindow` 容易混淆。它是把各层组装成程序的外壳，而
 > `YiCadApplication` 是其下的命令与工具机制。本文其余各节的执行记录保留原名 `APP`/`YiCadApp`。
+>
+> 2026-09-27：本节的目标库结构已由 `LAYER_RESTRUCTURE_PLAN.md` 第 2 节取代，并由该方案执行完毕
+> （S6 拆库，见其 10.5 节）：六个库 `YiCadBase` → `YiCadModel` → `YiCadRender` → `YiCadApplication`
+> → `YiCadUi` → `YiCadShell`，`YiCadMath` 更名 `YiCadBase`，`YiCadPersistence` 并入 `YiCadModel`，
+> `YiCadInteraction` 与 `cmd/` 并入 `YiCadApplication`。依赖方向全部由 CMake 保证；Shell 以下各库
+> 为静态库，Shell 为 OBJECT 库。
 
 `YiCadRender` 在此仅作为一个层次边界存在，本方案**不改动其内部实现**。
 未来的渲染专项将在这个边界内进行，届时不会波及其它库。

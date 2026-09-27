@@ -1,12 +1,12 @@
 # YiCAD 自动化测试树（方案阶段 0）
 #
-# 目录按子系统划分，每个测试目标只链接它需要的那一层库，而不是整个 YiCadCore
+# 目录按子系统划分，每个测试目标只链接它需要的那一层库
 # （库的划分见 doc/LAYER_RESTRUCTURE_PLAN.md 第 2 节）。
 #
 #   tests/math/         -> YiCadBase（经 YiCadModel 链接，见 math/CMakeLists.txt）
 #   tests/persistence/  -> YiCadModel 的 model/io/
 #   tests/geometry/     -> YiCadModel 中的几何实体
-#   tests/interaction/  -> YiCadCore 与全部扩展库
+#   tests/interaction/  -> YiCadShell（带上 YiCadUi 及以下）与全部扩展库
 #
 # 所有测试二进制以 test_ 开头：YiCAD/CMakeLists.txt 的安装规则按
 # "test_*" 模式把它们排除在安装包之外。
@@ -53,19 +53,20 @@ endif()
 # 那种场景直接调二进制加 --gtest_filter 更方便。
 
 # ---------------------------------------------------------------------------
-# yicad_add_test(<name> SOURCES <...> [LINK <target>] [LABELS <...>])
+# yicad_add_test(<name> SOURCES <...> LINK <target>... [LABELS <...>])
 #
-# 建一个 GoogleTest 目标并注册到 CTest，默认链接 YiCadCore；LINK 可指定
-# 更小的目标（YiCadBase/YiCadModel）。
+# 建一个 GoogleTest 目标并注册到 CTest。LINK 填测试实际依赖的库：静态库
+# （YiCadModel 等）的下层沿依赖带入，OBJECT 库（YiCadShell）的目标文件只从直接链接处
+# 带入，要直接写出来。
 # <name> 不带 test_ 前缀，函数会自动加上。
 # ---------------------------------------------------------------------------
 function(yicad_add_test name)
-    cmake_parse_arguments(ARG "" "LINK" "SOURCES;LABELS" ${ARGN})
+    cmake_parse_arguments(ARG "" "" "SOURCES;LINK;LABELS" ${ARGN})
     if(NOT ARG_SOURCES)
         message(FATAL_ERROR "yicad_add_test(${name}) 缺少 SOURCES")
     endif()
     if(NOT ARG_LINK)
-        set(ARG_LINK YiCadCore)
+        message(FATAL_ERROR "yicad_add_test(${name}) 缺少 LINK")
     endif()
 
     set(target "test_${name}")
@@ -74,9 +75,8 @@ function(yicad_add_test name)
     add_executable(${target} ${ARG_SOURCES}
         "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/support/yicad_test_main.cpp")
 
-    # LINK 指定测试实际依赖的那一层（默认为 YiCadCore，tests/math、
-    # tests/geometry、tests/persistence 传更小的 YiCadModel，链接的目标文件
-    # 从整个上层 OBJECT 库降到对应的静态库，是拆库的核心增量构建收益）。
+    # LINK 指定测试实际依赖的那一层（tests/math、tests/geometry、tests/persistence
+    # 只链接 YiCadModel，改上层代码不必重新链接它们，是拆库的核心增量构建收益）。
     target_link_libraries(${target} PRIVATE ${ARG_LINK} GTest::gtest)
 
     # yicad_test_main.cpp 无条件构造 QApplication（见其注释），与 LINK

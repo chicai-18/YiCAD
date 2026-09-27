@@ -338,12 +338,10 @@ Visual Studio 2022 Developer PowerShell。可用以下命令诊断当前进程�
 flowchart TB
     Exe["YiCAD.exe<br/>shell/Main.cpp, shell/BuiltinExtensions.cpp"]
     Ext["YiCadExt_*（每个扩展一个）<br/>extensions/*/"]
-    subgraph Core["YiCadCore（OBJECT 库）"]
-        Shell["Shell<br/>shell/"]
-        Ui["UI<br/>ui/"]
-        Appl["Application<br/>application/"]
-        Render["Render<br/>render/"]
-    end
+    Shell["YiCadShell<br/>shell/"]
+    Ui["YiCadUi<br/>ui/"]
+    Appl["YiCadApplication<br/>application/"]
+    Render["YiCadRender<br/>render/"]
     Model["YiCadModel<br/>model/"]
     Base["YiCadBase<br/>base/"]
 
@@ -351,19 +349,17 @@ flowchart TB
     Exe --> Shell
     Ext --> Ui
     Shell --> Ui
-    Ui -. 既有双向依赖 .-> Shell
     Ui --> Appl
     Appl --> Render
     Render --> Model
     Model --> Base
 ```
 
-- 依赖可以传递：模块也可以使用它沿箭头能到达的模块，例如 Application 使用 Render、Model 与 Base。除虚线外没有向上的箭头。
-- `YiCadBase`、`YiCadModel` 是独立的静态库，依赖方向由 CMake 的 include 路径物理保证：Base 看不到 Model，Model 看不到渲染、命令机制与界面。
-- Render、Application、UI、Shell 合编进 `YiCadCore`，由 CI 中的 `tools/check_layering.py` 按目录检查：下层不得包含上层的头文件；`application/view/` 以外不得包含交互视图 `UIView`，命令与工具只经 `IDocumentView`/`GuiDocumentView` 认识视图。
-- 每个扩展是链接 `YiCadCore` 的独立 OBJECT 库，只看得到自己的头文件，因此不能包含别的扩展，也不得包含 `shell/`。`YiCadCore` 不引用任何扩展，只有编进可执行文件的 `shell/BuiltinExtensions.cpp` 引用它们。
-- UI 与 Shell 互相依赖（虚线）：`UIActionHandler`、`UIBottomWidget` 等部件直接调用 `ApplicationWindow`/`MDIWindow` 取当前文档等全局状态，这些 include 登记在 `check_layering.py` 的白名单里。
-- 原生格式的读写代码与格式注册表 `FilterRegistry` 在 `model/io/`，插件格式也登记进这个注册表。文档自己读写文件（`DmDocument::readFile`/`writeFile`），不经宿主；存盘策略（自动保存、`.bak` 备份、打开失败时的提示）归 Application 的 `DocumentFileService`。Model 既不认识视图（文档经 `DmDocumentListener` 通知它），也不认识宿主（宿主服务接口 `GuiDialogFactoryInterface` 在 `application/`）；`doc/LAYER_RESTRUCTURE_PLAN.md` 记录了余下的步骤：解开 UI 与 Shell、把 `YiCadCore` 拆成四个库。
+- 依赖可以传递：模块也可以使用它沿箭头能到达的模块，例如 Application 使用 Render、Model 与 Base。没有向上的箭头。
+- 每一层是一个库，依赖方向由 CMake 的 include 路径保证：每个库只看得到自己与下层的头文件，在下层包含上层的头文件直接编译失败。Base 到 Ui 是静态库；Shell 是 OBJECT 库，因为 Ribbon 图标的 Qt 资源编进它，静态库会把没有显式引用的资源注册丢掉。
+- 每个扩展是链接 `YiCadUi` 的独立 OBJECT 库，只看得到自己的头文件与 Ui 及以下各层，因此不能包含别的扩展，也看不到 `shell/`。核心库不引用任何扩展，只有编进可执行文件的 `shell/BuiltinExtensions.cpp` 引用它们。扩展经 `IExtensionContext` 登记命令、Ribbon 条目与设置页，经 `IExtensionContext::documentManager()` 访问打开的图纸，不认识主窗口与图纸选项卡。
+- CMake 管不到的两条由 CI 中的 `tools/check_layering.py` 检查：头文件不得重名（include 写的是扁平的文件名，重名会互相遮蔽）；`application/view/` 以外不得包含交互视图 `UIView`，命令与工具只经 `IDocumentView`/`GuiDocumentView` 认识视图。
+- 原生格式的读写代码与格式注册表 `FilterRegistry` 在 `model/io/`，插件格式也登记进这个注册表。文档自己读写文件（`DmDocument::readFile`/`writeFile`），不经宿主；存盘策略（自动保存、`.bak` 备份、打开失败时的提示）归 Application 的 `DocumentFileService`。Model 既不认识视图（文档经 `DmDocumentListener` 通知它），也不认识宿主（宿主服务接口 `GuiDialogFactoryInterface` 在 `application/`）。分层的由来与各步骤的执行记录见 `doc/LAYER_RESTRUCTURE_PLAN.md`。
 
 ## 开发
 
