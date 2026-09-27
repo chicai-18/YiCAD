@@ -1232,8 +1232,9 @@ S5b 随后一个（搬移、构建脚本、白名单清空、文档）。
 - Application 的扩展框架接口前置声明 Ui 的 `UIRibbonRegistrar`，`GuiDialogFactoryInterface` 前置声明 Shell 的两个类型（见上）。
 - 构建比 S2 慢（见上）。可选的两处改法都已测过：Render、Application 加预编译头（`YiCadPch.h` 届时移到 `render/`，最下层的使用方）；
   换 Ninja 生成器（要改 `CMakePresets.json`、conan install 加生成器参数、CI 先建 MSVC 开发者环境、README 与 `AGENTS.md` 的构建命令）。
-- 安装规则把 `bin/` 整个目录装进运行期包，静态库也输出在 `bin/`，所以 `YiCadBase.lib`、`YiCadModel.lib` 原本就在包里，现在多了
-  `YiCadRender.lib`、`YiCadApplication.lib`、`YiCadUi.lib`（约 7 MB）。运行期用不到，可在安装规则里排除 `*.lib`。
+- 执行中发现安装规则把 `bin/` 整个目录装进运行期包，而静态库也输出在 `bin/`，拆库后包里会多出 `YiCadRender.lib`、
+  `YiCadApplication.lib`、`YiCadUi.lib`（`YiCadBase.lib`、`YiCadModel.lib` 原本就在）。已另行修复：`508830f` 让 Runtime 组件不再打包
+  `.lib` 与 `.exp`。
 
 ---
 
