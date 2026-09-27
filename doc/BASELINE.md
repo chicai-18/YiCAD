@@ -66,21 +66,52 @@ $env:YICAD_LOG = "render:info"
 .\build\Release\bin\YiCAD.exe
 ```
 
-埋点位置（`YiCAD/src/kernel/debug/ScopedTimer.h` 里的 `counters` 命名空间）：
+埋点位置（`YiCAD/src/base/debug/ScopedTimer.h` 里的 `counters` 命名空间）：
 
-| 计数器 | 位置 | 对应附录 B 的行 |
+| 计数器 | 位置 | 对应的指标 |
 |--------|------|----------------|
 | `render.paintGL` | `GuiDocumentView::paintGL` | 稳态帧耗时 |
+| `render.regen` | `GuiDocumentView::drawDocumentLayer`（文档画笔整图重建，`DmCachePainter::rebuild`） | 整图重建的次数与耗时（渲染方案 0.1 步） |
+| `render.frameAfterHighlight` | `GuiDocumentView::paintGL`，高亮集变化后由 `UIView` 标记下一帧 | 悬停高亮变化后的首帧耗时 |
+| `render.frameAfterSelection` | 同上，选择集变化后 | 点选、全选后的首帧耗时 |
+| `render.uploadBytes`（数量） | `opengl::GLFrameStats`：`glBufferData`、图片的 `glTexImage2D`，每帧一个采样 | 每帧上传字节数 |
+| `render.drawCalls`（数量） | `opengl::GLFrameStats`：`glDrawArrays`、`glMultiDrawArrays`，每帧一个采样 | 每帧绘制调用数 |
 | `snap.catchEntity` | `Snapper::catchEntity` | 点选耗时 |
 | `selection.selectWindow` | `SelectionSet::selectWindow` | 全选框选耗时 |
 | `snap.nearestVirtualIntersection` | `EntityTable::getNearestVirtualIntersection` | 虚拟交点捕捉耗时 |
-| `document.open` | 尚未接入 | 打开文档耗时 |
+| `document.open` | `DmDocument::readFile`（读入文件，不含建窗口与首帧） | 打开文档耗时 |
 
-计数器累计次数、总耗时、最小、最大，由 `yicad::Profiler::report()` 一次性汇总
-到 `render` 日志分类（Info 级别）。**不要逐帧打印**——那正是这套设施要替代的
-问题（P11）。
+耗时计数器累计次数、总耗时、最小、最大；数量计数器（`yicad::ValueCounter`）累计
+次数、合计、最小、最大。`yicad::Profiler::report()` 把两类一次性汇总到 `render`
+日志分类（Info 级别）；埋点开启时程序退出前会调用它，输出经 qDebug，在调试器的
+输出窗口里看。**不要逐帧打印**——那正是这套设施要替代的问题（P11）。
 
-### 操作步骤
+### 自动采集（渲染方案阶段 0 起）
+
+第 4、8 节的数据由 `test_interaction` 的 `BaselineRuntimeTest` 采集，不再手工操作：
+
+```powershell
+python tools/gen_benchmark_drawings.py
+$env:YICAD_BENCHMARK_DIR = "$PWD\build\benchmarks"   # 在仓库根执行
+.\build\Release\bin\test_interaction.exe --gtest_filter="BaselineRuntime*"
+```
+
+没有设 `YICAD_BENCHMARK_DIR` 时它跳过（CI 不设）。用例在本机显卡上打开一个真实的
+`UIView` 窗口（1600×900），对每份图纸用代码依次做下面的操作，最后打印一张 Markdown
+表，可以直接贴进来：
+
+1. 经 `DmDocument::readFile()` 打开（`document.open`）；
+2. 按实体表范围缩放到全图，热身 5 帧后连续画 30 帧（`render.paintGL`、每帧绘制调用与上传字节）；
+3. 换 20 次高亮的实体，每次画一帧（`render.frameAfterHighlight`，其中 `render.regen`），相当于命令里光标从一个候选实体移到另一个上；
+4. 在 20 条直线的中点点选（`snap.catchEntity`），选中后画一帧（`render.frameAfterSelection`）；
+5. 框选盖住全部实体（`selection.selectWindow`），画一帧（全选后首帧）；
+6. 从 20 条直线的端点沿直线方向求虚拟交点（`snap.nearestVirtualIntersection`）。
+
+与手工操作的差别：不经过鼠标事件与事件分发；每帧用 `update()` 后处理事件等 `paintGL`
+执行（Qt 6 会把一个刷新周期内的多次 `repaint()` 合并）。耗时都是 CPU 侧的提交耗时，
+与程序里的埋点相同，不等 GPU 完成。采集期间不要在别的会话里构建。
+
+### 手工操作步骤（架构演进方案阶段 0 的原始做法，保留备查）
 
 对每份图纸各做一遍：
 
@@ -134,8 +165,8 @@ powershell -ExecutionPolicy Bypass -File tools/measure_build.ps1
 | 全选框选 `selectWindow` 耗时 (ms) | | | |
 | 虚拟交点捕捉耗时 (ms) | | | |
 
-> 尚未采集。需要在装有 GPU 与显示环境的开发机上按第 2 节的步骤手工完成——
-> 帧耗时与框选耗时都依赖真实的交互，没法在无头环境里测。
+> 架构演进方案阶段 0 时没有采集（需要手工操作），这张表不再补：那之后代码已经大变，
+> 补上的数字也不是"改造前"。运行期基线从渲染层重构方案阶段 0 起由自动采集用例测得，见第 8 节。
 
 ---
 
@@ -335,3 +366,63 @@ S5（`LAYER_RESTRUCTURE_PLAN.md` 9.5 节）新增 `test_interaction` 2 个：文
 未命名文档的自动保存副本名为空；未命名文档的两个自动保存用例改由假的 `IDocumentManager` 给名字，用例数不变。
 S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_interaction` 改链 `YiCadShell`（带上 `YiCadUi` 及以下）与全部扩展库，
 另外三个仍只链 `YiCadModel`。
+
+---
+
+## 8. 渲染层重构方案（`RENDER_PLAN.md`）
+
+阶段 0 记录起点，之后每个阶段结束时追加一列，不要覆盖旧列。
+
+### 8.1 运行期数据
+
+由第 2 节的自动采集用例测得（`test_interaction` 的 `BaselineRuntimeTest`），单位毫秒，另有注明的除外；
+耗时都是 CPU 侧的提交耗时，不等 GPU 完成。
+
+采集环境：Windows 11 Pro 22621，AMD Ryzen 9 6900HX，32 GB 内存，NVIDIA GeForce RTX 3070 Ti Laptop GPU（驱动 32.0.15.6607；
+用例打印的 GL_RENDERER 确认用的是这块独显），画布 1600×900，Release 配置
+采集日期：2026-09-27
+提交：`99c076a` 加渲染方案阶段 0 的改动（计数器、采集用例；旧渲染器只多了 `common.inl` 里的两句 `discard`，不影响这些数字）
+
+| 指标 | 小图纸 (1k) | 中图纸 (50k) | 大图纸 (500k) |
+|------|-----------:|-------------:|--------------:|
+| 打开文档 `document.open` | 250.1 | 13,237.7 | 143,337.7 |
+| 稳态帧 `render.paintGL` | 3.74 | 0.95 | 1.43 |
+| 稳态帧绘制调用（次/帧） | 119 | 119 | 119 |
+| 稳态帧上传（字节/帧） | 2,976 | 2,976 | 2,976 |
+| 换高亮后首帧 `render.frameAfterHighlight` | 9.81 | 339.96 | 3,764.95 |
+| 其中整图重建 `render.regen` | 5.99 | 338.77 | 3,763.48 |
+| 换高亮后首帧上传（字节） | 1,200,960 | 61,535,716 | 624,925,328 |
+| 点选 `snap.catchEntity` | 0.026 | 0.136 | 0.834 |
+| 点选后首帧 `render.frameAfterSelection` | 7.36 | 369.55 | 4,029.69 |
+| 全选框选 `selection.selectWindow` | 0.51 | 44.46 | 517.89 |
+| 框选选中数 | 968 | 48,506 | 484,876 |
+| 全选后首帧 `render.frameAfterSelection` | 13.04 | 607.28 | 6,818.60 |
+| 虚拟交点 `snap.nearestVirtualIntersection` | 0.006 | 0.019 | 0.103 |
+
+几点说明：
+
+- **P1 的代价**：换高亮、点选一个实体、全选，都会让文档画笔整图重建（删除全部缓存、重新分组、重新上传）。大图纸上一次约 3.8～4 秒，
+  全选后首帧 6.8 秒，每次重建上传约 625 MB。首帧耗时几乎全是 `render.regen`。这是渲染方案阶段 1（止血）与阶段 4 的主要改进对象，
+  `RENDER_PLAN.md` 第 8 节性能标准里"点选一个实体、悬停高亮变化：不触发任何几何重建；帧耗时小于 5 ms"就是对着这几行定的。
+- **稳态帧**只量 `paintGL` 在 CPU 上提交命令的时间：顶点早已在显存里，每帧只按画笔与类型发 119 次绘制调用，与图纸大小无关，
+  所以大图纸的稳态帧反而不慢；上传的 2,976 字节是背景、网格、原点标记这些每帧重新上传的立即模式图元。GPU 侧的耗时没有量。
+  小图纸的稳态帧比中、大图纸慢，原因没有追查（各只测了一次）。
+- 打开文档包含 DXF 插件的解析与建实体，不含建窗口与首帧。
+- 框选选中数比顶层实体数少约 3%：框取的是实体表范围外扩 1%，仍有实体没有完全落在框内（窗选只选完全落在框内的），原因没有追查。
+- 三份基准图纸里的填充都以多段线为边界，现在画不出来（`RENDER_PLAN.md` 第 10 节阶段 0 的记录），所以这里没有测到填充的绘制开销。
+- 同一台机器上第一次采集的结果与表中相差都在几个百分点以内（例如大图纸换高亮 3,793.85 与 3,764.95）。
+
+### 8.2 自动化测试用例数
+
+`<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
+
+| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 |
+|------------|------:|------:|
+| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） |
+| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） |
+| `test_persistence` | 68 | 68 |
+| `test_interaction` | 335 | 336 |
+| `test_render` | — | 15 |
+
+阶段 0 新增：`test_math` 的数量计数器与新计数器 4 个；`test_interaction` 的基线采集 1 个（不设 `YICAD_BENCHMARK_DIR` 时跳过）；
+`test_render`（新）的环境检查 2 个与参考图纸出图比对 13 个（缺 SHX 字体时 `text_shx` 跳过，CI 上就是这样）。

@@ -45,6 +45,7 @@
 #include "BuiltinExtensions.h"
 
 #include "Debug.h"
+#include "ScopedTimer.h"
 
 // 取消以下注释来引入VLD探测内存泄漏
 //#include "vld.h"
@@ -136,8 +137,14 @@ int App_Run(int argc, char* argv[])
         splash = nullptr;
     }
 
+    const int exitCode = app.exec();
+    // 埋点开启（YICAD_PROFILE=1）时退出前汇总一次；输出经 qDebug，在调试器输出窗口里看
+    if (yicad::Profiler::isEnabled())
+    {
+        yicad::Profiler::report();
+    }
     DEBUG->print(Debug::D_INFORMATIONAL, "YiCAD End!");
-    return app.exec();
+    return exitCode;
 }
 
 #ifdef Q_OS_WIN32

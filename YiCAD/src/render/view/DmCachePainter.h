@@ -81,11 +81,17 @@ public:
     /// @brief 缓存所有，包括：删除原来的vao，重新分组，缓存所有实体，缓存拖拽点
     void cacheAll();
 
-    /// @brief 绘制。如果已修改，重新缓存
+    /// @brief 整图重建：cacheAll() 并重新上传全部顶点，清除修改标记
+    void rebuild();
+
+    /// @brief 绘制。如果已修改，先 rebuild()
     void draw();
 
     /// @brief 指示实体集已修改，需要重新缓存
     void specifyModified();
+
+    /// @brief 实体集是否已修改，即下一次 draw() 是否要整图重建
+    bool isModified() const;
 
     //void specifySelectChanged();
 

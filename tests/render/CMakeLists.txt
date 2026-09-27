@@ -1,0 +1,39 @@
+# tests/render —— 渲染：参考图纸出图比对（doc/RENDER_PLAN.md 第 5 节 0.2 步）；
+# 第 3 阶段加 RHI 一致性测试，第 4 阶段起旧渲染器与 GS 各出一遍图。
+#
+# 出图用 Mesa 的软件 OpenGL（llvmpipe），结果在不同机器上一致，基准图像才能入库（第 7 节 D9）：
+# - tools/fetch_mesa.py 把 Mesa 取到 external/mesa/x64/（YICAD_MESA_DIR）；
+# - test_render 以延迟加载方式链接 opengl32.dll，启动时按完整路径装入 Mesa（MesaLoader.cpp）。
+#   Mesa 不放进 build/<cfg>/bin：那个目录会被 cmake --install 整个装进发布包。
+# 着色器从源码树的 YiCAD/res/shaders 读（环境变量 YICAD_SHADER_DIR，GLPainterCommon）。
+#
+# 参考图纸经 DXF 插件读入，插件运行时在 YiCadShell 里（与 test_interaction 的 test_dxf_encoding 相同）。
+
+set(YICAD_MESA_DIR "${CMAKE_SOURCE_DIR}/external/mesa/x64" CACHE PATH
+    "Mesa 软件 OpenGL（opengl32.dll 与 libgallium_wgl.dll）所在目录，出图测试 test_render 用；由 tools/fetch_mesa.py 取得")
+
+yicad_add_test(render
+    SOURCES
+        MesaLoader.cpp
+        RenderHarness.cpp
+        test_render_environment.cpp
+        test_render_reference.cpp
+    LINK YiCadShell
+    LABELS "render;unit")
+
+target_compile_definitions(test_render PRIVATE
+    YICAD_MESA_DIR="${YICAD_MESA_DIR}"
+    YICAD_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../YiCAD/res/shaders"
+    YICAD_SUPPORT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../YiCAD/support"
+    YICAD_RENDER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    YICAD_RENDER_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/output"
+    YICAD_DXF_PLUGIN_DLL="$<TARGET_FILE:YiCadDxfPlugin>")
+
+# 参考图纸经构建出来的 DXF 插件读入，插件先于测试构建
+add_dependencies(test_render YiCadDxfPlugin)
+
+# 进程启动时不装入系统的 opengl32.dll，留给 MesaLoader.cpp 先装入 Mesa
+if(MSVC)
+    target_link_options(test_render PRIVATE "/DELAYLOAD:opengl32.dll")
+    target_link_libraries(test_render PRIVATE delayimp)
+endif()

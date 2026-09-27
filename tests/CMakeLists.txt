@@ -7,6 +7,8 @@
 #   tests/persistence/  -> YiCadModel 的 model/io/
 #   tests/geometry/     -> YiCadModel 中的几何实体
 #   tests/interaction/  -> YiCadShell（带上 YiCadUi 及以下）与全部扩展库
+#   tests/render/       -> YiCadShell（读 DXF 的插件运行时在它里面）；出图用 Mesa 软件渲染，
+#                          见 render/CMakeLists.txt 与 doc/RENDER_PLAN.md 0.2 步
 #
 # 所有测试二进制以 test_ 开头：YiCAD/CMakeLists.txt 的安装规则按
 # "test_*" 模式把它们排除在安装包之外。
@@ -123,3 +125,4 @@ add_subdirectory(math)
 add_subdirectory(geometry)
 add_subdirectory(persistence)
 add_subdirectory(interaction)
+add_subdirectory(render)

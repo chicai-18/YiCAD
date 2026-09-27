@@ -287,6 +287,11 @@ uniform bool u_isHighlighted;
                 }
             }
         }
+        // 落在空白里：丢弃。不写 color 的片段输出是未定义值，NVIDIA 恰好当透明，Mesa llvmpipe 画成不透明（实线）
+        if(!color_set)
+        {
+            discard;
+        }
     }
 
     void set_line_blank_no_width(vec4 the_color, float para_round, float radius)
@@ -332,6 +337,11 @@ uniform bool u_isHighlighted;
                     break;
                 }
             }
+        }
+        // 落在空白里：丢弃，同 set_line_blank()
+        if(!color_set)
+        {
+            discard;
         }
     }
 

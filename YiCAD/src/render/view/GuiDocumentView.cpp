@@ -58,8 +58,11 @@
 #define CURSOR_SIZE 15
 #endif
 
+#include <optional>
 #include <set>
+#include <utility>
 #include "QString"
+#include "GLFrameStats.h"
 
 GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument* doc)
     : QOpenGLWidget(parent, f)
@@ -329,29 +332,36 @@ void GuiDocumentView::zoomAuto()
         }
         fx = fy = std::max(fx, fy);
 
-        if (m_pBackgroundPainter)
-        {
-            m_pBackgroundPainter->setViewPosition(center.x, center.y);
-            m_pBackgroundPainter->setScale(fx);
-        }
-        if (m_pDocumentPainter)
-        {
-            m_pDocumentPainter->setViewPosition(center.x, center.y);
-            m_pDocumentPainter->setScale(fx);
-        }
-        if (m_pPreviewPainter)
-        {
-            m_pPreviewPainter->setViewPosition(center.x, center.y);
-            m_pPreviewPainter->setScale(fx);
-        }
-        if (m_pForegroundPainter)
-        {
-            m_pForegroundPainter->setViewPosition(center.x, center.y);
-            m_pForegroundPainter->setScale(fx);
-        }
-
-        redraw();
+        setView(center, fx);  // 重绘并发出 viewChanged
+        return;
     }
+    emit viewChanged();
+}
+
+void GuiDocumentView::setView(const DmVector& center, double unitsPerPixel)
+{
+    if (m_pBackgroundPainter)
+    {
+        m_pBackgroundPainter->setViewPosition(center.x, center.y);
+        m_pBackgroundPainter->setScale(unitsPerPixel);
+    }
+    if (m_pDocumentPainter)
+    {
+        m_pDocumentPainter->setViewPosition(center.x, center.y);
+        m_pDocumentPainter->setScale(unitsPerPixel);
+    }
+    if (m_pPreviewPainter)
+    {
+        m_pPreviewPainter->setViewPosition(center.x, center.y);
+        m_pPreviewPainter->setScale(unitsPerPixel);
+    }
+    if (m_pForegroundPainter)
+    {
+        m_pForegroundPainter->setViewPosition(center.x, center.y);
+        m_pForegroundPainter->setScale(unitsPerPixel);
+    }
+
+    redraw();
     emit viewChanged();
 }
 
@@ -397,6 +407,12 @@ void GuiDocumentView::drawBackgroundLayer()
 
 void GuiDocumentView::drawDocumentLayer()
 {
+    // 整图重建单独计时（render.regen）：选择集、高亮集、文档的任何变化现在都走这里
+    if (m_pDocumentPainter->isModified())
+    {
+        YICAD_SCOPED_TIMER(yicad::counters::regen());
+        m_pDocumentPainter->rebuild();
+    }
     m_pDocumentPainter->draw();
 }
 
@@ -1034,6 +1050,11 @@ DmRect GuiDocumentView::getViewRect()
     return DmRect(toGraph(0, 0), toGraph(getWidth(), getHeight()));
 }
 
+void GuiDocumentView::setNextFrameCounter(yicad::TimerCounter& counter)
+{
+    m_pNextFrameCounter = &counter;
+}
+
 GuiGrid* GuiDocumentView::getGrid() const
 {
     return grid.get();
@@ -1290,6 +1311,14 @@ void GuiDocumentView::paintGL()
     // 帧耗时埋点。默认关闭，开启方式见 ScopedTimer.h；
     // 此前这里是每帧一次 std::cout，既污染帧耗时又用 system_clock 测时长（P11）。
     YICAD_SCOPED_TIMER(yicad::counters::paintGL());
+    // 某个变化之后的首帧另记一份，见 setNextFrameCounter()
+    std::optional<yicad::ScopedTimer> nextFrameTimer;
+    yicad::TimerCounter* nextFrameCounter = std::exchange(m_pNextFrameCounter, nullptr);
+    if (nextFrameCounter && yicad::Profiler::isEnabled())
+    {
+        nextFrameTimer.emplace(*nextFrameCounter);
+    }
+    opengl::GLFrameStats::beginFrame();
 
     // Qt 5 的 QOpenGLWidget 在每次 paintGL 之前清空颜色、深度、模板缓冲；Qt 6 在支持
     // glInvalidateFramebuffer（GL 4.3 起）的驱动上改为只作废 FBO 内容，不再清零。各绘制层
@@ -1308,6 +1337,8 @@ void GuiDocumentView::paintGL()
 
     // 绘制前景层
     drawForegroundLayer();
+
+    opengl::GLFrameStats::endFrame();
 }
 
 void GuiDocumentView::resizeGL(int w, int h)

@@ -187,6 +187,7 @@ When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/c
 | [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for the DXF plugin | Bundled source |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON serialization | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML parsing | Conan |
+| [Mesa 26.2.3](https://github.com/pal1000/mesa-dist-win) (llvmpipe) | Software OpenGL for the render tests (`test_render`) only; not linked into or shipped with YiCAD | `python tools/fetch_mesa.py` (pinned version and SHA-256) |
 
 ### ⑥ CMake Configure, Build & Install
 
@@ -403,6 +404,9 @@ Key modifications by YiCAD include:
 ### Third-Party Components
 
 Third-party components are subject to their own licenses. See the [`LICENSE`](LICENSE) file and [`licenses/`](licenses/) directory for details.
+Mesa (mainly MIT; the mesa-dist-win build of llvmpipe also contains LLVM, Apache-2.0 with LLVM
+exceptions) is used only to run `test_render`; it is fetched into the ignored `external/mesa/`
+directory and is neither linked into nor distributed with YiCAD.
 The DXF plugin bundles modified libdxfrw 2.2.0 source under
 `plugins/dxf_plugin/third_party/libdxfrw` under GPL-2.0-or-later. Its upstream
 `COPYING` file is retained, and the GPLv2 text is also available at

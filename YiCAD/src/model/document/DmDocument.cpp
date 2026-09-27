@@ -44,6 +44,7 @@
 #include "FilterInterface.h"
 #include "FilterOcdIO.h"
 #include "FilterRegistry.h"
+#include "ScopedTimer.h"
 
 namespace
 {
@@ -208,6 +209,7 @@ void DmDocument::initDoc()
 
 DmFileResult DmDocument::readFile(const QString& file)
 {
+    YICAD_SCOPED_TIMER(yicad::counters::openDocument());
     initDoc();
     std::unique_ptr<FilterInterface> filter = FilterRegistry::instance().importFilter(file);
     if (!filter)

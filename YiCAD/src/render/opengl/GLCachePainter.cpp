@@ -19,6 +19,7 @@
 /// @brief 带顶点缓存的OpenGL画笔实现，提供批量绘制和高性能渲染
 
 #include "GLCachePainter.h"
+#include "GLFrameStats.h"
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 #include <QColor>
@@ -702,12 +703,14 @@ void opengl::GLCachePainter::drawByMapAndType(GLCacheUnitMap& map, opengl::Cache
             for (jumpIt = jumps.begin(); jumpIt != jumps.end(); ++jumpIt)
             {
                 glDrawArrays(data.drawType, l, *(jumpIt));
+                GLFrameStats::addDrawCalls();
                 l += *(jumpIt);
             }
         }
         else
         {
             glMultiDrawArrays(data.drawType, data.startIndices.data(), data.jumps.data(), static_cast<GLsizei>(data.jumps.size()));	//比循环调用glDrawArrays()节省cpu时间
+            GLFrameStats::addDrawCalls();
         }
     }
 }
@@ -723,6 +726,7 @@ void opengl::GLCachePainter::drawSelectedPoints()
     data.vao.bind();
     data.vbo.bind();
     glDrawArrays(data.drawType, 0, static_cast<GLsizei>(data.vertexes.size()) / POINT_FLOAT_COUNT);	//GL_POINTS
+    GLFrameStats::addDrawCalls();
     glPointSize(RESET_POINT_SIZE);
 }
 

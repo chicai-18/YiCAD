@@ -33,6 +33,9 @@
 ///
 /// 汇总结果由 yicad::Profiler::report() 输出到 render 日志分类。
 ///
+/// 耗时之外还有数量计数器 ValueCounter（如一帧上传的字节数、一帧的绘制调用数），
+/// 开关与汇总相同，由调用方按自己的粒度（一般是每帧一次）取样。
+///
 /// 用法：
 /// @code
 ///     void GuiDocumentView::paintGL()
@@ -86,6 +89,39 @@ private:
     std::atomic<long long> m_maxNs{0};
 };
 
+/// @brief 一个具名数量计数器：每次取样记一个数值（字节数、调用次数等），累计次数、合计、最小、最大。
+///        进程内唯一，通过 counters 命名空间获取；是否取样由调用方先判断 Profiler::isEnabled()。
+class ValueCounter
+{
+public:
+    explicit ValueCounter(const char* name);
+
+    const char* name() const { return m_name; }
+
+    /// @brief 累加一次采样
+    /// @param [in] value 本次的数值
+    void addSample(long long value);
+
+    /// @brief 清空累计值
+    void reset();
+
+    long long count() const { return m_count.load(std::memory_order_relaxed); }
+    long long total() const { return m_total.load(std::memory_order_relaxed); }
+    /// @brief 最小值。无采样时为 LLONG_MAX，读之前先判 count() > 0。
+    long long min() const { return m_min.load(std::memory_order_relaxed); }
+    long long max() const { return m_max.load(std::memory_order_relaxed); }
+
+    /// @brief 平均值。无采样时返回 0。
+    double average() const;
+
+private:
+    const char* m_name;
+    std::atomic<long long> m_count{0};
+    std::atomic<long long> m_total{0};
+    std::atomic<long long> m_min{0};
+    std::atomic<long long> m_max{0};
+};
+
 /// @brief 埋点总开关与汇总输出
 class Profiler
 {
@@ -105,15 +141,23 @@ public:
     /// @brief 把全部计数器汇总输出到 render 日志分类（Info 级别）
     static void report();
 
-    /// @brief 清空全部计数器
+    /// @brief 全部计数器的汇总文本（耗时表与数量表），report() 输出的就是它
+    static std::string summary();
+
+    /// @brief 清空全部计数器（耗时与数量）
     static void resetAll();
 
-    /// @brief 全部已注册计数器，供测试与基线采集使用
+    /// @brief 全部已注册的耗时计数器，供测试与基线采集使用
     static std::vector<TimerCounter*> counters();
+
+    /// @brief 全部已注册的数量计数器，供测试与基线采集使用
+    static std::vector<ValueCounter*> valueCounters();
 
 private:
     friend class TimerCounter;
+    friend class ValueCounter;
     static void registerCounter(TimerCounter* counter);
+    static void registerCounter(ValueCounter* counter);
 
     static std::atomic<bool> s_enabled;
 };
@@ -143,11 +187,22 @@ private:
     std::chrono::steady_clock::time_point m_start;
 };
 
-/// @brief 方案阶段 0 要求的三个基线埋点位置（见 3.2 节第 3 条）
+/// @brief 内置计数器：架构演进方案阶段 0 的基线埋点（3.2 节第 3 条），
+///        以及渲染层重构方案阶段 0 的渲染埋点（RENDER_PLAN.md 第 5 节 0.1 步）
 namespace counters
 {
 /// @brief GuiDocumentView::paintGL 的帧耗时
 TimerCounter& paintGL();
+/// @brief 文档画笔的整图重建（删除全部缓存、重新分组、重新上传）的次数与耗时
+TimerCounter& regen();
+/// @brief 高亮集变化后的首帧耗时（命令里悬停到候选实体上时出现高亮）
+TimerCounter& frameAfterHighlight();
+/// @brief 选择集变化后的首帧耗时（点选、框选、全选）
+TimerCounter& frameAfterSelection();
+/// @brief 每帧上传到显存的字节数（顶点缓冲与纹理数据）
+ValueCounter& uploadBytes();
+/// @brief 每帧的绘制调用数（glDraw* 与 glMultiDraw* 的调用次数）
+ValueCounter& drawCalls();
 /// @brief Snapper::catchEntity 的拾取耗时
 TimerCounter& catchEntity();
 /// @brief SelectionSet::selectWindow 的框选耗时

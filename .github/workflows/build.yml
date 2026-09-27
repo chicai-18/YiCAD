@@ -16,7 +16,8 @@
 # outside application/view/ does not include the interactive view
 # (tools/check_layering.py).
 #
-# Unit tests run via ctest after the build.
+# Unit tests run via ctest after the build. test_render needs Mesa's software
+# OpenGL, fetched by tools/fetch_mesa.py right before the tests.
 #
 # Post-install scanning checks for:
 #   - DLL completeness
@@ -126,8 +127,32 @@ jobs:
         # doc/ARCHITECTURE_EVOLUTION_PLAN.md 6.7 and tools/measure_build.ps1.
         run: cmake --build build/Release --config Release -- -m
 
+      # test_render draws reference drawings with Mesa's software OpenGL (llvmpipe)
+      # and compares them with committed baseline images; the runner has no GPU,
+      # and llvmpipe gives the same pixels on every machine (doc/RENDER_PLAN.md D9).
+      # The Mesa version and checksum are pinned in the script; it extracts only
+      # opengl32.dll and libgallium_wgl.dll to external/mesa/x64 with 7-Zip.
+      - name: Cache Mesa
+        uses: actions/cache@v5
+        with:
+          path: external/mesa
+          key: mesa-${{ hashFiles('tools/fetch_mesa.py') }}
+
+      - name: Fetch Mesa (software OpenGL for test_render)
+        run: python tools/fetch_mesa.py
+
       - name: Test
         run: ctest --test-dir build/Release -C Release --output-on-failure
+
+      # On a render mismatch test_render writes <case>.actual.png and <case>.diff.png here
+      - name: Upload render test output
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: render-test-output
+          path: build/Release/tests/render/output/
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Install
         run: cmake --install build/Release --config Release

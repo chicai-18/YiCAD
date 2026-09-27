@@ -19,6 +19,7 @@
 /// @brief 不带缓存的OpenGL画笔实现，直接逐次提交绘制
 
 #include "GLPainter.h"
+#include "GLFrameStats.h"
 #include "GLVertexBufferLayout.h"
 #include "Debug.h"
 #include <glm/gtc/type_ptr.hpp>
@@ -189,6 +190,7 @@ void GLPainter::draw()
     for (it = jumps.begin(); it != jumps.end(); ++it)
     {
         glDrawArrays(renderMode, l, *(it));
+        GLFrameStats::addDrawCalls();
         l += *(it);
     }
 }

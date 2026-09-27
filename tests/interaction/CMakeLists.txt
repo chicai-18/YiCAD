@@ -4,6 +4,7 @@
 # DmDocumentListener 通知画布（分层重组 S3），文档的存盘策略 DocumentFileService（S4c），
 # 持有文档与存盘策略的每文档对象 AppDocument（选择集方案第 2 步），文档的选择集
 # SelectionSet（第 3 步），以及视图的高亮集 HighlightSet（高亮方案第 1 步）。
+# test_baseline_runtime 是基准图纸的运行期数据采集（渲染方案 0.1 步），设了 YICAD_BENCHMARK_DIR 才运行。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
 yicad_add_test(interaction
@@ -37,6 +38,7 @@ yicad_add_test(interaction
         test_ribbon_registry.cpp
         test_plugin_ui_adapter.cpp
         test_dxf_encoding.cpp
+        test_baseline_runtime.cpp
     # 用例用到壳层：UIActionHandler（test_command_dispatch、test_command_registry）、
     # UIRibbonManager（test_ribbon_registry、test_plugin_ui_adapter）与插件运行时
     # （test_plugin_ui_adapter、test_dxf_encoding）。YiCadUi 及以下是静态库，随它带入。

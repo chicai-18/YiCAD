@@ -45,8 +45,18 @@ opengl::GLPainterCommon::GLPainterCommon()
     , m_matChanged(true)
     , m_scale(MAT4_IDENTITY_VAL)
 {
-    auto resourcesPath = QCoreApplication::applicationDirPath().toStdString();
-    m_shader_path = resourcesPath + "/resources/shaders/";
+    // 着色器默认在 <程序目录>/resources/shaders/（cmake --install 复制）。环境变量 YICAD_SHADER_DIR
+    // 可以改到别的目录，出图测试（test_render）用它直接读源码树的 YiCAD/res/shaders，不依赖安装
+    const QString overrideDir = qEnvironmentVariable("YICAD_SHADER_DIR");
+    if (!overrideDir.isEmpty())
+    {
+        m_shader_path = overrideDir.toStdString() + "/";
+    }
+    else
+    {
+        auto resourcesPath = QCoreApplication::applicationDirPath().toStdString();
+        m_shader_path = resourcesPath + "/resources/shaders/";
+    }
 }
 
 opengl::GLPainterCommon::~GLPainterCommon()

@@ -6,7 +6,7 @@
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `09c9768` 实测。引用 `ARCHITECTURE_EVOLUTION_PLAN.md`
 > 时写作"演进方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。
-> 状态：方案阶段，尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
+> 状态：阶段 0 已完成（2026-09-27，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
 > D3（构建期 glslang + spirv-cross）、D5（插件实体的数据由宿主保管）、D6（代理图形随图纸存盘）、
 > D7（圆弧用片段着色器解析绘制）、D8（渲染侧在本方案内支持任意仿射变换；Model 侧的非等比块参照、炸开与去复制
 > 与 AutoCAD/ODA 一致，另立方案，见第 4.10 节）、D9（CI 用 Mesa 软件渲染跑出图测试）、D11（保留多重采样）、
@@ -536,7 +536,7 @@ AutoCAD 的简单线型在 `.lin` 文件里按图形单位（世界长度）定�
   半径 1 的圆会画成 9 个压缩的周期，要改。闭合样条暂按同样的整周期规则处理，发现问题再改。
   着色器里的对齐规则按记录选择模式（开放曲线居中、闭合曲线整周期），不写死。
 - **太短**：沿用 YiCAD 现在 `line.shader` 的做法：开放曲线短于一个完整周期时，图案里有划线的画实线，只有点的图案（如 DOT）只在两个端点各画一个点。
-  含点图案（DOT、DASHDOT）与 AutoCAD 的截图有出入，原因没有追查，发现问题再改（第 7 节 D10 说明）。
+  含点图案（DOT、DASHDOT）与 AutoCAD 的截图原以为有出入，阶段 0 拿到对照图纸后查明是那两条直线短于一个周期，符合本规则（第 7 节 D10 说明）。
 - **多段线**：由多段线自己的"线型生成"特性决定（AutoCAD 里在特性面板里是"线型生成：启用/禁用"，PEDIT 的"线型生成"选项可切换；
   系统变量 PLINEGEN 取 0 或 1，只决定新画的多段线的默认值）。禁用时（默认）每段单独按居中规则处理，闭合多段线也是如此，
   对照图里闭合四边形的四段分别居中，已确认；启用时整条多段线连续计算弧长、在顶点处不重新对齐。
@@ -1116,18 +1116,21 @@ Mesa 的 Windows 版本从固定版本的发布包下载，工作流里写死版
 | 圆，半径 1 | DASHED | 8 段划线、8 段空白，2:1，第一段划线从 0° 开始 | 周长是 8.38 个周期 → 8 |
 | 圆，半径 1.15 | DASHED | 10 段划线、10 段空白，2:1 | 9.63 个周期 → `round` 得 10（`floor` 会得 9） |
 | 椭圆，长短半轴 1 与 0.5 | DASHED | 6 段划线、6 段空白，按弧长 2:1，从长轴正端开始 | 6.46 个周期 → 6 |
-| 直线 | DOT | 只有两端各一个点 | 见下 |
-| 直线 | DASHDOT | 整条实线 | 见下 |
+| 直线，长 1.6 | DOT（图纸里周期 6.35） | 只有两端各一个点 | 短于一个周期，只画两端的点（阶段 0 补，见下） |
+| 直线，长 1.6 | DASHDOT（图纸里周期 25.4） | 整条实线 | 短于一个周期，画实线（阶段 0 补，见下） |
 
 结论（D10 定稿）：
 
 - 开放曲线（直线、圆弧、禁用线型生成的多段线的每一段）用居中规则，与 YiCAD 现在的 `line.shader` 一致，保留；
 - 圆与椭圆按整周期拉伸，周期数取 `round`，从起点开始，现有闭合曲线着色器（取 `ceil`）要改；
 - 含点的线型（DOT、DASHDOT）截图结果与"线长超过一个周期"时应有的点、划线对不上，原因没有追查。先沿用 YiCAD 现有着色器的做法
-  （短于一个周期时：有划线的图案画实线，只有点的图案只画两端的点；超过一个周期时按居中规则画），发现与 AutoCAD 不一致时再改；
+  （短于一个周期时：有划线的图案画实线，只有点的图案只画两端的点；超过一个周期时按居中规则画），发现与 AutoCAD 不一致时再改。
+  2026-09-27 补（阶段 0 拿到对照图纸 `tests/render/drawings/autocad_linetype.dxf` 后）：图纸里的 DOT 是 `0,-6.35`（周期 6.35）、
+  DASHDOT 是 `12.7,-6.35,0,-6.35`（周期 25.4），即 `acad.lin` 的英制定义乘 25.4，都比长 1.6 的直线长。所以两条直线都短于一个周期，
+  截图（DOT 只有两端的点、DASHDOT 整条实线）正是上面"太短"规则的结果，没有出入；
 - 启用"线型生成"的多段线、闭合样条暂按文档描述实现（前者整条连续、在顶点处不重新对齐；后者与圆、椭圆一样按整周期拉伸），发现问题再改。
 
-对照用的图纸放进 `test_render` 的参考图，作为以后修改时的回归依据。
+对照用的图纸放进 `test_render` 的参考图，作为以后修改时的回归依据（阶段 0 已放入：`tests/render/drawings/autocad_linetype.dxf`）。
 
 ---
 
@@ -1180,4 +1183,81 @@ Mesa 的 Windows 版本从固定版本的发布包下载，工作流里写死版
 
 ## 10. 执行记录
 
-（尚未开始）
+### 阶段 0（2026-09-27 完成）
+
+**开工前的摸底与用户的决定**
+
+- `yicad::Profiler::report()` 在程序里没有调用处，`document.open` 计数器也没接入，`BASELINE.md` 第 2 节的手工步骤读不出数字；
+  我也没法可靠地操作界面。用户决定：写自动采集用例（下文 0.1）。
+- Qt 自带的 `opengl32sw.dll` 是 Mesa 11.2.2（最高 GL 3.3），跑不了现有 `#version 430` 加几何着色器的着色器，要用 pal1000/mesa-dist-win。
+  `build/<cfg>/bin` 除 `test_*`、`*.lib`、`*.exp` 外整个被 `cmake --install` 装进发布包，D9 原话"把 `opengl32.dll` 放到测试程序旁边"
+  会把 Mesa 打进包，构建树里的 `YiCAD.exe` 也会改用软件渲染。用户决定：Mesa 解压到 `external/mesa/`，`test_render` 延迟加载
+  `opengl32.dll`（GLEW 是静态库，Qt 的 DLL 不静态导入 `opengl32.dll`，这样可行）。版本 26.2.3，
+  `mesa3d-26.2.3-release-msvc.7z`，71,063,681 字节，sha256 `3f3613adb43cfd0f2e665ce2400b130c275f0b3317cb3a05566320a3a67589ed`（用户下载，校验一致）。
+- 参考图纸：用户决定用 DXF（脚本生成，外加用户的 AutoCAD 对照图纸）。
+- 字体：SHX 字体按许可不入库，CI 上没有。用户决定：缺字体就跳过。
+
+**0.1 基线**
+
+- 新增计数器（`YiCAD/src/base/debug/ScopedTimer.h`）：
+  - `render.regen`：文档画笔的整图重建。`DmCachePainter::rebuild()` 从 `draw()` 里拆出，`GuiDocumentView::drawDocumentLayer()` 在重建时单独计时；
+  - `render.frameAfterHighlight`、`render.frameAfterSelection`：`UIView` 在高亮集、选择集变化时经新增的
+    `GuiDocumentView::setNextFrameCounter()` 标记，下一帧的耗时另记一份；点选与全选的区别由采集用例分开取样；
+  - `render.uploadBytes`、`render.drawCalls`：新增的数量计数器 `yicad::ValueCounter`（汇总里单列一张表），由
+    `opengl::GLFrameStats` 在 `glBufferData`、图片的 `glTexImage2D`、`glDrawArrays`/`glMultiDrawArrays` 处记账，`paintGL` 结束时每帧取样一次；
+  - `document.open` 接到 `DmDocument::readFile()`；`Main.cpp` 在埋点开启时退出前调 `Profiler::report()`（经 qDebug 输出，在调试器输出里看）。
+- 采集：`tests/interaction/test_baseline_runtime.cpp`，设 `YICAD_BENCHMARK_DIR` 才运行（同 `test_dxf_encoding` 的基准用例）。
+  在本机显卡上打开真实的 `UIView` 窗口，用代码依次做稳态帧、换高亮、点选（`Snapper::catchEntity`）、全选框选、虚拟交点，打印 Markdown 表。
+  重绘不用 `repaint()`：Qt 6 在合成窗口上把一个刷新周期内的多次 `repaint()` 合并成一次，连续调用只画一帧；改为 `update()` 后处理事件，
+  直到 `paintGL` 真的执行。数据与采集环境见 `BASELINE.md` 第 8 节。
+- 数据印证了 P1：大图纸（50 万实体）上换一次高亮、点选一个实体都要整图重建约 4 秒，全选后首帧约 7 秒；稳态帧的绘制调用固定 119 次，
+  与图纸大小无关（按画笔与类型合批）。
+
+**0.2 出图测试**
+
+- `tests/render/`（`test_render`，链接 `YiCadShell`：读 DXF 的插件运行时在里面；DXF 运行时从 `test_dxf_encoding.cpp` 抽到
+  `tests/support/DxfTestRuntime.h`，三处共用）：
+  - `MesaLoader.cpp`：`main` 之前设 `GALLIUM_DRIVER=llvmpipe`（mesa-dist-win 在有 D3D12 的机器上默认走 d3d12，又回到显卡）、
+    `QT_ENABLE_HIGHDPI_SCALING=0`（同 `Main.cpp`）、`YICAD_SHADER_DIR`，再按完整路径装入 `external/mesa/x64/opengl32.dll`；
+  - `RenderHarness.cpp`：读图纸，`GuiDocumentView` 离屏 `grabFramebuffer()`，与 `tests/render/baseline/*.png` 比对（通道差大于 16 算不同，
+    不同像素超过 0.2% 算不一致）；不一致时把实际图与差异图写到 `build/<cfg>/tests/render/output/`；`YICAD_RENDER_UPDATE_BASELINE=1` 时改写基准图像；
+  - 用例：环境检查 2 个（已装入 Mesa；GL 是 llvmpipe 且不低于 4.3）、参考图纸 13 个（实体全集、带网格、带选中与高亮、线型、线宽显示关与开、
+    颜色、块、离原点 3.5e6、图片、AutoCAD 线型对照、SHX 文字与标注、TrueType 文字）。
+- 参考图纸：`tools/gen_render_references.py` 生成 `tests/render/drawings/` 下 9 张 DXF 与一张测试图片（与生成结果一起提交），
+  `autocad_linetype.dxf` 是用户用 AutoCAD 画的 D10 对照图纸。基准图像 13 张，共约 200 KB。
+- 为测试补的产品代码：
+  - `GuiDocumentView::setView(中心, 每像素世界长度)`，`zoomAuto()` 改为调用它。测试按有限实体的范围取景：射线、构造线把实体表的范围撑到无穷大，
+    `zoomAuto()` 会缩到极远（程序里"全图"遇到构造线也是这样；AutoCAD 的范围缩放不计构造线，留待以后）；
+  - `GLPainterCommon` 认环境变量 `YICAD_SHADER_DIR`，`test_render` 直接读源码树的着色器（构建目录里没有，着色器由 `cmake --install` 复制）；
+  - 不显示在屏幕上的画布要 `WA_DontShowOnScreen` 加 `show()`：从不 `show()` 的 `QOpenGLWidget` 收不到尺寸事件，`resizeGL` 不被调用，画笔的设备尺寸是 0。
+- **Mesa 与显卡的差异及修正**：起初 Mesa 画出的直线、圆弧、椭圆、多段线的虚线全是实线，本机显卡（RTX 3070 Ti）画的是虚线。原因是
+  `YiCAD/res/shaders/common.inl` 的 `set_line_blank()`、`set_line_blank_no_width()` 在空白处既不写输出颜色也不 `discard`，
+  片段输出是未定义值：NVIDIA 恰好当透明，llvmpipe 画成不透明。闭合曲线的着色器末尾本来就有 `if(!color_set) discard;`，这里补上同一句。
+  修正后同一组参考图用 Mesa 与本机显卡各画一遍，每张不同像素都在 0.2% 以内（最多是 `entities` 的 0.16%，边缘光栅化的差别）。
+  用户说明着色器第 4 阶段要重写，旧着色器只补这一句。
+- 基准图像按现状记录，以下是图里看得到的已知问题，阶段 0 不修：
+  - 闭合样条画得断断续续：用户说明是几何着色器在线宽为 1 时效果不好（第 4 阶段去掉几何着色器）；
+  - 以多段线为边界的实心填充画不出来：`Edge::getPoints()`（`FindClosedRegion.cpp:104`）没有多段线分支，DXF 导入把多段线边界建成一条
+    `DmPolyline`（`HostApi.cpp:4817`），剖分得不到三角形。AutoCAD 的填充边界大多是多段线，三份基准图纸里的填充也是，所以基线没测到填充的绘制开销。
+    已另开任务；以直线边为边界的填充正常；
+  - 实心填充画成白色：`DmHatch::update()` 的实心分支建填充容器时父对象为空，三角形的 ByBlock 颜色解析不到填充，最后按 RGB 全 0 画白色（P12）；
+  - 块里 0 层、颜色随层的实体不随块参照所在的图层（`colors` 图后两个块参照里的白色对角线）；
+  - 非等比块参照 Y 比例大于 X 时圆仍画成圆（第 4.10.2 节）；
+  - 离原点 3.5e6 的图连背景都画不出，只剩一条线（P7）；
+  - 图片盖在直线上（第 6 节的绘图次序）；RGB 全 0 的实体画成白色（P12）；引线没有箭头（原因未查）。
+- DXF 读入的限制：控制点形式的闭合样条导入失败（未查原因），参考图纸改用首尾重合的拟合点；实体线型比例（组码 48）不导入。
+- 覆盖不到的：图案填充（`.pat` 由用户自备，本机与 CI 都没有）；SHX 文字与标注只在本机有 `txt.shx` 时出图（CI 上跳过），
+  测试把 `YiCAD/support/fonts` 设为字体目录（`DMSETTINGS` 的 `/Paths/Fonts`，结束时恢复）。
+
+**0.3 CI**
+
+- `tools/fetch_mesa.py`：写死版本与 sha256，下载后用 7-Zip 只解压 `x64/opengl32.dll`、`x64/libgallium_wgl.dll` 到 `external/mesa/x64/`；
+  版本一致时什么也不做；`--archive` 用已下载的包。
+- `.github/workflows/build.yml`：测试前缓存并运行 `tools/fetch_mesa.py`；出图测试失败时上传 `build/Release/tests/render/output/`。
+  README 的第三方表与许可说明加上 Mesa（只用于测试，不链接、不随产品分发）；`AGENTS.md` 的测试说明同步。
+- 本次没有推送，CI 未实际跑过。首次运行时要确认：CI 机器的 CPU 与本机不同，llvmpipe 的 JIT 代码可能有细微差别（容差应能覆盖）；
+  Windows Server 2022 的 Arial 若与本机不同，`text_truetype` 可能不过。
+
+**验证**：`cmake --build`、`ctest`（5 个测试程序全部通过，`test_render` 约 24 秒）、`cmake --install`、启动安装后的程序
+（加载的是系统 `OPENGL32.dll` 与 NVIDIA 驱动，没有混进 Mesa）、`python tools/check_layering.py` 通过。
+用例数：`test_math` 87（+4，数量计数器与新计数器）、`test_interaction` 336（+1，基线采集，默认跳过）、`test_render` 15（新）。

@@ -38,6 +38,7 @@
 #include "DmImage.h"
 #include "IHighlightSource.h"
 #include "ISelectionSource.h"
+#include "GLFrameStats.h"
 #include <QImage>
 #include <GL/glew.h>
 
@@ -108,14 +109,19 @@ void DmCachePainter::cacheAll()
     cacheSelectedPoints();
 }
 
+void DmCachePainter::rebuild()
+{
+    cacheAll();
+    m_cachePainter->generateGLData();
+    m_bIsModefied = false;
+}
+
 void DmCachePainter::draw()
 {
     //recache();
     if (m_bIsModefied)
     {
-        cacheAll();
-        m_cachePainter->generateGLData();
-        m_bIsModefied = false;
+        rebuild();
     }
     m_cachePainter->stroke();
 }
@@ -123,6 +129,11 @@ void DmCachePainter::draw()
 void DmCachePainter::specifyModified()
 {
     m_bIsModefied = true;
+}
+
+bool DmCachePainter::isModified() const
+{
+    return m_bIsModefied;
 }
 
 //void DmCachePainter::specifySelectChanged()
@@ -479,6 +490,7 @@ void DmCachePainter::cacheEntity(const DmEntity* e, int penId, opengl::CacheGrou
         QImage glImg = img.convertToFormat(QImage::Format_RGBA8888).mirrored();
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, glImg.width(), glImg.height(),
                      0, GL_RGBA, GL_UNSIGNED_BYTE, glImg.bits());
+        opengl::GLFrameStats::addUploadBytes(glImg.sizeInBytes());
         glBindTexture(GL_TEXTURE_2D, 0);
 
         m_cachePainter->addImage(penId, group, vertices, textureId);

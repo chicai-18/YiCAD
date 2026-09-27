@@ -20,6 +20,7 @@
 
 #include "GLVertexBuffer.h"
 #include <GL/glew.h>
+#include "GLFrameStats.h"
 
 using namespace opengl;
 
@@ -39,6 +40,7 @@ void GLVertexBuffer::gen(const void* data, unsigned int size)
     glGenBuffers(1, &m_vb_id);
     glBindBuffer(GL_ARRAY_BUFFER, m_vb_id);
     glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+    GLFrameStats::addUploadBytes(size);
 }
 
 // 绑定命名缓冲区对象

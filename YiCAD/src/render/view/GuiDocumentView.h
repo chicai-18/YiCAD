@@ -59,6 +59,11 @@ namespace opengl
 class GLPainter;
 }
 
+namespace yicad
+{
+class TimerCounter;
+}
+
 /// @brief 文档的画布
 /// @details 包括4层：背景层，文档层，预览层，前景层。本类只负责渲染与视图状态，
 ///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（application/view/UIView.h）
@@ -160,6 +165,10 @@ public:
     void zoomOut(double f = 1.5, const DmVector& center = DmVector(false)) override;
     /// @brief 适屏显示
     void zoomAuto() override;
+    /// @brief 直接设定视图：画布中心对应的世界坐标与比例；画笔未建立（initializeGL 之前）时不起作用
+    /// @param center 画布中心的世界坐标
+    /// @param unitsPerPixel 每像素的世界长度
+    void setView(const DmVector& center, double unitsPerPixel);
     /// @brief 移动视图
     /// @param dx X 方向偏移
     /// @param dy Y 方向偏移
@@ -257,6 +266,10 @@ public:
     /// @brief 获得视图范围（世界坐标）
     DmRect getViewRect() override;
 
+    /// @brief 下一帧的耗时另记一份到指定计数器（埋点开启时），用于统计某个变化之后的首帧
+    /// @param counter 进程内的计数器（yicad::counters 里的一个）；同一帧之前多次设置时以最后一次为准
+    void setNextFrameCounter(yicad::TimerCounter& counter);
+
     void setStrDevice(const QString& strDevice);
     /// @brief 输入设备名称（"Mouse"/"Trackpad"），决定滚轮的解释方式
     const QString& getStrDevice() const;
@@ -337,6 +350,7 @@ private:
     DmVector                            m_overlayCorner2;           ///< 选择框角点2
 
     QLabel*                             m_snapTooltip = nullptr;    ///< 捕捉类型文字提示
+    yicad::TimerCounter*                m_pNextFrameCounter = nullptr; ///< 下一帧的耗时另记一份的计数器，见 setNextFrameCounter()
     QTimer*                             m_snapTooltipTimer = nullptr; ///< 捕捉提示隐藏定时器
 
 signals:

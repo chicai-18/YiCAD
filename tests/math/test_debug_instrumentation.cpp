@@ -7,8 +7,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "ScopedTimer.h"
 #include "YiCadLog.h"
@@ -174,6 +177,90 @@ TEST(ScopedTimerTest, 方案要求的四个基线计数器都已注册)
     EXPECT_TRUE(has("snap.catchEntity"));
     EXPECT_TRUE(has("selection.selectWindow"));
     EXPECT_TRUE(has("snap.nearestVirtualIntersection"));
+}
+
+TEST(ScopedTimerTest, 渲染方案阶段0的计数器都已注册)
+{
+    // RENDER_PLAN.md 0.1 步：整图重建、首帧耗时两个耗时计数器，上传字节与绘制调用两个数量计数器
+    yicad::counters::regen();
+    yicad::counters::frameAfterHighlight();
+    yicad::counters::frameAfterSelection();
+    yicad::counters::uploadBytes();
+    yicad::counters::drawCalls();
+
+    std::vector<std::string> timers;
+    for (const yicad::TimerCounter* c : yicad::Profiler::counters())
+    {
+        timers.emplace_back(c->name());
+    }
+    std::vector<std::string> values;
+    for (const yicad::ValueCounter* c : yicad::Profiler::valueCounters())
+    {
+        values.emplace_back(c->name());
+    }
+    auto contains = [](const std::vector<std::string>& names, const char* name) {
+        return std::find(names.begin(), names.end(), name) != names.end();
+    };
+
+    EXPECT_TRUE(contains(timers, "render.regen"));
+    EXPECT_TRUE(contains(timers, "render.frameAfterHighlight"));
+    EXPECT_TRUE(contains(timers, "render.frameAfterSelection"));
+    EXPECT_TRUE(contains(values, "render.uploadBytes"));
+    EXPECT_TRUE(contains(values, "render.drawCalls"));
+}
+
+// ---------------------------------------------------------------------------
+// 数量计数器
+// ---------------------------------------------------------------------------
+
+namespace
+{
+/// @brief 测试专用数量计数器
+yicad::ValueCounter& testValueCounter()
+{
+    static yicad::ValueCounter counter("test.value");
+    return counter;
+}
+}  // namespace
+
+TEST(ValueCounterTest, 累计次数合计最小最大与平均)
+{
+    testValueCounter().reset();
+
+    testValueCounter().addSample(10);
+    testValueCounter().addSample(0);
+    testValueCounter().addSample(50);
+
+    EXPECT_EQ(testValueCounter().count(), 3);
+    EXPECT_EQ(testValueCounter().total(), 60);
+    EXPECT_EQ(testValueCounter().min(), 0);
+    EXPECT_EQ(testValueCounter().max(), 50);
+    EXPECT_DOUBLE_EQ(testValueCounter().average(), 20.0);
+}
+
+TEST(ValueCounterTest, resetAll也清空数量计数器)
+{
+    testValueCounter().addSample(7);
+    ASSERT_GT(testValueCounter().count(), 0);
+
+    yicad::Profiler::resetAll();
+
+    EXPECT_EQ(testValueCounter().count(), 0);
+    EXPECT_EQ(testValueCounter().total(), 0);
+    EXPECT_DOUBLE_EQ(testValueCounter().average(), 0.0);
+}
+
+TEST(ValueCounterTest, 汇总文本列出有采样的数量计数器)
+{
+    yicad::Profiler::resetAll();
+    testValueCounter().addSample(1234);
+
+    const std::string text = yicad::Profiler::summary();
+
+    EXPECT_NE(text.find("test.value"), std::string::npos) << text;
+    EXPECT_NE(text.find("1234"), std::string::npos) << text;
+    // 没有采样的计数器不出现在汇总里
+    EXPECT_EQ(text.find("render.drawCalls"), std::string::npos) << text;
 }
 
 // ---------------------------------------------------------------------------

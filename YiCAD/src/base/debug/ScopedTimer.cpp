@@ -39,6 +39,12 @@ std::vector<TimerCounter*>& registry()
     return instance;
 }
 
+std::vector<ValueCounter*>& valueRegistry()
+{
+    static std::vector<ValueCounter*> instance;
+    return instance;
+}
+
 std::mutex& registryMutex()
 {
     static std::mutex instance;
@@ -112,6 +118,43 @@ double TimerCounter::averageMs() const
 }
 
 // ---------------------------------------------------------------------------
+// ValueCounter
+// ---------------------------------------------------------------------------
+
+ValueCounter::ValueCounter(const char* name)
+    : m_name(name)
+{
+    m_min.store(std::numeric_limits<long long>::max(), std::memory_order_relaxed);
+    Profiler::registerCounter(this);
+}
+
+void ValueCounter::addSample(long long value)
+{
+    m_count.fetch_add(1, std::memory_order_relaxed);
+    m_total.fetch_add(value, std::memory_order_relaxed);
+    atomicMin(m_min, value);
+    atomicMax(m_max, value);
+}
+
+void ValueCounter::reset()
+{
+    m_count.store(0, std::memory_order_relaxed);
+    m_total.store(0, std::memory_order_relaxed);
+    m_min.store(std::numeric_limits<long long>::max(), std::memory_order_relaxed);
+    m_max.store(0, std::memory_order_relaxed);
+}
+
+double ValueCounter::average() const
+{
+    const long long n = count();
+    if (n <= 0)
+    {
+        return 0.0;
+    }
+    return static_cast<double>(total()) / static_cast<double>(n);
+}
+
+// ---------------------------------------------------------------------------
 // Profiler
 // ---------------------------------------------------------------------------
 
@@ -119,6 +162,12 @@ void Profiler::registerCounter(TimerCounter* counter)
 {
     std::lock_guard<std::mutex> guard(registryMutex());
     registry().push_back(counter);
+}
+
+void Profiler::registerCounter(ValueCounter* counter)
+{
+    std::lock_guard<std::mutex> guard(registryMutex());
+    valueRegistry().push_back(counter);
 }
 
 void Profiler::setEnabled(bool enabled)
@@ -132,6 +181,11 @@ void Profiler::configureFromEnvironment()
     // 这样 report() 即使在某条路径一次都没走到时也能把它列出来
     // （「这一项没有采样」和「这一项不存在」是两回事）。
     counters::paintGL();
+    counters::regen();
+    counters::frameAfterHighlight();
+    counters::frameAfterSelection();
+    counters::uploadBytes();
+    counters::drawCalls();
     counters::catchEntity();
     counters::selectWindow();
     counters::nearestVirtualIntersection();
@@ -160,15 +214,30 @@ std::vector<TimerCounter*> Profiler::counters()
     return registry();
 }
 
+std::vector<ValueCounter*> Profiler::valueCounters()
+{
+    std::lock_guard<std::mutex> guard(registryMutex());
+    return valueRegistry();
+}
+
 void Profiler::resetAll()
 {
     for (TimerCounter* counter : counters())
     {
         counter->reset();
     }
+    for (ValueCounter* counter : valueCounters())
+    {
+        counter->reset();
+    }
 }
 
 void Profiler::report()
+{
+    YICAD_LOG(log::render(), LogLevel::Info) << summary();
+}
+
+std::string Profiler::summary()
 {
     const std::vector<TimerCounter*> all = counters();
 
@@ -197,12 +266,37 @@ void Profiler::report()
             << std::setw(14) << toMs(counter->totalNs()) << "\n";
     }
 
-    if (!any)
+    bool anyValue = false;
+    for (const ValueCounter* counter : valueCounters())
+    {
+        if (counter->count() <= 0)
+        {
+            continue;
+        }
+        if (!anyValue)
+        {
+            out << std::left << std::setw(32) << "数量计数器"
+                << std::right << std::setw(10) << "次数"
+                << std::setw(16) << "平均"
+                << std::setw(14) << "最小"
+                << std::setw(14) << "最大"
+                << std::setw(18) << "合计" << "\n";
+            anyValue = true;
+        }
+        out << std::left << std::setw(32) << counter->name()
+            << std::right << std::setw(10) << counter->count()
+            << std::setw(16) << std::fixed << std::setprecision(1) << counter->average()
+            << std::setw(14) << counter->min()
+            << std::setw(14) << counter->max()
+            << std::setw(18) << counter->total() << "\n";
+    }
+
+    if (!any && !anyValue)
     {
         out << "（无采样；用 YICAD_PROFILE=1 开启埋点）";
     }
 
-    YICAD_LOG(log::render(), LogLevel::Info) << out.str();
+    return out.str();
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +308,36 @@ namespace counters
 TimerCounter& paintGL()
 {
     static TimerCounter counter("render.paintGL");
+    return counter;
+}
+
+TimerCounter& regen()
+{
+    static TimerCounter counter("render.regen");
+    return counter;
+}
+
+TimerCounter& frameAfterHighlight()
+{
+    static TimerCounter counter("render.frameAfterHighlight");
+    return counter;
+}
+
+TimerCounter& frameAfterSelection()
+{
+    static TimerCounter counter("render.frameAfterSelection");
+    return counter;
+}
+
+ValueCounter& uploadBytes()
+{
+    static ValueCounter counter("render.uploadBytes");
+    return counter;
+}
+
+ValueCounter& drawCalls()
+{
+    static ValueCounter counter("render.drawCalls");
     return counter;
 }
 

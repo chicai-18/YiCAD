@@ -36,6 +36,7 @@
 #include "HighlightSet.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
+#include "ScopedTimer.h"
 #include "SelectTool.h"
 #include "SelectionSet.h"
 #include "Snapper.h"
@@ -61,6 +62,7 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
         connect(m_pSelection, &SelectionSet::changed, this, [this]()
         {
             specifyDocumentModified();
+            setNextFrameCounter(yicad::counters::frameAfterSelection());
             redraw();
         });
         // 文档画笔从本视图的高亮集取要高亮的实体，高亮改变时同样重建缓存并重绘
@@ -69,6 +71,7 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
         connect(m_pHighlight.get(), &HighlightSet::changed, this, [this]()
         {
             specifyDocumentModified();
+            setNextFrameCounter(yicad::counters::frameAfterHighlight());
             redraw();
         });
         m_pSelectTool = std::make_unique<SelectTool>(document, m_pSelection, this, m_pSelectSnapper.get(),
