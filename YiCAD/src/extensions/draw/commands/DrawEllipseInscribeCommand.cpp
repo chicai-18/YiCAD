@@ -36,6 +36,7 @@
 #include "DmLine.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
@@ -93,7 +94,6 @@ protected:
     void updateHints() override;
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
-    void onFinish() override { clearLines(false); }
 
 private:
     /// @brief 选中的直线与求出的椭圆
@@ -121,14 +121,7 @@ private:
     void commit()
     {
         m_command.commitEllipse(m_points.eData);
-        for (DmLine* const p : m_points.lines)
-        {
-            if (p)
-            {
-                p->setHighlighted(false);
-                view()->redraw();
-            }
-        }
+        command().highlight()->clear();
         snapper()->drawSnapper();
         clearLines(false);
         if (snapper()->getSnapMode()->restriction == DM::RestrictOrthogonal)
@@ -156,8 +149,7 @@ void DrawEllipseInscribeTool::clearLines(bool checkStatus)
         {
             break;
         }
-        m_points.lines.back()->setHighlighted(false);
-        view()->redraw();
+        command().highlight()->remove(m_points.lines.back());
         m_points.lines.pop_back();
     }
 }
@@ -187,8 +179,9 @@ void DrawEllipseInscribeTool::onMouseMove(QMouseEvent* e)
         m_points.lines.push_back(static_cast<DmLine*>(en));
         if (preparePreview())
         {
-            m_points.lines.back()->setHighlighted(true);
-            view()->redraw();
+            command().highlight()->add(m_points.lines.back());
+            // 预览里只有椭圆（已选的线不再以克隆放进预览），换第四条线时换掉上一个椭圆
+            m_command.preview().clear();
             DmEllipse* ellipse = new DmEllipse(m_command.preview().entities().getEntityContainer(), m_points.eData);
             ellipse->setDocument(document());
             m_command.preview().entities().addEntity(ellipse);
@@ -244,15 +237,10 @@ void DrawEllipseInscribeTool::onMouseRelease(QMouseEvent* e)
         case SetLine1:
         case SetLine2:
         case SetLine3:
-            {
-                DmEntity* li = en->clone();
-                li->setDocument(document());
-                li->setHighlighted(true);
-                li->setParent(nullptr);
-                m_command.preview().entities().addEntity(li);
-                setStatus(status() + 1);
-                break;
-            }
+            // 已选的线直接高亮，不再往预览里放高亮的克隆（doc/HIGHLIGHT_SET_PLAN.md D6）
+            command().highlight()->add(en);
+            setStatus(status() + 1);
+            break;
 
         case SetLine4:
             if (preparePreview())
@@ -271,8 +259,7 @@ void DrawEllipseInscribeTool::onMouseRelease(QMouseEvent* e)
         if (status() > 0)
         {
             clearLines(true);
-            m_points.lines.back()->setHighlighted(false);
-            view()->redraw();
+            command().highlight()->remove(m_points.lines.back());
             m_points.lines.pop_back();
             m_command.preview().clear();
         }

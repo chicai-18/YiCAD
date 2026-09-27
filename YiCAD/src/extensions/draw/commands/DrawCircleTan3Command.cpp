@@ -41,6 +41,7 @@
 #include "DmPoint.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Information.h"
@@ -100,22 +101,6 @@ protected:
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
 
-    void onFinish() override
-    {
-        if (!m_points.circles.empty())
-        {
-            for (DmAtomicEntity* const pc : m_points.circles)
-            {
-                if (pc)
-                {
-                    pc->setHighlighted(false);
-                }
-            }
-            view()->redraw();
-            m_points.circles.clear();
-        }
-    }
-
 private:
     /// @brief 采集的实体与求出的候选圆
     struct Points
@@ -148,14 +133,7 @@ private:
     void commit()
     {
         m_command.commitCircle(*m_points.cData);
-        for (DmAtomicEntity* const pc : m_points.circles)
-        {
-            if (pc)
-            {
-                pc->setHighlighted(false);
-            }
-        }
-        view()->redraw();
+        command().highlight()->clear();
         m_points.circles.clear();
         setStatus(SetCircle1);
     }
@@ -462,8 +440,7 @@ void DrawCircleTan3Tool::onMouseRelease(QMouseEvent* e)
                 m_points.circles.push_back(static_cast<DmAtomicEntity*>(en));
                 if (status() <= SetCircle2 || (status() == SetCircle3 && getData()))
                 {
-                    m_points.circles.at(m_points.circles.size() - 1)->setHighlighted(true);
-                    view()->redraw();
+                    command().highlight()->add(m_points.circles.back());
                     setStatus(status() + 1);
                 }
             }
@@ -485,9 +462,8 @@ void DrawCircleTan3Tool::onMouseRelease(QMouseEvent* e)
         // Return to last status:
         if (status() > 0)
         {
-            m_points.circles[status() - 1]->setHighlighted(false);
+            command().highlight()->remove(m_points.circles[status() - 1]);
             m_points.circles.pop_back();
-            view()->redraw();
             m_command.preview().clear();
         }
         init(status() - 1);

@@ -35,6 +35,7 @@
 #include "EntityTable.h"
 #include "GeUtility.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
@@ -130,14 +131,12 @@ protected:
                 e, EntityTypeList{DM::EntityArc, DM::EntityCircle, DM::EntityEllipse}, DM::ResolveAll);
             if (en)
             {
-                if (m_circle)
+                if (m_circle != en)
                 {
-                    m_circle->setHighlighted(false);
+                    command().highlight()->remove(m_circle);
                 }
                 m_circle = en;
-                m_circle->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->add(m_circle);
                 m_tangent.reset(createTangent(mouse));
                 if (m_tangent)
                 {
@@ -157,12 +156,7 @@ protected:
         if (e->button() == Qt::RightButton)
         {
             m_command.preview().clear();
-            if (m_circle)
-            {
-                m_circle->setHighlighted(false);
-                view()->specifyDocumentModified();
-                view()->redraw();
-            }
+            command().highlight()->clear();
             stepBack();
             return;
         }
@@ -175,12 +169,7 @@ protected:
         case SetCircle:
             if (m_tangent)
             {
-                if (m_circle)
-                {
-                    m_circle->setHighlighted(false);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
-                }
+                command().highlight()->clear();
                 m_command.commitTangent(m_tangent->getData());
                 setStatus(SetPoint);
                 m_tangent.reset();
@@ -198,14 +187,6 @@ protected:
             m_point = pos;
             view()->moveRelativeZero(m_point);
             setStatus(SetCircle);
-        }
-    }
-
-    void onFinish() override
-    {
-        if (m_circle)
-        {
-            m_circle->setHighlighted(false);
         }
     }
 

@@ -37,6 +37,7 @@
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Information.h"
@@ -77,8 +78,6 @@ protected:
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
     void onCommand(GuiCommandEvent* e) override;
-    /// @brief 原 Action 在析构时取消高亮
-    void onFinish() override { unhighlightEntity(); }
 
 private:
     /// @brief 倒角计算结果
@@ -121,7 +120,7 @@ private:
     void trigger();
     DmVector setmousePoint(const DmVector& m_p, DmEntity* e);
     QStringList availableCommands() const;
-    void unhighlightEntity();
+    void clearHighlight();
 
     ModifyBevelCommand& m_command;
     DmEntity* entity1 = nullptr;         ///< 第一个选中实体
@@ -133,15 +132,11 @@ private:
 };
 }  // namespace
 
-void ModifyBevelTool::unhighlightEntity()
+/// @brief 取消全部高亮：选第一个实体时光标换了实体、提交或退回时
+void ModifyBevelTool::clearHighlight()
 {
-    if (prevHighlighted)
-    {
-        prevHighlighted->setHighlighted(false);
-        view()->specifyDocumentModified();
-        view()->redraw();
-        prevHighlighted = nullptr;
-    }
+    command().highlight()->clear();
+    prevHighlighted = nullptr;
 }
 
 ModifyBevelTool::BevelResult ModifyBevelTool::computeBevel(
@@ -295,7 +290,8 @@ void ModifyBevelTool::trigger()
 
     t.commit();
 
-    unhighlightEntity();
+    // 不依赖修改命令清掉第一个实体的高亮：不裁剪时它不被修改
+    clearHighlight();
     m_points.coord1 = DmVector(false);
     entity1 = nullptr;
     m_points.coord2 = DmVector(false);
@@ -338,13 +334,11 @@ void ModifyBevelTool::onMouseMove(QMouseEvent* e)
     {
         if (se != prevHighlighted)
         {
-            unhighlightEntity();
+            clearHighlight();
             entity1 = se;
             if (entity1)
             {
-                entity1->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->add(entity1);
                 prevHighlighted = entity1;
             }
         }
@@ -356,18 +350,14 @@ void ModifyBevelTool::onMouseMove(QMouseEvent* e)
     {
         if (se != prevHighlighted)
         {
-            if (prevHighlighted && prevHighlighted != entity1)
+            if (prevHighlighted != entity1)
             {
-                prevHighlighted->setHighlighted(false);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->remove(prevHighlighted);
             }
             entity2 = se;
             if (entity2 && entity2 != entity1)
             {
-                entity2->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->add(entity2);
                 prevHighlighted = entity2;
             }
             else
@@ -449,6 +439,8 @@ void ModifyBevelTool::onMouseRelease(QMouseEvent* e)
             m_points.coord1 = setmousePoint(mouse, entity1);
             if (entity1 && !entity1->isContainer() && !isEndPt && Modification::isCutableEntity(entity1))
             {
+                // 没有先移动光标就点的（提交后接着点），悬停时没有高亮它
+                command().highlight()->add(entity1);
                 setStatus(SetEntity2);
             }
         }
@@ -471,7 +463,7 @@ void ModifyBevelTool::onMouseRelease(QMouseEvent* e)
     }
     else if (e->button() == Qt::RightButton)
     {
-        unhighlightEntity();
+        clearHighlight();
         m_command.preview().clear();
         init(status() - 1);
     }

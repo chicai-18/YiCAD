@@ -36,6 +36,7 @@
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Information.h"
@@ -104,10 +105,8 @@ public:
         : BasePlaceTool(command, doc, view)
         , m_command(command)
     {
-        // 原 init(0)：捕捉器挂起（选线不捕捉），刷新高亮
+        // 原 init(0)：捕捉器挂起（选线不捕捉）
         snapper()->suspend();
-        view->specifyDocumentModified();
-        view->redraw();
     }
 
     std::optional<DM::CursorType> getCursor() const override { return DM::SelectCursor; }
@@ -146,27 +145,17 @@ protected:
         {
         case SetLine1:
         {
-            // 悬停的直线高亮
+            // 悬停的直线高亮；离开直线时取消，回到同一条线上再高亮
             DmEntity* en = snapper()->catchEntity(e, DM::ResolveAll);
-            if (en && en->getEntityType() == DM::EntityLine)
+            if (!(en && en->getEntityType() == DM::EntityLine))
             {
-                if (m_hovered != en)
-                {
-                    if (m_hovered && m_hovered->isHighlighted())
-                    {
-                        m_hovered->setHighlighted(false);
-                    }
-                    m_hovered = en;
-                    m_hovered->setHighlighted(true);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
-                }
+                en = nullptr;
             }
-            else if (m_hovered && m_hovered->isHighlighted())
+            if (m_hovered != en)
             {
-                m_hovered->setHighlighted(false);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->remove(m_hovered);
+                m_hovered = en;
+                command().highlight()->add(m_hovered);
             }
             break;
         }
@@ -181,25 +170,18 @@ protected:
             }
             if (en && en->getEntityType() == DM::EntityLine)
             {
-                if (m_line2 && m_line2->isHighlighted())
+                if (m_line2 != en)
                 {
-                    m_line2->setHighlighted(false);
+                    command().highlight()->remove(m_line2);
                 }
                 m_line2 = static_cast<DmLine*>(en);
-                m_line2->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->add(m_line2);
                 m_command.previewBisectors(m_coord1, m_coord2, m_line1, m_line2);
             }
             else
             {
                 m_command.preview().clear();
-                if (m_line2 && m_line2->isHighlighted())
-                {
-                    m_line2->setHighlighted(false);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
-                }
+                command().highlight()->remove(m_line2);
                 m_line2 = nullptr;
             }
             break;
@@ -229,9 +211,7 @@ protected:
             if (en && en->getEntityType() == DM::EntityLine)
             {
                 m_line1 = static_cast<DmLine*>(en);
-                m_line1->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->add(m_line1);
                 m_line2 = nullptr;
                 setStatus(SetLine2);
             }
@@ -240,13 +220,7 @@ protected:
 
         case SetLine2:
             m_coord2 = mouse;
-            for (DmLine* line : {m_line1, m_line2})
-            {
-                if (line && line->isHighlighted())
-                {
-                    line->setHighlighted(false);
-                }
-            }
+            clearHighlight();
             m_command.commitBisectors(m_coord1, m_coord2, m_line1, m_line2);
             setStatus(SetLine1);
             break;
@@ -336,30 +310,12 @@ protected:
         }
     }
 
-    void onFinish() override
-    {
-        // 原先悬停高亮记在函数内的静态变量里、命令结束时不取消；现在记在工具里，结束时取消
-        if (m_hovered && m_hovered->isHighlighted())
-        {
-            m_hovered->setHighlighted(false);
-        }
-    }
-
 private:
-    /// @brief 回到某一状态（原 init(status)）：status < 0 时结束命令；退回第一步时取消第二条线的高亮
+    /// @brief 回到某一状态（原 init(status)）：status < 0 时结束命令；退回第一步时取消全部高亮
     void init(int s)
     {
         if (s < 0)
         {
-            for (DmLine* line : {m_line2, m_line1})
-            {
-                if (line && line->isHighlighted())
-                {
-                    line->setHighlighted(false);
-                }
-            }
-            view()->specifyDocumentModified();
-            view()->redraw();
             command().finish();
             return;
         }
@@ -368,13 +324,15 @@ private:
         snapper()->suspend();
         if (s < SetLine2)
         {
-            if (m_line2 && m_line2->isHighlighted())
-            {
-                m_line2->setHighlighted(false);
-            }
-            view()->specifyDocumentModified();
-            view()->redraw();
+            clearHighlight();
         }
+    }
+
+    /// @brief 取消全部高亮（提交或退回第一步时），光标下的直线等下次移动时重新高亮
+    void clearHighlight()
+    {
+        command().highlight()->clear();
+        m_hovered = nullptr;
     }
 
     /// @brief 当前状态下可用的命令行命令（help 列出）

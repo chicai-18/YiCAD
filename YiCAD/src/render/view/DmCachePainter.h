@@ -112,7 +112,7 @@ public:
     void setSelectionSource(const ISelectionSource* source);
 
     /// @brief 设置要高亮的实体的来源，并标记需要重新缓存
-    /// @param source 非持有指针，可为空；为空时没有实体按来源高亮
+    /// @param source 非持有指针，可为空；为空时没有实体按高亮绘制
     void setHighlightSource(const IHighlightSource* source);
 
 private:
@@ -150,7 +150,7 @@ private:
 private:
     opengl::GLCachePainter* m_cachePainter = nullptr; ///< 画笔
     const ISelectionSource* m_selectionSource = nullptr; ///< 判断实体是否选中的来源，为空时没有实体选中
-    const IHighlightSource* m_highlightSource = nullptr; ///< 要高亮的实体的来源，为空时没有实体按来源高亮
+    const IHighlightSource* m_highlightSource = nullptr; ///< 要高亮的实体的来源，为空时没有实体高亮
 
     std::unordered_map<int, std::list<opengl::CacheType>> m_recacheTypes;
 

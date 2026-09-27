@@ -95,7 +95,7 @@ public:
     /// @param source 非持有指针，可为空（没有实体按选中绘制）；必须比本画布活得久或在释放前置空
     void setDocumentSelectionSource(const ISelectionSource* source);
     /// @brief 设置文档画笔取要高亮的实体的来源（视图的高亮集）；预览画笔不设来源，预览不涉及高亮
-    /// @param source 非持有指针，可为空（没有实体按来源高亮）；必须比本画布活得久或在释放前置空
+    /// @param source 非持有指针，可为空（没有实体按高亮绘制）；必须比本画布活得久或在释放前置空
     void setDocumentHighlightSource(const IHighlightSource* source);
     /// @brief 设置文档对象：从原文档注销监听，在新文档注册
     /// @param pDoc 文档对象指针，可为空

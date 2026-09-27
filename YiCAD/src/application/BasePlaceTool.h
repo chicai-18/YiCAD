@@ -125,7 +125,8 @@ protected:
     virtual void onKeyPress(QKeyEvent* e);
     /// @brief 按键释放；默认不接受
     virtual void onKeyRelease(QKeyEvent* e);
-    /// @brief 命令结束时（捕捉会话结束之前）调用：取消高亮等收尾（原 Action 的 finish() 覆盖）
+    /// @brief 命令结束时（捕捉会话结束之前）调用：恢复预览时隐藏的实体等收尾（原 Action 的 finish() 覆盖）；
+    ///        高亮不用在这里取消，命令结束时由视图清空
     virtual void onFinish() {}
 
 private:

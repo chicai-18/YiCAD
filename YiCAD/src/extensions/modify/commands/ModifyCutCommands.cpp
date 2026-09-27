@@ -37,6 +37,7 @@
 #include "DmEntityContainer.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
@@ -90,14 +91,6 @@ protected:
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
 
-    void onFinish() override
-    {
-        if (cutEntity)
-        {
-            cutEntity->setHighlighted(false);
-        }
-    }
-
 private:
     /// @brief 回到某一状态（原 init(status)）；status < 0 时结束命令
     void init(int s)
@@ -115,8 +108,7 @@ private:
     {
         if (cutEntity && cutCoord.valid && cutEntity->isPointOnEntity(cutCoord))
         {
-            cutEntity->setHighlighted(false);
-            view()->redraw();
+            command().highlight()->clear();
 
             Modification m(document());
             m.cut(cutCoord, cutEntity);
@@ -179,7 +171,6 @@ private:
     {
         if (cutEntity && firstCoord.valid && secondCoord.valid)
         {
-            cutEntity->setHighlighted(false);
             cutEntity->setVisible(true);
             view()->redraw();
 
@@ -254,8 +245,7 @@ void ModifyCutTool::onMouseRelease(QMouseEvent* e)
             }
             else if (entityTrimmable(cutEntity))
             {
-                cutEntity->setHighlighted(true);
-                view()->redraw();
+                command().highlight()->add(cutEntity);
                 setStatus(SetCutCoord);
             }
             else
@@ -272,12 +262,10 @@ void ModifyCutTool::onMouseRelease(QMouseEvent* e)
             }
             else if (!cutCoord.valid)
             {
-                cutEntity->setHighlighted(false);
                 GUIDIALOGFACTORY->commandMessage(ModifyCutCommand::tr("Cutting point is invalid."));
             }
             else if (!cutEntity->isPointOnEntity(cutCoord))
             {
-                cutEntity->setHighlighted(false);
                 GUIDIALOGFACTORY->commandMessage(ModifyCutCommand::tr("Cutting point is not on entity."));
             }
             else
@@ -293,11 +281,7 @@ void ModifyCutTool::onMouseRelease(QMouseEvent* e)
     }
     else if (e->button() == Qt::RightButton)
     {
-        if (cutEntity)
-        {
-            cutEntity->setHighlighted(false);
-            view()->redraw();
-        }
+        command().highlight()->clear();
         init(status() - 1);
     }
 }

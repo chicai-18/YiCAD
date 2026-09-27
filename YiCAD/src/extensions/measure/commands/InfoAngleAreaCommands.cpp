@@ -37,6 +37,7 @@
 #include "DmLine.h"
 #include "DmUnits.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "InfoArea.h"
@@ -89,8 +90,6 @@ protected:
     void updateHints() override;
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
-    /// @brief 原 Action 在析构时取消高亮
-    void onFinish() override { unhighlightEntity(); }
 
 private:
     /// @brief 两条线上的点与交点
@@ -113,7 +112,7 @@ private:
     }
 
     void trigger();
-    void unhighlightEntity();
+    void clearHighlight();
 
     InfoAngleCommand& m_command;
     DmEntity* entity1 = nullptr;         ///< 第一条线
@@ -176,15 +175,11 @@ private:
     std::unique_ptr<InfoArea> ia; ///< 面积信息对象
 };
 
-void InfoAngleTool::unhighlightEntity()
+/// @brief 取消全部高亮：选第一条线时光标换了实体、输出结果或退回时
+void InfoAngleTool::clearHighlight()
 {
-    if (prevHighlighted)
-    {
-        prevHighlighted->setHighlighted(false);
-        view()->specifyDocumentModified();
-        view()->redraw();
-        prevHighlighted = nullptr;
-    }
+    command().highlight()->clear();
+    prevHighlighted = nullptr;
 }
 
 /// @brief 触发角度计算和显示
@@ -232,13 +227,11 @@ void InfoAngleTool::onMouseMove(QMouseEvent* e)
         {
             if (se != prevHighlighted)
             {
-                unhighlightEntity();
+                clearHighlight();
                 entity1 = se;
                 if (entity1)
                 {
-                    entity1->setHighlighted(true);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
+                    command().highlight()->add(entity1);
                     prevHighlighted = entity1;
                 }
             }
@@ -249,18 +242,14 @@ void InfoAngleTool::onMouseMove(QMouseEvent* e)
         {
             if (se != prevHighlighted)
             {
-                if (prevHighlighted && prevHighlighted != entity1)
+                if (prevHighlighted != entity1)
                 {
-                    prevHighlighted->setHighlighted(false);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
+                    command().highlight()->remove(prevHighlighted);
                 }
                 entity2 = se;
                 if (entity2 && entity2 != entity1)
                 {
-                    entity2->setHighlighted(true);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
+                    command().highlight()->add(entity2);
                     prevHighlighted = entity2;
                 }
                 else
@@ -295,6 +284,8 @@ void InfoAngleTool::onMouseRelease(QMouseEvent* e)
                 if (entity1 && (entity1->getEntityType() == DM::EntityLine || entity1->getEntityType() == DM::EntityPolyline))
                 {
                     m_points.point1 = entity1->getNearestPointOnEntity(mouse);
+                    // 没有先移动光标就点的（量完接着点），悬停时没有高亮它
+                    command().highlight()->add(entity1);
                     setStatus(SetEntity2);
                 }
                 break;
@@ -306,6 +297,8 @@ void InfoAngleTool::onMouseRelease(QMouseEvent* e)
                     m_points.point2 = entity2->getNearestPointOnEntity(mouse);
                     setStatus(SetEntity1);
                     trigger();
+                    // 量完回到第一步：两条线都不再高亮，光标下的线等下次移动时重新高亮
+                    clearHighlight();
                 }
                 break;
 
@@ -315,7 +308,7 @@ void InfoAngleTool::onMouseRelease(QMouseEvent* e)
     }
     else if (e->button() == Qt::RightButton)
     {
-        unhighlightEntity();
+        clearHighlight();
         m_command.preview().clear();
         init(status() - 1);
     }

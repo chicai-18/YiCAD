@@ -35,6 +35,7 @@
 #include "EntityTable.h"
 #include "GeUtility.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
@@ -125,14 +126,12 @@ protected:
         {
             return;
         }
-        if (m_circle)
+        if (m_circle != en)
         {
-            m_circle->setHighlighted(false);
+            command().highlight()->remove(m_circle);
         }
         m_circle = en;
-        m_circle->setHighlighted(true);
-        view()->specifyDocumentModified();
-        view()->redraw();
+        command().highlight()->add(m_circle);
         m_command.preview().clear();
         m_tangent.reset(createTangent(mouse));
         // 原 Action 在求不出切线时解引用空指针，这里跳过预览
@@ -169,14 +168,9 @@ protected:
                 {
                     break;
                 }
-                if (m_normal)
-                {
-                    m_normal->setHighlighted(false);
-                }
+                command().highlight()->remove(m_normal);
                 m_normal = static_cast<DmLine*>(en);
-                m_normal->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->add(m_normal);
                 setStatus(SetCircle);
             }
             break;
@@ -185,10 +179,7 @@ protected:
         case SetCircle:
             if (m_tangent)
             {
-                if (m_circle)
-                {
-                    m_circle->setHighlighted(false);
-                }
+                command().highlight()->remove(m_circle);
                 m_circle = nullptr;
                 // 与原 Action 一致：提交后不清除切线，不移动鼠标再次单击会再画一条
                 m_command.commitTangent(m_tangent->getData());
@@ -201,24 +192,11 @@ protected:
         }
     }
 
-    void onFinish() override
-    {
-        clearLines();
-    }
-
 private:
     /// @brief 取消直线与圆的高亮，清除预览
     void clearLines()
     {
-        for (DmEntity* p : {static_cast<DmEntity*>(m_normal), m_circle})
-        {
-            if (p)
-            {
-                p->setHighlighted(false);
-            }
-        }
-        view()->specifyDocumentModified();
-        view()->redraw();
+        command().highlight()->clear();
         m_circle = nullptr;
         m_command.preview().clear();
     }

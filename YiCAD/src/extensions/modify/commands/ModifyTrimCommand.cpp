@@ -37,6 +37,7 @@
 #include "ModifyCommands.h"
 #include "DmEntityContainer.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
@@ -80,8 +81,10 @@ protected:
 
     void onFinish() override
     {
+        // 高亮由视图在命令结束时清空；恢复可见要重建缓存才显示
         restoreEntityUnderCursor();
-        unhighlightLimitingEntity();
+        view()->specifyDocumentModified();
+        view()->redraw();
     }
 
 private:
@@ -108,7 +111,7 @@ private:
     }
 
     void trigger();
-    void unhighlightLimitingEntity();
+    void highlightLimitingEntities();
 
     ModifyTrimCommand& m_command;
     std::vector<DmEntity*> m_seleltedEnts; ///< 选择的实体，作为求交的边界
@@ -133,6 +136,8 @@ void ModifyTrimTool::trigger()
             m_entToTrim = nullptr;
             m_trimPt = {};
             m_entUnderCursor = nullptr;
+            // 被修剪掉的边界已由 Modification::trim 移出边界列表
+            highlightLimitingEntities();
         }
 
         updateHints();
@@ -157,20 +162,12 @@ void ModifyTrimTool::onMouseMove(QMouseEvent* e)
             // 上次鼠标移动时，下面没有点击选择的实体，这个实体需要还原为不高亮
             if ((nullptr != m_entUnderCursor) && (std::find(m_seleltedEnts.begin(), m_seleltedEnts.end(), m_entUnderCursor) == m_seleltedEnts.end()))
             {
-                m_entUnderCursor->setHighlighted(false);
-                view()->specifyDocumentModified();
-                view()->redraw();
+                command().highlight()->remove(m_entUnderCursor);
             }
 
             // 设置当前光标下的实体
             m_entUnderCursor = se;
-
-            if (nullptr != m_entUnderCursor)
-            {
-                m_entUnderCursor->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
-            }
+            command().highlight()->add(m_entUnderCursor);
         }
             break;
 
@@ -240,9 +237,7 @@ void ModifyTrimTool::onMouseRelease(QMouseEvent* e)
             {
                 if ((se != nullptr) && (m_seleltedEnts.end() == std::find(m_seleltedEnts.begin(), m_seleltedEnts.end(), se)))
                 {
-                    se->setHighlighted(true);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
+                    command().highlight()->add(se);
                     m_seleltedEnts.emplace_back(se);
                 }
             }
@@ -303,6 +298,8 @@ void ModifyTrimTool::onKeyPress(QKeyEvent* e)
         if (status() == ChooseLimitEntity)
         {
             setStatus(ChooseTrimEntity);
+            // 选边界时光标下还没点选的实体不再高亮
+            highlightLimitingEntities();
         }
         else if (status() == ChooseTrimEntity)
         {
@@ -319,16 +316,15 @@ void ModifyTrimTool::onKeyPress(QKeyEvent* e)
     e->ignore();
 }
 
-/// @brief 取消所有限制边界实体的高亮状态
-void ModifyTrimTool::unhighlightLimitingEntity()
+/// @brief 让高亮集只含边界实体：去掉选边界时悬停的实体，以及已被修剪掉、移出边界列表的实体
+void ModifyTrimTool::highlightLimitingEntities()
 {
-    for (auto& ent : m_seleltedEnts)
+    HighlightSet* highlight = command().highlight();
+    highlight->clear();
+    for (auto ent : m_seleltedEnts)
     {
-        ent->setHighlighted(false);
+        highlight->add(ent);
     }
-
-    view()->specifyDocumentModified();
-    view()->redraw();
 }
 
 std::unique_ptr<BasePlaceTool> ModifyTrimCommand::createTool()

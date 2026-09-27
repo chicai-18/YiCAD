@@ -33,6 +33,7 @@
 #include "DmDocument.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "SelectionSet.h"
@@ -63,7 +64,6 @@ void ModifySingleOffsetCommand::commitOffset(DmEntity* original, const DmVector&
     DmEntity* ec = original->clone();
     ec->setLayerToActive();
     ec->setPenToActive();
-    ec->setHighlighted(false);
 
     if (!ec->offset(coord, m_distance))
     {
@@ -130,13 +130,8 @@ protected:
         if (!m_pOriginalEntity && se != prevHighlighted)
         {
             unhighlightEntity();
-            if (se)
-            {
-                se->setHighlighted(true);
-                view()->specifyDocumentModified();
-                view()->redraw();
-                prevHighlighted = se;
-            }
+            command().highlight()->add(se);
+            prevHighlighted = se;
         }
 
         // 已选中实体后：偏移预览
@@ -161,9 +156,7 @@ protected:
                 if (m_pOriginalEntity)
                 {
                     unhighlightEntity();
-                    m_pOriginalEntity->setHighlighted(true);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
+                    command().highlight()->add(m_pOriginalEntity);
                     prevHighlighted = m_pOriginalEntity;
                 }
             }
@@ -187,20 +180,12 @@ protected:
         }
     }
 
-    /// @brief 原 Action 在析构时取消高亮
-    void onFinish() override { unhighlightEntity(); }
-
 private:
     /// @brief 取消悬停或选中的高亮
     void unhighlightEntity()
     {
-        if (prevHighlighted)
-        {
-            prevHighlighted->setHighlighted(false);
-            view()->specifyDocumentModified();
-            view()->redraw();
-            prevHighlighted = nullptr;
-        }
+        command().highlight()->remove(prevHighlighted);
+        prevHighlighted = nullptr;
     }
 
     ModifySingleOffsetCommand& m_command;

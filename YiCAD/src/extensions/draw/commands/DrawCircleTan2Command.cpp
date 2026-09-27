@@ -37,6 +37,7 @@
 #include "DmPoint.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Transaction.h"
@@ -137,8 +138,7 @@ protected:
                 m_circles.push_back(dynamic_cast<DmAtomicEntity*>(en));
                 if (status() == SetCircle1 || computeCenters())
                 {
-                    m_circles.back()->setHighlighted(true);
-                    view()->redraw();
+                    command().highlight()->add(m_circles.back());
                     setStatus(status() + 1);
                 }
                 break;
@@ -158,28 +158,11 @@ protected:
         {
             if (status() > 0)
             {
-                m_circles[status() - 1]->setHighlighted(false);
+                command().highlight()->remove(m_circles[status() - 1]);
                 m_circles.pop_back();
-                view()->redraw();
                 m_command.preview().clear();
             }
             init(status() - 1);
-        }
-    }
-
-    void onFinish() override
-    {
-        if (!m_circles.empty())
-        {
-            for (auto p : m_circles)
-            {
-                if (p)
-                {
-                    p->setHighlighted(false);
-                }
-            }
-            view()->redraw();
-            m_circles.clear();
         }
     }
 
@@ -204,11 +187,7 @@ private:
     void commit()
     {
         m_command.commitCircle(m_data);
-        for (auto p : m_circles)
-        {
-            p->setHighlighted(false);
-        }
-        view()->redraw();
+        command().highlight()->clear();
         m_circles.clear();
         setStatus(SetCircle1);
     }

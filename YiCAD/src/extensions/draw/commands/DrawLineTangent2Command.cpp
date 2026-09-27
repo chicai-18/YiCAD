@@ -38,6 +38,7 @@
 #include "EntityTable.h"
 #include "GeUtility.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Math2d.h"
@@ -344,14 +345,12 @@ protected:
         {
             return;
         }
-        if (m_circle2)
+        if (m_circle2 != en)
         {
-            m_circle2->setHighlighted(false);
+            command().highlight()->remove(m_circle2);
         }
         m_circle2 = en;
-        m_circle2->setHighlighted(true);
-        view()->specifyDocumentModified();
-        view()->redraw();
+        command().highlight()->add(m_circle2);
 
         DmVector mouse(view()->toGraphX(e->pos().x()), view()->toGraphY(e->pos().y()));
         std::unique_ptr<DmLine> tangent(createTangent2(mouse, m_circle1, m_circle2));
@@ -389,9 +388,7 @@ protected:
             {
                 return;
             }
-            m_circle1->setHighlighted(true);
-            view()->specifyDocumentModified();
-            view()->redraw();
+            command().highlight()->add(m_circle1);
             setStatus(status() + 1);
             break;
 
@@ -410,35 +407,13 @@ protected:
         }
     }
 
-    void onFinish() override
-    {
-        if (m_circle1)
-        {
-            // 原 Action 在还没选中第二个圆时结束会解引用空指针，这里跳过
-            m_circle1->setHighlighted(false);
-            if (m_circle2)
-            {
-                m_circle2->setHighlighted(false);
-            }
-            view()->specifyDocumentModified();
-            view()->redraw();
-        }
-    }
-
 private:
-    /// @brief 取消两个圆的高亮
+    /// @brief 取消两个圆的高亮，忘掉它们
     void clearHighlighted()
     {
-        for (DmEntity** p : {&m_circle1, &m_circle2})
-        {
-            if (*p)
-            {
-                (*p)->setHighlighted(false);
-                *p = nullptr;
-            }
-        }
-        view()->specifyDocumentModified();
-        view()->redraw();
+        command().highlight()->clear();
+        m_circle1 = nullptr;
+        m_circle2 = nullptr;
     }
 
     DrawLineTangent2Command& m_command;

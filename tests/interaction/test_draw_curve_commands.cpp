@@ -7,11 +7,15 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
+#include "DmLine.h"
 #include "DrawArcCommand.h"
 #include "DrawArcTangentialCommand.h"
 #include "DrawCircleTan2Command.h"
 #include "DrawCloudLineCommand.h"
 #include "DrawSplineCommand.h"
+#include "LineData.h"
 #include "support/CommandTestFixture.h"
 
 using namespace yicad_test;
@@ -186,6 +190,49 @@ TEST_F(DrawCurveFixture, 两切圆半径由选项条转给工具)
     ASSERT_NE(command, nullptr);
     command->setRadius(12.0);
     EXPECT_DOUBLE_EQ(command->getRadius(), 12.0);
+}
+
+TEST_F(DrawCurveFixture, 内切椭圆已选的线高亮预览里只有椭圆)
+{
+    auto addLine = [this](const DmVector& a, const DmVector& b)
+    {
+        auto* line = new DmLine(nullptr, LineData(a, b));
+        line->calculateBorders();
+        EXPECT_TRUE(doc.getEntityTable()->add_direct(line));
+        return line;
+    };
+    DmLine* bottom = addLine(DmVector(-5, 0), DmVector(15, 0));
+    DmLine* right = addLine(DmVector(10, -5), DmVector(10, 15));
+    DmLine* top = addLine(DmVector(-5, 10), DmVector(15, 10));
+    DmLine* left = addLine(DmVector(0, -5), DmVector(0, 15));
+    DmLine* farLeft = addLine(DmVector(-2, -5), DmVector(-2, 15));
+
+    ASSERT_TRUE(start("ext.draw.ellipse_inscribe"));
+    click(5, 0);
+    click(10, 5);
+    click(5, 10);
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify the fourth line"));
+    // 原先给已选线的克隆置位放进预览；现在文档里的线本身高亮（doc/HIGHLIGHT_SET_PLAN.md D6）
+    EXPECT_EQ(highlight().entities(), (std::vector<DmEntity*>{bottom, right, top}));
+    EXPECT_EQ(previewCount(), 0);
+
+    move(0, 5);
+    EXPECT_TRUE(highlight().contains(left));
+    ASSERT_EQ(previewCount(), 1);
+    EXPECT_EQ(view.getPreviewContainer()->entityAt(0)->getEntityType(), DM::EntityEllipse);
+
+    // 换一条第四条线：上一条不再高亮，预览换成新的椭圆
+    move(-2, 5);
+    EXPECT_FALSE(highlight().contains(left));
+    EXPECT_TRUE(highlight().contains(farLeft));
+    EXPECT_EQ(previewCount(), 1);
+
+    // 右键退回第三步：第三条线不再高亮，前两条仍高亮
+    rightClick();
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify the third line"));
+    EXPECT_EQ(highlight().entities(), (std::vector<DmEntity*>{bottom, right}));
+    endCommand();
+    EXPECT_TRUE(highlight().entities().empty());
 }
 
 TEST_F(DrawCurveFixture, 轴端点椭圆逐步提示与右键退回)

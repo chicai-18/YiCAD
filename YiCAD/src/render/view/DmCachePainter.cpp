@@ -224,13 +224,12 @@ void DmCachePainter::regroup()
             addGroupEntity(e);
         }
     }
-    // 来源给出的都是可见的顶层实体；选中优先，与 addGroupEntity 相同。
-    // 过渡期间实体上的高亮位仍有效（doc/HIGHLIGHT_SET_PLAN.md 第 1 步），置了位的已在上面进了高亮组
+    // 来源给出的都是可见的顶层实体；选中优先：已选中的按选中色画，不进高亮组
     if (m_highlightSource)
     {
         for (auto e : m_highlightSource->highlightedEntities())
         {
-            if (!isSelected(e) && !e->isHighlighted())
+            if (!isSelected(e))
             {
                 addGroupEntity_subRoutine(e, &m_highlightEntities);
             }
@@ -248,10 +247,6 @@ void DmCachePainter::addGroupEntity(DmEntity* pEnt)
     if (isSelected(pEnt))
     {
         addGroupEntity_subRoutine(pEnt, &m_selectedEntities);
-    }
-    else if (pEnt->isHighlighted())
-    {
-        addGroupEntity_subRoutine(pEnt, &m_highlightEntities);
     }
 }
 

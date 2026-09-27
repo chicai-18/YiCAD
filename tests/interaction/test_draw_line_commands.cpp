@@ -363,10 +363,10 @@ TEST_F(DrawLineFixture, 两圆公切线第二步结束命令不崩溃)
     ASSERT_TRUE(start("ext.draw.line_tangent2"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Select second circle or ellipse"));
-    EXPECT_TRUE(circle->isHighlighted());
+    EXPECT_TRUE(highlight().contains(circle));
 
     endCommand();
-    EXPECT_FALSE(circle->isHighlighted());
+    EXPECT_TRUE(highlight().entities().empty());
 }
 
 TEST_F(DrawLineFixture, 徒手线按下进入拖动释放回到第一步)

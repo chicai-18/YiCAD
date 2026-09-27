@@ -186,6 +186,31 @@ TEST_F(ModifyFixture, 圆角命令行设置半径)
     endCommand();
 }
 
+TEST_F(ModifyFixture, 圆角提交后取消全部高亮)
+{
+    DmLine* first = addLine(DmVector(0, 0), DmVector(10, 0));
+    DmLine* second = addLine(DmVector(0, 0), DmVector(0, 10));
+    ASSERT_TRUE(start("ext.modify.round"));
+    auto* round = active<ModifyRoundCommand>();
+    ASSERT_NE(round, nullptr);
+    round->setRadius(2.0);
+    // 不裁剪：两条线都不被修改。原先第一条线的高亮靠修改命令清位，这时就留下了
+    round->setTrim(false);
+
+    move(5, 0);
+    click(5, 0);
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify second entity"));
+    move(0, 5);
+    EXPECT_TRUE(highlight().contains(first));
+    EXPECT_TRUE(highlight().contains(second));
+
+    click(0, 5);
+    EXPECT_EQ(doc.getEntityTable()->count(), 3);  // 加了一段圆弧，两条线不变
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify first entity"));
+    EXPECT_TRUE(highlight().entities().empty());
+    endCommand();
+}
+
 TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
@@ -197,7 +222,7 @@ TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
     EXPECT_DOUBLE_EQ(offsetCommand->distance(), 30.0);
 
     click(5, 0);
-    EXPECT_TRUE(line->isHighlighted());
+    EXPECT_TRUE(highlight().contains(line));
     move(5, 5);
     ASSERT_EQ(previewCount(), 1);
 
@@ -212,7 +237,7 @@ TEST_F(ModifyFixture, 单个偏移选中实体后按选项条距离预览)
     // 只有一步：右键结束，取消高亮并收起选项条
     rightClick();
     EXPECT_FALSE(bus.hasActiveCommand());
-    EXPECT_FALSE(line->isHighlighted());
+    EXPECT_TRUE(highlight().entities().empty());
     EXPECT_FALSE(lastOptions("ext.modify.single_offset")->on);
 }
 
@@ -233,7 +258,7 @@ TEST_F(ModifyFixture, 修剪预览隐藏的实体在退回和结束时恢复可�
     DmLine* target = addLine(DmVector(-10, 0), DmVector(10, 0));
     ASSERT_TRUE(start("ext.modify.trim"));
     click(0, 5);
-    EXPECT_TRUE(boundary->isHighlighted());
+    EXPECT_TRUE(highlight().contains(boundary));
     pressKey(Qt::Key_Enter);
 
     move(5, 0);
@@ -250,7 +275,38 @@ TEST_F(ModifyFixture, 修剪预览隐藏的实体在退回和结束时恢复可�
     EXPECT_FALSE(target->isVisible());
     endCommand();
     EXPECT_TRUE(target->isVisible());
-    EXPECT_FALSE(boundary->isHighlighted());
+    EXPECT_TRUE(highlight().entities().empty());
+}
+
+TEST_F(ModifyFixture, 修剪掉一条边界后它不再高亮)
+{
+    DmLine* vertical = addLine(DmVector(0, -10), DmVector(0, 10));
+    DmLine* horizontal = addLine(DmVector(-10, 0), DmVector(10, 0));
+    DmLine* other = addLine(DmVector(20, -10), DmVector(20, 10));
+    ASSERT_TRUE(start("ext.modify.trim"));
+    click(0, 5);
+    click(5, 0);
+    EXPECT_TRUE(highlight().contains(vertical));
+    EXPECT_TRUE(highlight().contains(horizontal));
+
+    // 选完边界时光标下还没点选的实体，进入下一步后不再高亮
+    move(20, 0);
+    EXPECT_TRUE(highlight().contains(other));
+    pressKey(Qt::Key_Enter);
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Select entity to be cut"));
+    EXPECT_FALSE(highlight().contains(other));
+
+    // 以水平线为界剪掉竖线的上半段：竖线就地修改（id 不变），Modification::trim 把它移出边界列表。
+    // 原先由修改命令清位，现在工具按边界列表重设高亮集
+    click(0, 5);
+    EXPECT_NEAR(std::max(vertical->getStartpoint().y, vertical->getEndpoint().y), 0.0, 1e-9);
+    EXPECT_EQ(doc.getEntityTable()->find(vertical->getId()), vertical);
+    EXPECT_FALSE(highlight().contains(vertical));
+    EXPECT_TRUE(highlight().contains(horizontal));
+    EXPECT_TRUE(bus.hasActiveCommand());
+
+    endCommand();
+    EXPECT_TRUE(highlight().entities().empty());
 }
 
 TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复可见)
@@ -322,17 +378,17 @@ TEST_F(ModifyFixture, 添加与删除节点选中多段线后高亮结束或退�
     ASSERT_TRUE(start("ext.modify.polyline_add"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify adding node's point"));
-    EXPECT_TRUE(poly->isHighlighted());
+    EXPECT_TRUE(highlight().contains(poly));
     endCommand();
-    EXPECT_FALSE(poly->isHighlighted());
+    EXPECT_FALSE(highlight().contains(poly));
 
     ASSERT_TRUE(start("ext.modify.polyline_del"));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify deleting node's point"));
-    EXPECT_TRUE(poly->isHighlighted());
+    EXPECT_TRUE(highlight().contains(poly));
     rightClick();
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify polyline to delete node"));
-    EXPECT_FALSE(poly->isHighlighted());
+    EXPECT_FALSE(highlight().contains(poly));
     EXPECT_TRUE(bus.hasActiveCommand());
     endCommand();
 }
@@ -359,7 +415,7 @@ TEST_F(ModifyFixture, 查询角度选两条线后输出夹角)
     addLine(DmVector(0, 0), DmVector(0, 10));
     ASSERT_TRUE(start("ext.measure.angle"));
     move(5, 0);
-    EXPECT_TRUE(first->isHighlighted());
+    EXPECT_TRUE(highlight().contains(first));
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify second line"));
     click(0, 5);
@@ -367,7 +423,32 @@ TEST_F(ModifyFixture, 查询角度选两条线后输出夹角)
     EXPECT_TRUE(ui.messages.back().startsWith(QStringLiteral("Angle: ")));
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify first line"));
     endCommand();
-    EXPECT_FALSE(first->isHighlighted());
+    EXPECT_TRUE(highlight().entities().empty());
+}
+
+TEST_F(ModifyFixture, 查询角度先悬停第二条线再点量完后取消高亮)
+{
+    DmLine* first = addLine(DmVector(0, 0), DmVector(10, 0));
+    DmLine* second = addLine(DmVector(0, 0), DmVector(0, 10));
+    ASSERT_TRUE(start("ext.measure.angle"));
+    move(5, 0);
+    click(5, 0);
+    move(0, 5);
+    EXPECT_TRUE(highlight().contains(first));
+    EXPECT_TRUE(highlight().contains(second));
+
+    // 原先量完回到第一步后第一条线一直高亮，结束命令也不恢复
+    click(0, 5);
+    EXPECT_TRUE(ui.messages.back().startsWith(QStringLiteral("Angle: ")));
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify first line"));
+    EXPECT_TRUE(highlight().entities().empty());
+    EXPECT_TRUE(bus.hasActiveCommand());
+
+    // 光标还在第二条线上：不移动直接再点，它作为第一条线高亮
+    click(0, 5);
+    EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify second line"));
+    EXPECT_EQ(highlight().entities(), std::vector<DmEntity*>{second});
+    endCommand();
 }
 
 TEST_F(ModifyFixture, 查询面积回到已有的点时闭合并回到第一步)
@@ -394,12 +475,17 @@ TEST_F(ModifyFixture, 查询面积回到已有的点时闭合并回到第一步)
 TEST_F(ModifyFixture, 打断选中实体后高亮结束时取消)
 {
     DmLine* line = addLine(DmVector(0, 0), DmVector(10, 0));
+    int changed = 0;
+    QObject::connect(&highlight(), &HighlightSet::changed, [&changed]() { ++changed; });
     ASSERT_TRUE(start("ext.modify.cut"));
+    // 原先只重绘、不重建缓存，选中的实体不立即变色；现在高亮集改变即通知视图（UIView 重建缓存并重绘）
     click(5, 0);
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Specify cutting point"));
-    EXPECT_TRUE(line->isHighlighted());
+    EXPECT_EQ(highlight().entities(), std::vector<DmEntity*>{line});
+    EXPECT_EQ(changed, 1);
     endCommand();
-    EXPECT_FALSE(line->isHighlighted());
+    EXPECT_TRUE(highlight().entities().empty());
+    EXPECT_EQ(changed, 2);
 }
 
 TEST_F(ModifyFixture, 修改实体属性选中实体并弹出对话框)

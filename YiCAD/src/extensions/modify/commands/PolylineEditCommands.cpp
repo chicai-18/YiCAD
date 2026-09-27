@@ -37,6 +37,7 @@
 #include "DmPolyline.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "PlaceCommand.h"
@@ -98,15 +99,6 @@ protected:
     void updateHints() override;
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
-
-    void onFinish() override
-    {
-        if (addPoly)
-        {
-            addPoly->setHighlighted(false);
-            view()->specifyDocumentModified();
-        }
-    }
 
 private:
     /// @brief 回到某一状态并清空已选的多段线（原 init(status)）；status < 0 时结束命令
@@ -187,16 +179,6 @@ protected:
     void updateHints() override;
     void onMouseMove(QMouseEvent* e) override;
     void onMouseRelease(QMouseEvent* e) override;
-
-    void onFinish() override
-    {
-        if (delEntity)
-        {
-            delEntity->setHighlighted(false);
-            view()->specifyDocumentModified();
-            view()->redraw();
-        }
-    }
 
 private:
     /// @brief 回到某一状态并清空已选的多段线（原 init(status)）；status < 0 时结束命令
@@ -371,10 +353,8 @@ void PolylineAddTool::onMouseRelease(QMouseEvent* e)
                 else
                 {
                     addPoly = static_cast<DmPolyline*>(catchEnt);
-                    addPoly->setHighlighted(true);
+                    command().highlight()->add(addPoly);
                     setStatus(SetAddCoord);
-                    view()->specifyDocumentModified();
-                    view()->redraw();
                 }
                 break;
             }
@@ -437,13 +417,8 @@ void PolylineAddTool::onMouseRelease(QMouseEvent* e)
     else if (e->button() == Qt::RightButton)
     {
         snapper()->deleteSnapper();
-        if (addPoly)
-        {
-            addPoly->setHighlighted(false);
-            view()->specifyDocumentModified();
-            view()->redraw();
-        }
-
+        // init() 在每一步都忘掉已选的多段线
+        command().highlight()->clear();
         init(status() - 1);
     }
 }
@@ -660,7 +635,7 @@ void PolylineDelTool::trigger()
 {
     if (delEntity && delPoint.valid && delEntity->isPointOnEntity(delPoint, POINT_ON_ENTITY_TOLERANCE))
     {
-        delEntity->setHighlighted(false);
+        command().highlight()->clear();
 
         DmPolyline* poly = static_cast<DmPolyline*>(delEntity);
         Transaction t(PolylineDelCommand::tr("Append polyline point").toStdString(), document());
@@ -736,10 +711,8 @@ void PolylineDelTool::onMouseRelease(QMouseEvent* e)
                 else
                 {
                     snapper()->snapPoint(e);
-                    delEntity->setHighlighted(true);
-                    view()->specifyDocumentModified();
+                    command().highlight()->add(delEntity);
                     setStatus(SetDelPoint);
-                    view()->redraw();
                 }
                 break;
 
@@ -777,13 +750,8 @@ void PolylineDelTool::onMouseRelease(QMouseEvent* e)
     else if (e->button() == Qt::RightButton)
     {
         snapper()->deleteSnapper();
-        if (delEntity)
-        {
-            delEntity->setHighlighted(false);
-            view()->specifyDocumentModified();
-            view()->redraw();
-        }
-
+        // init() 在每一步都忘掉已选的多段线
+        command().highlight()->clear();
         init(status() - 1);
     }
 }
