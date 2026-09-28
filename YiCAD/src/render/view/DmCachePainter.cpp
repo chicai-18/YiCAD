@@ -38,9 +38,38 @@
 #include "DmImage.h"
 #include "IHighlightSource.h"
 #include "ISelectionSource.h"
-#include "GLFrameStats.h"
+#include <QByteArrayView>
+#include <QDateTime>
+#include <QFileInfo>
+#include <QHash>
 #include <QImage>
-#include <GL/glew.h>
+
+namespace
+{
+
+/// @brief 图片来源，纹理按它缓存（GLImageTextureCache）：有文件时是文件的绝对路径、修改时间与大小，
+///        文件在磁盘上改了就是新的来源；没有文件时是内嵌像素的尺寸与内容哈希
+QString imageSource(DmImage* image)
+{
+    const std::string path = image->getData().getPath();
+    if (!path.empty())
+    {
+        const QFileInfo info(QString::fromStdString(path));
+        return QStringLiteral("file:%1|%2|%3")
+            .arg(info.absoluteFilePath())
+            .arg(info.lastModified().toMSecsSinceEpoch())
+            .arg(info.size());
+    }
+    const unsigned char* bits = image->getbits();
+    const qsizetype bytes = bits ? static_cast<qsizetype>(image->getBytesPerLine()) * image->getHeight() : 0;
+    return QStringLiteral("bits:%1x%2|%3|%4")
+        .arg(image->getWidth())
+        .arg(image->getHeight())
+        .arg(image->getBytesPerLine())
+        .arg(qHash(QByteArrayView(reinterpret_cast<const char*>(bits), bytes)));
+}
+
+}  // namespace
 
 DmCachePainter::DmCachePainter()
     : m_bIsModefied(true)
@@ -97,33 +126,70 @@ void DmCachePainter::recacheEntities(const std::list<DmEntity*>& oldEnts, const 
     // TODO: 实现部分更新逻辑
 }
 
-void DmCachePainter::cacheAll()
-{
-    m_cachePainter->removeAllCache();
-    regroup();
-
-    cacheEntity(m_groupEntities, opengl::CacheGroupType::Normal);
-    cacheEntity(m_selectedEntities, opengl::CacheGroupType::Selected);
-    cacheEntity(m_highlightEntities, opengl::CacheGroupType::Highlight);
-
-    cacheSelectedPoints();
-}
-
 void DmCachePainter::rebuild()
 {
-    cacheAll();
+    m_cachePainter->removeAllCache();
+    cacheEntity(groupVisibleEntities(), opengl::CacheGroupType::Normal);
+    cacheSelected();
+    cacheHighlight();
     m_cachePainter->generateGLData();
-    m_bIsModefied = false;
 }
 
-void DmCachePainter::draw()
+void DmCachePainter::rebuildSelected()
+{
+    m_cachePainter->removeCacheByGroup(opengl::CacheGroupType::Selected);
+    m_cachePainter->removeSelectedPointsCache();
+    cacheSelected();
+    m_cachePainter->generateGLDataByType(opengl::CacheGroupType::Selected);
+}
+
+void DmCachePainter::rebuildHighlight()
+{
+    m_cachePainter->removeCacheByGroup(opengl::CacheGroupType::Highlight);
+    cacheHighlight();
+    m_cachePainter->generateGLDataByType(opengl::CacheGroupType::Highlight);
+}
+
+void DmCachePainter::update()
 {
     //recache();
     if (m_bIsModefied)
     {
         rebuild();
     }
+    else
+    {
+        // 普通组不随选择集、高亮集变化（RENDER_PLAN.md 1.1 步）；高亮组不含选中的实体，选择集变了也要重建
+        if (m_bSelectChanged)
+        {
+            rebuildSelected();
+        }
+        if (m_bSelectChanged || m_bHighlightChanged)
+        {
+            rebuildHighlight();
+        }
+    }
+    m_bIsModefied = false;
+    m_bSelectChanged = false;
+    m_bHighlightChanged = false;
+}
+
+void DmCachePainter::draw()
+{
+    update();
     m_cachePainter->stroke();
+}
+
+void DmCachePainter::drawHighlight()
+{
+    update();
+    m_cachePainter->strokeHighlight();
+}
+
+void DmCachePainter::drawSelectedPoints()
+{
+    update();
+    m_cachePainter->strokeSelectedPoints();
 }
 
 void DmCachePainter::specifyModified()
@@ -131,20 +197,30 @@ void DmCachePainter::specifyModified()
     m_bIsModefied = true;
 }
 
+void DmCachePainter::specifySelectChanged()
+{
+    m_bSelectChanged = true;
+}
+
+void DmCachePainter::specifyHighlightChanged()
+{
+    m_bHighlightChanged = true;
+}
+
 bool DmCachePainter::isModified() const
 {
     return m_bIsModefied;
 }
 
-//void DmCachePainter::specifySelectChanged()
-//{
-//    m_cachePainter->removeCacheByGroup(opengl::CacheGroupType::Selected);
-//    m_cachePainter->removeSelectedPointsCache();
-//    regroup();
-//    cacheEntity(m_selectedEntities, opengl::CacheGroupType::Selected);
-//    cacheSelectedPoints();
-//    m_cachePainter->generateGLDataByType(opengl::CacheGroupType::Selected);
-//}
+bool DmCachePainter::isSelectChanged() const
+{
+    return !m_bIsModefied && m_bSelectChanged;
+}
+
+bool DmCachePainter::isHighlightChanged() const
+{
+    return !m_bIsModefied && !m_bSelectChanged && m_bHighlightChanged;
+}
 
 void DmCachePainter::setModelOffset(const DmVector& offset)
 {
@@ -174,13 +250,13 @@ void DmCachePainter::setHighlightColor(const QColor& c)
 void DmCachePainter::setSelectionSource(const ISelectionSource* source)
 {
     m_selectionSource = source;
-    specifyModified();
+    specifySelectChanged();
 }
 
 void DmCachePainter::setHighlightSource(const IHighlightSource* source)
 {
     m_highlightSource = source;
-    specifyModified();
+    specifyHighlightChanged();
 }
 
 bool DmCachePainter::isSelected(const DmEntity* e) const
@@ -202,13 +278,13 @@ void DmCachePainter::recache()
         }
     }
 
-    regroup();
+    const PenGroups groups = groupVisibleEntities();
 
     for (auto item : m_recacheTypes)
     {
         auto pen = DMPENLIST->request(item.first);
-        auto it = m_groupEntities.find(*pen);
-        if (it != m_groupEntities.end())
+        auto it = groups.find(*pen);
+        if (it != groups.end())
         {
             for (auto e : it->second)
             {
@@ -223,45 +299,23 @@ void DmCachePainter::recache()
     m_recacheTypes.clear();
 }
 
-void DmCachePainter::regroup()
+DmCachePainter::PenGroups DmCachePainter::groupVisibleEntities() const
 {
-    m_groupEntities.clear();
-    m_highlightEntities.clear();
-    m_selectedEntities.clear();
+    PenGroups groups;
     for (auto en : m_containerList)
     {
         for (auto e : *en)
         {
-            addGroupEntity(e);
-        }
-    }
-    // 来源给出的都是可见的顶层实体；选中优先：已选中的按选中色画，不进高亮组
-    if (m_highlightSource)
-    {
-        for (auto e : m_highlightSource->highlightedEntities())
-        {
-            if (!isSelected(e))
+            if (e->isVisible())
             {
-                addGroupEntity_subRoutine(e, &m_highlightEntities);
+                addToGroups(e, groups);
             }
         }
     }
+    return groups;
 }
 
-void DmCachePainter::addGroupEntity(DmEntity* pEnt)
-{
-    if (!pEnt->isVisible())
-    {
-        return;
-    }
-    addGroupEntity_subRoutine(pEnt, &m_groupEntities);
-    if (isSelected(pEnt))
-    {
-        addGroupEntity_subRoutine(pEnt, &m_selectedEntities);
-    }
-}
-
-void DmCachePainter::addGroupEntity_subRoutine(DmEntity* pEnt, std::unordered_map<DmPen, std::list<DmEntity*>>* theMap)
+void DmCachePainter::addToGroups(DmEntity* pEnt, PenGroups& groups)
 {
     // 获取该实体的所有子实体
     auto subEntities = pEnt->getSubEntities();
@@ -273,12 +327,12 @@ void DmCachePainter::addGroupEntity_subRoutine(DmEntity* pEnt, std::unordered_ma
     // 将子实体集合添加到map分组
     for (auto& itemEnt : subEntities)
     {
-        auto findEntitise = theMap->find(itemEnt->getPen(true));
+        auto findEntitise = groups.find(itemEnt->getPen(true));
         // 分组不存在 则创建
-        if (findEntitise == theMap->end())
+        if (findEntitise == groups.end())
         {
             std::list<DmEntity*> listEnt = { itemEnt };
-            (*theMap)[itemEnt->getPen(true)] = listEnt;
+            groups[itemEnt->getPen(true)] = listEnt;
         }
         // 存在直接添加
         else
@@ -286,6 +340,40 @@ void DmCachePainter::addGroupEntity_subRoutine(DmEntity* pEnt, std::unordered_ma
             findEntitise->second.emplace_back(std::move(itemEnt));
         }
     }
+}
+
+void DmCachePainter::cacheSelected()
+{
+    if (!m_selectionSource)
+    {
+        return;
+    }
+    const std::vector<DmEntity*> selected = m_selectionSource->selectedEntities();
+    PenGroups groups;
+    for (auto e : selected)
+    {
+        addToGroups(e, groups);
+    }
+    cacheEntity(groups, opengl::CacheGroupType::Selected);
+    cacheSelectedPoints(selected);
+}
+
+void DmCachePainter::cacheHighlight()
+{
+    if (!m_highlightSource)
+    {
+        return;
+    }
+    // 来源给出的都是可见的顶层实体；选中优先：已选中的按选中色画，不进高亮组
+    PenGroups groups;
+    for (auto e : m_highlightSource->highlightedEntities())
+    {
+        if (!isSelected(e))
+        {
+            addToGroups(e, groups);
+        }
+    }
+    cacheEntity(groups, opengl::CacheGroupType::Highlight);
 }
 
 bool DmCachePainter::isEntityMatchTypes(const DmEntity* e, const std::list<opengl::CacheType>& types)
@@ -473,27 +561,13 @@ void DmCachePainter::cacheEntity(const DmEntity* e, int penId, opengl::CacheGrou
         // corner 3: top-left -> texcoord (0,1)
         vertices.insert(vertices.end(), { (float)corners.get(3).x, (float)corners.get(3).y, 0.0f, 0.0f, 1.0f });
 
-        // 创建 OpenGL 纹理
-        GLuint textureId = 0;
-        glGenTextures(1, &textureId);
-        glBindTexture(GL_TEXTURE_2D, textureId);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-        QImage img = image->getData().getPath() != ""
-            ? QImage(QString::fromStdString(image->getData().getPath()))
-            : QImage(image->getbits(), image->getWidth(), image->getHeight(),
-                     image->getBytesPerLine(), QImage::Format_ARGB32_Premultiplied);
-
-        QImage glImg = img.convertToFormat(QImage::Format_RGBA8888).mirrored();
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, glImg.width(), glImg.height(),
-                     0, GL_RGBA, GL_UNSIGNED_BYTE, glImg.bits());
-        opengl::GLFrameStats::addUploadBytes(glImg.sizeInBytes());
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        m_cachePainter->addImage(penId, group, vertices, textureId);
+        // 纹理按图片来源缓存，缓存重建时复用，只有新的来源才解码、上传（RENDER_PLAN.md 1.2 步）
+        m_cachePainter->addImage(penId, group, vertices, imageSource(image), [image]() {
+            return image->getData().getPath() != ""
+                ? QImage(QString::fromStdString(image->getData().getPath()))
+                : QImage(image->getbits(), image->getWidth(), image->getHeight(),
+                         image->getBytesPerLine(), QImage::Format_ARGB32_Premultiplied);
+        });
     }
     break;
     case DM::EntityRay:
@@ -533,30 +607,20 @@ void DmCachePainter::cacheLineStrip(DmLineStrip* lineStrip, int penId, opengl::C
     }
 }
 
-void DmCachePainter::cacheSelectedPoints()
+void DmCachePainter::cacheSelectedPoints(const std::vector<DmEntity*>& selected)
 {
     constexpr size_t kMaxSelectedPoints = 100;
     std::vector<DmVector> selectedPts;
     selectedPts.reserve(kMaxSelectedPoints);
-    for (auto en : m_containerList)
+    for (auto e : selected)
     {
+        for (auto pt : e->getRefPoints())
+        {
+            selectedPts.emplace_back(pt);
+        }
         if (selectedPts.size() > kMaxSelectedPoints)
         {
             return;
-        }
-        for (auto e : *en)
-        {
-            if (selectedPts.size() > kMaxSelectedPoints)
-            {
-                return;
-            }
-            if (isSelected(e))
-            {
-                for (auto pt : e->getRefPoints())
-                {
-                    selectedPts.emplace_back(pt);
-                }
-            }
         }
     }
 

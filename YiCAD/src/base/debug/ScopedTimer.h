@@ -188,13 +188,19 @@ private:
 };
 
 /// @brief 内置计数器：架构演进方案阶段 0 的基线埋点（3.2 节第 3 条），
-///        以及渲染层重构方案阶段 0 的渲染埋点（RENDER_PLAN.md 第 5 节 0.1 步）
+///        以及渲染层重构方案阶段 0、1 的渲染埋点（RENDER_PLAN.md 第 5 节 0.1 步、第 10 节阶段 1）
 namespace counters
 {
 /// @brief GuiDocumentView::paintGL 的帧耗时
 TimerCounter& paintGL();
 /// @brief 文档画笔的整图重建（删除全部缓存、重新分组、重新上传）的次数与耗时
 TimerCounter& regen();
+/// @brief 选择集变化后文档画笔的局部重建（只重建选中组、夹点与高亮组）的次数与耗时
+TimerCounter& regenSelection();
+/// @brief 高亮集变化后文档画笔的局部重建（只重建高亮组）的次数与耗时
+TimerCounter& regenHighlight();
+/// @brief 场景底图（背景、网格与文档）的重画次数与耗时；只有预览与前景变化的帧不重画
+TimerCounter& scene();
 /// @brief 高亮集变化后的首帧耗时（命令里悬停到候选实体上时出现高亮）
 TimerCounter& frameAfterHighlight();
 /// @brief 选择集变化后的首帧耗时（点选、框选、全选）

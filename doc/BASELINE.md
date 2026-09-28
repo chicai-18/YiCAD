@@ -71,7 +71,10 @@ $env:YICAD_LOG = "render:info"
 | 计数器 | 位置 | 对应的指标 |
 |--------|------|----------------|
 | `render.paintGL` | `GuiDocumentView::paintGL` | 稳态帧耗时 |
-| `render.regen` | `GuiDocumentView::drawDocumentLayer`（文档画笔整图重建，`DmCachePainter::rebuild`） | 整图重建的次数与耗时（渲染方案 0.1 步） |
+| `render.regen` | `GuiDocumentView::updateDocumentCache`（文档画笔整图重建） | 整图重建的次数与耗时（渲染方案 0.1 步） |
+| `render.regenSelection` | 同上，选择集变化后只重建选中组、夹点与高亮组 | 局部重建的次数与耗时（渲染方案阶段 1） |
+| `render.regenHighlight` | 同上，高亮集变化后只重建高亮组 | 局部重建的次数与耗时（渲染方案阶段 1） |
+| `render.scene` | `GuiDocumentView::drawScene`（场景底图重画：背景、网格、文档的普通组与选中组） | 场景底图的重画次数与耗时（渲染方案阶段 1） |
 | `render.frameAfterHighlight` | `GuiDocumentView::paintGL`，高亮集变化后由 `UIView` 标记下一帧 | 悬停高亮变化后的首帧耗时 |
 | `render.frameAfterSelection` | 同上，选择集变化后 | 点选、全选后的首帧耗时 |
 | `render.uploadBytes`（数量） | `opengl::GLFrameStats`：`glBufferData`、图片的 `glTexImage2D`，每帧一个采样 | 每帧上传字节数 |
@@ -101,9 +104,11 @@ $env:YICAD_BENCHMARK_DIR = "$PWD\build\benchmarks"   # 在仓库根执行
 表，可以直接贴进来：
 
 1. 经 `DmDocument::readFile()` 打开（`document.open`）；
-2. 按实体表范围缩放到全图，热身 5 帧后连续画 30 帧（`render.paintGL`、每帧绘制调用与上传字节）；
-3. 换 20 次高亮的实体，每次画一帧（`render.frameAfterHighlight`，其中 `render.regen`），相当于命令里光标从一个候选实体移到另一个上；
-4. 在 20 条直线的中点点选（`snap.catchEntity`），选中后画一帧（`render.frameAfterSelection`）；
+2. 按实体表范围缩放到全图，热身 5 帧后连续画 30 帧（`render.paintGL`、每帧绘制调用与上传字节；
+   渲染方案阶段 1 起另用 `GL_TIME_ELAPSED` 查询量 `paintGL` 的 GPU 耗时）；
+3. 换 20 次高亮的实体，每次画一帧（`render.frameAfterHighlight`，其中 `render.regen` 或 `render.regenHighlight`，
+   以及 `render.scene`），相当于命令里光标从一个候选实体移到另一个上；
+4. 在 20 条直线的中点点选（`snap.catchEntity`），选中后画一帧（`render.frameAfterSelection`，其中 `render.regen` 或 `render.regenSelection`）；
 5. 框选盖住全部实体（`selection.selectWindow`），画一帧（全选后首帧）；
 6. 从 20 条直线的端点沿直线方向求虚拟交点（`snap.nearestVirtualIntersection`）。
 
@@ -376,7 +381,7 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 ### 8.1 运行期数据
 
 由第 2 节的自动采集用例测得（`test_interaction` 的 `BaselineRuntimeTest`），单位毫秒，另有注明的除外；
-耗时都是 CPU 侧的提交耗时，不等 GPU 完成。
+除注明 GPU 的一行（阶段 1 起）外，耗时都是 CPU 侧的提交耗时，不等 GPU 完成。
 
 采集环境：Windows 11 Pro 22621，AMD Ryzen 9 6900HX，32 GB 内存，NVIDIA GeForce RTX 3070 Ti Laptop GPU（驱动 32.0.15.6607；
 用例打印的 GL_RENDERER 确认用的是这块独显），画布 1600×900，Release 配置
@@ -412,17 +417,56 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 - 三份基准图纸里的填充都以多段线为边界，现在画不出来（`RENDER_PLAN.md` 第 10 节阶段 0 的记录），所以这里没有测到填充的绘制开销。
 - 同一台机器上第一次采集的结果与表中相差都在几个百分点以内（例如大图纸换高亮 3,793.85 与 3,764.95）。
 
+#### 阶段 1（止血）
+
+采集日期：2026-09-28，环境同上；代码：`0e5eee4` 加渲染方案阶段 1 的改动。
+
+阶段 1 起采集用例多了稳态帧的 GPU 耗时（`GL_TIME_ELAPSED` 查询包住 `paintGL`，不含 Qt 之后的解析与合成）与局部重建、
+场景底图的几行。为了对照，先用同一个用例在阶段 1 改动之前的代码（`0e5eee4`）上补测了一次：右列的 GPU 耗时取自那次
+（小、中图纸为 0.26、0.76），其余各行与上表相差都在几个百分点以内（例如大图纸换高亮 3,781.19、点选后首帧 4,101.56），右列仍抄上表。
+打开文档、点选、框选、虚拟交点与渲染无关，这次与上表相差也在几个百分点以内，不再列出。
+
+| 指标 | 小图纸 (1k) | 中图纸 (50k) | 大图纸 (500k) | 大图纸，阶段 0 |
+|------|-----------:|-------------:|--------------:|---------------:|
+| 稳态帧 `render.paintGL` | 1.20 | 0.39 | 0.38 | 1.43 |
+| 稳态帧 GPU 耗时（`GL_TIME_ELAPSED`） | 0.29 | 0.24 | 0.23 | 6.03 |
+| 稳态帧绘制调用（次/帧） | 23 | 23 | 23 | 119 |
+| 稳态帧上传（字节/帧） | 736 | 736 | 736 | 2,976 |
+| 换高亮后首帧 `render.frameAfterHighlight` | 1.45 | 0.45 | 0.48 | 3,764.95 |
+| 换高亮 20 次的整图重建次数 | 0 | 0 | 0 | 20 |
+| 其中局部重建 `render.regenHighlight` | 0.170 | 0.041 | 0.040 | — |
+| 换高亮 20 次的场景底图重画次数 `render.scene` | 0 | 0 | 0 | — |
+| 换高亮后首帧上传（字节） | 776 | 776 | 776 | 624,925,328 |
+| 点选后首帧 `render.frameAfterSelection` | 1.22 | 1.08 | 1.51 | 4,029.69 |
+| 点选 20 次的整图重建次数 | 0 | 0 | 0 | 20 |
+| 其中局部重建 `render.regenSelection` | 0.048 | 0.050 | 0.046 | — |
+| 全选后首帧 `render.frameAfterSelection` | 9.32 | 390.72 | 5,100.01 | 6,818.60 |
+| 其中局部重建 `render.regenSelection` | 7.04 | 388.56 | 5,094.74 | — |
+
+几点说明：
+
+- **稳态帧**（只移动光标的帧也是这样）：场景底图不重画，GPU 上只有一次多重采样拷贝加叠加层，三份图纸都在 0.2～0.3 ms，
+  与图纸大小无关；阶段 0 每帧重画全部实体，大图纸 6 ms。背景与网格只在场景重画时上传，每帧上传的 736 字节是前景的立即模式图元。
+- **换高亮**只重建高亮组（一个实体），不重画场景，首帧 0.5 ms 以内，与图纸大小无关。
+- **点选**只重建选中组与夹点（一个实体），但选中组在场景底图里，场景要重画一次：CPU 提交 1.5 ms，GPU 上的重画没有单独量，
+  开销与阶段 0 的稳态帧相当（大图纸约 6 ms）。
+- **全选**仍要把 48 万个实体的顶点重新组成选中组并上传，开销随选中数，大图纸 5.1 秒（阶段 0 为 6.8 秒，省下的是普通组的重建）。
+  要等阶段 4 的对象状态缓冲（`RENDER_PLAN.md` 第 4.3.7 节）才只改状态。平移、缩放同样每帧重画整个场景，GPU 开销随图纸大小，由阶段 6 的 LOD 处理。
+
 ### 8.2 自动化测试用例数
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 |
-|------------|------:|------:|
-| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） |
-| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） |
-| `test_persistence` | 68 | 68 |
-| `test_interaction` | 335 | 336 |
-| `test_render` | — | 15 |
+| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 |
+|------------|------:|------:|------:|
+| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） |
+| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
+| `test_persistence` | 68 | 68 | 68 |
+| `test_interaction` | 335 | 336 | 336 |
+| `test_render` | — | 15 | 23 |
 
 阶段 0 新增：`test_math` 的数量计数器与新计数器 4 个；`test_interaction` 的基线采集 1 个（不设 `YICAD_BENCHMARK_DIR` 时跳过）；
 `test_render`（新）的环境检查 2 个与参考图纸出图比对 13 个（缺 SHX 字体时 `text_shx` 跳过，CI 上就是这样）。
+
+阶段 1 新增：`test_math` 的新计数器 1 个；`test_render` 的增量更新 7 个（选择集、高亮集的局部重建与整图重建的图比对，
+场景底图什么时候重画，整图重建复用图片纹理）与图片纹理缓存 1 个。

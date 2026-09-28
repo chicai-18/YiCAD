@@ -215,6 +215,20 @@ bool SelectionSet::isSelected(const DmEntity& entity) const
     return contains(&entity);
 }
 
+std::vector<DmEntity*> SelectionSet::selectedEntities() const
+{
+    std::vector<DmEntity*> selected;
+    selected.reserve(m_ids.size());
+    for (const DmId& id : m_ids)
+    {
+        if (DmEntity* e = findVisible(id))
+        {
+            selected.push_back(e);
+        }
+    }
+    return selected;
+}
+
 void SelectionSet::documentModified()
 {
     EntityTable* table = m_document.getEntityTable();

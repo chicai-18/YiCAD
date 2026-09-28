@@ -7,14 +7,17 @@
 ///
 /// 对每份图纸依次做，用代码调用而不经过鼠标事件：
 /// - 经 DmDocument::readFile() 打开（document.open）；
-/// - 缩放到全图，连续重绘，取稳态帧（render.paintGL、每帧绘制调用与上传字节）；
-/// - 换 20 次高亮的实体，每次重绘一帧（render.frameAfterHighlight，其中 render.regen）；
-/// - 在 20 条直线的中点点选（snap.catchEntity），选中后重绘一帧（render.frameAfterSelection）；
+/// - 缩放到全图，连续重绘，取稳态帧（render.paintGL、每帧绘制调用与上传字节，以及 GPU 耗时）；
+/// - 换 20 次高亮的实体，每次重绘一帧（render.frameAfterHighlight，其中 render.regen 或
+///   阶段 1 起的 render.regenHighlight，以及场景底图的重画 render.scene）；
+/// - 在 20 条直线的中点点选（snap.catchEntity），选中后重绘一帧（render.frameAfterSelection，
+///   其中 render.regen 或阶段 1 起的 render.regenSelection）；
 /// - 框选盖住全部实体（selection.selectWindow），重绘一帧；
 /// - 从 20 条直线的端点沿直线方向求虚拟交点（snap.nearestVirtualIntersection）。
 ///
-/// 数值是 CPU 侧的提交耗时（与程序里 YICAD_PROFILE=1 的埋点相同，不等 GPU 完成），
-/// 结果以表格打印在标准输出，由人抄进 BASELINE.md。
+/// 除注明 GPU 的一项外，数值是 CPU 侧的提交耗时（与程序里 YICAD_PROFILE=1 的埋点相同，不等 GPU 完成）。
+/// GPU 耗时用 GL_TIME_ELAPSED 查询包住 paintGL 量得（渲染方案阶段 1 加：稳态帧的 CPU 提交与图纸大小无关，
+/// 画整图的开销在 GPU 上）。结果以表格打印在标准输出，由人抄进 BASELINE.md。
 
 #include <gtest/gtest.h>
 
@@ -69,6 +72,43 @@ private:
     bool m_previous;
 };
 
+/// @brief 用 GL_TIME_ELAPSED 查询量每帧 paintGL 在 GPU 上的耗时
+/// @details 只包住 paintGL 发出的命令，不含 QOpenGLWidget 之后的多重采样解析与窗口合成
+class GpuTimedView : public UIView
+{
+public:
+    using UIView::UIView;
+
+    /// @brief 最近一帧 paintGL 的 GPU 耗时（毫秒），等 GPU 完成后返回；还没画过时返回 0
+    double lastFrameGpuMs()
+    {
+        if (m_query == 0)
+        {
+            return 0.0;
+        }
+        makeCurrent();
+        GLuint64 nanoseconds = 0;
+        glGetQueryObjectui64v(m_query, GL_QUERY_RESULT, &nanoseconds);
+        doneCurrent();
+        return static_cast<double>(nanoseconds) / 1.0e6;
+    }
+
+protected:
+    void paintGL() override
+    {
+        if (m_query == 0)
+        {
+            glGenQueries(1, &m_query);
+        }
+        glBeginQuery(GL_TIME_ELAPSED, m_query);
+        UIView::paintGL();
+        glEndQuery(GL_TIME_ELAPSED);
+    }
+
+private:
+    GLuint m_query = 0;  ///< 计时查询对象，第一帧时在画布的上下文里建
+};
+
 /// @brief 一份图纸的结果
 struct Result
 {
@@ -77,16 +117,23 @@ struct Result
     int entities = 0;
     double openMs = 0.0;
     double steadyFrameMs = 0.0;
+    double steadyGpuMs = 0.0;
     double steadyDrawCalls = 0.0;
     double steadyUploadBytes = 0.0;
     double frameAfterHighlightMs = 0.0;
     double regenMs = 0.0;
+    long long highlightRegens = 0;         ///< 换高亮时整图重建的次数
+    double regenHighlightMs = 0.0;
+    long long highlightSceneRedraws = 0;   ///< 换高亮时场景底图重画的次数
     double frameUploadBytes = 0.0;
     double catchEntityMs = 0.0;
     double frameAfterClickMs = 0.0;
+    long long clickRegens = 0;             ///< 点选时整图重建的次数
+    double clickRegenSelectionMs = 0.0;
     double selectWindowMs = 0.0;
     int selectedByWindow = 0;
     double frameAfterSelectAllMs = 0.0;
+    double selectAllRegenSelectionMs = 0.0;
     double virtualIntersectionMs = 0.0;
 };
 
@@ -162,7 +209,7 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     result.openMs = yicad::counters::openDocument().averageMs();
     result.entities = document.getEntityTable()->count();
 
-    UIView view(nullptr, Qt::WindowFlags(), &appDocument);
+    GpuTimedView view(nullptr, Qt::WindowFlags(), &appDocument);
     view.resize(kViewWidth, kViewHeight);
     view.show();
     waitExposed(view);
@@ -178,11 +225,14 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
         renderFrame(view);
     }
     yicad::Profiler::resetAll();
+    double gpuMs = 0.0;
     for (int i = 0; i < kSteadyFrames; ++i)
     {
         renderFrame(view);
+        gpuMs += view.lastFrameGpuMs();
     }
     result.steadyFrameMs = yicad::counters::paintGL().averageMs();
+    result.steadyGpuMs = gpuMs / kSteadyFrames;
     result.steadyDrawCalls = yicad::counters::drawCalls().average();
     result.steadyUploadBytes = yicad::counters::uploadBytes().average();
 
@@ -201,6 +251,9 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     highlight.clear();
     result.frameAfterHighlightMs = yicad::counters::frameAfterHighlight().averageMs();
     result.regenMs = yicad::counters::regen().averageMs();
+    result.highlightRegens = yicad::counters::regen().count();
+    result.regenHighlightMs = yicad::counters::regenHighlight().averageMs();
+    result.highlightSceneRedraws = yicad::counters::scene().count();
     result.frameUploadBytes = yicad::counters::uploadBytes().average();
     renderFrame(view);
 
@@ -220,6 +273,8 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     }
     result.catchEntityMs = yicad::counters::catchEntity().averageMs();
     result.frameAfterClickMs = yicad::counters::frameAfterSelection().averageMs();
+    result.clickRegens = yicad::counters::regen().count();
+    result.clickRegenSelectionMs = yicad::counters::regenSelection().averageMs();
 
     // 全选：框选盖住全部实体
     selection.clear();
@@ -234,6 +289,7 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     result.selectWindowMs = yicad::counters::selectWindow().averageMs();
     result.selectedByWindow = selection.count();
     result.frameAfterSelectAllMs = yicad::counters::frameAfterSelection().averageMs();
+    result.selectAllRegenSelectionMs = yicad::counters::regenSelection().averageMs();
     selection.clear();
     renderFrame(view);
 
@@ -286,16 +342,25 @@ void print(const std::vector<Result>& results)
     row("顶层实体数", [](const Result& r) { return std::to_string(r.entities); });
     row("打开文档 `document.open`", [](const Result& r) { return fixed(r.openMs, 1); });
     row("稳态帧 `render.paintGL`", [](const Result& r) { return fixed(r.steadyFrameMs, 2); });
+    row("稳态帧 GPU 耗时（`GL_TIME_ELAPSED`）", [](const Result& r) { return fixed(r.steadyGpuMs, 2); });
     row("稳态帧绘制调用（次/帧）", [](const Result& r) { return fixed(r.steadyDrawCalls, 0); });
     row("稳态帧上传（字节/帧）", [](const Result& r) { return fixed(r.steadyUploadBytes, 0); });
     row("换高亮后首帧 `render.frameAfterHighlight`", [](const Result& r) { return fixed(r.frameAfterHighlightMs, 2); });
     row("其中整图重建 `render.regen`", [](const Result& r) { return fixed(r.regenMs, 2); });
+    row("换高亮 20 次的整图重建次数", [](const Result& r) { return std::to_string(r.highlightRegens); });
+    row("其中局部重建 `render.regenHighlight`", [](const Result& r) { return fixed(r.regenHighlightMs, 3); });
+    row("换高亮 20 次的场景底图重画次数 `render.scene`",
+        [](const Result& r) { return std::to_string(r.highlightSceneRedraws); });
     row("换高亮后首帧上传（字节）", [](const Result& r) { return fixed(r.frameUploadBytes, 0); });
     row("点选 `snap.catchEntity`", [](const Result& r) { return fixed(r.catchEntityMs, 3); });
     row("点选后首帧 `render.frameAfterSelection`", [](const Result& r) { return fixed(r.frameAfterClickMs, 2); });
+    row("点选 20 次的整图重建次数", [](const Result& r) { return std::to_string(r.clickRegens); });
+    row("其中局部重建 `render.regenSelection`", [](const Result& r) { return fixed(r.clickRegenSelectionMs, 3); });
     row("全选框选 `selection.selectWindow`", [](const Result& r) { return fixed(r.selectWindowMs, 2); });
     row("框选选中数", [](const Result& r) { return std::to_string(r.selectedByWindow); });
     row("全选后首帧 `render.frameAfterSelection`", [](const Result& r) { return fixed(r.frameAfterSelectAllMs, 2); });
+    row("其中局部重建 `render.regenSelection`",
+        [](const Result& r) { return fixed(r.selectAllRegenSelectionMs, 2); });
     row("虚拟交点 `snap.nearestVirtualIntersection`", [](const Result& r) { return fixed(r.virtualIntersectionMs, 3); });
     std::fputs(out.c_str(), stdout);
     std::fflush(stdout);

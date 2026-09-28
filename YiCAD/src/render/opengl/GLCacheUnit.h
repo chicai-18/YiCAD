@@ -38,14 +38,16 @@ struct GLCacheUnit
     std::vector<float> vertexes;        ///< 顶点
     std::vector<int> jumps;             ///< 跳转
     std::vector<GLint> startIndices;    ///< 起始索引
+    std::vector<GLuint> textures;       ///< 图片单元里每张图片的纹理，与 startIndices、jumps 一一对应；纹理归 GLImageTextureCache
     GLenum drawType = GL_POINTS;
     GLVertexArray vao;
     GLVertexBuffer vbo;
 
-    /// @brief 释放缓存单元占用的OpenGL资源
+    /// @brief 释放缓存单元占用的OpenGL资源（纹理不在其内）
     void free()
     {
         jumps.clear();
+        textures.clear();
         if (vbo.isValid())
         {
             vbo.freeVBO();

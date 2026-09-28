@@ -63,6 +63,7 @@
 #include <utility>
 #include "QString"
 #include "GLFrameStats.h"
+#include "GLSceneBuffer.h"
 
 GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument* doc)
     : QOpenGLWidget(parent, f)
@@ -87,6 +88,7 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     , m_pDocumentPainter(nullptr)
     , m_pForegroundPainter(nullptr)
     , m_pPreviewPainter(nullptr)
+    , m_pSceneBuffer(std::make_unique<opengl::GLSceneBuffer>())
     , m_currentMousePt(DmVector(false))
     , m_eCursorType(DM::CadCursor)
     , m_selEntityCurcorStyle(new QCursor(QPixmap(":/ribbon/cursor_style/select_entity.svg"), CURSOR_SIZE, CURSOR_SIZE))
@@ -131,6 +133,13 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
 
 GuiDocumentView::~GuiDocumentView()
 {
+    // 场景底图属于画布的上下文，释放时它要是当前的；QOpenGLWidget 的上下文在基类析构时才销毁
+    if (m_pSceneBuffer->isValid())
+    {
+        makeCurrent();
+        m_pSceneBuffer->destroy();
+        doneCurrent();
+    }
     setDocument(nullptr);
     cleanUp();
     qDeleteAll(m_overlayEntities);
@@ -196,9 +205,10 @@ QString GuiDocumentView::activeCommandId() const
 }
 
 /// @brief 发出选择变更信号
+/// @details 原先还标记文档已修改，让文档画笔整图重建；调用方都是改了选择集之后调这里，
+///          选择集自己的变化通知已让画笔重建选中组（RENDER_PLAN.md 1.1 步、第 4.9 节）
 void GuiDocumentView::emitSelectedChanged()
 {
-    specifyDocumentModified();
     emit selectedChanged();
 }
 
@@ -283,6 +293,7 @@ void GuiDocumentView::zoomIn(double f, const DmVector& center)
     m_pPreviewPainter->scale(f, center.x, center.y);
     m_pDocumentPainter->scale(f, center.x, center.y);
     m_pForegroundPainter->scale(f, center.x, center.y);
+    invalidateScene();
     redraw();
     emit viewChanged();
 }
@@ -361,6 +372,7 @@ void GuiDocumentView::setView(const DmVector& center, double unitsPerPixel)
         m_pForegroundPainter->setScale(unitsPerPixel);
     }
 
+    invalidateScene();
     redraw();
     emit viewChanged();
 }
@@ -376,6 +388,7 @@ void GuiDocumentView::zoomPan(int dx, int dy)
     m_pPreviewPainter->translateView(dx_world, dy_world);
     m_pDocumentPainter->translateView(dx_world, dy_world);
     m_pForegroundPainter->translateView(dx_world, dy_world);
+    invalidateScene();
     redraw();
     emit viewChanged();
 }
@@ -407,12 +420,7 @@ void GuiDocumentView::drawBackgroundLayer()
 
 void GuiDocumentView::drawDocumentLayer()
 {
-    // 整图重建单独计时（render.regen）：选择集、高亮集、文档的任何变化现在都走这里
-    if (m_pDocumentPainter->isModified())
-    {
-        YICAD_SCOPED_TIMER(yicad::counters::regen());
-        m_pDocumentPainter->rebuild();
-    }
+    // 普通组与选中组；缓存已由 updateDocumentCache() 更新，高亮组与夹点画在叠加层
     m_pDocumentPainter->draw();
 }
 
@@ -1013,7 +1021,15 @@ void GuiDocumentView::specifySelectChanged()
 {
     if (m_pDocumentPainter)
     {
-        //m_pDocumentPainter->specifySelectChanged();
+        m_pDocumentPainter->specifySelectChanged();
+    }
+}
+
+void GuiDocumentView::specifyHighlightChanged()
+{
+    if (m_pDocumentPainter)
+    {
+        m_pDocumentPainter->specifyHighlightChanged();
     }
 }
 
@@ -1073,6 +1089,7 @@ DmVector GuiDocumentView::currentSnapSpot()
 void GuiDocumentView::setBackground(const QColor& bg)
 {
     background = bg;
+    invalidateScene();
 }
 
 /// @brief 设置鼠标光标类型
@@ -1202,11 +1219,13 @@ DmVector GuiDocumentView::getMousePosition() const
 void GuiDocumentView::setGridColor(const QColor& c)
 {
     gridColor = c;
+    invalidateScene();
 }
 
 void GuiDocumentView::setMetaGridColor(const QColor& c)
 {
     metaGridColor = c;
+    invalidateScene();
 }
 
 void GuiDocumentView::setSelectedColor(const QColor& c)
@@ -1216,10 +1235,12 @@ void GuiDocumentView::setSelectedColor(const QColor& c)
         m_pDocumentPainter->setSelectedColor(c);
     if (m_pPreviewPainter)
         m_pPreviewPainter->setSelectedColor(c);
+    invalidateScene();
 }
 
 void GuiDocumentView::setHighlightColor(const QColor& c)
 {
+    // 高亮组画在叠加层，场景底图不作废
     highlightColor = c;
     if (m_pDocumentPainter)
         m_pDocumentPainter->setHighlightColor(c);
@@ -1277,6 +1298,7 @@ void GuiDocumentView::setDraftMode(bool dm)
     m_pDocumentPainter->setIsDisplayLineWidth(dm);
     m_pPreviewPainter->setIsDisplayLineWidth(dm);
     draftMode = dm;
+    invalidateScene();
 }
 
 bool GuiDocumentView::isCleanUp(void) const
@@ -1288,6 +1310,10 @@ void GuiDocumentView::initializeGL()
 {
     QOpenGLWidget::makeCurrent();
     QOpenGLContext* CC = QOpenGLContext::currentContext();
+
+    // 再次初始化时上下文是新建的，原来的场景底图已随旧上下文释放
+    m_pSceneBuffer->forget();
+    invalidateScene();
 
     int width = size().width();
     int height = size().height();
@@ -1320,25 +1346,83 @@ void GuiDocumentView::paintGL()
     }
     opengl::GLFrameStats::beginFrame();
 
+    updateDocumentCache();
+
     // Qt 5 的 QOpenGLWidget 在每次 paintGL 之前清空颜色、深度、模板缓冲；Qt 6 在支持
     // glInvalidateFramebuffer（GL 4.3 起）的驱动上改为只作废 FBO 内容，不再清零。各绘制层
     // 开着深度测试（GL_LEQUAL）却从不清深度，未定义的深度值会随机剔除片元，画面出现
     // 彩色噪点。这里显式清一次，恢复 Qt 5 下的行为（清除色沿用默认的全零）。
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-    // 绘制背景层 背景网格等
-    drawBackgroundLayer();
+    // 背景层（背景色、网格）与文档层的普通组、选中组，经场景底图
+    drawScene();
 
-    // 绘制doc层
-    drawDocumentLayer();
-
-    // 绘制预览层
+    // 叠加层，每帧都画（RENDER_PLAN.md 第 4.3.8 节的次序）：高亮、预览、夹点、前景
+    m_pDocumentPainter->drawHighlight();
     drawPreviewLayer();
-
-    // 绘制前景层
+    m_pDocumentPainter->drawSelectedPoints();
     drawForegroundLayer();
 
     opengl::GLFrameStats::endFrame();
+}
+
+void GuiDocumentView::updateDocumentCache()
+{
+    // 三种重建分别计时。选中组在场景底图里，选择集变了场景作废；高亮组在叠加层，场景不作废
+    if (m_pDocumentPainter->isModified())
+    {
+        YICAD_SCOPED_TIMER(yicad::counters::regen());
+        m_pDocumentPainter->update();
+        invalidateScene();
+    }
+    else if (m_pDocumentPainter->isSelectChanged())
+    {
+        YICAD_SCOPED_TIMER(yicad::counters::regenSelection());
+        m_pDocumentPainter->update();
+        invalidateScene();
+    }
+    else if (m_pDocumentPainter->isHighlightChanged())
+    {
+        YICAD_SCOPED_TIMER(yicad::counters::regenHighlight());
+        m_pDocumentPainter->update();
+    }
+}
+
+void GuiDocumentView::drawScene()
+{
+    const GLuint target = defaultFramebufferObject();
+    GLint viewport[4] = {0, 0, 0, 0};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    bool recreated = false;
+    if (!m_pSceneBuffer->resize(target, viewport[2], viewport[3], &recreated))
+    {
+        drawBackgroundLayer();
+        drawDocumentLayer();
+        return;
+    }
+
+    // 网格开关是文档变量，改它的地方（UIActionHandler::slotViewGrid）只请求重绘，不通知画布
+    const bool gridOn = isGridOn();
+    if (recreated || gridOn != m_bSceneGridOn)
+    {
+        invalidateScene();
+    }
+    if (!m_bSceneValid)
+    {
+        YICAD_SCOPED_TIMER(yicad::counters::scene());
+        m_pSceneBuffer->bind();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        drawBackgroundLayer();
+        drawDocumentLayer();
+        m_bSceneValid = true;
+        m_bSceneGridOn = gridOn;
+    }
+    m_pSceneBuffer->blitTo(target);
+}
+
+void GuiDocumentView::invalidateScene()
+{
+    m_bSceneValid = false;
 }
 
 void GuiDocumentView::resizeGL(int w, int h)
@@ -1347,6 +1431,7 @@ void GuiDocumentView::resizeGL(int w, int h)
     m_pPreviewPainter->new_device_size(w, h);
     m_pDocumentPainter->new_device_size(w, h);
     m_pForegroundPainter->new_device_size(w, h);
+    invalidateScene();
 }
 
 void GuiDocumentView::mouseMoveEvent(QMouseEvent* e)

@@ -57,20 +57,20 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
         m_pSelection = &doc->selection();
         m_pSelectSnapper = std::make_unique<Snapper>(document, this);
         m_pSelectPreview = std::make_unique<Preview>(m_pSelection, this);
-        // 文档画笔按图纸的选择集判断实体是否选中；选择改变不经文档通知，这里重建缓存并重绘
+        // 文档画笔按图纸的选择集判断实体是否选中；选择改变不经文档通知，这里让画笔重建选中组并重绘
         setDocumentSelectionSource(m_pSelection);
         connect(m_pSelection, &SelectionSet::changed, this, [this]()
         {
-            specifyDocumentModified();
+            specifySelectChanged();
             setNextFrameCounter(yicad::counters::frameAfterSelection());
             redraw();
         });
-        // 文档画笔从本视图的高亮集取要高亮的实体，高亮改变时同样重建缓存并重绘
+        // 文档画笔从本视图的高亮集取要高亮的实体，高亮改变时只重建高亮组并重绘
         m_pHighlight = std::make_unique<HighlightSet>(*document);
         setDocumentHighlightSource(m_pHighlight.get());
         connect(m_pHighlight.get(), &HighlightSet::changed, this, [this]()
         {
-            specifyDocumentModified();
+            specifyHighlightChanged();
             setNextFrameCounter(yicad::counters::frameAfterHighlight());
             redraw();
         });

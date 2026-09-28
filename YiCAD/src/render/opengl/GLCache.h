@@ -64,7 +64,6 @@ struct GLCache
     GLCacheUnitMap m_cacheSelectedUnits[COUNT];     ///< 实体选中部分
     GLPenDataMap m_pens;                            ///< 所有实体的画笔
     GLCacheUnit    m_cacheSelectedPoints;           ///< 实体的控制点
-    std::unordered_map<int, GLuint> m_imageTextures; ///< 图片纹理ID（key为penId）
 };
 
 }

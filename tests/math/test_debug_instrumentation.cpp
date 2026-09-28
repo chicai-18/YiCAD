@@ -209,6 +209,27 @@ TEST(ScopedTimerTest, 渲染方案阶段0的计数器都已注册)
     EXPECT_TRUE(contains(values, "render.drawCalls"));
 }
 
+TEST(ScopedTimerTest, 渲染方案阶段1的计数器都已注册)
+{
+    // RENDER_PLAN.md 第 10 节阶段 1：选择集、高亮集变化后的局部重建，场景底图的重画
+    yicad::counters::regenSelection();
+    yicad::counters::regenHighlight();
+    yicad::counters::scene();
+
+    std::vector<std::string> timers;
+    for (const yicad::TimerCounter* c : yicad::Profiler::counters())
+    {
+        timers.emplace_back(c->name());
+    }
+    auto contains = [&timers](const char* name) {
+        return std::find(timers.begin(), timers.end(), name) != timers.end();
+    };
+
+    EXPECT_TRUE(contains("render.regenSelection"));
+    EXPECT_TRUE(contains("render.regenHighlight"));
+    EXPECT_TRUE(contains("render.scene"));
+}
+
 // ---------------------------------------------------------------------------
 // 数量计数器
 // ---------------------------------------------------------------------------

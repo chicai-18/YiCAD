@@ -70,11 +70,8 @@ void opengl::GLCachePainter::removeAllCache()
         removeUnit(m_cache.m_cacheSelectedUnits[i]);
     }
 
-    for (auto& it : m_cache.m_imageTextures)
-    {
-        glDeleteTextures(1, &it.second);
-    }
-    m_cache.m_imageTextures.clear();
+    // 图片纹理留给重建时复用（RENDER_PLAN.md 1.2 步），generateGLData() 释放没用到的
+    m_imageTextures.beginSweep();
 
     removeSelectedPointsCache();
 }
@@ -95,15 +92,11 @@ void opengl::GLCachePainter::removeCacheByGroup(CacheGroupType groupType)
         map = m_cache.m_cacheSelectedUnits;
         break;
     }
+    // 纹理归 m_imageTextures：这里原先删掉全部纹理，连别的组正在用的也删了（P14）
     for (int i = 0; i < CacheType::COUNT; i++)
     {
         removeUnit(map[i]);
     }
-    for (auto& it : m_cache.m_imageTextures)
-    {
-        glDeleteTextures(1, &it.second);
-    }
-    m_cache.m_imageTextures.clear();
 }
 
 void opengl::GLCachePainter::removeCache(int penId, CacheType type)
@@ -116,11 +109,12 @@ void opengl::GLCachePainter::removeCache(int penId, CacheType type)
     auto func = [=](CacheType t) {
         auto& map = m_cache.m_cacheUnits[t];
         auto it = map.find(penId);
+        // 找不到时不能 erase(end())，那是未定义行为（P14）
         if (it != map.end())
         {
             it->second.free();
+            map.erase(it);
         }
-        map.erase(it);
     };
 
     if (type == CacheType::ALL)
@@ -129,25 +123,10 @@ void opengl::GLCachePainter::removeCache(int penId, CacheType type)
         {
             func((CacheType)i);
         }
-        auto texIt = m_cache.m_imageTextures.find(penId);
-        if (texIt != m_cache.m_imageTextures.end())
-        {
-            glDeleteTextures(1, &texIt->second);
-            m_cache.m_imageTextures.erase(texIt);
-        }
     }
     else
     {
         func(type);
-        if (type == CacheType::IMAGES)
-        {
-            auto texIt = m_cache.m_imageTextures.find(penId);
-            if (texIt != m_cache.m_imageTextures.end())
-            {
-                glDeleteTextures(1, &texIt->second);
-                m_cache.m_imageTextures.erase(texIt);
-            }
-        }
     }
 }
 
@@ -401,7 +380,8 @@ void opengl::GLCachePainter::addXLine(int penId, CacheGroupType groupType, doubl
     unit.jumps.emplace_back(1);
 }
 
-void opengl::GLCachePainter::addImage(int penId, CacheGroupType groupType, const std::vector<float>& vertices, GLuint textureId)
+void opengl::GLCachePainter::addImage(int penId, CacheGroupType groupType, const std::vector<float>& vertices,
+                                      const QString& source, const std::function<QImage()>& load)
 {
     GLCacheUnitMap* map = getUnitMap(groupType, IMAGES);
     auto& unit = (*map)[penId];
@@ -418,7 +398,8 @@ void opengl::GLCachePainter::addImage(int penId, CacheGroupType groupType, const
     vertexRef.insert(vertexRef.end(), vertices.begin(), vertices.end());
     unit.jumps.emplace_back(static_cast<int>(vertices.size()) / 5);
 
-    m_cache.m_imageTextures[penId] = textureId;
+    // 每张图片记下自己的纹理：同一画笔的多张图片原先共用最后一张的纹理
+    unit.textures.emplace_back(m_imageTextures.texture(source, load));
 }
 
 void opengl::GLCachePainter::addSelectedPoints(double x, double y)
@@ -451,6 +432,15 @@ void opengl::GLCachePainter::stroke()
         auto& map = m_cache.m_cacheSelectedUnits[i];
         drawByMapAndType(map, type, opengl::CacheGroupType::Selected);
     }
+}
+
+void opengl::GLCachePainter::strokeHighlight()
+{
+    // 与选中组相同的状态：高亮组原先紧接着选中组画，现在画在场景底图之上
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     m_painterCommon.selectHighlightColor(m_highlightColor.redF(), m_highlightColor.greenF(), m_highlightColor.blueF(), 0.5f);
     for (int i = 0; i < CacheType::COUNT; i++)
     {
@@ -458,10 +448,27 @@ void opengl::GLCachePainter::stroke()
         auto& map = m_cache.m_cacheHighlightUnits[i];
         drawByMapAndType(map, type, opengl::CacheGroupType::Highlight);
     }
+}
 
-    // 拖拽点
+void opengl::GLCachePainter::strokeSelectedPoints()
+{
+    // 与原先紧接着高亮组画时的状态相同
+    glEnable(GL_BLEND);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     glDisable(GL_MULTISAMPLE);
-    drawSelectedPoints();
+    m_painterCommon.selectColor(BLUE_R, BLUE_G, BLUE_B, FULL_ALPHA);
+    //glDisable(GL_POINT_SMOOTH);
+    glPointSize(SELECTED_POINT_SIZE);
+    m_painterCommon.useShader(opengl::ShaderType::BASIC);
+    m_painterCommon.sendMVP();
+    auto& data = m_cache.m_cacheSelectedPoints;
+    data.vao.bind();
+    data.vbo.bind();
+    glDrawArrays(data.drawType, 0, static_cast<GLsizei>(data.vertexes.size()) / POINT_FLOAT_COUNT);	//GL_POINTS
+    GLFrameStats::addDrawCalls();
+    glPointSize(RESET_POINT_SIZE);
     glEnable(GL_MULTISAMPLE);
 }
 
@@ -496,6 +503,9 @@ void opengl::GLCachePainter::generateGLData()
 
     // 选择实体的控制点
     generateGLDataOfSelectedPoints();
+
+    // 整图重建结束（removeAllCache() 开始）：释放这次没用到的图片纹理
+    m_imageTextures.endSweep();
 }
 
 void opengl::GLCachePainter::generateGLDataByType(CacheGroupType group)
@@ -683,19 +693,20 @@ void opengl::GLCachePainter::drawByMapAndType(GLCacheUnitMap& map, opengl::Cache
         useShader(pen, type, group);
         sendUniform(pen, group);
 
-        if (type == IMAGES)
-        {
-            auto texIt = m_cache.m_imageTextures.find(penId);
-            if (texIt != m_cache.m_imageTextures.end())
-            {
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, texIt->second);
-            }
-        }
-
         data.vao.bind();
         data.vbo.bind();
-        if (data.drawType == GL_LINES || data.drawType == GL_TRIANGLES)	//同类型直线/三角形共用一个drawcall，不使用data.startIndices
+        if (type == IMAGES)
+        {
+            // 每张图片绑自己的纹理，各画一次
+            glActiveTexture(GL_TEXTURE0);
+            for (size_t i = 0; i < data.textures.size(); ++i)
+            {
+                glBindTexture(GL_TEXTURE_2D, data.textures[i]);
+                glDrawArrays(data.drawType, data.startIndices[i], data.jumps[i]);
+                GLFrameStats::addDrawCalls();
+            }
+        }
+        else if (data.drawType == GL_LINES || data.drawType == GL_TRIANGLES)	//同类型直线/三角形共用一个drawcall，不使用data.startIndices
         {
             auto& jumps = data.jumps;
             std::vector<int>::const_iterator jumpIt;
@@ -713,21 +724,6 @@ void opengl::GLCachePainter::drawByMapAndType(GLCacheUnitMap& map, opengl::Cache
             GLFrameStats::addDrawCalls();
         }
     }
-}
-
-void opengl::GLCachePainter::drawSelectedPoints()
-{
-    m_painterCommon.selectColor(BLUE_R, BLUE_G, BLUE_B, FULL_ALPHA);
-    //glDisable(GL_POINT_SMOOTH);
-    glPointSize(SELECTED_POINT_SIZE);
-    m_painterCommon.useShader(opengl::ShaderType::BASIC);
-    m_painterCommon.sendMVP();
-    auto& data = m_cache.m_cacheSelectedPoints;
-    data.vao.bind();
-    data.vbo.bind();
-    glDrawArrays(data.drawType, 0, static_cast<GLsizei>(data.vertexes.size()) / POINT_FLOAT_COUNT);	//GL_POINTS
-    GLFrameStats::addDrawCalls();
-    glPointSize(RESET_POINT_SIZE);
 }
 
 void opengl::GLCachePainter::useShader(const opengl::GLPenData& penData, opengl::CacheType type, CacheGroupType group)

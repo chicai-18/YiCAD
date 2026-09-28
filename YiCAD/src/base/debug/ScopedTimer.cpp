@@ -182,6 +182,9 @@ void Profiler::configureFromEnvironment()
     // （「这一项没有采样」和「这一项不存在」是两回事）。
     counters::paintGL();
     counters::regen();
+    counters::regenSelection();
+    counters::regenHighlight();
+    counters::scene();
     counters::frameAfterHighlight();
     counters::frameAfterSelection();
     counters::uploadBytes();
@@ -314,6 +317,24 @@ TimerCounter& paintGL()
 TimerCounter& regen()
 {
     static TimerCounter counter("render.regen");
+    return counter;
+}
+
+TimerCounter& regenSelection()
+{
+    static TimerCounter counter("render.regenSelection");
+    return counter;
+}
+
+TimerCounter& regenHighlight()
+{
+    static TimerCounter counter("render.regenHighlight");
+    return counter;
+}
+
+TimerCounter& scene()
+{
+    static TimerCounter counter("render.scene");
     return counter;
 }
 

@@ -57,6 +57,7 @@ class ISelectionSource;
 namespace opengl
 {
 class GLPainter;
+class GLSceneBuffer;
 }
 
 namespace yicad
@@ -65,7 +66,9 @@ class TimerCounter;
 }
 
 /// @brief 文档的画布
-/// @details 包括4层：背景层，文档层，预览层，前景层。本类只负责渲染与视图状态，
+/// @details 包括4层：背景层，文档层，预览层，前景层。背景层与文档层的普通组、选中组画进场景底图，
+///          只在场景作废时重画；文档层的高亮组与夹点、预览层、前景层每帧画在底图之上（RENDER_PLAN.md 1.3 步）。
+///          本类只负责渲染与视图状态，
 ///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（application/view/UIView.h）
 ///          接收并交给 ViewToolControl 分发，对应 DS 的 HQWidget 与 UIView 之分。
 ///          关联文档时注册为它的监听者，析构时注销，因此必须先于文档析构。
@@ -246,10 +249,12 @@ public:
     DmEntityContainer* getPreviewContainer() override;
     /// @brief 指示预览已修改
     void specifyPreviewModified() override;
-    /// @brief 指示文档已修改
+    /// @brief 指示文档已修改：下一帧文档画笔整图重建
     void specifyDocumentModified() override;
-    /// @brief 指示选择已修改
+    /// @brief 指示选择集已修改：下一帧文档画笔只重建选中组、夹点与高亮组
     void specifySelectChanged();
+    /// @brief 指示高亮集已修改：下一帧文档画笔只重建高亮组，场景底图不作废
+    void specifyHighlightChanged();
     /// @brief 指定预览模型矩阵的偏移量
     void setPreviewModelOffset(const DmVector& offset) override;
     /// @brief 切换文档画笔的实体容器（用于块编辑）
@@ -300,6 +305,14 @@ private:
     void createPainters(unsigned int width, unsigned int height);
     void deletePainters();
 
+    /// @brief 按修改标记更新文档画笔的缓存并分别计时；整图重建与选择集修改使场景底图作废
+    void updateDocumentCache();
+    /// @brief 画背景层与文档层（普通组、选中组）：场景作废时重画进场景底图，再把底图拷到画布上；
+    ///        建不成场景底图时每帧直接画
+    void drawScene();
+    /// @brief 场景底图作废，下一帧重画（相机、尺寸、颜色与显示设置改变时）
+    void invalidateScene();
+
 protected:
     DmDocument*                         pDocument;              ///< 文档实体容器
     bool                                m_isCoordinateInputEnabled = true; ///< 命令行坐标输入是否启用
@@ -336,6 +349,9 @@ private:
     opengl::GLPainter*                  m_pForegroundPainter;       ///< 前景画笔
     const ISelectionSource*             m_pDocumentSelection = nullptr; ///< 文档画笔判断选中的来源，建画笔时交给它
     const IHighlightSource*             m_pDocumentHighlight = nullptr; ///< 文档画笔取高亮实体的来源，建画笔时交给它
+    std::unique_ptr<opengl::GLSceneBuffer> m_pSceneBuffer;          ///< 场景底图，属于画布的 GL 上下文
+    bool                                m_bSceneValid = false;      ///< 场景底图的内容是否仍然有效
+    bool                                m_bSceneGridOn = false;     ///< 画场景底图时网格是否开着（文档变量，改它时不通知画布，每帧比对）
 
     DmVector                            m_currentMousePt;           ///< 当前鼠标位置（世界坐标）
     DM::CursorType                      m_eCursorType;              ///< 当前鼠标类型

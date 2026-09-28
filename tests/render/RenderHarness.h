@@ -11,10 +11,17 @@
 #include <QImage>
 #include <QString>
 
+#include <initializer_list>
+#include <memory>
 #include <vector>
+
+#include "Datamodel.h"
+#include "IHighlightSource.h"
+#include "ISelectionSource.h"
 
 class DmDocument;
 class DmEntity;
+class GuiDocumentView;
 
 namespace yicad_test
 {
@@ -44,6 +51,56 @@ struct RenderRequest
 /// @brief 资源是否就位；不就位时 reason 给出跳过的理由
 bool requirementMet(RenderRequirement requirement, QString* reason);
 
+/// @brief 按列表选中的实体；测试改了列表之后调 GuiDocumentView::specifySelectChanged()
+class ListSelection : public ISelectionSource
+{
+public:
+    bool isSelected(const DmEntity& entity) const override;
+    std::vector<DmEntity*> selectedEntities() const override { return entities; }
+
+    std::vector<DmEntity*> entities;  ///< 选中的实体，只放可见的顶层实体
+};
+
+/// @brief 按列表高亮的实体；测试改了列表之后调 GuiDocumentView::specifyHighlightChanged()
+class ListHighlight : public IHighlightSource
+{
+public:
+    std::vector<DmEntity*> highlightedEntities() const override { return entities; }
+
+    std::vector<DmEntity*> entities;  ///< 高亮的实体，只放可见的顶层实体
+};
+
+/// @brief 图纸里指定类型的可见顶层实体，按实体表的顺序
+std::vector<DmEntity*> visibleEntitiesOfType(DmDocument& document, std::initializer_list<DM::EntityType> types);
+
+/// @brief 一张读入的参考图纸与它的离屏画布：构造时按请求取景并画过，之后可以改选择、高亮、视图再取图
+class RenderScene
+{
+public:
+    explicit RenderScene(const RenderRequest& request);
+    ~RenderScene();
+
+    /// @brief 读图纸或建画布失败时的说明；成功时为空
+    const QString& error() const { return m_error; }
+
+    DmDocument& document() { return *m_document; }
+    GuiDocumentView& view() { return *m_view; }
+    /// @brief 画布的选择来源；请求了 selectCircles 时里面是圆与块参照
+    ListSelection& selection() { return m_selection; }
+    /// @brief 画布的高亮来源；请求了 highlightArcs 时里面是圆弧
+    ListHighlight& highlight() { return m_highlight; }
+
+    /// @brief 画一帧并取图（RGB32）
+    QImage grab();
+
+private:
+    QString m_error;
+    std::unique_ptr<DmDocument> m_document;
+    ListSelection m_selection;
+    ListHighlight m_highlight;
+    std::unique_ptr<GuiDocumentView> m_view;  ///< 最后建、最先释放：它是文档的监听者，又读两个来源
+};
+
 /// @brief 按请求画出图像（RGB32）；失败时返回空图像并在 error 里说明
 QImage renderDrawing(const RenderRequest& request, QString* error);
 
@@ -51,6 +108,10 @@ QImage renderDrawing(const RenderRequest& request, QString* error);
 /// @details 设了环境变量 YICAD_RENDER_UPDATE_BASELINE=1 时改为写入基准图像。
 ///          不一致或缺少基准图像时，把实际图像与差异图写到构建目录的 tests/render/output/。
 void expectMatchesBaseline(const QString& name, const QImage& actual);
+
+/// @brief 两张图按与 expectMatchesBaseline() 相同的容差比对，结果以 gtest 断言报告
+/// @details 不一致时把两张图与差异图写到构建目录的 tests/render/output/<name>.{expected,actual,diff}.png。
+void expectSameImage(const QString& name, const QImage& expected, const QImage& actual);
 
 }  // namespace yicad_test
 

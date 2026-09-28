@@ -12,7 +12,7 @@
     colors.dxf          ACI 1~7、真彩色、RGB 0,0,0、ByLayer（图层颜色）、ByBlock（块参照不同颜色）、0 层块内实体随插入图层
     blocks.dxf          嵌套块；等比、X≠Y 的非等比（两个方向）、镜像、旋转、阵列插入；块内虚线按两个比例插入（D10）
     far_coords.dxf      离原点 3.5e6 的坐标（测绘坐标量级），毫米级的小图形
-    image.dxf           光栅图像（render_image.png，本脚本生成）与压在上面的直线
+    image.dxf           两张光栅图像（render_image.png 与 render_image_checker.png，本脚本生成，同一画笔）与压在上面的直线
     text_shx.dxf        单行文字、多行文字、三类标注，文字样式用 txt.shx（本机没有 SHX 字体时 test_render 跳过）
     text_truetype.dxf   单行文字、多行文字，文字样式用 arial.ttf（系统没有 Arial 时跳过）
 
@@ -757,13 +757,20 @@ def gen_far_coords():
     return d
 
 
-def gen_image(image_name, width, height):
+def gen_image(images):
+    """images：[(文件名, 宽, 高), ...]，第一张是渐变图，第二张是棋盘格。"""
     d = Drawing()
-    handle = d.handles.take()
-    d.images.append((handle, image_name, width, height))
+    handles = []
+    for name, width, height in images:
+        handle = d.handles.take()
+        handles.append(handle)
+        d.images.append((handle, name, width, height))
     e = d.entities
-    # 每像素 0.05 个图形单位，图像 3.2 × 2.4
-    e.append(image(handle, 0.0, 0.0, (0.05, 0.0), (0.0, 0.05), width, height))
+    # 渐变图每像素 0.05 个图形单位，3.2 × 2.4
+    (_, width, height), (_, checker_width, checker_height) = images
+    e.append(image(handles[0], 0.0, 0.0, (0.05, 0.0), (0.0, 0.05), width, height))
+    # 棋盘格与渐变图在同一图层、同一颜色，即同一画笔：每张图片要贴自己的纹理（RENDER_PLAN.md 第 10 节阶段 1）
+    e.append(image(handles[1], 4.0, 0.0, (0.075, 0.0), (0.0, 0.075), checker_width, checker_height))
     e.append(line(-0.5, -0.5, 3.7, 2.9, color=1))
     e.append(circle(1.6, 1.2, 0.8, color=3))
     return d
@@ -786,21 +793,32 @@ def gen_text(style_font):
     return d
 
 
-def write_png(path, width, height):
-    """确定性的测试图：横向色相渐变、纵向亮度渐变，外加一条对角线与 1 像素边框。"""
+def gradient_pixel(x, y, width, height):
+    """横向色相渐变、纵向亮度渐变，外加一条对角线与 1 像素边框。"""
+    if x == 0 or y == 0 or x == width - 1 or y == height - 1 or abs(x * height - y * width) < width:
+        return 255, 255, 255
+    t = x / float(width - 1)
+    s = 0.35 + 0.65 * (1.0 - y / float(height - 1))
+    r = int(255 * s * max(0.0, 1.0 - 2.0 * t))
+    g = int(255 * s * (1.0 - abs(2.0 * t - 1.0)))
+    b = int(255 * s * max(0.0, 2.0 * t - 1.0))
+    return r, g, b
+
+
+def checker_pixel(x, y, width, height):
+    """8 像素一格的黄、深蓝棋盘格。"""
+    if (x // 8 + y // 8) % 2 == 0:
+        return 230, 200, 40
+    return 20, 40, 120
+
+
+def write_png(path, width, height, pixel):
+    """确定性的测试图，pixel(x, y, width, height) 给出每个像素的 (r, g, b)。"""
     rows = []
     for y in range(height):
         row = bytearray([0])  # 滤波类型 None
         for x in range(width):
-            if x == 0 or y == 0 or x == width - 1 or y == height - 1 or abs(x * height - y * width) < width:
-                r, g, b = 255, 255, 255
-            else:
-                t = x / float(width - 1)
-                s = 0.35 + 0.65 * (1.0 - y / float(height - 1))
-                r = int(255 * s * max(0.0, 1.0 - 2.0 * t))
-                g = int(255 * s * (1.0 - abs(2.0 * t - 1.0)))
-                b = int(255 * s * max(0.0, 2.0 * t - 1.0))
-            row += bytes((r, g, b))
+            row += bytes(pixel(x, y, width, height))
         rows.append(bytes(row))
     raw = b''.join(rows)
 
@@ -826,9 +844,9 @@ def main(argv):
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
 
-    image_name = 'render_image.png'
-    image_width, image_height = 64, 48
-    write_png(os.path.join(out_dir, image_name), image_width, image_height)
+    images = [('render_image.png', 64, 48, gradient_pixel), ('render_image_checker.png', 32, 32, checker_pixel)]
+    for name, width, height, pixel in images:
+        write_png(os.path.join(out_dir, name), width, height, pixel)
 
     drawings = [
         ('entities.dxf', gen_entities()),
@@ -837,7 +855,7 @@ def main(argv):
         ('colors.dxf', gen_colors()),
         ('blocks.dxf', gen_blocks()),
         ('far_coords.dxf', gen_far_coords()),
-        ('image.dxf', gen_image(image_name, image_width, image_height)),
+        ('image.dxf', gen_image([(name, width, height) for name, width, height, _ in images])),
         ('text_shx.dxf', gen_text('txt')),
         ('text_truetype.dxf', gen_text('arial.ttf')),
     ]

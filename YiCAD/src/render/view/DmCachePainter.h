@@ -27,6 +27,7 @@
 
 #include <list>
 #include <unordered_map>
+#include <vector>
 #include "GLCachePainter.h"
 #include "DmEntityContainer.h"
 
@@ -78,22 +79,36 @@ public:
     // TODO : 暂时无法获得实体以前的子实体，因此无法部分更新
     void recacheEntities(const std::list<DmEntity*>& oldEnts, const std::list<DmEntity*>& newEnts);
 
-    /// @brief 缓存所有，包括：删除原来的vao，重新分组，缓存所有实体，缓存拖拽点
-    void cacheAll();
-
-    /// @brief 整图重建：cacheAll() 并重新上传全部顶点，清除修改标记
-    void rebuild();
-
-    /// @brief 绘制。如果已修改，先 rebuild()
-    void draw();
-
-    /// @brief 指示实体集已修改，需要重新缓存
+    /// @brief 指示实体集已修改，下一次 update() 整图重建
     void specifyModified();
 
-    /// @brief 实体集是否已修改，即下一次 draw() 是否要整图重建
+    /// @brief 指示选择集已修改，下一次 update() 只重建选中组、夹点与高亮组（高亮组不含选中的实体）
+    void specifySelectChanged();
+
+    /// @brief 指示高亮集已修改，下一次 update() 只重建高亮组
+    void specifyHighlightChanged();
+
+    /// @brief 下一次 update() 是否整图重建
     bool isModified() const;
 
-    //void specifySelectChanged();
+    /// @brief 下一次 update() 是否重建选中组（不含整图重建）
+    bool isSelectChanged() const;
+
+    /// @brief 下一次 update() 是否重建高亮组（不含整图重建与选择集修改）
+    bool isHighlightChanged() const;
+
+    /// @brief 按修改标记更新缓存：实体集修改了就整图重建（删除原来的缓存，重新分组、缓存、上传），
+    ///        否则只重建修改了的选中组、夹点与高亮组；没有修改时什么也不做
+    void update();
+
+    /// @brief 绘制普通组与选中组（场景底图的内容），先 update()
+    void draw();
+
+    /// @brief 绘制高亮组，先 update()
+    void drawHighlight();
+
+    /// @brief 绘制选中实体的夹点，先 update()
+    void drawSelectedPoints();
 
     /// @brief 指定模型矩阵的偏移量
     /// @param offset 偏移量
@@ -113,32 +128,40 @@ public:
     /// @brief 设置高亮实体颜色
     void setHighlightColor(const QColor& c);
 
-    /// @brief 设置判断实体是否选中的来源，并标记需要重新缓存
+    /// @brief 设置判断实体是否选中的来源，并标记选择集已修改
     /// @param source 非持有指针，可为空；为空时没有实体按选中绘制
     void setSelectionSource(const ISelectionSource* source);
 
-    /// @brief 设置要高亮的实体的来源，并标记需要重新缓存
+    /// @brief 设置要高亮的实体的来源，并标记高亮集已修改
     /// @param source 非持有指针，可为空；为空时没有实体按高亮绘制
     void setHighlightSource(const IHighlightSource* source);
 
 private:
+    /// @brief 按画笔分组的子实体
+    using PenGroups = std::unordered_map<DmPen, std::list<DmEntity*>>;
+
     void recache();
 
-    /// @brief 重新分组
-    void regroup();
+    /// @brief 整图重建：删除全部缓存，普通组、选中组、夹点、高亮组全部重新缓存并上传
+    void rebuild();
 
-    /// @brief 将实体添加到分组集合中
-    /// @param pEnt 实体指针
-    void addGroupEntity(DmEntity* pEnt);
+    /// @brief 只重建选中组与夹点
+    void rebuildSelected();
 
-    /// @brief addGroupEntity的子程序
+    /// @brief 只重建高亮组
+    void rebuildHighlight();
+
+    /// @brief 普通组：实体集里的全部可见实体，展平成子实体后按画笔分组
+    PenGroups groupVisibleEntities() const;
+
+    /// @brief 把实体展平成子实体（没有子实体时是它自己），按画笔加入分组
     /// @param pEnt 实体指针
-    /// @param theMap 分组映射表
-    void addGroupEntity_subRoutine(DmEntity* pEnt, std::unordered_map<DmPen, std::list<DmEntity*>>* theMap);
+    /// @param groups 分组
+    static void addToGroups(DmEntity* pEnt, PenGroups& groups);
 
     bool isEntityMatchTypes(const DmEntity* e, const std::list<opengl::CacheType>& types);
     opengl::CacheType getCacheTypeOfEntity(const DmEntity* e);
-    void cacheEntity(const std::unordered_map<DmPen, std::list<DmEntity*>>& map, opengl::CacheGroupType group);
+    void cacheEntity(const PenGroups& map, opengl::CacheGroupType group);
     void cacheEntity(const DmEntity* e, int penId, opengl::CacheGroupType group);
 
     /// @brief 缓存linestrip
@@ -147,8 +170,15 @@ private:
     /// @param group 缓存分组类型
     void cacheLineStrip(DmLineStrip* lineStrip, int penId, opengl::CacheGroupType group);
 
-    /// @brief 缓存拖拽点
-    void cacheSelectedPoints();
+    /// @brief 缓存选中组与夹点：实体从选择来源枚举，不遍历全图（P13）
+    void cacheSelected();
+
+    /// @brief 缓存高亮组：高亮来源给出的实体里没有选中的那些
+    void cacheHighlight();
+
+    /// @brief 缓存拖拽点；超过 100 个时一个也不缓存
+    /// @param selected 选中的实体
+    void cacheSelectedPoints(const std::vector<DmEntity*>& selected);
 
     /// @brief 实体是否按选中绘制，见 setSelectionSource()
     bool isSelected(const DmEntity* e) const;
@@ -161,10 +191,9 @@ private:
     std::unordered_map<int, std::list<opengl::CacheType>> m_recacheTypes;
 
     std::list<DmEntityContainer*> m_containerList; ///< 绘制的实体集
-    std::unordered_map<DmPen, std::list<DmEntity*>> m_groupEntities; ///< 根据画笔分组的子实体集合
-    std::unordered_map<DmPen, std::list<DmEntity*>> m_highlightEntities; ///< 根据画笔分组的高亮实体的子实体集合
-    std::unordered_map<DmPen, std::list<DmEntity*>> m_selectedEntities; ///< 根据画笔分组的选中实体的子实体集合
-    bool m_bIsModefied = true; ///< 实体集是否已修改
+    bool m_bIsModefied = true;          ///< 实体集是否已修改（整图重建）
+    bool m_bSelectChanged = false;      ///< 选择集是否已修改（重建选中组、夹点与高亮组）
+    bool m_bHighlightChanged = false;   ///< 高亮集是否已修改（重建高亮组）
 };
 
 #endif //DMCACHEPAINTER_H

@@ -21,9 +21,11 @@
 #ifndef GLCACHEPAINTER_H
 #define GLCACHEPAINTER_H
 
+#include <functional>
 #include <QColor>
 #include "Painter.h"
 #include "GLCache.h"
+#include "GLImageTextureCache.h"
 #include "GLPainterCommon.h"
 
 namespace opengl
@@ -36,10 +38,10 @@ class GLCachePainter : public Painter
 public:
     GLCachePainter();
 
-    /// @brief 移除所有缓存
+    /// @brief 移除所有缓存，开始整图重建；图片纹理不删，重建中用到的复用，没用到的在 generateGLData() 里释放
     void removeAllCache();
 
-    /// @brief 按缓存组类型移除缓存
+    /// @brief 按缓存组类型移除缓存（局部重建）；图片纹理不删
     /// @param [in] groupType 缓存组类型
     void removeCacheByGroup(CacheGroupType groupType);
 
@@ -161,18 +163,26 @@ public:
     /// @param [in] penId 画笔ID
     /// @param [in] groupType 缓存组类型
     /// @param [in] vertices 顶点数据（每顶点5float: x,y,z + u,v）
-    /// @param [in] textureId OpenGL纹理ID
-    void addImage(int penId, CacheGroupType groupType, const std::vector<float>& vertices, GLuint textureId);
+    /// @param [in] source 图片来源，纹理按它缓存，见 GLImageTextureCache
+    /// @param [in] load 解码图片，只在缓存里没有这个来源时调用
+    void addImage(int penId, CacheGroupType groupType, const std::vector<float>& vertices, const QString& source,
+                  const std::function<QImage()>& load);
 
     /// @brief 添加选中实体控制点
     /// @param [in] x 控制点X坐标
     /// @param [in] y 控制点Y坐标
     void addSelectedPoints(double x, double y);
 
-    /// @brief 执行绘制提交
+    /// @brief 绘制普通组与选中组（场景底图的内容）
     void stroke() override;
 
-    /// @brief 生成OpenGL顶点数据
+    /// @brief 绘制高亮组（叠加层，RENDER_PLAN.md 第 4.3.8 节）
+    void strokeHighlight();
+
+    /// @brief 绘制选中实体的控制点（叠加层）
+    void strokeSelectedPoints();
+
+    /// @brief 生成OpenGL顶点数据，结束整图重建：释放这次重建没用到的图片纹理
     void generateGLData();
 
     /// @brief 按缓存组类型生成OpenGL顶点数据
@@ -221,9 +231,6 @@ private:
     /// @param [in] group 缓存组类型
     void drawByMapAndType(GLCacheUnitMap& map, opengl::CacheType type, CacheGroupType group);
 
-    /// @brief 绘制选中实体控制点
-    void drawSelectedPoints();
-
     /// @brief 根据画笔数据和实体类型选择合适的着色器
     /// @param [in] penData 画笔数据
     /// @param [in] type 缓存类型
@@ -232,6 +239,7 @@ private:
 
 private:
     GLCache m_cache;
+    GLImageTextureCache m_imageTextures; ///< 图片纹理，按图片来源缓存，跨整图重建复用
     bool    m_bDisplayLineWidth = false; ///< 是否显示线宽
     QColor  m_selectedColor;            ///< 选中实体颜色
     QColor  m_highlightColor;           ///< 高亮实体颜色

@@ -6,7 +6,7 @@
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `09c9768` 实测。引用 `ARCHITECTURE_EVOLUTION_PLAN.md`
 > 时写作"演进方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。
-> 状态：阶段 0 已完成（2026-09-27，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
+> 状态：阶段 0、1 已完成（2026-09-27、2026-09-28，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
 > D3（构建期 glslang + spirv-cross）、D5（插件实体的数据由宿主保管）、D6（代理图形随图纸存盘）、
 > D7（圆弧用片段着色器解析绘制）、D8（渲染侧在本方案内支持任意仿射变换；Model 侧的非等比块参照、炸开与去复制
 > 与 AutoCAD/ODA 一致，另立方案，见第 4.10 节）、D9（CI 用 Mesa 软件渲染跑出图测试）、D11（保留多重采样）、
@@ -1261,3 +1261,91 @@ Mesa 的 Windows 版本从固定版本的发布包下载，工作流里写死版
 **验证**：`cmake --build`、`ctest`（5 个测试程序全部通过，`test_render` 约 24 秒）、`cmake --install`、启动安装后的程序
 （加载的是系统 `OPENGL32.dll` 与 NVIDIA 驱动，没有混进 Mesa）、`python tools/check_layering.py` 通过。
 用例数：`test_math` 87（+4，数量计数器与新计数器）、`test_interaction` 336（+1，基线采集，默认跳过）、`test_render` 15（新）。
+
+### 阶段 1（2026-09-28 完成）
+
+**开工前的摸底与用户的决定**
+
+- 点选另有一条整图重建的路径：`SelectTool` 改完选择集后调 `IDocumentView::emitSelectedChanged()`，它除了发信号还调
+  `specifyDocumentModified()`。另外三个调用方（`ModifyEntityCommand`、`ModifyMTextCommand`、`ApplicationWindow::slotKillAllActions`）
+  也都是改了选择集之后调它。第 4.9 节已把它列为 `specifyDocumentModified()` 要删的调用方之一，这里改为只发信号：
+  选择集自己的 `changed` 已经让画笔重建选中组。
+- 图片纹理按画笔 ID 存（`GLCache::m_imageTextures[penId]`）：同一画笔（同图层、同颜色，最常见）的多张图片都贴最后一张的纹理，
+  前面建的纹理泄漏。1.2 按来源缓存后每张图片本来就要有自己的纹理，一并修掉。
+- 基线的"稳态帧"只量 CPU 提交（大图纸 1.43 ms），画整图的 GPU 开销没量，验收"移动光标的帧耗时与图纸大小无关"看不出来。
+  采集用例加了 GPU 耗时，先在改动前的代码上补测一次作对照。
+- 用户确认：叠加层按第 4.3.8 节的次序画（见 1.3），`image.dxf` 加第二张图片并更新基准图像，基线在改动前后各采一次。
+
+**1.1 选择集、高亮集变化只重建局部**
+
+- `ISelectionSource` 新增 `selectedEntities()`（顺序不定）。`SelectionSet` 按 id 在实体表里查，开销只随选中数；
+  原有的 `entities()` 按实体表的顺序，要遍历全表，画布不用它。
+- `DmCachePainter` 的修改标记分三级：整图（`specifyModified()`）、选择集（`specifySelectChanged()`，重建选中组、夹点与高亮组：
+  高亮组不含选中的实体，选中优先）、高亮集（`specifyHighlightChanged()`，只重建高亮组）。`update()` 按标记重建，
+  `regroup()` 拆成普通组（遍历实体集）、选中组（从选择来源枚举）、高亮组（从高亮来源取）三处，分组表改为局部变量，不再在两次重建之间攥着全部实体的指针。
+  `setSelectionSource()`、`setHighlightSource()` 也只标对应的局部修改。
+- `UIView` 的两个信号改调 `GuiDocumentView::specifySelectChanged()`（原先是空函数）与新增的 `specifyHighlightChanged()`。
+  `GuiDocumentView::updateDocumentCache()` 在每帧开头按标记重建并分别计时：`render.regen`、新增的 `render.regenSelection`、`render.regenHighlight`。
+- 夹点从选择来源枚举（P13）。"夹点超过 100 个就一个也不画"保留；原先在遍历到下一个实体时才判断，
+  最后一个实体使总数超过 100 时仍会画出来，现在总数超过 100 就不画（顺序改成选择集的顺序后，原来的边界情况本来也对不上）。
+
+**1.2 图片纹理按来源缓存**
+
+- `render/opengl/GLImageTextureCache`：键是图片来源，有文件时是"绝对路径 + 修改时间 + 大小"（文件在磁盘上改了就是新来源，与原先每次重建都重新读盘的效果一致），
+  没有文件时是内嵌像素的尺寸与内容哈希。整图重建时标记—清除：`GLCachePainter::removeAllCache()` 把全部纹理记为没用到，
+  重建中取到的记为用到，`generateGLData()` 释放没用到的。选中组、高亮组里的实体也都在普通组里，局部重建不会引入新纹理，所以局部重建不清除。
+- `glGenTextures` 等 GL 调用从 `render/view/DmCachePainter` 移到 `render/opengl/`。图片单元（`GLCacheUnit::textures`）记下每张图片的纹理，
+  每张图片绑自己的纹理各画一次。
+- `image.dxf` 加了一张与原图同画笔的棋盘格图片（`render_image_checker.png`，`tools/gen_render_references.py` 生成）。
+  改动前的程序画出来两张都是渐变图，改动后各是各的；`image.png` 基准图像随之更新。
+
+**1.3 场景底图**
+
+- `render/opengl/GLSceneBuffer`：离屏帧缓存，尺寸、采样数、颜色格式都按目标（`QOpenGLWidget` 的帧缓存）查询后建。
+  场景画进来后每帧用 `glBlitFramebuffer` 拷到目标上：两边都是多重采样且采样数相同，直接拷采样、不先解析，
+  最后由 Qt 统一解析，所以结果与直接画在目标上一样。帧缓存不完整或驱动给的采样数与目标对不上时记一条警告，退回每帧直接画。
+- `GuiDocumentView::paintGL()`：场景（背景色、网格、文档的普通组与选中组）只在作废时重画进底图（计数器 `render.scene`），
+  之后按第 4.3.8 节的次序画叠加层：高亮组、预览、夹点、前景（原点标记、选择框、光标、捕捉标记）。
+  `GLCachePainter::stroke()` 只画普通组与选中组，另有 `strokeHighlight()`、`strokeSelectedPoints()`，各自设好混合与深度状态。
+- 作废原因（第 4.3.8 节的列表落到旧渲染器上）：缩放、平移、`setView()`；尺寸；整图重建与选择集修改；背景色、网格色、选中色；
+  线宽显示开关。网格开关是文档变量（`$GRIDMODE`），改它的 `UIActionHandler::slotViewGrid` 只请求重绘、不通知画布，
+  所以画布记下画底图时的开关，每帧比对。高亮集变化、高亮色改变不作废（高亮在叠加层）。
+- 看得到的变化：夹点原先画在高亮之下、预览之下，现在画在它们之上（第 4.3.8 节的次序），例如拖夹点时夹点压在预览图形上面。
+  12 张没有改动的基准图像在出图测试的容差内都不变，含同时有选中、夹点与高亮的 `entities_selected_highlighted`。
+- 底图属于画布的 GL 上下文：析构时先 `makeCurrent()` 再释放；`initializeGL()` 再次调用时上下文是新建的，旧对象已随旧上下文释放，只丢下对象名。
+
+**1.4 P14**
+
+- `removeCache()` 的 lambda 在找不到时不再 `erase(end())`；`removeCacheByGroup()` 不再删纹理（纹理归 `GLImageTextureCache`），
+  这条路径阶段 1 的局部重建正在用。`recache()`、`recacheEntities()` 仍没有调用方，随旧渲染器在第 4 阶段删除。
+
+**测试**
+
+- 出图测试的公共部分加了 `RenderScene`：读图纸、建离屏画布并取景之后留着，测试可以改选择、高亮、视图再取图。
+  选择来源与高亮来源改为按列表（`ListSelection`、`ListHighlight`），原来的按类型判断选中的来源实现不了 `selectedEntities()` 的"开销只随选中数"。
+  参考图纸的取图现在是第三帧，走的正是"场景底图没作废、直接拷贝"的路径。
+- `tests/render/test_render_incremental.cpp`：选择集变化（选中、取消选中）、高亮集变化、选中高亮着的实体，
+  局部更新的图都与同一状态下整图重建的图比对，同时查计数器（只查图会漏掉"又整图重建了一次"，只查计数器会漏掉"没重建、画面没变"）；
+  没有变化时不重画底图；平移、缩放、线宽显示、背景色、选中色、文档修改、尺寸各重画一次，高亮色不重画；网格开关改变时重画并与 `entities_grid` 基准一致；
+  整图重建那一帧的上传量小于两张图片纹理的字节数（每次都重新上传纹理时会超过）。`GLImageTextureCache` 另有一个用例查标记—清除。
+- 这批用例与参考图纸比对也在本机显卡上跑了一遍（`YICAD_MESA_DIR` 指向不存在的目录，退回系统的 `opengl32.dll`，GL_RENDERER 是 RTX 3070 Ti），
+  全部通过，所以显卡上的多重采样拷贝与 Mesa 的结果在容差以内一致。
+- 基线采集用例（`BaselineRuntimeTest`）加了稳态帧的 GPU 耗时（测试里派生 `UIView`，用 `GL_TIME_ELAPSED` 查询包住 `paintGL`）
+  与局部重建、场景底图重画的几行。
+
+**验收**（数据见 `BASELINE.md` 第 8.1 节"阶段 1"）
+
+- 移动光标的帧（稳态帧）：GPU 耗时 0.29 / 0.24 / 0.23 ms（1k / 50k / 500k 实体），与图纸大小无关；阶段 0 为 0.26 / 0.76 / 6.03 ms。
+- 点选、悬停高亮不再触发 `render.regen`：各换 20 次，整图重建 0 次。换高亮后首帧 0.48 ms（阶段 0 为 3,765 ms），
+  不重画场景；点选后首帧 CPU 1.51 ms（阶段 0 为 4,030 ms），重画一次场景。
+- 出图测试：12 张没改动的基准图像不变，`image` 因参考图纸加了第二张图片而更新。
+
+**遗留**
+
+- 全选仍要重建整个选中组（大图纸 5.1 秒），平移、缩放每帧重画整个场景：分别由阶段 4 的对象状态缓冲与阶段 6 的 LOD 解决。
+- 修剪命令结束时仍整图重建一次（`ModifyTrimCommand::onFinish()`，P18），阶段 4 改用临时隐藏集。
+- 点选后重画场景的 GPU 开销没有单独量（与阶段 0 的稳态帧相当，大图纸约 6 ms）。
+
+**验证**：`cmake --build`、`ctest`（5 个测试程序全部通过，`test_render` 约 40 秒）、`cmake --install`、启动安装后的程序
+（系统 `OPENGL32.dll` 与 NVIDIA 驱动，正常退出）、`python tools/check_layering.py` 通过。
+用例数：`test_math` 88（+1，新计数器）、`test_render` 23（+8）。

@@ -103,6 +103,9 @@ public:
 
     /// @brief 同 contains()，供画布判断实体是否按选中绘制
     bool isSelected(const DmEntity& entity) const override;
+    /// @brief 选中的实体，顺序不定：按 id 在实体表里查，开销只随选中数（entities() 按实体表的顺序，要遍历全表）；
+    ///        供画布重建选中组与夹点
+    std::vector<DmEntity*> selectedEntities() const override;
 
 signals:
     /// @brief 选择改变：每次修改调用后发一次（一次框选算一次），剔除了已删除的实体、进出块编辑清空后也发

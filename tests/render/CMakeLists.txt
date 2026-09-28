@@ -1,4 +1,4 @@
-# tests/render —— 渲染：参考图纸出图比对（doc/RENDER_PLAN.md 第 5 节 0.2 步）；
+# tests/render —— 渲染：参考图纸出图比对（doc/RENDER_PLAN.md 第 5 节 0.2 步）、旧渲染器的增量更新（阶段 1）；
 # 第 3 阶段加 RHI 一致性测试，第 4 阶段起旧渲染器与 GS 各出一遍图。
 #
 # 出图用 Mesa 的软件 OpenGL（llvmpipe），结果在不同机器上一致，基准图像才能入库（第 7 节 D9）：
@@ -17,6 +17,7 @@ yicad_add_test(render
         MesaLoader.cpp
         RenderHarness.cpp
         test_render_environment.cpp
+        test_render_incremental.cpp
         test_render_reference.cpp
     LINK YiCadShell
     LABELS "render;unit")

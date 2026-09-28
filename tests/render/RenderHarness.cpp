@@ -94,37 +94,6 @@ std::unique_ptr<DxfRuntime> RenderEnvironment::s_runtime;
 [[maybe_unused]] ::testing::Environment* const g_environment =
     ::testing::AddGlobalTestEnvironment(new RenderEnvironment);
 
-/// @brief 圆与块参照按选中绘制
-class CircleSelection : public ISelectionSource
-{
-public:
-    bool isSelected(const DmEntity& entity) const override
-    {
-        return entity.getEntityType() == DM::EntityCircle || entity.getEntityType() == DM::EntityBlockReference;
-    }
-};
-
-/// @brief 圆弧按高亮绘制
-class ArcHighlight : public IHighlightSource
-{
-public:
-    explicit ArcHighlight(DmDocument& document)
-    {
-        for (DmEntity* entity : *document.getEntityTable())
-        {
-            if (entity->getEntityType() == DM::EntityArc && entity->isVisible())
-            {
-                m_arcs.push_back(entity);
-            }
-        }
-    }
-
-    std::vector<DmEntity*> highlightedEntities() const override { return m_arcs; }
-
-private:
-    std::vector<DmEntity*> m_arcs;
-};
-
 /// @brief 两张图的差异：不同的像素数、最大通道差，以及标出差异的图
 struct ImageDiff
 {
@@ -201,28 +170,52 @@ bool requirementMet(RenderRequirement requirement, QString* reason)
     return true;
 }
 
-QImage renderDrawing(const RenderRequest& request, QString* error)
+bool ListSelection::isSelected(const DmEntity& entity) const
+{
+    return std::find(entities.begin(), entities.end(), &entity) != entities.end();
+}
+
+std::vector<DmEntity*> visibleEntitiesOfType(DmDocument& document, std::initializer_list<DM::EntityType> types)
+{
+    std::vector<DmEntity*> found;
+    for (DmEntity* entity : *document.getEntityTable())
+    {
+        if (entity->isVisible() && std::find(types.begin(), types.end(), entity->getEntityType()) != types.end())
+        {
+            found.push_back(entity);
+        }
+    }
+    return found;
+}
+
+RenderScene::RenderScene(const RenderRequest& request)
+    : m_document(std::make_unique<DmDocument>())
 {
     DxfRuntime* runtime = RenderEnvironment::runtime();
     if (runtime == nullptr || !runtime->loaded())
     {
-        *error = QStringLiteral("DXF 插件没有加载：") + (runtime ? runtime->diagnostics() : QString());
-        return QImage();
+        m_error = QStringLiteral("DXF 插件没有加载：") + (runtime ? runtime->diagnostics() : QString());
+        return;
     }
 
-    DmDocument document;
     const QString path = QDir(drawingsDir()).filePath(request.drawing);
-    if (!runtime->readFile(document, path))
+    if (!runtime->readFile(*m_document, path))
     {
-        *error = QStringLiteral("读入失败：%1\n插件消息：%2").arg(path, runtime->messages().join(QLatin1Char('\n')));
-        return QImage();
+        m_error = QStringLiteral("读入失败：%1\n插件消息：%2").arg(path, runtime->messages().join(QLatin1Char('\n')));
+        return;
     }
-    document.setGridOn(request.grid);
+    m_document->setGridOn(request.grid);
+    if (request.selectCircles)
+    {
+        m_selection.entities = visibleEntitiesOfType(*m_document, {DM::EntityCircle, DM::EntityBlockReference});
+    }
+    if (request.highlightArcs)
+    {
+        m_highlight.entities = visibleEntitiesOfType(*m_document, {DM::EntityArc});
+    }
 
-    CircleSelection selection;
-    ArcHighlight highlight(document);
-
-    GuiDocumentView view(nullptr, Qt::WindowFlags(), &document);
+    m_view = std::make_unique<GuiDocumentView>(nullptr, Qt::WindowFlags(), m_document.get());
+    GuiDocumentView& view = *m_view;
     // 颜色取程序的默认值，不读测试进程的设置
     view.setBackground(QColor(Colors::BACKGROUND));
     view.setGridColor(QColor(Colors::GRID));
@@ -230,14 +223,8 @@ QImage renderDrawing(const RenderRequest& request, QString* error)
     view.setSelectedColor(QColor(Colors::SELECT));
     view.setHighlightColor(QColor(Colors::HIGHLIGHT));
     view.setIsDrawCursor(false);
-    if (request.selectCircles)
-    {
-        view.setDocumentSelectionSource(&selection);
-    }
-    if (request.highlightArcs)
-    {
-        view.setDocumentHighlightSource(&highlight);
-    }
+    view.setDocumentSelectionSource(&m_selection);
+    view.setDocumentHighlightSource(&m_highlight);
     view.resize(request.width, request.height);
     // 不显示在屏幕上，但按可见控件走尺寸流程：没有 show() 的 QOpenGLWidget 收不到尺寸事件，
     // resizeGL 不被调用，画笔的设备尺寸是 0，画不出任何东西
@@ -249,7 +236,7 @@ QImage renderDrawing(const RenderRequest& request, QString* error)
     // 按有限实体的范围取景：不用 zoomAuto()，射线与构造线会把实体表的范围撑到无穷大
     DmVector min(false);
     DmVector max(false);
-    for (DmEntity* entity : *document.getEntityTable())
+    for (DmEntity* entity : *m_document->getEntityTable())
     {
         if (!entity->isVisible() || entity->getEntityType() == DM::EntityRay ||
             entity->getEntityType() == DM::EntityXline)
@@ -261,21 +248,41 @@ QImage renderDrawing(const RenderRequest& request, QString* error)
     }
     if (!min.valid || !max.valid)
     {
-        *error = QStringLiteral("图纸里没有有限大小的实体：") + path;
-        return QImage();
+        m_error = QStringLiteral("图纸里没有有限大小的实体：") + path;
+        return;
     }
     const double unitsPerPixel =
         std::max((max.x - min.x) / request.width, (max.y - min.y) / request.height) * request.margin;
     view.setView((min + max) / 2.0, unitsPerPixel);
     view.setDraftMode(request.lineWidth);
+    (void)view.grabFramebuffer();
+}
 
-    QImage image = view.grabFramebuffer();
+RenderScene::~RenderScene() = default;
+
+QImage RenderScene::grab()
+{
+    if (!m_view)
+    {
+        return QImage();
+    }
+    return m_view->grabFramebuffer().convertToFormat(QImage::Format_RGB32);
+}
+
+QImage renderDrawing(const RenderRequest& request, QString* error)
+{
+    RenderScene scene(request);
+    if (!scene.error().isEmpty())
+    {
+        *error = scene.error();
+        return QImage();
+    }
+    QImage image = scene.grab();
     if (image.isNull())
     {
         *error = QStringLiteral("grabFramebuffer 返回空图像");
-        return image;
     }
-    return image.convertToFormat(QImage::Format_RGB32);
+    return image;
 }
 
 void expectMatchesBaseline(const QString& name, const QImage& actual)
@@ -311,6 +318,23 @@ void expectMatchesBaseline(const QString& name, const QImage& actual)
     if (diff.differing > allowed)
     {
         const QString written = writeOutput(name, actual, &diff.marked);
+        ADD_FAILURE() << name.toStdString() << "：" << diff.differing << " 个像素超出容差（允许 " << allowed
+                      << "，最大通道差 " << diff.maxDelta << "）；实际图像与差异图见 " << written.toStdString();
+    }
+}
+
+void expectSameImage(const QString& name, const QImage& expected, const QImage& actual)
+{
+    ASSERT_FALSE(expected.isNull());
+    ASSERT_FALSE(actual.isNull());
+    ASSERT_EQ(expected.size(), actual.size());
+
+    const ImageDiff diff = diffImages(expected, actual);
+    const int allowed = static_cast<int>(kMaxDifferentRatio * actual.width() * actual.height());
+    if (diff.differing > allowed)
+    {
+        const QString written = writeOutput(name, actual, &diff.marked);
+        expected.save(QStringLiteral(YICAD_RENDER_OUTPUT_DIR "/%1.expected.png").arg(name));
         ADD_FAILURE() << name.toStdString() << "：" << diff.differing << " 个像素超出容差（允许 " << allowed
                       << "，最大通道差 " << diff.maxDelta << "）；实际图像与差异图见 " << written.toStdString();
     }
