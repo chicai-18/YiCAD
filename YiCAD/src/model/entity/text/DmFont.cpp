@@ -1310,6 +1310,12 @@ DmCharTemplate* DmFont::findLetter(const QString& name)
     }
 }
 
+const IGiDrawable* DmFont::glyph(char32_t code) const
+{
+    // 模板按需生成、生成后只读，逻辑上不改变字体；生成要串行化（IGiFont::glyph 的约定）
+    return const_cast<DmFont*>(this)->findLetter(QString::fromUcs4(&code, 1));
+}
+
 ShxCmd* ShxCmd::createCmd(const std::vector<unsigned char>& byteData, size_t& idx)
 {
     if (idx >= byteData.size())

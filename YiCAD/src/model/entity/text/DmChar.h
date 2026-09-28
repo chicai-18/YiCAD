@@ -25,12 +25,16 @@
 #ifndef DMCHAR_H
 #define DMCHAR_H
 
+#include <span>
+
 #include <QString>
 #include "DmEntity.h"
+#include "GiTransform.h"
 
 
 class DmLine;
 class DmCharTemplate;
+class IGiFont;
 
 /// @brief 代表一个文字实体
 class DmChar :public DmEntity
@@ -99,6 +103,23 @@ public:
 	void rotate(const DmVector& center, const DmVector& angleVector) override;
 	void mirror(const DmVector& axisPoint1, const DmVector& axisPoint2) override;
 	std::list<DmEntity*> getSubEntities() const override;
+
+	/// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）：字形与下划线、上划线、删除线
+	void worldDraw(IGiWorldDraw& wd) const override;
+
+	/// @brief 从字形模板坐标系到本字符当前位置的变换
+	/// @details 合成了生成时的倾斜与宽度系数（DmCharTemplate::generateChar）以及此后的移动、旋转、缩放与镜像；
+	///          本字符的笔画就是模板笔画经它变换的结果
+	const GiTransform& getGlyphTransform() const;
+
+	/// @brief 本字符的字形：模板所在的字体与字符码
+	/// @return 没有模板、模板不属于某个字体、或名字不是单个字符时返回 false，这时笔画只能直接画
+	bool getGlyph(const IGiFont*& font, char32_t& code) const;
+
+	/// @brief 画一串字符：相邻且画笔、图层、字体都相同的字符合成一个字形串，作为一次嵌套绘制
+	/// @details 每串按首个字符的属性画（ByBlock 取调用方，即文字实体）；装饰线按各自的属性嵌套绘制。
+	///          单行文字、多行文字共用
+	static void drawChars(IGiWorldDraw& wd, std::span<DmChar* const> chars);
 public:
 	DmCharTemplate* getCharTemplate() const;
 	void setCharTemplate(DmCharTemplate* templ);
@@ -131,5 +152,9 @@ private:
 	DmLine* m_strikethrough;
 
 	std::list<DmEntity*> entities;
+	GiTransform m_glyphTransform;	///< 字形模板坐标系到当前位置的变换，见 getGlyphTransform()
+
+	/// @brief 字形以外的笔画（没有字形时直接画）与装饰线
+	void drawStrokes(IGiWorldDraw& wd, bool includeGlyphStrokes) const;
 };
 #endif //!DMCHAR_H

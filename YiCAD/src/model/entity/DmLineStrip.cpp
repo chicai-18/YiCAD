@@ -25,12 +25,12 @@
 #include "DmLineStrip.h"
 #include "DmLine.h"
 #include "Information.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmLineStrip, DmEntity, 0)
 
 DmLineStrip::DmLineStrip(DmEntity* parent)
     : DmEntity(parent)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -38,7 +38,6 @@ DmLineStrip::DmLineStrip(DmEntity* parent)
 DmLineStrip::DmLineStrip(DmEntity* parent, const LineStripData& d)
     : DmEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -129,13 +128,11 @@ std::vector<DmVector> DmLineStrip::getPoints() const
 void DmLineStrip::setPoints(const std::vector<DmVector>& pts)
 {
     data.setPoints(pts);
-    isModify = true;
 }
 
 void DmLineStrip::clear()
 {
     data.clear();
-    isModify = true;
 }
 
 bool DmLineStrip::isEmpty() const
@@ -158,7 +155,6 @@ void DmLineStrip::move(const DmVector& offset)
         data.setPointAt(i, pt);
     }
     moveBorders(offset);
-    isModify = true;
 }
 
 void DmLineStrip::rotate(const DmVector& center,
@@ -172,7 +168,6 @@ void DmLineStrip::rotate(const DmVector& center,
         data.setPointAt(i, pt);
     }
     calculateBorders();
-    isModify = true;
 }
 
 void DmLineStrip::scale(const DmVector& center,
@@ -186,7 +181,6 @@ void DmLineStrip::scale(const DmVector& center,
         data.setPointAt(i, pt);
     }
     calculateBorders();
-    isModify = true;
 }
 
 void DmLineStrip::mirror(const DmVector& axisPoint1,
@@ -200,7 +194,6 @@ void DmLineStrip::mirror(const DmVector& axisPoint1,
         data.setPointAt(i, pt);
     }
     calculateBorders();
-    isModify = true;
 }
 
 std::list<DmEntity*> DmLineStrip::getSubEntities() const
@@ -219,183 +212,6 @@ void DmLineStrip::calculateBorders()
     }
 }
 
-const std::vector<float>& DmLineStrip::getVerticesRef(
-    int& float_count_per_vertex)
-{
-    updateVertices();
-    float_count_per_vertex = 5;
-    return data.getVerticesRef();
-}
-
-void DmLineStrip::updateVertices()
-{
-    if (isModify)
-    {
-        // 去除重复点
-        auto pts = getPoints();
-        std::vector<DmVector> new_pts;
-        float lastX = 0.0f;
-        float lastY = 0.0f;
-        float curX = 0.0f;
-        float curY = 0.0f;
-        bool isFirst = true;
-        for (int i = 0; i < (int)pts.size(); i++)
-        {
-            if (isFirst)
-            {
-                lastX = (float)pts.at(0).x;
-                lastY = (float)pts.at(0).y;
-                new_pts.emplace_back(pts.at(0));
-                isFirst = false;
-            }
-            else
-            {
-                curX = (float)pts.at(i).x;
-                curY = (float)pts.at(i).y;
-                if (curX - lastX == 0.0f && curY - lastY == 0.0f)
-                {
-                    continue;
-                }
-                new_pts.emplace_back(pts.at(i));
-                lastX = curX;
-                lastY = curY;
-            }
-        }
-        // 如果闭合，最后的点不能与第一个点重复
-        if (isClosed())
-        {
-            float firstX = (float)pts.at(0).x;
-            float firstY = (float)pts.at(0).y;
-            if (firstX - lastX == 0.0f && firstY - lastY == 0.0f)
-            {
-                new_pts.erase(new_pts.end() - 1);
-            }
-        }
-        if (new_pts.size() < 2)
-        {
-            return;
-        }
-        int pointCount = (int)new_pts.size();
-        std::vector<float> vertexs;
-        // 闭合
-        if (isClosed())
-        {
-            vertexs.reserve((pointCount + 3) * 5);
-            float total_length = 0.0f;
-            float lastX_v = 0.0f;
-            float lastY_v = 0.0f;
-            float curX_v = 0.0f;
-            float curY_v = 0.0f;
-            float para = 0.0f;
-            for (int i = 0; i < pointCount; i++)
-            {
-                curX_v = new_pts.at(i).x;
-                curY_v = new_pts.at(i).y;
-                if (i == 0)
-                {
-                    // 针对GL_LINE_STRIP_ADJACENCY的起始坐标
-                    vertexs.emplace_back(new_pts.back().x);
-                    vertexs.emplace_back(new_pts.back().y);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(total_length);
-                }
-                else
-                {
-                    para += DmVector(lastX_v, lastY_v).distanceTo(
-                        DmVector(curX_v, curY_v));
-                }
-
-                vertexs.emplace_back(curX_v);
-                vertexs.emplace_back(curY_v);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(para);
-                vertexs.emplace_back(total_length);
-                lastX_v = curX_v;
-                lastY_v = curY_v;
-                if (i == pointCount - 1)
-                {
-                    // 最后一段的终点
-                    vertexs.emplace_back(new_pts.front().x);
-                    vertexs.emplace_back(new_pts.front().y);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(para);
-                    vertexs.emplace_back(total_length);
-
-                    // 针对GL_LINE_STRIP_ADJACENCY的终止坐标
-                    vertexs.emplace_back(new_pts.at(1).x);
-                    vertexs.emplace_back(new_pts.at(1).y);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(para);
-                    vertexs.emplace_back(total_length);
-                }
-            }
-            // 设置总长
-            for (int i = 0; i < pointCount + 3; i++)
-            {
-                vertexs.at(i * 5 + 4) = para;
-            }
-        }
-        // 不闭合
-        else
-        {
-            vertexs.reserve((pointCount + 2) * 5);
-            float total_length = 0.0f;
-            float lastX_v = 0.0f;
-            float lastY_v = 0.0f;
-            float curX_v = 0.0f;
-            float curY_v = 0.0f;
-            float para = 0.0f;
-            for (int i = 0; i < pointCount; i++)
-            {
-                curX_v = new_pts.at(i).x;
-                curY_v = new_pts.at(i).y;
-                if (i == 0)
-                {
-                    // 针对GL_LINE_STRIP_ADJACENCY的起始坐标
-                    vertexs.emplace_back(new_pts.at(1).x);
-                    vertexs.emplace_back(new_pts.at(1).y);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(total_length);
-                }
-                else
-                {
-                    para += DmVector(lastX_v, lastY_v).distanceTo(
-                        DmVector(curX_v, curY_v));
-                }
-
-                vertexs.emplace_back(curX_v);
-                vertexs.emplace_back(curY_v);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(para);
-                vertexs.emplace_back(total_length);
-                lastX_v = curX_v;
-                lastY_v = curY_v;
-                if (i == pointCount - 1)
-                {
-                    // 针对GL_LINE_STRIP_ADJACENCY的终止坐标
-                    vertexs.emplace_back(
-                        new_pts.at(pointCount - 2).x);
-                    vertexs.emplace_back(
-                        new_pts.at(pointCount - 2).y);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(para);
-                    vertexs.emplace_back(total_length);
-                }
-            }
-            // 设置总长
-            for (int i = 0; i < pointCount + 2; i++)
-            {
-                vertexs.at(i * 5 + 4) = para;
-            }
-        }
-
-        data.setVertices(vertexs);
-        isModify = false;
-    }
-}
-
 bool DmLineStrip::isClosed()
 {
     return data.isClosed();
@@ -404,7 +220,6 @@ bool DmLineStrip::isClosed()
 void DmLineStrip::setClosed(bool isClosed)
 {
     data.setIsClosed(isClosed);
-    isModify = true;
 }
 
 void DmLineStrip::saveStream(OutputStream& wrt) const
@@ -456,4 +271,16 @@ void DmLineStrip::restoreStreamWithRev(InputStream& rdr, int rev)
         // step1.
         // read all legacy data one by one
     }
+}
+
+void DmLineStrip::worldDraw(IGiWorldDraw& wd) const
+{
+    // 离散后的曲线：整条连续计算弧长
+    const std::vector<DmVector> points = data.getPoints();
+    GiPolylineFlags flags = GiPolylineFlags::ContinuousLinetype;
+    if (data.isClosed())
+    {
+        flags = flags | GiPolylineFlags::Closed;
+    }
+    wd.geometry().polyline(points, {}, {}, flags);
 }

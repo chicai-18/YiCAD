@@ -24,7 +24,6 @@
 
 #include "DmEllipse.h"
 
-#include <glm/glm.hpp>
 
 #include "DmCircle.h"
 #include "DmLine.h"
@@ -50,6 +49,7 @@ using std::isnormal;
 #endif
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmEllipse, DmAtomicEntity, 0)
 
@@ -140,7 +140,6 @@ DmVector getNearestDistHelper(DmEllipse const& e, double trimAmount, DmVector co
 DmEllipse::DmEllipse(DmEntity* parent, const EllipseData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -1084,7 +1083,6 @@ void DmEllipse::move(const DmVector& offset)
 {
     DmVector vec = data.getCenter().move(offset);
     data.setCenter(vec);
-    isModify = true;
     moveBorders(offset);
 }
 
@@ -1094,7 +1092,6 @@ void DmEllipse::rotate(const DmVector& center, const DmVector& angleVector)
     DmVector maj = data.getMajorP().rotate(angleVector);
     data.setCenter(cen);
     data.setMajorP(maj);
-    isModify = true;
     calculateBorders();
 }
 
@@ -1105,7 +1102,6 @@ void DmEllipse::rotate(const double& angle)
     DmVector maj = data.getMajorP().rotate(aV);
     data.setCenter(cen);
     data.setMajorP(maj);
-    isModify = true;
     calculateBorders();
 }
 
@@ -1115,7 +1111,6 @@ void DmEllipse::rotate(const DmVector& angleVector)
     DmVector maj = data.getMajorP().rotate(angleVector);
     data.setCenter(cen);
     data.setMajorP(maj);
-    isModify = true;
     calculateBorders();
 }
 
@@ -1137,7 +1132,6 @@ void DmEllipse::moveStartpoint(const DmVector& pos)
 {
     data.setStartParam(getEllipseParam(pos));
     correctAngles(); // make sure angleLength is no more than 2*M_PI
-    isModify = true;
     calculateBorders();
 }
 
@@ -1145,7 +1139,6 @@ void DmEllipse::moveEndpoint(const DmVector& pos)
 {
     data.setEndParam(getEllipseParam(pos));
     correctAngles(); // make sure angleLength is no more than 2*M_PI
-    isModify = true;
     calculateBorders();
 }
 
@@ -1242,7 +1235,6 @@ void DmEllipse::scale(const DmVector& center, const DmVector& factor)
     data.setCenter(data.getCenter().scale(center, factor));
     data.setMajorP(data.getMajorP() * fabs(factor.x));
     data.setRatio(fabs(getRatio() * factor.y / factor.x));
-    isModify = true;
     calculateBorders();
 }
 
@@ -1274,7 +1266,6 @@ void DmEllipse::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
         setEndParam(getEllipseParam(endpoint));
     }
     //correctAngles();//avoid extra 2.*M_PI in angles
-    isModify = true;
     calculateBorders();
 }
 
@@ -1464,7 +1455,6 @@ double DmEllipse::getStartParamNormal() const
 void DmEllipse::setStartParam(double a1)
 {
     data.setStartParam(a1);
-    isModify = true;
 }
 
 double DmEllipse::getEndParam() const
@@ -1487,7 +1477,6 @@ double DmEllipse::getEndParamNormal() const
 void DmEllipse::setEndParam(double a2)
 {
     data.setEndParam(a2);
-    isModify = true;
 }
 
 double DmEllipse::getParaNormal(double a)
@@ -1534,7 +1523,6 @@ DmVector DmEllipse::getCenter() const
 void DmEllipse::setCenter(const DmVector& c)
 {
     data.setCenter(c);
-    isModify = true;
 }
 
 DmVector DmEllipse::getMajorP() const
@@ -1545,7 +1533,6 @@ DmVector DmEllipse::getMajorP() const
 void DmEllipse::setMajorP(const DmVector& p)
 {
     data.setMajorP(p);
-    isModify = true;
 }
 
 double DmEllipse::getRatio() const
@@ -1556,7 +1543,6 @@ double DmEllipse::getRatio() const
 void DmEllipse::setRatio(double r)
 {
     data.setRatio(r);
-    isModify = true;
 }
 
 bool DmEllipse::isClosed() const
@@ -1645,202 +1631,6 @@ std::vector<double> DmEllipse::calculateVertexs(const DmVector& center, const do
     return vertexs;
 }
 
-const std::vector<float>& DmEllipse::getVerticesRef(int& float_count_per_vertex)
-{
-    updateVertices();
-    float_count_per_vertex = 5;
-    return data.getVerticesRef();
-}
-
-void DmEllipse::updateVertices()
-{
-    if (isModify)
-    {
-        std::vector<float> vertexs;
-        float majorx = (float)getMajorP().x;
-        float majory = (float)getMajorP().y;
-        float ratio = (float)getRatio();
-        float centerx = (float)getCenter().x;
-        float centery = (float)getCenter().y;
-
-        // 不闭合
-        if (!isClosed())
-        {
-            float startParam = (float)getStartParamNormal();
-            float endParam = (float)getEndParamNormal();
-
-            constexpr float _2pi = M_PI * 2.0f;
-            float delta_angle = endParam - startParam;
-            if (delta_angle <= 0.0f)
-            {
-                delta_angle += _2pi;
-            }
-            float factor = delta_angle / _2pi;
-            int segment_count = (int)std::ceil(factor * ELLIPSE_SEGMENT_COUNT);
-            constexpr int kMinSegmentCount = 10;
-            segment_count = std::max(kMinSegmentCount, segment_count);
-            vertexs.reserve((segment_count + 3) * 5);
-
-            float ang_delta = delta_angle / segment_count;
-            float radius = std::sqrt(majorx * majorx + majory * majory);
-            float majorLen = std::sqrt(majorx * majorx + majory * majory);
-            float b = ratio * majorLen;
-            float cosa = majorx / majorLen;
-            float sina = majory / majorLen;
-            float param = startParam;
-            float oldParam = param;
-            float total_length = 0.0f;
-
-            auto func = [cosa, sina, radius, ratio, centerx, centery](float ea, float& x, float& y)
-            {
-                float tx = radius * std::cos(ea); // parametric equation
-                float ty = ratio * radius * std::sin(ea);
-                x = (tx * cosa - ty * sina) + centerx; // first rotate then shift origin
-                y = (tx * sina + ty * cosa) + centery;
-            };
-
-            float tempx = 0.0f, tempy = 0.0f;
-            float para = 0.0f;
-            float lastX = 0.0f, lastY = 0.0f;
-
-            for (int i = 0; i < segment_count; i++)
-            {
-                if (i == 0)
-                {
-                    func(param + ang_delta, tempx, tempy);
-                    // 针对GL_LINE_STRIP_ADJACENCY的起始坐标
-                    vertexs.emplace_back(tempx);
-                    vertexs.emplace_back(tempy);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(total_length);
-
-                    // 起始点
-                    func(param, tempx, tempy);
-                    vertexs.emplace_back(tempx);
-                    vertexs.emplace_back(tempy);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(total_length);
-                    lastX = tempx;
-                    lastY = tempy;
-                }
-                oldParam = param;
-                param += ang_delta;
-                func(param, tempx, tempy);
-                para += glm::distance(glm::vec2(tempx, tempy), glm::vec2(lastX, lastY));
-                lastX = tempx;
-                lastY = tempy;
-                vertexs.emplace_back(tempx);
-                vertexs.emplace_back(tempy);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(para);
-                vertexs.emplace_back(total_length);
-                if (i == segment_count - 1)
-                {
-                    // 针对GL_LINE_STRIP_ADJACENCY的终止坐标
-                    func(param - ang_delta, tempx, tempy);
-                    vertexs.emplace_back(tempx);
-                    vertexs.emplace_back(tempy);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(para);
-                    vertexs.emplace_back(total_length);
-                }
-            }
-            //设置总长
-            for (int i = 0; i < segment_count + 3; i++)
-            {
-                vertexs.at(5 * i + 4) = para;
-            }
-        }
-        //闭合
-        else
-        {
-            vertexs.reserve((ELLIPSE_SEGMENT_COUNT + 3) * 5);
-            constexpr float _2pi = M_PI * 2.0f;
-            constexpr float ang_delta = _2pi / ELLIPSE_SEGMENT_COUNT;
-            float radius = std::sqrt(majorx * majorx + majory * majory);
-            float majorLen = std::sqrt(majorx * majorx + majory * majory);
-            float b = ratio * majorLen;
-            float cosa = majorx / majorLen;
-            float sina = majory / majorLen;
-            float param = 0.0f;
-            float oldParam = param;
-
-            // 与长度迭代的误差太大，采用长度迭代
-            // 椭圆的周长。没有精确计算公式，近似采用：L=2pi*b + 4(a-b)，参考：https://baike.baidu.com/item/%E6%A4%AD%E5%9C%86%E5%91%A8%E9%95%BF/9569341?fr=ge_ala
-            //float total_length = _2pi * b + 4.0f * (majorLen - b);
-            float total_length = 0.0f;
-
-            auto func = [cosa, sina, radius, ratio, centerx, centery](float ea, float& x, float& y)
-            {
-                float tx = radius * std::cos(ea); // parametric equation
-                float ty = ratio * radius * std::sin(ea);
-                x = (tx * cosa - ty * sina) + centerx; // first rotate then shift origin
-                y = (tx * sina + ty * cosa) + centery;
-            };
-
-            float tempx = 0.0f, tempy = 0.0f;
-            float para = 0.0f;
-            float lastX = 0.0f, lastY = 0.0f;
-            for (int i = 0; i < ELLIPSE_SEGMENT_COUNT; i++)
-            {
-                if (i == 0)
-                {
-                    func(-ang_delta, tempx, tempy);
-                    // 针对GL_LINE_STRIP_ADJACENCY的起始坐标
-                    vertexs.emplace_back(tempx);
-                    vertexs.emplace_back(tempy);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(total_length);
-
-                    // 起始点
-                    func(0.0f, tempx, tempy);
-                    vertexs.emplace_back(tempx);
-                    vertexs.emplace_back(tempy);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(total_length);
-                    lastX = tempx;
-                    lastY = tempy;
-                }
-                oldParam = param;
-                param += ang_delta;
-                func(param, tempx, tempy);
-                para += glm::distance(glm::vec2(tempx, tempy), glm::vec2(lastX, lastY));
-                //para += std::sqrt((tempx - lastX) * (tempx - lastX) + (tempy - lastY) * (tempy - lastY));
-                lastX = tempx;
-                lastY = tempy;
-                vertexs.emplace_back(tempx);
-                vertexs.emplace_back(tempy);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(para);
-                vertexs.emplace_back(total_length);
-
-                if (i == ELLIPSE_SEGMENT_COUNT - 1)
-                {
-                    // 针对GL_LINE_STRIP_ADJACENCY的终止坐标
-                    func(ang_delta, tempx, tempy);
-                    vertexs.emplace_back(tempx);
-                    vertexs.emplace_back(tempy);
-                    vertexs.emplace_back(0.0f);
-                    vertexs.emplace_back(para);
-                    vertexs.emplace_back(total_length);
-                }
-            }
-            //设置总长
-            for (int i = 0; i < ELLIPSE_SEGMENT_COUNT + 3; i++)
-            {
-                vertexs.at(5 * i + 4) = para;
-            }
-        }
-
-        data.setVertices(vertexs);
-        isModify = false;
-    }
-}
-
 void DmEllipse::getPoints(std::vector<DmVector>& pts, bool reverse /*= false*/)
 {
     // 计算分段数
@@ -1877,12 +1667,6 @@ void DmEllipse::getPoints(std::vector<DmVector>& pts, bool reverse /*= false*/)
     {
         std::reverse(pts.begin() + startIdx, pts.end());
     }
-}
-
-void DmEllipse::update()
-{
-    isModify = true;
-    updateVertices();
 }
 
 void DmEllipse::saveStream(OutputStream& wrt) const
@@ -1945,5 +1729,21 @@ void DmEllipse::restoreStream(InputStream& rdr)
     setNormal(normal);
     setRatio(ratio);
     calculateBorders();
-    isModify = true;
+}
+
+void DmEllipse::worldDraw(IGiWorldDraw& wd) const
+{
+    if (isClosed())
+    {
+        wd.geometry().ellipseArc(getCenter(), getMajorP(), getRatio(), 0.0, 2.0 * M_PI);
+        return;
+    }
+    // 按"翻正"后的参数从起点逆时针画到终点
+    const double start = getStartParamNormal();
+    double end = getEndParamNormal();
+    if (end - start <= 0.0)
+    {
+        end += 2.0 * M_PI;
+    }
+    wd.geometry().ellipseArc(getCenter(), getMajorP(), getRatio(), start, end);
 }

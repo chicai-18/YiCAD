@@ -30,13 +30,13 @@
 #include "DmCircle.h"
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmPoint, DmAtomicEntity, 0)
 
 DmPoint::DmPoint(DmEntity* parent, const PointData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -183,28 +183,24 @@ double DmPoint::getDistanceToPoint(const DmVector& coord,
 void DmPoint::moveStartpoint(const DmVector& pos)
 {
     data.setPosition(pos);
-    isModify = true;
     calculateBorders();
 }
 
 void DmPoint::move(const DmVector& offset)
 {
     data.setPosition(getPos().move(offset));
-    isModify = true;
     calculateBorders();
 }
 
 void DmPoint::rotate(const DmVector& center, const DmVector& angleVector)
 {
     data.setPosition(getPos().rotate(center, angleVector));
-    isModify = true;
     calculateBorders();
 }
 
 void DmPoint::scale(const DmVector& center, const DmVector& factor)
 {
     data.setPosition(getPos().scale(center, factor));
-    isModify = true;
     calculateBorders();
 }
 
@@ -212,7 +208,6 @@ void DmPoint::mirror(const DmVector& axisPoint1,
                      const DmVector& axisPoint2)
 {
     data.setPosition(getPos().mirror(axisPoint1, axisPoint2));
-    isModify = true;
     calculateBorders();
 }
 
@@ -262,5 +257,9 @@ void DmPoint::restoreStream(InputStream& rdr)
 
     setPos(p);
     calculateBorders();
-    isModify = true;
+}
+
+void DmPoint::worldDraw(IGiWorldDraw& wd) const
+{
+    wd.geometry().point(getPos());
 }

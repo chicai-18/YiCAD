@@ -27,13 +27,13 @@
 #include <cmath>
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmRay, DmAtomicEntity, 0)
 
 DmRay::DmRay(DmEntity* parent, const RayData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -177,7 +177,6 @@ void DmRay::rotate(const double& angle)
     data.setBasePoint(vec);
     pt.rotate(rvp);
     data.setDirection(pt - data.getBasePoint());
-    isModify = true;
     calculateBorders();
 }
 
@@ -188,7 +187,6 @@ void DmRay::rotate(const DmVector& center, const DmVector& angleVector)
     data.setBasePoint(vec);
     pt.rotate(center, angleVector);
     data.setDirection(pt - data.getBasePoint());
-    isModify = true;
     calculateBorders();
 }
 
@@ -198,7 +196,6 @@ void DmRay::scale(const DmVector& factor)
     DmVector dir = data.getDirection().scale(factor);
     data.setBasePoint(pt);
     data.setDirection(dir);
-    isModify = true;
     calculateBorders();
 }
 
@@ -208,7 +205,6 @@ void DmRay::scale(const DmVector& center, const DmVector& factor)
     DmVector dir = data.getDirection().scale(center, factor);
     data.setBasePoint(pt);
     data.setDirection(dir);
-    isModify = true;
     calculateBorders();
 }
 
@@ -220,7 +216,6 @@ void DmRay::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
     pt.mirror(axisPoint1, axisPoint2);
     DmVector dir = pt - data.getBasePoint();
     data.setDirection(dir);
-    isModify = true;
     calculateBorders();
 }
 
@@ -375,5 +370,9 @@ void DmRay::restoreStream(InputStream& rdr)
     setBasePoint(base);
     setDirection(dir);
     calculateBorders();
-    isModify = true;
+}
+
+void DmRay::worldDraw(IGiWorldDraw& wd) const
+{
+    wd.geometry().ray(data.getBasePoint(), data.getDirection());
 }

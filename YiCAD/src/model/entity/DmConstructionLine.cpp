@@ -27,6 +27,7 @@
 #include "Debug.h"
 #include "Quadratic.h"
 #include "Math2d.h"
+#include "IGiGeometry.h"
 
 DmConstructionLineData::DmConstructionLineData()
     : point1(false)
@@ -235,4 +236,9 @@ void DmConstructionLine::mirror(const DmVector& axisPoint1, const DmVector& axis
 {
     data.point1.mirror(axisPoint1, axisPoint2);
     data.point2.mirror(axisPoint1, axisPoint2);
+}
+
+void DmConstructionLine::worldDraw(IGiWorldDraw& wd) const
+{
+    wd.geometry().xline(getPoint1(), getPoint2() - getPoint1());
 }

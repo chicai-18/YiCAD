@@ -42,6 +42,7 @@
 #include "DmAttribute.h"
 #include "DmDimLinear.h"
 #include "DmEntityHelper.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmBlock, DmObject, 0)
 
@@ -425,5 +426,16 @@ bool DmBlock::isSaveEntType(const DM::EntityType type) const
         return true;
     default:
         return false;
+    }
+}
+
+void DmBlock::worldDraw(IGiWorldDraw& wd) const
+{
+    for (const DmEntity* e : m_entityTable)
+    {
+        if (e && e->getEntityType() != DM::EntityAttributeDefinition)
+        {
+            wd.geometry().draw(*e);
+        }
     }
 }

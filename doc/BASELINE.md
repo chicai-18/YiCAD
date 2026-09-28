@@ -103,9 +103,11 @@ $env:YICAD_BENCHMARK_DIR = "$PWD\build\benchmarks"   # 在仓库根执行
 `UIView` 窗口（1600×900），对每份图纸用代码依次做下面的操作，最后打印一张 Markdown
 表，可以直接贴进来：
 
-1. 经 `DmDocument::readFile()` 打开（`document.open`）；
+1. 经 `DmDocument::readFile()` 打开（`document.open`）；渲染方案阶段 2 起另记显示后首帧的整图重建（`render.regen`）；
 2. 按实体表范围缩放到全图，热身 5 帧后连续画 30 帧（`render.paintGL`、每帧绘制调用与上传字节；
    渲染方案阶段 1 起另用 `GL_TIME_ELAPSED` 查询量 `paintGL` 的 GPU 耗时）；
+   渲染方案阶段 2 起接着通知画布文档已修改（`DmDocumentListener::documentModified`，改动任何实体都会这样）3 次，
+   各画一帧，取整图重建的耗时（`render.regen`）；
 3. 换 20 次高亮的实体，每次画一帧（`render.frameAfterHighlight`，其中 `render.regen` 或 `render.regenHighlight`，
    以及 `render.scene`），相当于命令里光标从一个候选实体移到另一个上；
 4. 在 20 条直线的中点点选（`snap.catchEntity`），选中后画一帧（`render.frameAfterSelection`，其中 `render.regen` 或 `render.regenSelection`）；
@@ -453,20 +455,57 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 - **全选**仍要把 48 万个实体的顶点重新组成选中组并上传，开销随选中数，大图纸 5.1 秒（阶段 0 为 6.8 秒，省下的是普通组的重建）。
   要等阶段 4 的对象状态缓冲（`RENDER_PLAN.md` 第 4.3.7 节）才只改状态。平移、缩放同样每帧重画整个场景，GPU 开销随图纸大小，由阶段 6 的 LOD 处理。
 
+#### 阶段 2（GI 边界）
+
+采集日期：2026-09-28，环境同上；代码：`de671ca` 加渲染方案阶段 2 的改动。
+
+阶段 2 起采集用例多了两行整图重建：显示后首帧，与文档修改后（改动任何实体都会整图重建）。阶段 1 之后换高亮、点选都不再整图重建，
+表里原先唯一的整图重建一行（换高亮的 `render.regen`）从阶段 1 起是 0。右列是对照：打开文档与"文档修改后的整图重建"取阶段 0
+（后者取阶段 0 换高亮的 `render.regen`，同是整图重建，那时实体里缓存着顶点；阶段 1 没有改整图重建），其余取阶段 1。
+
+| 指标 | 小图纸 (1k) | 中图纸 (50k) | 大图纸 (500k) | 大图纸，对照 |
+|------|-----------:|-------------:|--------------:|-------------:|
+| 打开文档 `document.open` | 227.5 | 12,192.5 | 129,357.7 | 143,337.7 |
+| 显示后首帧的整图重建 `render.regen` | 21.11 | 823.75 | 8,413.65 | — |
+| 文档修改后的整图重建 `render.regen` | 5.26 | 242.23 | 2,526.87 | 3,763.48 |
+| 稳态帧 `render.paintGL` | 1.23 | 0.39 | 0.37 | 0.38 |
+| 稳态帧 GPU 耗时（`GL_TIME_ELAPSED`） | 0.32 | 0.23 | 0.22 | 0.23 |
+| 换高亮后首帧 `render.frameAfterHighlight` | 1.19 | 0.44 | 0.42 | 0.48 |
+| 点选后首帧 `render.frameAfterSelection` | 0.96 | 1.02 | 1.56 | 1.51 |
+| 全选后首帧 `render.frameAfterSelection` | 8.37 | 279.88 | 3,262.61 | 5,100.01 |
+| 其中局部重建 `render.regenSelection` | 6.32 | 277.54 | 3,259.22 | 5,094.74 |
+
+几点说明：
+
+- **实体里不再缓存顶点**（`RENDER_PLAN.md` 2.4 步）：每次整图重建都经 worldDraw 与适配器 `GLCacheWorldDraw` 重新生成全部顶点。
+  没有缓存的情况下，文档修改后的整图重建反而比原先快约三分之一（大图纸 2.5 秒，原先 3.8 秒）：原先的开销主要在
+  `getSubEntities()` 展平时为每个实体建链表、按画笔分组，而不在顶点本身。
+- **样条例外**：离散一条样条要递归求 B 样条基函数，中图纸 2 千条样条约 0.6 秒，比其余 4.8 万个实体加起来还多；原先离散结果缓存在
+  `DmSpline` 里（读图时算好）。适配器按曲线内容缓存离散结果（`GLCacheWorldDraw::NurbsSamples`，整图重建时标记—清除），
+  所以只有显示后首帧要离散一遍，表里"显示后首帧"比"文档修改后"多出的主要就是这一项。原先这笔开销含在打开文档里，
+  打开文档因此少了约 10%（大图纸 129 秒，原先 143 秒；另一部分是读图时不再算圆弧、圆、椭圆的顶点）。
+- 全选后首帧同样少了展平与分组的开销，大图纸 3.3 秒（阶段 1 为 5.1 秒）。
+- 稳态帧、换高亮、点选与阶段 1 相同。只有样条缓存之前测过一次，那次文档修改后的整图重建大图纸为 8.2 秒，全选后首帧 8.7 秒。
+
 ### 8.2 自动化测试用例数
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 |
-|------------|------:|------:|------:|
-| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） |
-| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
-| `test_persistence` | 68 | 68 | 68 |
-| `test_interaction` | 335 | 336 | 336 |
-| `test_render` | — | 15 | 23 |
+| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 | 阶段 2 |
+|------------|------:|------:|------:|------:|
+| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） |
+| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
+| `test_graphics` | — | — | — | 38（1 DISABLED） |
+| `test_persistence` | 68 | 68 | 68 | 68 |
+| `test_interaction` | 335 | 336 | 336 | 336 |
+| `test_render` | — | 15 | 23 | 23 |
 
 阶段 0 新增：`test_math` 的数量计数器与新计数器 4 个；`test_interaction` 的基线采集 1 个（不设 `YICAD_BENCHMARK_DIR` 时跳过）；
 `test_render`（新）的环境检查 2 个与参考图纸出图比对 13 个（缺 SHX 字体时 `text_shx` 跳过，CI 上就是这样）。
 
 阶段 1 新增：`test_math` 的新计数器 1 个；`test_render` 的增量更新 7 个（选择集、高亮集的局部重建与整图重建的图比对，
 场景底图什么时候重画，整图重建复用图片纹理）与图片纹理缓存 1 个。
+
+阶段 2 新增：`test_graphics`（新）的仿射变换 5 个、样条离散 3 个、GI 流的记录重放与序列化 6 个、各实体的 worldDraw 20 个
+（其中以多段线为边界的实心填充 1 个是 `DISABLED_`，等 `Edge::getPoints` 修好后启用）、文字的字形串 4 个。
+`test_render` 的用例数不变，`entities`、`entities_grid`、`entities_selected_highlighted`、`blocks` 四张基准图像更新（`RENDER_PLAN.md` 第 10 节阶段 2）。

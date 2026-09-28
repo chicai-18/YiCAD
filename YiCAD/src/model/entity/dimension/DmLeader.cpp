@@ -33,6 +33,7 @@
 #include "DmDocument.h"
 #include "DmDocumentTransfer.h"
 #include "Math2d.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmLeader, DmEntity, 0);
 DIM_FUNCS_IMPLEMENT(DmLeaderData)
@@ -585,4 +586,20 @@ DmLeaderData::DmLeaderData(DmDimensionStyle* style, const std::vector<DmVector>&
 {
 	pStyle = style;
 	vertextes = _vertexes;
+}
+
+void DmLeader::worldDraw(IGiWorldDraw& wd) const
+{
+    // 各部分以引线为父实体，按各自的属性画，ByBlock 取引线
+    if (!container)
+    {
+        return;
+    }
+    for (const DmEntity* e : *container)
+    {
+        if (e)
+        {
+            wd.geometry().draw(*e);
+        }
+    }
 }

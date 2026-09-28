@@ -68,6 +68,9 @@ public:
 
 	std::list<DmEntity*> getSubEntities() const override;
 
+	/// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+	void worldDraw(IGiWorldDraw& wd) const override;
+
 	// persistent helper
 	virtual void saveStream(OutputStream& wrt) const override;
 	virtual void restoreStream(InputStream& reader, const std::vector<PAIR>& revs) override;
@@ -81,9 +84,6 @@ private:
 	// helper method for getNearestPointOnEntity
 	bool sign(const DmVector& v1, const DmVector& v2, const DmVector& v3) const;
 	void setDistPtr(double* dist, const double value) const;
-
-private:
-	bool isModify;
 };
 
 #endif

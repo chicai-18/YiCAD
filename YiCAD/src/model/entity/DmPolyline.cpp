@@ -34,6 +34,7 @@
 #include "Information.h"
 #include "DmSolid.h"
 #include "GeometryMethods.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmPolyline, DmEntity, 0);
 
@@ -976,4 +977,27 @@ void DmPolyline::restoreStream(InputStream& reader)
     data.setLineWeights(vecLineWeights);
     data.setIsClosed(isClosedFlag);
     update();
+}
+
+void DmPolyline::worldDraw(IGiWorldDraw& wd) const
+{
+    if (!isValid())
+    {
+        return;
+    }
+    const std::vector<DmVector> points = data.getVertexs();
+    const std::vector<double> bulges = data.getBulges();
+    const std::vector<double> weights = data.getLineWeights();
+    // 各段宽度都为 0 时是细线，不传线宽
+    std::vector<GiSegmentWidth> widths;
+    if (std::any_of(weights.begin(), weights.end(), [](double w) { return w != 0.0; }))
+    {
+        widths.resize(bulges.size());
+        for (std::size_t i = 0; i < bulges.size() && 2 * i + 1 < weights.size(); ++i)
+        {
+            widths[i].start = weights[2 * i];
+            widths[i].end = weights[2 * i + 1];
+        }
+    }
+    wd.geometry().polyline(points, bulges, widths, isClosed() ? GiPolylineFlags::Closed : GiPolylineFlags::None);
 }

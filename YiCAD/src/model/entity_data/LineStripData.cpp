@@ -82,12 +82,3 @@ void LineStripData::setIsClosed(bool isClosed)
     m_isClosed = isClosed;
 }
 
-const std::vector<float>& LineStripData::getVerticesRef() const
-{
-    return m_vertices;
-}
-
-void LineStripData::setVertices(const std::vector<float>& vs)
-{
-    m_vertices = vs;
-}

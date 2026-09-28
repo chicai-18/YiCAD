@@ -149,6 +149,9 @@ public:
     /// @return 子实体列表
     std::list<DmEntity*> getSubEntities() const override;
 
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
+
 public:
     /// @brief 为圆弧生成切变实体
     /// @param arc 原始圆弧

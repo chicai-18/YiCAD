@@ -32,6 +32,9 @@
 #include "DmTriangle.h"
 #include "Math2d.h"
 #include "GeometryMethods.h"
+#include "IGiGeometry.h"
+
+#include <cmath>
 
 // 圆弧分段数
 constexpr int ARC_SEGMENT_COUNT = 12;
@@ -116,9 +119,20 @@ DmChar* DmCharTemplate::generateChar(const double& widthFactor, const double& sl
                 getShearedEntityForTriangle(*pTriangle, c, DmVector(0.0, 0.0, 0.0), DM::X, slashAngle, widthFactor);
             }
         }
+        // 与上面的切变一致：x' = (x + y·tan(倾斜角))·宽度系数，y' = y
+        c->m_glyphTransform = GiTransform(widthFactor, 0.0, std::tan(slashAngle) * widthFactor, 1.0, 0.0, 0.0);
     }
     c->calculateBorders();
     return c;
+}
+
+void DmCharTemplate::worldDraw(IGiWorldDraw& wd) const
+{
+    // 字形几何：各笔画按自己的属性（颜色 ByBlock，即取字形串的颜色）嵌套绘制
+    for (const DmEntity* stroke : entities)
+    {
+        wd.geometry().draw(*stroke);
+    }
 }
 
 double DmCharTemplate::getWHFactor() const

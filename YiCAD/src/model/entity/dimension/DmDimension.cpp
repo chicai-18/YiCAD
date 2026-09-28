@@ -41,6 +41,7 @@
 
 #include "Math2d.h"
 #include "Debug.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmDimension, DmEntity, 0);
 DIM_FUNCS_IMPLEMENT(DmDimensionData)
@@ -1015,4 +1016,20 @@ DmEntityContainer* DmDimension::getTextEntity(const double& textValue)
 		}
 	}
 	return pText;
+}
+
+void DmDimension::worldDraw(IGiWorldDraw& wd) const
+{
+    // 各部分（尺寸线、界线、箭头、文字容器）以标注为父实体，按各自的属性画，ByBlock 取标注
+    if (!container)
+    {
+        return;
+    }
+    for (const DmEntity* e : *container)
+    {
+        if (e)
+        {
+            wd.geometry().draw(*e);
+        }
+    }
 }

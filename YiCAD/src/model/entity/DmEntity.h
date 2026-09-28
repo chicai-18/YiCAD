@@ -32,6 +32,7 @@
 #include "DmVector.h"
 #include "DmObserver.h"
 #include "DmId.h"
+#include "IGiDrawable.h"
 
 class DmArc;
 class DmBlock;
@@ -60,7 +61,8 @@ class InputStream;
 using DmEntityPtr = std::shared_ptr<DmEntity>;
 
 /// @brief 实体基类
-class DmEntity : public DmObject
+/// @details 实体经 GI 描述自己的几何（IGiDrawable，RENDER_PLAN.md 第 4.2 节），渲染层不按实体类型分支
+class DmEntity : public DmObject, public IGiDrawable
 {
     TYPESYSTEM_HEADER();
 
@@ -71,6 +73,14 @@ public:
     void init();
 
     virtual DmEntity* clone() const = 0;
+
+    /// @brief 按实体自身的画笔与图层设置图元属性
+    /// @details 颜色、线宽、线型原样给出（可以是 ByLayer、ByBlock）；无效画笔（DM::FlagInvalid）表示三项都取外层，
+    ///          给出 ByBlock。图层为空表示取外层的图层。与 getPen(true)、getLayer(true) 沿父实体解析的规则一致
+    void setAttributes(IGiSubEntityTraits& traits) const override;
+
+    /// @brief 经 GI 描述自身几何，见 IGiDrawable::worldDraw
+    void worldDraw(IGiWorldDraw& wd) const override = 0;
 
     void resetBorders();
     void moveBorders(const DmVector& offset);

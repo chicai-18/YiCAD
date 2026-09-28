@@ -6,6 +6,7 @@
 #   tests/math/         -> YiCadBase（经 YiCadModel 链接，见 math/CMakeLists.txt）
 #   tests/persistence/  -> YiCadModel 的 model/io/
 #   tests/geometry/     -> YiCadModel 中的几何实体
+#   tests/graphics/     -> YiCadModel 的 model/graphics/（GI）与各实体的 worldDraw
 #   tests/interaction/  -> YiCadShell（带上 YiCadUi 及以下）与全部扩展库
 #   tests/render/       -> YiCadShell（读 DXF 的插件运行时在它里面）；出图用 Mesa 软件渲染，
 #                          见 render/CMakeLists.txt 与 doc/RENDER_PLAN.md 0.2 步
@@ -123,6 +124,7 @@ endfunction()
 
 add_subdirectory(math)
 add_subdirectory(geometry)
+add_subdirectory(graphics)
 add_subdirectory(persistence)
 add_subdirectory(interaction)
 add_subdirectory(render)

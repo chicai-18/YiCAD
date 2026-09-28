@@ -32,6 +32,7 @@
 #include "DmSpline.h"
 #include "Math2d.h"
 #include "FindClosedRegion.h"
+#include "IGiGeometry.h"
 
 using namespace FindClosedRegion;
 
@@ -565,3 +566,26 @@ void DmRegion::restoreStream(InputStream& rdr)
 
 
 
+
+void DmRegion::worldDraw(IGiWorldDraw& wd) const
+{
+    // 与 AutoCAD 的二维线框一致：按区域自己的属性画边界与孔洞的轮廓
+    auto drawEdges = [&wd](const DmEntityContainerPtr& contour) {
+        if (!contour)
+        {
+            return;
+        }
+        for (const DmEntity* edge : *contour)
+        {
+            if (edge)
+            {
+                edge->worldDraw(wd);
+            }
+        }
+    };
+    drawEdges(data.getBoundary());
+    for (const DmEntityContainerPtr& hole : data.getHoles())
+    {
+        drawEdges(hole);
+    }
+}

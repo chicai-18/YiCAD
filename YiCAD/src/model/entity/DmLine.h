@@ -127,13 +127,7 @@ public:
 
     void calculateBorders() override;
 
-    /// @brief 获得绘制用的顶点数据
-    const std::vector<float>& getVerticesRef(int& float_count_per_vertex);
-
     void update() override;
-
-    /// @brief 更新绘制用的顶点数据
-    void updateVertices();
 
     /// @brief getQuadratic() returns the equation of the entity for quadratic,
     /// @return a vector contains: m0 x^2 + m1 xy + m2 y^2 + m3 x + m4 y + m5 =0
@@ -141,6 +135,9 @@ public:
     Quadratic getQuadratic() const override;
 
     std::list<DmEntity*> getSubEntities() const override;
+
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
 
     // persistent helper
     virtual void saveStream(OutputStream& wrt) const override;
@@ -151,9 +148,6 @@ public:
 
 protected:
     LineData data;
-
-private:
-    bool isModify = false; ///< 修改标志
 };
 
 #endif // DMLINE_H

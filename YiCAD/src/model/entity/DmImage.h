@@ -148,6 +148,9 @@ public:
 
     std::list<DmEntity*> getSubEntities() const override;
 
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
+
 protected:
     /// whether the point is within image
     bool containsPoint(const DmVector& coord) const;
@@ -156,9 +159,6 @@ protected:
     ImageData data;                       ///< 图像数据
     std::unique_ptr<QImage> img;          ///< Qt图像对象
     bool isInit = false;                  ///< 初始化标志
-
-private:
-    bool isModify = false;                ///< 修改标志
 };
 
 #endif // DMIMAGE_H

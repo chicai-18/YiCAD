@@ -99,37 +99,6 @@ void opengl::GLCachePainter::removeCacheByGroup(CacheGroupType groupType)
     }
 }
 
-void opengl::GLCachePainter::removeCache(int penId, CacheType type)
-{
-    if (type == CacheType::COUNT)
-    {
-        return;
-    }
-
-    auto func = [=](CacheType t) {
-        auto& map = m_cache.m_cacheUnits[t];
-        auto it = map.find(penId);
-        // 找不到时不能 erase(end())，那是未定义行为（P14）
-        if (it != map.end())
-        {
-            it->second.free();
-            map.erase(it);
-        }
-    };
-
-    if (type == CacheType::ALL)
-    {
-        for (int i = 0; i < CacheType::COUNT; i++)
-        {
-            func((CacheType)i);
-        }
-    }
-    else
-    {
-        func(type);
-    }
-}
-
 void opengl::GLCachePainter::removeSelectedPointsCache()
 {
     m_cache.m_cacheSelectedPoints.free();

@@ -34,11 +34,11 @@
 #include "DmSettings.h"
 #include "Debug.h"
 #include "Math2d.h"
+#include "IGiGeometry.h"
 
 DmImage::DmImage(DmEntity* parent, const ImageData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     update();
     calculateBorders();
@@ -48,7 +48,6 @@ DmImage::DmImage(const DmImage& _image)
     : DmAtomicEntity(_image.getParent())
     , data(_image.data)
     , img(_image.img.get() ? new QImage(*_image.img) : nullptr)
-    , isModify(true)
 {
 }
 
@@ -70,7 +69,6 @@ DmImage::DmImage(DmImage&& _image)
     : DmAtomicEntity(_image.getParent())
     , data(std::move(_image.data))
     , img(std::move(_image.img))
-    , isModify(true)
 {
 }
 
@@ -463,5 +461,18 @@ void DmImage::restoreStream(InputStream& reader)
 
     update();
     calculateBorders();
-    isModify = true;
+}
+
+void DmImage::worldDraw(IGiWorldDraw& wd) const
+{
+    // 四个角与 getCorners() 相同：像素数取整后乘以每像素的 u、v 向量
+    GiImage image;
+    image.origin = data.getInsertionPoint();
+    image.width = static_cast<int>(Math2d::round(data.getSize().x));
+    image.height = static_cast<int>(Math2d::round(data.getSize().y));
+    image.u = data.getUVector() * Math2d::round(data.getSize().x);
+    image.v = data.getVVector() * Math2d::round(data.getSize().y);
+    image.path = QString::fromStdString(data.getPath());
+    image.pixels = img.get();
+    wd.geometry().image(image);
 }

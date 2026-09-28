@@ -27,13 +27,13 @@
 
 #include "GeometryMethods.h"
 #include "Math2d.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmXline, DmAtomicEntity, 0)
 
 DmXline::DmXline(DmEntity* parent, const XLineData& d)
 	: DmAtomicEntity(parent)
 	, data(d)
-	, isModify(true)
 {
 	calculateBorders();
 }
@@ -157,7 +157,6 @@ void DmXline::rotate(const double& angle)
 	data.setBasePoint(vec);
 	pt.rotate(rvp);
 	data.setDirection(pt - data.getBasePoint());
-	isModify = true;
 	calculateBorders();
 }
 
@@ -168,7 +167,6 @@ void DmXline::rotate(const DmVector& center, const DmVector& angleVector)
 	data.setBasePoint(vec);
 	pt.rotate(center, angleVector);
 	data.setDirection(pt - data.getBasePoint());
-	isModify = true;
 	calculateBorders();
 }
 
@@ -178,7 +176,6 @@ void DmXline::scale(const DmVector& factor)
 	DmVector dir = data.getDirection().scale(factor);
 	data.setBasePoint(pt);
 	data.setDirection(dir);
-	isModify = true;
 	calculateBorders();
 }
 
@@ -188,7 +185,6 @@ void DmXline::scale(const DmVector& center, const DmVector& factor)
 	DmVector dir = data.getDirection().scale(center, factor);
 	data.setBasePoint(pt);
 	data.setDirection(dir);
-	isModify = true;
 	calculateBorders();
 }
 
@@ -200,7 +196,6 @@ void DmXline::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
 	pt.mirror(axisPoint1, axisPoint2);
 	DmVector dir = pt - data.getBasePoint();
 	data.setDirection(dir);
-	isModify = true;
 	calculateBorders();
 }
 
@@ -273,5 +268,9 @@ void DmXline::restoreStream(InputStream& rdr)
 	setBasePoint(base);
 	setDirection(dir);
 	calculateBorders();
-	isModify = true;
+}
+
+void DmXline::worldDraw(IGiWorldDraw& wd) const
+{
+    wd.geometry().xline(data.getBasePoint(), data.getDirection());
 }

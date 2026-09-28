@@ -60,12 +60,3 @@ void LineData::setEndPoint(const DmVector& pt)
     m_endPoint = pt;
 }
 
-const std::vector<float>& LineData::getVerticesRef() const
-{
-    return m_vertices;
-}
-
-void LineData::setVertices(const std::vector<float>& vs)
-{
-    m_vertices = vs;
-}

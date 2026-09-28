@@ -25,6 +25,7 @@
 #include "DmVector.h"
 #include "DmTriangle.h"
 #include <algorithm>
+#include <array>
 
 /// @brief 约束Delaunay三角剖分类
 class ConstrainedDelaunayTriangulation
@@ -37,6 +38,11 @@ public:
     /// @param [out] triangles 生成的三角形列表
     template<typename T>
     static void trianglulate(const std::vector<DmVector>& outBoundary, const std::vector<std::vector<DmVector>>& holes, std::vector<T>& triangles);
+
+    /// @brief 三角化，输出每个三角形的三个顶点；规则同 trianglulate
+    /// @details 旧渲染器的 GI 适配器剖分填充区域时用它，不必为每个三角形创建实体
+    static void triangulatePoints(const std::vector<DmVector>& outBoundary, const std::vector<std::vector<DmVector>>& holes,
+                                  std::vector<std::array<DmVector, 3>>& triangles);
 
 private:
     typedef CDT::Triangulation<double>::V2dVec CdtVertices;
@@ -56,77 +62,10 @@ private:
 template<typename T>
 void ConstrainedDelaunayTriangulation::trianglulate(const std::vector<DmVector>& outBoundary, const std::vector<std::vector<DmVector>>& holes, std::vector<T>& triangles)
 {
-    // 用CDT的Constrained Delaunay Triangulation做三角剖分
-    CdtVertices vertices;
-    CdtEdges edges;
-
-    if (!outBoundary.empty())
+    std::vector<std::array<DmVector, 3>> points;
+    triangulatePoints(outBoundary, holes, points);
+    for (const auto& pts : points)
     {
-        // 有外边界：插入外边界和孔洞，由CDT自动检测嵌套层级
-        std::vector<DmVector> boundary = outBoundary;
-        ConstrainedDelaunayTriangulation::removeClosingDuplicate(boundary);
-        ConstrainedDelaunayTriangulation::appendContourAsEdges(vertices, edges, boundary);
-
-        for (auto hole : holes)
-        {
-            ConstrainedDelaunayTriangulation::removeClosingDuplicate(hole);
-            ConstrainedDelaunayTriangulation::appendContourAsEdges(vertices, edges, hole);
-        }
-    }
-    else if (!holes.empty())
-    {
-        // 无外边界（字体轮廓场景）：所有轮廓作为约束边插入，
-        // CDT的eraseOuterTrianglesAndHoles会根据嵌套深度自动处理。
-        // 深度为奇数的区域（轮廓内部）保留，深度为偶数的区域（外部和孔洞）删除。
-        for (auto contour : holes)
-        {
-            ConstrainedDelaunayTriangulation::removeClosingDuplicate(contour);
-            ConstrainedDelaunayTriangulation::appendContourAsEdges(vertices, edges, contour);
-        }
-    }
-    else
-    {
-        return; // 无输入
-    }
-
-    // Build the CDT through its public API before inserting constraints.
-    if (vertices.empty() || edges.empty())
-    {
-        return;
-    }
-
-    CDT::RemoveDuplicatesAndRemapEdges(vertices, edges);
-    edges.erase(
-        std::remove_if(
-            edges.begin(),
-            edges.end(),
-            ConstrainedDelaunayTriangulation::isDegenerateEdge),
-        edges.end());
-    if (edges.empty())
-    {
-        return;
-    }
-
-    CDT::Triangulation<double> cdt(
-        CDT::VertexInsertionOrder::Auto,
-        CDT::IntersectingConstraintEdges::TryResolve,
-        0.0);
-    cdt.insertVertices(vertices);
-    cdt.insertEdges(edges);
-
-    // 删除外部三角形和孔洞（基于嵌套深度自动判断）
-    cdt.eraseOuterTrianglesAndHoles();
-
-    // 生成三角面
-    for (const auto& tri : cdt.triangles)
-    {
-        const auto& p0 = cdt.vertices[tri.vertices[0]];
-        const auto& p1 = cdt.vertices[tri.vertices[1]];
-        const auto& p2 = cdt.vertices[tri.vertices[2]];
-        std::array<DmVector, 3> pts;
-        pts.at(0) = DmVector(p0.x, p0.y);
-        pts.at(1) = DmVector(p1.x, p1.y);
-        pts.at(2) = DmVector(p2.x, p2.y);
         TriangleData data;
         data.setPoints(pts);
         DmTriangle* triangle = new DmTriangle(nullptr, data);

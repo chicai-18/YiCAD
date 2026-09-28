@@ -34,6 +34,7 @@
 #include "DmRect.h"
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmArc, DmAtomicEntity, 0)
 
@@ -41,7 +42,6 @@ TYPESYSTEM_SOURCE(DmArc, DmAtomicEntity, 0)
 DmArc::DmArc(DmEntity* parent, const ArcData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -252,7 +252,6 @@ bool DmArc::createFrom2PBulge(const DmVector& startPoint, const DmVector& endPoi
     }
     data.setNormal(DmVector(0.0, 0.0, 1.0));
 
-    isModify = true;
     calculateBorders();
 
     return true;
@@ -647,7 +646,6 @@ bool DmArc::offset(const DmVector& coord, const double& distance)
         }
     }
     setRadius(r0);
-    isModify = true;
     calculateBorders();
     return true;
 }
@@ -677,7 +675,6 @@ void DmArc::trimStartpoint(const DmVector& pos)
 {
     data.setStartAngle(data.getCenter().angleTo(pos));
     correctAngles();
-    isModify = true;
     calculateBorders();
 }
 
@@ -685,7 +682,6 @@ void DmArc::trimEndpoint(const DmVector& pos)
 {
     data.setEndAngle(data.getCenter().angleTo(pos));
     correctAngles();
-    isModify = true;
     calculateBorders();
 }
 
@@ -707,7 +703,6 @@ DM::Ending DmArc::getTrimPoint(const DmVector& trimCoord, const DmVector& /*trim
 void DmArc::move(const DmVector& offset)
 {
     data.setCenter(data.getCenter().move(offset));
-    isModify = true;
     moveBorders(offset);
 }
 
@@ -717,7 +712,6 @@ void DmArc::rotate(const DmVector& center, const DmVector& angleVector)
     double angle(angleVector.angle());
     data.setStartAngle(Math2d::correctAngle(data.getStartAngle() + angle));
     data.setEndAngle(Math2d::correctAngle(data.getEndAngle() + angle));
-    isModify = true;
     calculateBorders();
 }
 
@@ -766,7 +760,6 @@ void DmArc::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
         setEndAngle(Math2d::correctAngle(newEnd));
         data.setNormal(DmVector(0.0, 0.0, 1.0));
     }
-    isModify = true;
     correctAngles();
     calculateBorders();
 }
@@ -795,7 +788,6 @@ void DmArc::moveRef(const DmVector& ref, const DmVector& offset)
         move(offset);
         break;
     }
-    isModify = true;
     correctAngles(); // make sure angleLength is no more than 2*M_PI
 }
 
@@ -839,13 +831,6 @@ std::vector<double> DmArc::calculateVertexs(const DmVector& center, const double
     return vertexs;
 }
 
-const std::vector<float>& DmArc::getVerticesRef(int& float_count_per_vertex)
-{
-    updateVertices();
-    float_count_per_vertex = 5;
-    return data.getVerticesRef();
-}
-
 void DmArc::getPoints(std::vector<DmVector>& pts, bool reverse /*= false*/)
 {
     // 计算分段数
@@ -877,80 +862,6 @@ void DmArc::getPoints(std::vector<DmVector>& pts, bool reverse /*= false*/)
     {
         std::reverse(pts.begin() + startIdx, pts.end());
     }
-}
-
-void DmArc::updateVertices()
-{
-    if (isModify)
-    {
-        float startAngle = (float)getStartAngleNormal();
-        float endAngle = (float)getEndAngleNormal();
-        float radius = (float)getRadius();
-        float x0 = (float)data.getCenter().x;
-        float y0 = (float)data.getCenter().y;
-
-        std::vector<float> vertexs;
-        constexpr float _2pi = M_PI * 2.0f;
-        float delta_angle = endAngle - startAngle;
-        if (delta_angle < 0.0f)
-        {
-            delta_angle += _2pi;
-        }
-        float factor = delta_angle / _2pi;
-        int segment_count = (int)std::ceil(factor * CIRCLE_SEGMENT_COUNT);
-        segment_count = std::max(2, segment_count);
-
-        vertexs.reserve((segment_count + 3) * 5);
-        float ang_delta = delta_angle / segment_count;
-        float total_length = delta_angle * radius;
-        float angle = startAngle;
-        float oldAngle = angle;
-        for (int i = 0; i < segment_count; i++)
-        {
-            if (i == 0)
-            {
-                // 针对GL_LINE_STRIP_ADJACENCY的起始坐标
-                vertexs.emplace_back(x0 + radius * std::cos(angle + ang_delta));
-                vertexs.emplace_back(y0 + radius * std::sin(angle + ang_delta));
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(total_length);
-
-                // 起始点
-                vertexs.emplace_back(x0 + radius * std::cos(angle));
-                vertexs.emplace_back(y0 + radius * std::sin(angle));
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(total_length);
-            }
-            oldAngle = angle;
-            angle += ang_delta;
-            vertexs.emplace_back((x0 + radius * std::cos(angle)));
-            vertexs.emplace_back((y0 + radius * std::sin(angle)));
-            vertexs.emplace_back(0.0f);
-            vertexs.emplace_back(radius * (angle - startAngle));
-            vertexs.emplace_back(total_length);
-
-            if (i == segment_count - 1)
-            {
-                // 针对GL_LINE_STRIP_ADJACENCY的终止坐标
-                vertexs.emplace_back((x0 + radius * std::cos(angle - ang_delta)));
-                vertexs.emplace_back((y0 + radius * std::sin(angle - ang_delta)));
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(total_length);
-                vertexs.emplace_back(total_length);
-            }
-        }
-
-        data.setVertices(vertexs);
-        isModify = false;
-    }
-}
-
-void DmArc::update()
-{
-    isModify = true;
-    updateVertices();
 }
 
 /// @return Middle point of the entity.
@@ -1069,5 +980,16 @@ void DmArc::restoreStream(InputStream& rdr)
     setEndAngle(end);
     setNormal(normal);
     calculateBorders();
-    isModify = true;
+}
+
+void DmArc::worldDraw(IGiWorldDraw& wd) const
+{
+    // 按"翻正"后的角度从起点逆时针画到终点（顺时针圆弧的法向朝 -Z）
+    const double start = getStartAngleNormal();
+    double sweep = getEndAngleNormal() - start;
+    if (sweep < 0.0)
+    {
+        sweep += 2.0 * M_PI;
+    }
+    wd.geometry().arc(getCenter(), getRadius(), start, sweep);
 }

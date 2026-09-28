@@ -26,16 +26,17 @@
 #define DMCACHEPAINTER_H
 
 #include <list>
-#include <unordered_map>
 #include <vector>
 #include "GLCachePainter.h"
+#include "GLCacheWorldDraw.h"
 #include "DmEntityContainer.h"
 
-class DmLineStrip;
 class IHighlightSource;
 class ISelectionSource;
 
 /// @brief 对GLCachePainter及分组的封装
+/// @details 实体经 GI 的 worldDraw 描述自己，由 GLCacheWorldDraw 转成 GLCachePainter 的顶点格式；
+///          这里不认识具体的实体类型（RENDER_PLAN.md 2.3 步）
 class DmCachePainter
 {
 public:
@@ -75,9 +76,6 @@ public:
 
     /// @brief 清空所有实体集
     void clearContainers();
-
-    // TODO : 暂时无法获得实体以前的子实体，因此无法部分更新
-    void recacheEntities(const std::list<DmEntity*>& oldEnts, const std::list<DmEntity*>& newEnts);
 
     /// @brief 指示实体集已修改，下一次 update() 整图重建
     void specifyModified();
@@ -137,11 +135,6 @@ public:
     void setHighlightSource(const IHighlightSource* source);
 
 private:
-    /// @brief 按画笔分组的子实体
-    using PenGroups = std::unordered_map<DmPen, std::list<DmEntity*>>;
-
-    void recache();
-
     /// @brief 整图重建：删除全部缓存，普通组、选中组、夹点、高亮组全部重新缓存并上传
     void rebuild();
 
@@ -151,24 +144,8 @@ private:
     /// @brief 只重建高亮组
     void rebuildHighlight();
 
-    /// @brief 普通组：实体集里的全部可见实体，展平成子实体后按画笔分组
-    PenGroups groupVisibleEntities() const;
-
-    /// @brief 把实体展平成子实体（没有子实体时是它自己），按画笔加入分组
-    /// @param pEnt 实体指针
-    /// @param groups 分组
-    static void addToGroups(DmEntity* pEnt, PenGroups& groups);
-
-    bool isEntityMatchTypes(const DmEntity* e, const std::list<opengl::CacheType>& types);
-    opengl::CacheType getCacheTypeOfEntity(const DmEntity* e);
-    void cacheEntity(const PenGroups& map, opengl::CacheGroupType group);
-    void cacheEntity(const DmEntity* e, int penId, opengl::CacheGroupType group);
-
-    /// @brief 缓存linestrip
-    /// @param lineStrip LineStrip指针
-    /// @param penId 画笔ID
-    /// @param group 缓存分组类型
-    void cacheLineStrip(DmLineStrip* lineStrip, int penId, opengl::CacheGroupType group);
+    /// @brief 缓存普通组：实体集里的全部可见实体
+    void cacheVisibleEntities();
 
     /// @brief 缓存选中组与夹点：实体从选择来源枚举，不遍历全图（P13）
     void cacheSelected();
@@ -188,9 +165,8 @@ private:
     const ISelectionSource* m_selectionSource = nullptr; ///< 判断实体是否选中的来源，为空时没有实体选中
     const IHighlightSource* m_highlightSource = nullptr; ///< 要高亮的实体的来源，为空时没有实体高亮
 
-    std::unordered_map<int, std::list<opengl::CacheType>> m_recacheTypes;
-
     std::list<DmEntityContainer*> m_containerList; ///< 绘制的实体集
+    GLCacheWorldDraw::NurbsSamples m_nurbsSamples; ///< 样条的离散结果，跨整图重建保留
     bool m_bIsModefied = true;          ///< 实体集是否已修改（整图重建）
     bool m_bSelectChanged = false;      ///< 选择集是否已修改（重建选中组、夹点与高亮组）
     bool m_bHighlightChanged = false;   ///< 高亮集是否已修改（重建高亮组）

@@ -281,22 +281,16 @@ public:
     /// @return 离散化点坐标
     std::vector<double> calculateVertexs(const DmVector& center, const double radius);
 
-    /// @brief 获得绘制用的顶点数据
-    /// @param float_count_per_vertex 输出：每个顶点的float数量
-    /// @return 顶点数据引用
-    const std::vector<float>& getVerticesRef(int& float_count_per_vertex);
-
-    /// @brief 更新绘制用的顶点数据
-    void updateVertices();
-
     /// @brief 获得曲线上的点
     /// @param pts 输出：点集合
     /// @param reverse 是否反向，反向是从终点到起点
     void getPoints(std::vector<DmVector>& pts, bool reverse = false);
 
-    void update() override;
     void calculateBorders() override;
     std::list<DmEntity*> getSubEntities() const override;
+
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
 
     // 准备废弃
     bool switchMajorMinor(void);  // switch major minor axes to keep major the longer ellipse radius
@@ -310,9 +304,6 @@ public:
 
 protected:
     EllipseData data; ///< 椭圆数据
-
-private:
-    bool isModify = true; ///< 是否已修改
 };
 
 using DmEllipsePtr = std::shared_ptr<DmEllipse>;

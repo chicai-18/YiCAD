@@ -32,6 +32,8 @@
 #include "DmCircle.h"
 #include "DmArc.h"
 #include "DmEllipse.h"
+#include "GiNurbs.h"
+#include "IGiGeometry.h"
 #include "Information.h"
 #include "Quadratic.h"
 
@@ -1653,92 +1655,34 @@ void DmSpline::update()
     calculateBorders();
 }
 
+GiNurbs DmSpline::toNurbs() const
+{
+    GiNurbs curve;
+    curve.degree = data.getDegree();
+    curve.knots = data.getKnots();
+    curve.controlPoints = data.getControlPoints();
+    curve.closed = data.getIsClosed();
+    return curve;
+}
+
 void DmSpline::getPoints(std::vector<DmVector>& pts, bool reverse /*= false*/)
 {
+    // 离散算法在 GiNurbs 里，与旧渲染器的适配器共用一份
     int startIdx = (int)pts.size();
-    int n = data.getControlPointsSize() - 1; // n+1个控制点
-    int k = data.getDegree();   //k次B样条曲线
-    // 包含n+k+1个节点区间，即t的范围为[t0,t1,...,t(m+k+1)]。节点个数(c+1)与n,k应满足:c = n+k+1
-    // B样条曲线的定义域为[tk, t(n+1)]
-    int segmentCount = getSegmentCount();   //n-k+1段B样条曲线
-    for(int i=0;i<segmentCount;i++)
-    {
-        double t1 = data.getKnotAt(k+i);
-        double t2 = data.getKnotAt(k+i+1);
-        if(std::abs(t2-t1)<TOL)  //重复的节点
-            continue;
-        // 1次曲线在连接处不可导，直接取控制点
-        if(k==1)
-        {
-            pts.emplace_back(data.getControlPointAt(i));
-        }
-            // 2次及以上，递归求点（点的切线夹角变化不大于某个值）
-        else
-        {
-            int count = k*5;    //一段B样条分成多段，计算对应的点坐标，每个控制点之间的段至少分5段，防止S型变直线
-            double step = (t2 - t1) / (double)count;
-            double t = t1;
-            for(int j=0;j<count;j++)
-            {
-                double tmpT1 = t1+step*j;
-                double tmpT2 = t1+step*(j+1);
-                getPointsRecursive(tmpT1, tmpT2, (double)count, pts, step/100.0);
-            }
-        }
-
-        //最后一段连接上
-        if(i == segmentCount - 1)
-        {
-            // 闭合的情况采用均匀B样条，最后一个点通过t计算正确
-            if(isClosed())
-            {
-                DmVector pt = evaluate(t2);   //对于闭合情况上边界获得的点正确
-                pts.emplace_back(pt);
-            }
-                // 非闭合的情况采用准均匀B样条，计算时应算作最后一个定义域区间，且0阶基函数计算值为1.0，但通过basisFunctionValue()获得0.0值，
-                // 这里不修改basisFunctionValue，直接采用最后一个控制点
-            else
-            {
-                DmVector lastPt = data.getControlPointAt(data.getControlPointsSize()-1);
-                pts.emplace_back(lastPt);
-            }
-        }
-    }
-
+    toNurbs().sample(pts);
     if(reverse)
     {
         std::reverse(pts.begin()+startIdx, pts.end());
     }
 }
 
-void DmSpline::getPointsRecursive(double t1, double t2, double count, std::vector<DmVector>& pts, double maxStep) const
+void DmSpline::worldDraw(IGiWorldDraw& wd) const
 {
-    if(std::abs(t2-t1)<maxStep)
+    if (!isValid())
     {
-        DmVector pt = evaluate(t1);
-        pts.emplace_back(pt);
         return;
     }
-    DmVector v1 = derivative(t1);
-    DmVector v2 = derivative(t2);
-    double angle = Math2d::correctAngle2(v1.angleToDir(v2));
-    angle = std::abs(angle); // 俩向量夹角(<=PI)，外部分段保证满足此条件
-    constexpr double MaxDelta = M_PI / 60.0; //3度
-    if(angle>MaxDelta)
-    {
-        double step = (t2-t1) / count;
-        for(int i=0; i < count; i++)
-        {
-            double tmpT1 = t1+step*i;
-            double tmpT2 = t1+step*(i+1);
-            getPointsRecursive(tmpT1, tmpT2, count, pts, maxStep);
-        }
-    }
-    else
-    {
-        DmVector pt = evaluate(t1);
-        pts.emplace_back(pt);
-    }
+    wd.geometry().nurbs(toNurbs());
 }
 
 double DmSpline::basisFunctionValue(double t, int i, int k) const

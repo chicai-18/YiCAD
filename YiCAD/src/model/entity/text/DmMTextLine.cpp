@@ -565,3 +565,8 @@ void DmMTextLine::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
 	}
 	calculateBorders();
 }
+
+void DmMTextLine::worldDraw(IGiWorldDraw& wd) const
+{
+    DmChar::drawChars(wd, chars);
+}

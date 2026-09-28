@@ -53,19 +53,9 @@ public:
     /// @param pt 终点坐标
     void setEndPoint(const DmVector& pt);
 
-    /// @brief 获取渲染顶点数据引用
-    /// @return 顶点数据常量引用
-    const std::vector<float>& getVerticesRef() const;
-
-    /// @brief 设置渲染顶点数据
-    /// @param vs 顶点数据向量
-    void setVertices(const std::vector<float>& vs);
-
 private:
     DmVector            m_startPoint;   ///< 起点
     DmVector            m_endPoint;     ///< 终点
-
-    std::vector<float>  m_vertices;     ///< 用于渲染的特定结构数据（x,y,z, parameter, total_length）
 };
 
 #endif // LINEDATA_H

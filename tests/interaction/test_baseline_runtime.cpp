@@ -6,8 +6,10 @@
 /// 经本机显卡绘制（不是 test_render 的 Mesa 软件渲染）。
 ///
 /// 对每份图纸依次做，用代码调用而不经过鼠标事件：
-/// - 经 DmDocument::readFile() 打开（document.open）；
+/// - 经 DmDocument::readFile() 打开（document.open），显示后首帧的整图重建（render.regen）；
 /// - 缩放到全图，连续重绘，取稳态帧（render.paintGL、每帧绘制调用与上传字节，以及 GPU 耗时）；
+/// - 通知画布文档已修改（DmDocumentListener::documentModified，改动任何实体都会这样），重绘一帧，
+///   取整图重建的耗时（render.regen；渲染方案阶段 2 加：实体里不再缓存顶点，每次整图重建都要重新生成）；
 /// - 换 20 次高亮的实体，每次重绘一帧（render.frameAfterHighlight，其中 render.regen 或
 ///   阶段 1 起的 render.regenHighlight，以及场景底图的重画 render.scene）；
 /// - 在 20 条直线的中点点选（snap.catchEntity），选中后重绘一帧（render.frameAfterSelection，
@@ -53,6 +55,8 @@ constexpr int kSamples = 20;
 /// @brief 稳态帧：先热身，再计数
 constexpr int kWarmupFrames = 5;
 constexpr int kSteadyFrames = 30;
+/// @brief 文档修改后的整图重建做这么多次（大图纸上一次就要几秒）
+constexpr int kModifiedRegens = 3;
 /// @brief 窗口的绘图区尺寸（像素）
 constexpr int kViewWidth = 1600;
 constexpr int kViewHeight = 900;
@@ -116,10 +120,12 @@ struct Result
     std::string renderer;  ///< 画这份图纸的 OpenGL 实现（GL_RENDERER），双显卡的机器上看用的是哪一块
     int entities = 0;
     double openMs = 0.0;
+    double firstRegenMs = 0.0;             ///< 显示后首帧的整图重建
     double steadyFrameMs = 0.0;
     double steadyGpuMs = 0.0;
     double steadyDrawCalls = 0.0;
     double steadyUploadBytes = 0.0;
+    double modifiedRegenMs = 0.0;          ///< 文档修改后的整图重建
     double frameAfterHighlightMs = 0.0;
     double regenMs = 0.0;
     long long highlightRegens = 0;         ///< 换高亮时整图重建的次数
@@ -214,6 +220,7 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     view.show();
     waitExposed(view);
     renderFrame(view);
+    result.firstRegenMs = yicad::counters::regen().averageMs();
     view.makeCurrent();
     result.renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
     view.doneCurrent();
@@ -235,6 +242,15 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     result.steadyGpuMs = gpuMs / kSteadyFrames;
     result.steadyDrawCalls = yicad::counters::drawCalls().average();
     result.steadyUploadBytes = yicad::counters::uploadBytes().average();
+
+    // 文档修改：画布整图重建
+    yicad::Profiler::resetAll();
+    for (int i = 0; i < kModifiedRegens; ++i)
+    {
+        view.documentModified();
+        renderFrame(view);
+    }
+    result.modifiedRegenMs = yicad::counters::regen().averageMs();
 
     const std::vector<DmLine*> lines = sampleLines(document, kSamples);
     EXPECT_FALSE(lines.empty());
@@ -341,10 +357,12 @@ void print(const std::vector<Result>& results)
     row("OpenGL 渲染器", [](const Result& r) { return r.renderer; });
     row("顶层实体数", [](const Result& r) { return std::to_string(r.entities); });
     row("打开文档 `document.open`", [](const Result& r) { return fixed(r.openMs, 1); });
+    row("显示后首帧的整图重建 `render.regen`", [](const Result& r) { return fixed(r.firstRegenMs, 2); });
     row("稳态帧 `render.paintGL`", [](const Result& r) { return fixed(r.steadyFrameMs, 2); });
     row("稳态帧 GPU 耗时（`GL_TIME_ELAPSED`）", [](const Result& r) { return fixed(r.steadyGpuMs, 2); });
     row("稳态帧绘制调用（次/帧）", [](const Result& r) { return fixed(r.steadyDrawCalls, 0); });
     row("稳态帧上传（字节/帧）", [](const Result& r) { return fixed(r.steadyUploadBytes, 0); });
+    row("文档修改后的整图重建 `render.regen`", [](const Result& r) { return fixed(r.modifiedRegenMs, 2); });
     row("换高亮后首帧 `render.frameAfterHighlight`", [](const Result& r) { return fixed(r.frameAfterHighlightMs, 2); });
     row("其中整图重建 `render.regen`", [](const Result& r) { return fixed(r.regenMs, 2); });
     row("换高亮 20 次的整图重建次数", [](const Result& r) { return std::to_string(r.highlightRegens); });

@@ -58,7 +58,7 @@ public:
     int getCornerSize() const;
 
 private:
-    std::vector<DmVector> m_corners; ///< 构成实体的顶点，至少3个顶点，构成方式为GL_TRIANGLE_FAN
+    std::vector<DmVector> m_corners; ///< 构成实体的顶点，至少3个，按多边形顺序（DXF 的 Z 字顺序在导入时已换过）；以第一个顶点为扇心剖分
 };
 
 #endif

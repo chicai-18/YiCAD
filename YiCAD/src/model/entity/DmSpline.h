@@ -29,6 +29,7 @@
 
 #include "DmLineStrip.h"
 #include "SplineData.h"
+#include "GiNurbs.h"
 
 class DmEllipse;
 
@@ -77,9 +78,8 @@ public:
     /// @brief 获得曲线上的点
     /// @param reverse 是否反向，反向是从终点到起点
     void getPoints(std::vector<DmVector>& pts, bool reverse = false);
-    /// @brief 在t1，t2之间递归获得点，两点之间的夹角小于3度
-    /// @param count 在一个递归中分段个数，可取为k
-    void getPointsRecursive(double t1, double t2, double count, std::vector<DmVector>& pts, double maxStep) const;
+    /// @brief 同一条曲线的 GI 表示（次数、节点、控制点、闭合）
+    GiNurbs toNurbs() const;
     /// @brief 获得样条基函数Fi,k(t)在t处值。i为第i个k次B样条支撑区间左端节点的下标.定义之外获得0，比如定义域[t1, t2)，用t2就获得0
     double basisFunctionValue(double t, int i, int k) const;
     /// @brief 求样条基1次导数
@@ -153,6 +153,9 @@ public:
 	void calculateBorders() override;
 
 	std::list<DmEntity*> getSubEntities() const override;
+
+	/// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+	void worldDraw(IGiWorldDraw& wd) const override;
 	DmLineStrip* getLineStrip() const;
 
 	static DmVectorSolutions getIntersection(const DmEntity* e1, const DmEntity* e2);

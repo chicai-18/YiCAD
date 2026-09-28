@@ -38,6 +38,7 @@
 #include "DmLine.h"
 #include "DmSolid.h"
 #include "DmCharTemplateList.h"
+#include "IGiFont.h"
 
 class DmCharTemplate;
 
@@ -52,7 +53,8 @@ enum class FontType
 };
 
 /// @brief 代表一个字体文件的信息。实现为DmDocument带名称（字体名）及若干块（每个字母一个块）
-class DmFont
+/// @details 也是 GI 的字体句柄（IGiFont）：字形即文字模板
+class DmFont : public IGiFont
 {
 public:
     /// @brief 构造字体
@@ -61,6 +63,9 @@ public:
 
     /// @brief 析构函数
     ~DmFont();
+
+    /// @brief 字符码对应的文字模板（首次查找时生成），见 IGiFont::glyph
+    const IGiDrawable* glyph(char32_t code) const override;
 
     /// @brief 获得字体文件名
     /// @return 字体文件名

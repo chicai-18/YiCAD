@@ -29,6 +29,7 @@
 
 #include "DmObject.h"
 #include "EntityTable.h"
+#include "IGiDrawable.h"
 
 class DmAttributeDefinition;
 class DmDocumentTransfer;
@@ -55,7 +56,7 @@ struct DmBlockData
 
 /// @brief 图块定义
 /// 块参照使用的模板
-class DmBlock : public DmObject
+class DmBlock : public DmObject, public IGiDrawable
 {
     TYPESYSTEM_HEADER();
     friend class DmBlockTable;
@@ -145,6 +146,10 @@ public:
 
     EntityTable& getEntityTable() { return m_entityTable; }
     const EntityTable& getEntityTable() const { return m_entityTable; }
+
+    /// @brief 经 GI 描述块定义（块坐标系）：各实体按自己的属性嵌套绘制
+    /// @details 块参照经 drawShared 引用它。属性定义不画，与块参照原先生成子实体时跳过属性定义一致
+    void worldDraw(IGiWorldDraw& wd) const override;
 
     // 持久化辅助接口
     virtual void saveStream(OutputStream& wrt) const override;

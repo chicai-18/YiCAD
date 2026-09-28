@@ -74,19 +74,9 @@ public:
     /// @param isClosed 是否闭合
     void setIsClosed(bool isClosed);
 
-    /// @brief 获取渲染顶点数据引用
-    /// @return 顶点数据常量引用
-    const std::vector<float>& getVerticesRef() const;
-
-    /// @brief 设置渲染顶点数据
-    /// @param vs 顶点数据向量
-    void setVertices(const std::vector<float>& vs);
-
 private:
     std::vector<DmVector>   m_points;       ///< 顶点列表
     bool                    m_isClosed;     ///< 是否闭合
-
-    std::vector<float>      m_vertices;     ///< 用于渲染的特定结构数据（x,y,z, parameter, total_length）
 };
 
 #endif // LINESTRIPDATA_H

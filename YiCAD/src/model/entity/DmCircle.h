@@ -101,20 +101,14 @@ public:
     /// @return 离散化点坐标
     std::vector<double> calculateVertexs(const DmVector& center, const double radius);
 
-    /// @brief 获得绘制用的顶点数据
-    /// @param float_count_per_vertex 输出：每个顶点的float数量
-    /// @return 顶点数据引用
-    const std::vector<float>& getVerticesRef(int& float_count_per_vertex);
-
-    /// @brief 更新绘制用的顶点数据
-    void updateVertices();
-    void update() override;
-
     Quadratic getQuadratic() const override;
 
     void calculateBorders() override;
 
     std::list<DmEntity*> getSubEntities() const override;
+
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
 
     // persistent helper
     virtual void saveStream(OutputStream& wrt) const override;
@@ -124,9 +118,6 @@ public:
 
 protected:
     CircleData data;
-
-private:
-    bool isModify = true; ///< 是否已修改，需要更新顶点缓存
 };
 
 #endif

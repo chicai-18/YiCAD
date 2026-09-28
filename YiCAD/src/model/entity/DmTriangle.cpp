@@ -25,13 +25,13 @@
 #include "DmTriangle.h"
 #include "DmLine.h"
 #include "Information.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmTriangle, DmEntity, 0)
 
 DmTriangle::DmTriangle(DmEntity* parent, const TriangleData& d)
 : DmEntity(parent)
 , data(d)
-, isModify(true)
 {
     calculateBorders();
 }
@@ -192,7 +192,6 @@ void DmTriangle::move(const DmVector& offset)
         }
     }
     moveBorders(offset);
-    isModify = true;
 }
 
 void DmTriangle::rotate(const DmVector& center, const DmVector& angleVector)
@@ -205,7 +204,6 @@ void DmTriangle::rotate(const DmVector& center, const DmVector& angleVector)
         }
     }
     calculateBorders();
-    isModify = true;
 }
 
 void DmTriangle::scale(const DmVector& center, const DmVector& factor)
@@ -218,7 +216,6 @@ void DmTriangle::scale(const DmVector& center, const DmVector& factor)
         }
     }
     calculateBorders();
-    isModify = true;
 }
 
 void DmTriangle::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
@@ -231,7 +228,6 @@ void DmTriangle::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
         }
     }
     calculateBorders();
-    isModify = true;
 }
 
 void DmTriangle::calculateBorders()
@@ -425,5 +421,11 @@ void DmTriangle::restoreStream(InputStream& reader)
     }
     data.setPoints(corners);
     calculateBorders();
-    isModify = true;
+}
+
+void DmTriangle::worldDraw(IGiWorldDraw& wd) const
+{
+    const std::array<DmVector, 3> corners = data.getPoints();
+    constexpr std::uint32_t indices[3] = { 0, 1, 2 };
+    wd.geometry().triangles(corners, indices);
 }

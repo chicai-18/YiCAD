@@ -45,11 +45,6 @@ public:
     /// @param [in] groupType 缓存组类型
     void removeCacheByGroup(CacheGroupType groupType);
 
-    /// @brief 移除指定画笔和类型的缓存
-    /// @param [in] penId 画笔ID
-    /// @param [in] type 缓存类型
-    void removeCache(int penId, CacheType type);
-
     /// @brief 移除选中点缓存
     void removeSelectedPointsCache();
 

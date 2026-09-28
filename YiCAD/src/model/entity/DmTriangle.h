@@ -53,6 +53,9 @@ public:
     void calculateBorders() override;
     std::list<DmEntity*> getSubEntities() const override;
 
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
+
     bool isInCrossWindow(const DmVector& v1, const DmVector& v2) const;
     bool isPointInside(const DmVector& pt) const;
     bool isContainer() const override;
@@ -65,7 +68,6 @@ public:
 
 protected:
     TriangleData data;
-    bool isModify;
     constexpr static int POINT_SIZE = 3; ///< 三角形顶点个数
 };
 

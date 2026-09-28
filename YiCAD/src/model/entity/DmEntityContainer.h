@@ -130,6 +130,9 @@ public:
 
     std::list<DmEntity*> getSubEntities() const override;
 
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
+
 protected:
     /// @brief 容器里的实体逐个改归目标文档
     void transferReferences(DmDocumentTransfer& transfer) override;

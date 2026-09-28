@@ -129,20 +129,18 @@ public:
 
     /// @brief 计算获得圆弧的离散化点（TODO 待废弃）
     std::vector<double> calculateVertexs(const DmVector& center, const double radius);
-    /// @brief 获得绘制用的顶点数据
-    const std::vector<float>& getVerticesRef(int& float_count_per_vertex);
     /// @brief 获得曲线上的点
     /// @param reverse 是否反向，反向是从终点到起点
     void getPoints(std::vector<DmVector>& pts, bool reverse = false);
-    /// @brief 更新绘制用的顶点数据
-    void updateVertices();
-    void update() override;
 
     virtual void calculateBorders() override;
 
     virtual Quadratic getQuadratic() const override;
 
     std::list<DmEntity*> getSubEntities() const override;
+
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
 
     // persistent helper
     virtual void saveStream(OutputStream& wrt) const override;
@@ -152,9 +150,6 @@ public:
 
 protected:
     ArcData data;
-
-private:
-    bool    isModify = true;  ///< 标记是否需要重新计算顶点
 };
 using DmArcPtr = std::shared_ptr<DmArc>;
 

@@ -100,16 +100,6 @@ void ArcData::setNormal(const DmVector& normal)
     m_normal = normal;
 }
 
-const std::vector<float>& ArcData::getVerticesRef() const
-{
-    return m_vertices;
-}
-
-void ArcData::setVertices(const std::vector<float>& vs)
-{
-    m_vertices = vs;
-}
-
 /// @brief 判断圆弧数据是否有效
 /// @return 若圆心有效且半径大于容差且角度差大于容差则返回true
 bool ArcData::isValid() const

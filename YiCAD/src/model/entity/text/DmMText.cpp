@@ -2304,3 +2304,17 @@ DmMTextParagraph* DmMText::getPrePostParagraph(int paraIdx, bool getPre)
     }
     return nullptr;
 }
+
+void DmMText::worldDraw(IGiWorldDraw& wd) const
+{
+    // 各段各行的字符连成一串：相邻且属性、字体相同的字符合成一个字形串
+    std::vector<DmChar*> all;
+    for (const DmMTextParagraph* para : paragraphs)
+    {
+        for (const DmMTextLine* line : *para)
+        {
+            all.insert(all.end(), line->begin(), line->end());
+        }
+    }
+    DmChar::drawChars(wd, all);
+}

@@ -38,6 +38,7 @@
 #include "Math2d.h"
 #include "Debug.h"
 #include "DmSettings.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmBlockReference, DmEntity, 0);
 
@@ -910,5 +911,45 @@ void DmBlockReference::restoreStreamWithRev(InputStream& rdr, int rev)
     else // 发生较大版本变更，例如 DmBlockReference 的父类发生变化
     {
         // 第一步：逐项读取旧版本数据
+    }
+}
+
+void DmBlockReference::worldDraw(IGiWorldDraw& wd) const
+{
+    DmBlock* blk = getBlockForInsert();
+    constexpr double MIN_SCALE_EPSILON = 1.0e-6;
+    if (blk && std::abs(data.scaleFactor.x) >= MIN_SCALE_EPSILON && std::abs(data.scaleFactor.y) >= MIN_SCALE_EPSILON)
+    {
+        // 块里 ByBlock 的属性取块参照自己的属性；无效画笔表示三项都取外层
+        GiByBlockTraits byBlock;
+        if (pen.getFlag(DM::FlagInvalid))
+        {
+            byBlock.lineType = DmLineTypeTable::ByBlock;
+        }
+        else
+        {
+            byBlock.color = pen.getColor();
+            byBlock.lineWeight = pen.getWidth();
+            byBlock.lineType = pen.getLineType();
+        }
+        // 块坐标 p 到世界：插入点 + 旋转(缩放(p - 基点) + 阵列偏移)，与原先生成子实体时的顺序相同
+        const GiTransform placement = GiTransform::translation(data.insertionPoint) * GiTransform::rotation(data.angle);
+        const GiTransform local = GiTransform::scaling(data.scaleFactor) * GiTransform::translation(blk->getBasePoint() * -1.0);
+        for (int c = 0; c < data.cols; ++c)
+        {
+            for (int r = 0; r < data.rows; ++r)
+            {
+                const GiTransform cell = GiTransform::translation(DmVector(data.spacing.x * c, data.spacing.y * r));
+                wd.geometry().drawShared(*blk, placement * cell * local, byBlock);
+            }
+        }
+    }
+    // 属性由块参照自己持有，按各自的属性画
+    for (const DmEntity* e : m_subEntities)
+    {
+        if (e->getEntityType() == DM::EntityAttribute)
+        {
+            wd.geometry().draw(*e);
+        }
     }
 }

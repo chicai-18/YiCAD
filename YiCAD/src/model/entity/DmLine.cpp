@@ -32,13 +32,13 @@
 #include "DmRect.h"
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmLine, DmAtomicEntity, 0)
 
 DmLine::DmLine(DmEntity* parent, const LineData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -46,7 +46,6 @@ DmLine::DmLine(DmEntity* parent, const LineData& d)
 DmLine::DmLine(DmEntity* parent, const DmVector& pStart,
     const DmVector& pEnd)
     : DmAtomicEntity(parent)
-    , isModify(true)
 {
     data = LineData(pStart, pEnd);
     calculateBorders();
@@ -54,7 +53,6 @@ DmLine::DmLine(DmEntity* parent, const DmVector& pStart,
 
 DmLine::DmLine(const DmVector& pStart, const DmVector& pEnd)
     : DmAtomicEntity(nullptr)
-    , isModify(true)
 {
     data = LineData(pStart, pEnd);
     calculateBorders();
@@ -76,43 +74,6 @@ void DmLine::calculateBorders()
 {
     minV = DmVector::minimum(data.getStartPoint(), data.getEndPoint());
     maxV = DmVector::maximum(data.getStartPoint(), data.getEndPoint());
-}
-
-const std::vector<float>& DmLine::getVerticesRef(
-    int& float_count_per_vertex)
-{
-    updateVertices();
-    float_count_per_vertex = 5;
-    return data.getVerticesRef();
-}
-
-void DmLine::updateVertices()
-{
-    if (isModify)
-    {
-        std::vector<float> vertexes;
-        vertexes.reserve(10);
-        float x0 = data.getStartPoint().x;
-        float y0 = data.getStartPoint().y;
-        float x1 = data.getEndPoint().x;
-        float y1 = data.getEndPoint().y;
-        float dist = getLength();
-
-        vertexes.emplace_back(x0);
-        vertexes.emplace_back(y0);
-        vertexes.emplace_back(0.0f);
-        vertexes.emplace_back(0.0f);
-        vertexes.emplace_back(dist);
-
-        vertexes.emplace_back(x1);
-        vertexes.emplace_back(y1);
-        vertexes.emplace_back(0.0f);
-        vertexes.emplace_back(dist);
-        vertexes.emplace_back(dist);
-
-        data.setVertices(vertexes);
-        isModify = false;
-    }
 }
 
 LineData DmLine::getData() const
@@ -143,14 +104,12 @@ DmVector DmLine::getEndpoint() const
 void DmLine::setStartpoint(DmVector s)
 {
     data.setStartPoint(s);
-    isModify = true;
     calculateBorders();
 }
 
 void DmLine::setEndpoint(DmVector e)
 {
     data.setEndPoint(e);
-    isModify = true;
     calculateBorders();
 }
 
@@ -287,14 +246,12 @@ DmVector DmLine::getTangentDirection(const DmVector& /*point*/) const
 void DmLine::moveStartpoint(const DmVector& pos)
 {
     data.setStartPoint(pos);
-    isModify = true;
     calculateBorders();
 }
 
 void DmLine::moveEndpoint(const DmVector& pos)
 {
     data.setEndPoint(pos);
-    isModify = true;
     calculateBorders();
 }
 
@@ -400,7 +357,6 @@ void DmLine::move(const DmVector& offset)
 {
     data.setStartPoint(data.getStartPoint().move(offset));
     data.setEndPoint(data.getEndPoint().move(offset));
-    isModify = true;
     moveBorders(offset);
 }
 
@@ -409,7 +365,6 @@ void DmLine::rotate(const double& angle)
     DmVector rvp(angle);
     data.setStartPoint(data.getStartPoint().rotate(rvp));
     data.setEndPoint(data.getEndPoint().rotate(rvp));
-    isModify = true;
     calculateBorders();
 }
 
@@ -417,7 +372,6 @@ void DmLine::rotate(const DmVector& center, const DmVector& angleVector)
 {
     data.setStartPoint(data.getStartPoint().rotate(center, angleVector));
     data.setEndPoint(data.getEndPoint().rotate(center, angleVector));
-    isModify = true;
     calculateBorders();
 }
 
@@ -426,7 +380,6 @@ void DmLine::scale(const DmVector& factor)
 {
     data.setStartPoint(data.getStartPoint().scale(factor));
     data.setEndPoint(data.getEndPoint().scale(factor));
-    isModify = true;
     calculateBorders();
 }
 
@@ -434,7 +387,6 @@ void DmLine::scale(const DmVector& center, const DmVector& factor)
 {
     data.setStartPoint(data.getStartPoint().scale(center, factor));
     data.setEndPoint(data.getEndPoint().scale(center, factor));
-    isModify = true;
     calculateBorders();
 }
 
@@ -445,7 +397,6 @@ void DmLine::mirror(const DmVector& axisPoint1,
         data.getStartPoint().mirror(axisPoint1, axisPoint2));
     data.setEndPoint(
         data.getEndPoint().mirror(axisPoint1, axisPoint2));
-    isModify = true;
     calculateBorders();
 }
 
@@ -521,6 +472,11 @@ void DmLine::restoreStream(InputStream& rdr)
 
 void DmLine::update()
 {
-    isModify = true;
     calculateBorders();
+}
+
+void DmLine::worldDraw(IGiWorldDraw& wd) const
+{
+    const DmVector points[2] = { data.getStartPoint(), data.getEndPoint() };
+    wd.geometry().polyline(points, {}, {}, GiPolylineFlags::None);
 }

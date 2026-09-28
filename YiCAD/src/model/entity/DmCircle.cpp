@@ -34,13 +34,13 @@
 #include "Debug.h"
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmCircle, DmAtomicEntity, 0)
 
 DmCircle::DmCircle(DmEntity* parent, const CircleData& d)
     : DmAtomicEntity(parent)
     , data(d)
-    , isModify(true)
 {
     calculateBorders();
 }
@@ -555,7 +555,6 @@ DmVector DmCircle::getNearestOrthTan(const DmVector& coord, const DmLine& normal
 void DmCircle::move(const DmVector& offset)
 {
     data.setCenter(getCenter().move(offset));
-    isModify = true;
     moveBorders(offset);
 }
 
@@ -580,7 +579,6 @@ bool DmCircle::offset(const DmVector& coord, const double& distance)
         }
     }
     setRadius(r0);
-    isModify = true;
     calculateBorders();
     return true;
 }
@@ -588,7 +586,6 @@ bool DmCircle::offset(const DmVector& coord, const double& distance)
 void DmCircle::rotate(const DmVector& center, const DmVector& angleVector)
 {
     data.setCenter(getCenter().rotate(center, angleVector));
-    isModify = true;
     calculateBorders();
 }
 
@@ -597,7 +594,6 @@ void DmCircle::scale(const DmVector& center, const DmVector& factor)
     data.setCenter(getCenter().scale(center, factor));
     // radius always is positive
     data.setRadius(getRadius() * fabs(factor.x));
-    isModify = true;
     scaleBorders(center, factor);
 }
 
@@ -615,7 +611,6 @@ double DmCircle::getDirection2() const
 void DmCircle::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
 {
     data.setCenter(getCenter().mirror(axisPoint1, axisPoint2));
-    isModify = true;
     calculateBorders();
 }
 
@@ -637,76 +632,6 @@ std::vector<double> DmCircle::calculateVertexs(const DmVector& center, const dou
     return vertexs;
 }
 
-const std::vector<float>& DmCircle::getVerticesRef(int& float_count_per_vertex)
-{
-    updateVertices();
-    float_count_per_vertex = 5;
-    return data.getVerticesRef();
-}
-
-void DmCircle::updateVertices()
-{
-    if (isModify)
-    {
-        float radius = (float)getRadius();
-        float x0 = (float)getCenter().x;
-        float y0 = (float)getCenter().y;
-
-        std::vector<float> vertexs;
-        vertexs.reserve((CIRCLE_SEGMENT_COUNT + 3) * 5);
-        constexpr float _2pi = M_PI * 2.0f;
-        constexpr float ang_delta = _2pi / CIRCLE_SEGMENT_COUNT;
-        float total_length = _2pi * radius;
-        float angle = 0.0f;
-        float oldAngle = angle;
-        for (int i = 0; i < CIRCLE_SEGMENT_COUNT; i++)
-        {
-            if (i == 0)
-            {
-                // 针对GL_LINE_STRIP_ADJACENCY的起始坐标
-                vertexs.emplace_back((x0 + radius * std::cos(-ang_delta)));
-                vertexs.emplace_back((y0 + radius * std::sin(-ang_delta)));
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(total_length);
-
-                // 起始点
-                vertexs.emplace_back(x0 + radius);
-                vertexs.emplace_back(y0);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(total_length);
-            }
-            oldAngle = angle;
-            angle += ang_delta;
-            vertexs.emplace_back((x0 + radius * std::cos(angle)));
-            vertexs.emplace_back((y0 + radius * std::sin(angle)));
-            vertexs.emplace_back(0.0f);
-            vertexs.emplace_back(radius * angle);
-            vertexs.emplace_back(total_length);
-
-            if (i == CIRCLE_SEGMENT_COUNT - 1)
-            {
-                // 针对GL_LINE_STRIP_ADJACENCY的终止坐标
-                vertexs.emplace_back((x0 + radius * std::cos(ang_delta)));
-                vertexs.emplace_back((y0 + radius * std::sin(ang_delta)));
-                vertexs.emplace_back(0.0f);
-                vertexs.emplace_back(total_length);
-                vertexs.emplace_back(total_length);
-            }
-        }
-
-        data.setVertices(vertexs);
-        isModify = false;
-    }
-}
-
-void DmCircle::update()
-{
-    isModify = true;
-    updateVertices();
-}
-
 void DmCircle::moveRef(const DmVector& ref, const DmVector& offset)
 {
     constexpr double kRefThreshold = 1.0e-4;
@@ -714,7 +639,6 @@ void DmCircle::moveRef(const DmVector& ref, const DmVector& offset)
     {
         data.setCenter(getCenter() + offset);
         moveBorders(offset);
-        isModify = true;
         return;
     }
     DmVector v1(data.getRadius(), 0.0);
@@ -732,7 +656,6 @@ void DmCircle::moveRef(const DmVector& ref, const DmVector& offset)
     }
     data.setRadius(data.getCenter().distanceTo(v1 + offset));
     calculateBorders();
-    isModify = true;
 }
 
 /// @brief return the equation of the entity for quadratic
@@ -800,5 +723,9 @@ void DmCircle::restoreStream(InputStream& rdr)
     setCenter(ce);
     setRadius(ra);
     calculateBorders();
-    isModify = true;
+}
+
+void DmCircle::worldDraw(IGiWorldDraw& wd) const
+{
+    wd.geometry().circle(getCenter(), getRadius());
 }

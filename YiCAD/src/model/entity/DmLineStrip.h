@@ -81,13 +81,10 @@ public:
         const DmVector& axisPoint2) override;
 
     std::list<DmEntity*> getSubEntities() const override;
+
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
     void calculateBorders() override;
-
-    /// @brief 获得绘制用的顶点数据
-    const std::vector<float>& getVerticesRef(int& float_count_per_vertex);
-
-    /// @brief 更新绘制用的顶点数据
-    void updateVertices();
 
     /// @brief 是否闭合
     bool isClosed();
@@ -103,9 +100,6 @@ public:
 
 protected:
     LineStripData data;
-
-private:
-    bool isModify = false; ///< 修改标志
 };
 
 #endif // DMLINESTRIP_H

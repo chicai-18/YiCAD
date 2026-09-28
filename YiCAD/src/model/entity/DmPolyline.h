@@ -173,6 +173,9 @@ public:
 
     std::list<DmEntity*> getSubEntities() const override;
 
+    /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
+    void worldDraw(IGiWorldDraw& wd) const override;
+
     /// @brief 根据起点、终点、凸度、线宽生成实体（支持直线生成）
     /// @param pt1 起点
     /// @param pt2 终点

@@ -33,6 +33,7 @@
 #include "Debug.h"
 
 #include "Stream.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmSolid, DmAtomicEntity, 0)
 
@@ -40,7 +41,6 @@ TYPESYSTEM_SOURCE(DmSolid, DmAtomicEntity, 0)
 DmSolid::DmSolid(DmEntity* parent, const SolidData& d)
 	: DmAtomicEntity(parent)
 	, data(d)
-	, isModify(true)
 {
 	calculateBorders();
 }
@@ -348,7 +348,6 @@ void DmSolid::move(const DmVector& offset)
 			data.setCornerAt(i, data.getCornerAt(i).move(offset));
 		}
 	}
-	isModify = true;
 	moveBorders(offset);
 }
 
@@ -361,7 +360,6 @@ void DmSolid::rotate(const DmVector& center, const DmVector& angleVector)
 			data.setCornerAt(i, data.getCornerAt(i).rotate(center, angleVector));
 		}
 	}
-	isModify = true;
 	calculateBorders();
 }
 
@@ -374,7 +372,6 @@ void DmSolid::scale(const DmVector& center, const DmVector& factor)
 			data.setCornerAt(i, data.getCornerAt(i).scale(center, factor));
 		}
 	}
-	isModify = true;
 	calculateBorders();
 }
 
@@ -387,7 +384,6 @@ void DmSolid::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
 			data.setCornerAt(i, data.getCornerAt(i).mirror(axisPoint1, axisPoint2));
 		}
 	}
-	isModify = true;
 	calculateBorders();
 }
 
@@ -500,5 +496,21 @@ void DmSolid::restoreStream(InputStream& reader)
 
     data.setCorners(corners);
 
-    isModify = true;
+}
+
+void DmSolid::worldDraw(IGiWorldDraw& wd) const
+{
+    // 角点按多边形顺序存放（DXF 的 Z 字顺序在导入时已换成多边形顺序），以第一个角点为扇心剖分
+    const std::vector<DmVector> corners = data.getCorners();
+    if (corners.size() < 3)
+    {
+        return;
+    }
+    std::vector<std::uint32_t> indices;
+    indices.reserve((corners.size() - 2) * 3);
+    for (std::uint32_t i = 1; i + 1 < corners.size(); ++i)
+    {
+        indices.insert(indices.end(), { 0u, i, i + 1 });
+    }
+    wd.geometry().triangles(corners, indices);
 }

@@ -47,6 +47,7 @@
 #include "DmEntityHelper.h"
 #include "ConstrainedDelaunayTriangulation.h"
 #include "GeometryMethods.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmHatch, DmEntity, 0);
 
@@ -887,4 +888,46 @@ void DmHatch::restoreStream(InputStream& reader)
 
     // 边界
     data.getBoundary()->restoreStream(reader);
+}
+
+void DmHatch::worldDraw(IGiWorldDraw& wd) const
+{
+    DmRegionPtr boundary = data.getBoundary();
+    if (!boundary || boundary->size() == 0)
+    {
+        return;
+    }
+    if (isSolid())
+    {
+        // 实心：边界与孔洞离散成环交给接收方剖分，取点与 DmRegion::getTriangles 相同
+        const RegionData region = boundary->getData();
+        std::vector<GiLoop> loops;
+        auto addLoop = [&loops](const DmEntityContainerPtr& contour) {
+            if (!contour)
+            {
+                return;
+            }
+            GiLoop loop;
+            DmRegion::getPointsOfOneBoundary(contour, loop.points);
+            if (!loop.points.empty())
+            {
+                loops.emplace_back(std::move(loop));
+            }
+        };
+        addLoop(region.getBoundary());
+        for (const DmEntityContainerPtr& hole : region.getHoles())
+        {
+            addLoop(hole);
+        }
+        if (!loops.empty())
+        {
+            wd.geometry().fill(loops, GiFillRule::EvenOdd);
+        }
+        return;
+    }
+    // 图案：update() 按图案裁好的线段，放在以填充为父实体的容器里，线段颜色随填充
+    if (m_filledEntities)
+    {
+        wd.geometry().draw(*m_filledEntities);
+    }
 }

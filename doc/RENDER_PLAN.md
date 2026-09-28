@@ -6,7 +6,7 @@
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `09c9768` 实测。引用 `ARCHITECTURE_EVOLUTION_PLAN.md`
 > 时写作"演进方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。
-> 状态：阶段 0、1 已完成（2026-09-27、2026-09-28，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
+> 状态：阶段 0、1、2 已完成（2026-09-27、2026-09-28、2026-09-28，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
 > D3（构建期 glslang + spirv-cross）、D5（插件实体的数据由宿主保管）、D6（代理图形随图纸存盘）、
 > D7（圆弧用片段着色器解析绘制）、D8（渲染侧在本方案内支持任意仿射变换；Model 侧的非等比块参照、炸开与去复制
 > 与 AutoCAD/ODA 一致，另立方案，见第 4.10 节）、D9（CI 用 Mesa 软件渲染跑出图测试）、D11（保留多重采样）、
@@ -250,6 +250,9 @@ public:
 
 `GiPolylineFlags` 含 `Closed` 与 `ContinuousLinetype`（即多段线的"线型生成"特性）。`GiGlyphRun` 是字体句柄加一串
 `{字符码, 位置, 每字符变换}`：排版（多行文字格式、对齐、宽度因子、倾斜）是实体的事，GS 只认已经排好的字形。
+
+以上是草图。第 2 阶段实施时照 AutoCAD/ODA 补了 `IGiDrawable::setAttributes()`、嵌套绘制 `IGiGeometry::draw()`、多段线的线宽、
+字体句柄 `IGiFont` 等，见第 10 节阶段 2；接口以 `src/model/graphics/` 为准。
 
 #### 4.2.2 为什么是解析图元而不是折线
 
@@ -1349,3 +1352,120 @@ Mesa 的 Windows 版本从固定版本的发布包下载，工作流里写死版
 **验证**：`cmake --build`、`ctest`（5 个测试程序全部通过，`test_render` 约 40 秒）、`cmake --install`、启动安装后的程序
 （系统 `OPENGL32.dll` 与 NVIDIA 驱动，正常退出）、`python tools/check_layering.py` 通过。
 用例数：`test_math` 88（+1，新计数器）、`test_render` 23（+8）。
+
+### 阶段 2（2026-09-28 完成）
+
+**开工前的摸底与用户的决定**
+
+- worldDraw 按实体的真实语义输出（块参照走 `drawShared` 与完整的仿射变换，填充按自己的属性画），旧渲染器经适配器画出来时，
+  阶段 0 记下的几个已知问题会随之消失，与 2.3 步"出图测试结果应不变"不符。用户决定接受基准图像的变化，逐项说明原因（下文"出图的变化"）。
+  代价：Model 里块参照的复制品还在（块参照方案未做），非等比块从本阶段起就会"看到的是椭圆、捕捉到的是圆"，第 6、9 节原本预计在阶段 4 之后。
+- 摸底所见：辅助线 `DmConstructionLine` 只作临时计算用，不进文档；叠加实体 `DmOverlayLine/Circle/Point` 没有构造处；
+  区域 `DmRegion` 只作填充的边界，不作顶层实体出现，原先也不画。这几类照样实现 worldDraw，不影响出图。
+
+**2.1 GI 与 GI 流**
+
+- `src/model/graphics/`（MODEL 分区）：`IGiDrawable.h`（`IGiDrawable`、`IGiWorldDraw`、`IGiViewportDraw`）、`IGiGeometry.h`、
+  `IGiSubEntityTraits.h`、`IGiFont.h`、`GiTypes.h`（标志位、`GiSegmentWidth`、`GiLoop`、`GiLinePattern`、`GiByBlockTraits`、`GiGlyph`、
+  `GiGlyphRun`、`GiImage`）、`GiTransform`（2×3 仿射，double）、`GiNurbs`、`GiStream`。
+- 相对第 4.2.1 节草图的补充，做法都照 AutoCAD/ODA：
+  - `IGiDrawable::setAttributes()`（对应 `subSetAttributes`）：GS 按对象自身的属性初始化 traits 的途径，调用时 traits 为全 ByBlock、图层为空。
+    `DmEntity` 的实现原样给出画笔的颜色、线宽、线型与图层；无效画笔（`DM::FlagInvalid`，原先多段线的子实体用它表示"全随父实体"）三项给 ByBlock；
+    图层为空表示取外层的图层。
+  - 嵌套绘制 `IGiGeometry::draw()`（对应 `AcGiGeometry::draw`）：按子对象自己的属性画，ByBlock 取外层，GS 不单独缓存它。
+    解析规则与原先 `DmEntity::getPen(true)` 沿父实体的解析相同，所以复合实体按原先的父实体关系嵌套即可出图不变：
+    标注与引线的尺寸线、界线、箭头、文字容器都以标注为父实体（不是它的容器），文字以文字容器为父实体，填充图案线以填充的容器为父实体。
+  - 多段线带每段的起止宽度（对应 AutoCAD 的 `pline`、ODA 的 `OdGiPolyline`）：第 4.4 节的填充管线要中心线的弧长才能画带宽度的虚线多段线；
+    `GiLoop` 带凸度。
+  - 字体句柄 `IGiFont`：`glyph(字符码)` 给出字形，`DmFont` 实现（字形即文字模板 `DmCharTemplate`）；字形里的 ByBlock 取字形串当时的属性，如同 `drawShared`。
+  - `GiImage`：原点与两条边、像素尺寸、路径与实体里已解码的 `QImage`（不持有）。
+  - `drawShared` 的 `GiByBlockTraits` 每项可以是 ByLayer（按调用方的图层）或 ByBlock（取调用方的外层）；块参照传自己的画笔。
+- `GiStream`：记录的布局是"属性记录、`AttributesEnd`、图元记录"；嵌套绘制记成带段长的一段，重放时整段当作一个可绘制对象交给接收方的 `draw()`，
+  嵌套关系原样保留。图层、线型、共享对象、字体、图片像素记成引用表的下标，序列化（`write`/`read`，版本号 1）时经 `IGiReferenceCodec` 换成名字，
+  换不回来的读回为空（共享对象跳过）。`Stream` 的字符串以换行结尾，记录逐字节写出。文档级的 `IGiReferenceCodec` 没有做，代理图形存盘是 7.3 步的事。
+- `GiNurbs::sample()`：`DmSpline::getPoints()` 的离散算法原样搬来，样条自己与适配器共用（`DmSpline::getPoints()` 改为调用它，`getPointsRecursive()` 删除）。
+
+**2.2 各实体的 worldDraw**
+
+`DmEntity::worldDraw()` 为纯虚，全部具体实体类实现：
+
+| 实体 | 输出 |
+|------|------|
+| 点、射线、构造线、辅助线 | `point`、`ray`、`xline`、`xline` |
+| 直线 | 两点的 `polyline` |
+| 圆弧 | `arc`：按"翻正"后的角度逆时针（法向朝 -Z 的圆弧换算，同 `getStartAngleNormal()`） |
+| 圆、椭圆 | `circle`；`ellipseArc`，整椭圆参数 0 到 2π，椭圆弧同样按翻正后的参数 |
+| 样条 | `nurbs` |
+| 多段线 | `polyline`：凸度、各段宽度（全为 0 时不传）、闭合 |
+| 线串（样条原先的离散结果） | 线型生成的 `polyline`（整条连续） |
+| SOLID、三角形 | `triangles`：SOLID 的角点是多边形顺序（DXF 的 Z 字顺序导入时已换过），以第一个角点为扇心 |
+| 填充 | 实心：`fill`，边界与孔洞的取点同原先的 `DmRegion::getTriangles()`，剖分交给接收方；图案：嵌套画 `update()` 生成的线段容器 |
+| 区域 | 按区域自己的属性画边界与孔洞的轮廓（AutoCAD 的二维线框也是这样） |
+| 图片 | `image` |
+| 单行文字、属性、属性定义、多行文字（及其段落、行、字符） | 字形串，见下 |
+| 五类标注、引线 | 各部分逐个嵌套绘制 |
+| 块参照 | 每个阵列单元一次 `drawShared`，变换为 插入点·旋转·阵列偏移·缩放·(−基点)，与原先生成复制品的顺序相同；属性逐个嵌套绘制 |
+| 实体容器 | 子实体逐个嵌套绘制 |
+| 块定义 `DmBlock`、文字模板 | 实体、笔画逐个嵌套绘制；块定义不画属性定义（原先生成复制品时就跳过） |
+
+文字：`DmChar` 新增从字形模板到当前位置的变换（`getGlyphTransform()`），合成生成字符时的切变与宽度系数
+（`x' = (x + y·tan 倾斜角)·宽度系数`，与 `getShearedEntityFor*` 相同）以及此后的移动、旋转、缩放、镜像；字符的笔画副本保留，捕捉与选择在用。
+`DmChar::drawChars()` 把相邻且画笔、图层、字体都相同的字符合成一个字形串，作为一次嵌套绘制，属性取首个字符的
+（颜色 ByBlock 即取文字，线宽 0、实线，与原先字符的画笔相同）；空白字符的模板没有笔画，不占字形；下划线、上划线、删除线嵌套绘制。
+字符没有字形时（模板不属于某个字体，或名字不是单个字符）退回直接画自己的笔画。
+
+**2.3 旧渲染器改走 worldDraw**
+
+- `render/view/GLCacheWorldDraw`（适配器）：每层嵌套一个帧，存本层设的属性、外层解析后的属性与模型变换；属性按 `getPen(true)` 的规则解析成
+  `DmPen`，经 `DmPenList` 取画笔 ID，画笔的线宽、虚线、颜色的设置与原先 `DmCachePainter::cacheEntity` 相同（RGB 全 0 画白色、线型名与小写的
+  "continuous" 比较这些旧行为都照旧）。各类图元的顶点生成从各实体的 `updateVertices()` 原样搬来，float 运算相同。
+- 变换：相似变换下圆与圆弧仍是圆弧（含镜像时起止角互换）；非等比缩放或错切下圆、圆弧、椭圆都换成椭圆（共轭半径换成主轴）；
+  多段线的凸度段在相似变换下先变换端点再由凸度求圆弧，与原先复制品的做法相同；样条变换控制点后离散；字形按字形变换，如同 `drawShared`。
+- `DmCachePainter`：删除按类型分支的两处（`getCacheTypeOfEntity()`、`cacheEntity()` 的 switch）与展平（`addToGroups()`/`getSubEntities()`），
+  以及没有调用方、又用到前一个 switch 的 `recache()`、`recacheEntities()`、`isEntityMatchTypes()`，连同 `GLCachePainter::removeCache()`。
+  普通组、选中组、高亮组都是逐个顶层实体经适配器画。
+- 样条离散结果的缓存 `GLCacheWorldDraw::NurbsSamples`（`DmCachePainter` 持有）：按曲线内容查找，整图重建时标记—清除。
+  2.4 步删掉顶点缓存后，基线采集显示中图纸的整图重建里 2 千条样条占了 0.6 秒（76%），原先离散结果缓存在 `DmSpline` 里；加了这个缓存后，
+  文档修改后的整图重建比原先带顶点缓存时还快（`BASELINE.md` 第 8.1 节"阶段 2"）。
+
+**2.4 删除 Model 里的渲染数据**
+
+- `ArcData`、`CircleData`、`EllipseData`、`LineData`、`LineStripData` 的 `m_vertices` 与存取函数；`DmLine`、`DmArc`、`DmCircle`、`DmEllipse`、
+  `DmLineStrip` 的 `getVerticesRef()`、`updateVertices()`；11 个实体的修改标志 `isModify`（点、射线、SOLID、三角形、构造线、图片上的只写不读）。
+  圆弧、圆、椭圆的 `update()` 只剩空函数，与基类相同，删掉这三个重写。`DmEllipse.cpp` 不再用 glm。
+- Model 里已没有 GL 顶点格式的代码（`GL_`、邻接顶点、弧长参数与总长这些都只在 `render/` 里）。
+
+**出图的变化**（基准图像更新：`entities`、`entities_grid`、`entities_selected_highlighted`、`blocks`）
+
+- `entities` 三张：
+  - 以直线为边界的实心填充从白色变成它自己的 6 号品红（阶段 0 的已知问题：原先剖分出的三角形 ByBlock 解析不到填充）；
+  - 右侧宽度 0.25 的多段线（"Λ"）两条腿补上了缺的部分：原先 `DmPolyline` 把直线段的宽度四边形按 Z 字顺序（起点两侧、终点两侧）交给
+    按多边形顺序画扇形的 `DmSolid`，每段缺一个以一条长边为底、中心为顶点的三角形，中间变细；适配器按多边形顺序构造四边形。
+    圆弧段原先就是多边形顺序，左侧变宽度多段线不变。开工前的确认里没有这一项，放大基准图时发现，与填充颜色在同一张图里一并更新。
+  - 以多段线为边界的实心填充仍画不出来（`Edge::getPoints`，另有任务；`test_graphics` 里对应用例为 `DISABLED_`）。
+- `blocks`：X 比例 2、Y 比例 1 与 X 比例 1、Y 比例 2 的外层块，以及镜像插入的外层块。原先的复制品只能表示"X、Y 比例加旋转"：
+  Y 比例大于 X 时圆、圆弧仍画成圆（第 4.10.2 节）；外层非等比或镜像、内层块旋转 30° 时，原先把外层的比例直接乘到内层块的比例上而内层旋转不变，
+  相当于先缩放再旋转，内层的圆与直线方向都不对。现在是完整的仿射结果。旋转 45°、阵列、块内虚线（D10）三组不变。
+- 其余 9 张在容差内不变，包括 `colors`（块内 ByBlock 与 0 层）、`text_shx`、`text_truetype`（字形串）、`linetypes`、`autocad_linetype`。
+- 同一组测试在本机显卡上也跑了一遍（`YICAD_MESA_DIR` 指向不存在的目录）：除两个 Mesa 环境检查外全部通过，新基准图像在显卡上也在容差内。
+
+**顺带变化、没有参考图纸覆盖的**
+
+- 标注文字容器里的直线（`DmDimensionStyle::createTextForStrs()` 生成的分数线）原先不画：展平时只取容器里文字的子实体。现在按嵌套绘制画出来。
+- 放在顶层实体容器里的文字、标注等原先不画（展平后落到 switch 的 `default`），现在画。
+
+**测试**
+
+- `tests/graphics/`（`test_graphics`，链接 `YiCadModel`）：`GiTextDump` 把 GI 的输出写成文本（嵌套段缩进，数值 6 位有效数字、角度写成度），用例按文本比对。
+  - 仿射变换 5 个、样条离散 3 个；
+  - GI 流 6 个：用到全部图元与属性（含嵌套绘制、`drawShared`、字形串、图片）的对象记录后重放与直接绘制一致；属性段与图元段分开；
+    序列化往返；找不到的引用读回为空、共享对象跳过；版本号不认识时读回失败；
+  - 各实体 20 个：简单实体逐行比对（含顺时针圆弧、跨 0° 的圆弧与椭圆弧、无效画笔），填充（实心的环、图案线的容器）、区域、容器、
+    块参照（阵列的变换、`GiByBlockTraits`、块定义不画属性定义、属性嵌套）、标注与引线的结构；样本文档（`tests/support/OcdSampleDocument.h`）
+    里每个实体都有输出、经 GI 流记录再重放与直接绘制一致。以多段线为边界的实心填充 1 个为 `DISABLED_`；
+  - 文字 4 个：字形模板的三角形经字符的字形变换正好落在字符自己的笔画上（倾斜 15°、宽度系数 0.7，再缩放、旋转、镜像、移动），
+    单行文字、带宽度系数与倾斜的单行文字、两段的多行文字的字形串与笔画一一对应。用系统的 Arial，没有时跳过。
+- 基线采集用例加了两行整图重建（显示后首帧、文档修改后），见 `BASELINE.md` 第 2 节。
+
+**验证**：`cmake --build`、`ctest`（6 个测试程序全部通过，`test_render` 约 40 秒）、`cmake --install`、启动安装后的程序
+（系统 `OPENGL32.dll` 与 NVIDIA 驱动，正常退出）、`python tools/check_layering.py` 通过。用例数：`test_graphics` 38（新，1 个 `DISABLED_`），其余不变。

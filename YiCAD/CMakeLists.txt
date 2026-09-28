@@ -84,6 +84,9 @@ yicad_collect_sources(BASE
 #   src/model/history/      撤销重做（Cmd/CmdManager/MacroCmd/Transaction 与各 *Cmd）
 #   src/model/edit/         Modification（选择集在 application/ 的 SelectionSet）
 #   src/model/algorithm/    求交、面积、闭合区域、三角剖分
+#   src/model/graphics/     GI：实体向图形系统描述几何的接口（IGiDrawable/IGiGeometry/
+#                           IGiSubEntityTraits/IGiFont）、Gi* 值类型、GI 流 GiStream
+#                           （doc/RENDER_PLAN.md 第 4.2 节）；不含任何图形 API 类型
 #   src/model/io/           原生格式 FilterOcdIO、格式注册表 FilterRegistry、覆盖写时的
 #                           编号备份、迁移基类；meta/ 是各类型的
 #                           Meta* 容器。原是独立的 YiCadPersistence 库，它本来就只依赖
@@ -105,13 +108,15 @@ yicad_collect_sources(MODEL
     src/model/history
     src/model/edit
     src/model/algorithm
+    src/model/graphics
     src/model/io
     src/model/io/meta)
 
 # 对应 YiCadRender。
 #   src/render/painter/  绘制抽象（Painter/PainterCreator）
 #   src/render/opengl/   OpenGL 实现（GL*）
-#   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter，
+#   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter 与把实体的
+#                        GI 输出转成旧渲染器顶点格式的适配器 GLCacheWorldDraw（第 4 阶段随旧渲染器删除），
 #                        以及命令与工具眼中的视图接口 IDocumentView、捕捉接口 ISnapService，
 #                        绘制时判断实体是否选中的接口 ISelectionSource、取要高亮的实体的接口
 #                        IHighlightSource
@@ -449,6 +454,7 @@ target_include_directories(YiCadModel PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/history
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/edit
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/algorithm
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/model/graphics
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/io
     ${CMAKE_CURRENT_SOURCE_DIR}/src/model/io/meta)
 

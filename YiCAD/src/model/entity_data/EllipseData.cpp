@@ -124,12 +124,3 @@ void EllipseData::setNormal(const DmVector& normal)
     m_normal = normal;
 }
 
-const std::vector<float>& EllipseData::getVerticesRef() const
-{
-    return m_vertices;
-}
-
-void EllipseData::setVertices(const std::vector<float>& vs)
-{
-    m_vertices = vs;
-}

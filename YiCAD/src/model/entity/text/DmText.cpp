@@ -1109,3 +1109,8 @@ void DmText::restoreStream(InputStream& rdr)
     m_data->setTextString(QString::fromStdString(textString));
     update();
 }
+
+void DmText::worldDraw(IGiWorldDraw& wd) const
+{
+    DmChar::drawChars(wd, chars);
+}

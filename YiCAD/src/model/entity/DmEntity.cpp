@@ -36,6 +36,7 @@
 #include "DmLayer.h"
 #include "DmLine.h"
 #include "DmVector.h"
+#include "IGiSubEntityTraits.h"
 #include "Information.h"
 #include "Quadratic.h"
 
@@ -45,6 +46,23 @@ DmEntity::DmEntity(DmEntity* parent)
 {
     this->parent = parent;
     init();
+}
+
+void DmEntity::setAttributes(IGiSubEntityTraits& traits) const
+{
+    if (pen.getFlag(DM::FlagInvalid))
+    {
+        traits.setColor(DmColor(DM::FlagByBlock));
+        traits.setLineWeight(DM::WidthByBlock);
+        traits.setLineType(DmLineTypeTable::ByBlock);
+    }
+    else
+    {
+        traits.setColor(pen.getColor());
+        traits.setLineWeight(pen.getWidth());
+        traits.setLineType(pen.getLineType());
+    }
+    traits.setLayer(layer);
 }
 
 void DmEntity::init()

@@ -25,8 +25,11 @@
 #include "TextConsts.h"
 #include "DmChar.h"
 #include "DmCharTemplate.h"
+#include "DmCharTemplateList.h"
+#include "DmFont.h"
 #include "DmLine.h"
 #include "DmPolyline.h"
+#include "IGiGeometry.h"
 
 DmChar::DmChar(DmCharTemplate* fontChar, DmEntity* parent)
 	:DmEntity(parent) 
@@ -437,6 +440,9 @@ void DmChar::rotate(const DmVector& center, const DmVector& angleVector)
 	{
 		e->rotate(center, angleVector);
 	}
+	// 与 DmVector::rotate(center, angleVector) 相同：直接用角度向量的分量
+	const GiTransform rotation(angleVector.x, angleVector.y, -angleVector.y, angleVector.x, 0.0, 0.0);
+	m_glyphTransform = GiTransform::translation(center) * rotation * GiTransform::translation(center * -1.0) * m_glyphTransform;
 	calculateBorders();
 }
 
@@ -448,6 +454,7 @@ void DmChar::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
 		{
 			e->mirror(axisPoint1, axisPoint2);
 		}
+		m_glyphTransform = GiTransform::mirroring(axisPoint1, axisPoint2) * m_glyphTransform;
 	}
 	calculateBorders();
 }
@@ -505,6 +512,7 @@ void DmChar::scale(const DmVector& center, const DmVector& factor)
 	m_dHeight *= factor.y;
 	m_dNominalHeight *= factor.y;
 	m_pos.scale(center, factor);
+	m_glyphTransform = GiTransform::scaling(factor, center) * m_glyphTransform;
 	calculateBorders();
 }
 
@@ -515,6 +523,7 @@ void DmChar::move(const DmVector& offset)
 		e->move(offset);
 	}
 	m_pos.move(offset);
+	m_glyphTransform = GiTransform::translation(offset) * m_glyphTransform;
 	moveBorders(offset);
 }
 
@@ -522,4 +531,131 @@ void DmChar::moveTo(const DmVector& newPos)
 {
 	DmVector offset = newPos - m_pos;
 	move(offset);
+}
+
+const GiTransform& DmChar::getGlyphTransform() const
+{
+	return m_glyphTransform;
+}
+
+bool DmChar::getGlyph(const IGiFont*& font, char32_t& code) const
+{
+	if (!m_pCharTemplate || !m_pCharTemplate->getOwner() || !m_pCharTemplate->getOwner()->getFont())
+	{
+		return false;
+	}
+	const auto codes = m_pCharTemplate->getName().toUcs4();
+	if (codes.size() != 1)
+	{
+		return false;
+	}
+	font = m_pCharTemplate->getOwner()->getFont();
+	code = static_cast<char32_t>(codes.front());
+	return true;
+}
+
+void DmChar::drawStrokes(IGiWorldDraw& wd, bool includeGlyphStrokes) const
+{
+	// 笔画与装饰线的父实体都是本字符，嵌套绘制时 ByBlock 取本字符
+	for (DmEntity* e : entities)
+	{
+		const bool decoration = e == m_overline || e == m_underline || e == m_strikethrough;
+		if (decoration || includeGlyphStrokes)
+		{
+			wd.geometry().draw(*e);
+		}
+	}
+}
+
+void DmChar::worldDraw(IGiWorldDraw& wd) const
+{
+	const IGiFont* font = nullptr;
+	char32_t code = 0;
+	const bool hasGlyph = getGlyph(font, code);
+	if (hasGlyph && !m_pCharTemplate->isEmpty())
+	{
+		GiGlyphRun run;
+		run.font = font;
+		run.glyphs.push_back(GiGlyph{ code, m_glyphTransform });
+		wd.geometry().glyphRun(run);
+	}
+	drawStrokes(wd, !hasGlyph);
+}
+
+void DmChar::drawChars(IGiWorldDraw& wd, std::span<DmChar* const> chars)
+{
+	/// 一串字符：按首个字符的属性画，字形合成一个字形串
+	class CharRun final : public IGiDrawable
+	{
+	public:
+		CharRun(std::span<DmChar* const> chars, const IGiFont* font)
+			: m_chars(chars)
+			, m_font(font)
+		{
+		}
+
+		void setAttributes(IGiSubEntityTraits& traits) const override
+		{
+			m_chars.front()->setAttributes(traits);
+		}
+
+		void worldDraw(IGiWorldDraw& wd) const override
+		{
+			if (m_font)
+			{
+				GiGlyphRun run;
+				run.font = m_font;
+				for (const DmChar* c : m_chars)
+				{
+					// 空白字符的模板没有笔画，不占字形
+					if (!c->m_pCharTemplate->isEmpty())
+					{
+						run.glyphs.push_back(GiGlyph{ static_cast<char32_t>(c->m_pCharTemplate->getName().toUcs4().front()),
+													  c->m_glyphTransform });
+					}
+				}
+				if (!run.glyphs.empty())
+				{
+					wd.geometry().glyphRun(run);
+				}
+			}
+			for (const DmChar* c : m_chars)
+			{
+				c->drawStrokes(wd, m_font == nullptr);
+			}
+		}
+
+	private:
+		std::span<DmChar* const> m_chars;
+		const IGiFont* m_font;
+	};
+
+	auto fontOf = [](const DmChar* c) -> const IGiFont* {
+		const IGiFont* font = nullptr;
+		char32_t code = 0;
+		return c->getGlyph(font, code) ? font : nullptr;
+	};
+	auto sameAttributes = [](const DmChar* a, const DmChar* b) {
+		return a->pen == b->pen && a->pen.getFlag(DM::FlagInvalid) == b->pen.getFlag(DM::FlagInvalid)
+			&& a->layer == b->layer;
+	};
+
+	std::size_t first = 0;
+	while (first < chars.size())
+	{
+		if (!chars[first])
+		{
+			++first;
+			continue;
+		}
+		const IGiFont* font = fontOf(chars[first]);
+		std::size_t last = first + 1;
+		while (last < chars.size() && chars[last] && fontOf(chars[last]) == font
+			&& sameAttributes(chars[first], chars[last]))
+		{
+			++last;
+		}
+		wd.geometry().draw(CharRun(chars.subspan(first, last - first), font));
+		first = last;
+	}
 }

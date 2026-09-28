@@ -84,12 +84,3 @@ void CircleData::setRadius(const double& dRadius)
     m_dRadius = dRadius;
 }
 
-const std::vector<float>& CircleData::getVerticesRef() const
-{
-    return m_vertices;
-}
-
-void CircleData::setVertices(const std::vector<float>& vs)
-{
-    m_vertices = vs;
-}

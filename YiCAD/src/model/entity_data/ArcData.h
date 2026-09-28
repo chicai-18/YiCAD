@@ -80,14 +80,6 @@ public:
     /// @param normal 法向量
     void setNormal(const DmVector& normal);
 
-    /// @brief 获取渲染顶点数据引用
-    /// @return 顶点数据常量引用
-    const std::vector<float>& getVerticesRef() const;
-
-    /// @brief 设置渲染顶点数据
-    /// @param vs 顶点数据向量
-    void setVertices(const std::vector<float>& vs);
-
     /// @brief 判断圆弧数据是否有效
     /// @return 若圆心有效且半径大于容差且角度差大于容差则返回true
     bool isValid() const;
@@ -98,8 +90,6 @@ private:
     double              m_dStartAngle;  ///< 起始角度
     double              m_dEndAngle;    ///< 终止角度
     DmVector            m_normal;       ///< 圆弧所在平面法向量
-
-    std::vector<float>  m_vertices;     ///< 用于渲染的特定结构数据（x,y,z, parameter, total_length）
 };
 
 #endif // ARCDATA_H

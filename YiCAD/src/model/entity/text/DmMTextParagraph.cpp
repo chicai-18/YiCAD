@@ -1110,3 +1110,13 @@ void DmMTextParagraph::updateLineXPosition_Distribute(std::vector<DmMTextLine*>&
         }
     }
 }
+
+void DmMTextParagraph::worldDraw(IGiWorldDraw& wd) const
+{
+    std::vector<DmChar*> all;
+    for (const DmMTextLine* line : lines)
+    {
+        all.insert(all.end(), line->begin(), line->end());
+    }
+    DmChar::drawChars(wd, all);
+}

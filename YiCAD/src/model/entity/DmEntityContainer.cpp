@@ -44,6 +44,7 @@
 #include "DmSettings.h"
 #include "DmEntity.h"
 #include "DmDocument.h"
+#include "IGiGeometry.h"
 
 TYPESYSTEM_SOURCE(DmEntityContainer, DmEntity, 0);
 
@@ -1234,4 +1235,15 @@ std::list<DmEntity*> DmEntityContainer::getSubEntities() const
         }
     }
     return subEnts;
+}
+
+void DmEntityContainer::worldDraw(IGiWorldDraw& wd) const
+{
+    for (const DmEntity* e : entities)
+    {
+        if (e)
+        {
+            wd.geometry().draw(*e);
+        }
+    }
 }

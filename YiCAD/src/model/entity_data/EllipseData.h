@@ -99,14 +99,6 @@ public:
     /// @param normal 法向量
     void setNormal(const DmVector& normal);
 
-    /// @brief 获取渲染顶点数据引用
-    /// @return 顶点数据常量引用
-    const std::vector<float>& getVerticesRef() const;
-
-    /// @brief 设置渲染顶点数据
-    /// @param vs 顶点数据向量
-    void setVertices(const std::vector<float>& vs);
-
 private:
     double              m_dStartParam;  ///< 椭圆弧起始角度（相对长轴方向，以m_vecMajorP为半径画圆所得）
     double              m_dEndParam;    ///< 椭圆弧终止角度（相对长轴方向）
@@ -115,8 +107,6 @@ private:
     double              m_dRatio;       ///< 短轴与长轴的比率
     DmVector            m_normal;       ///< 法向量
     bool                m_bIsClosed;    ///< 是否闭合（闭合则为椭圆，不闭合为椭圆弧）
-
-    std::vector<float>  m_vertices;     ///< 用于渲染的特定结构数据（x,y,z, parameter, total_length）
 };
 
 #endif // ELLIPSEDATA_H
