@@ -4,37 +4,37 @@
 <context>
     <name>GuiDocumentView</name>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1321"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1453"/>
         <source>Endpoint</source>
         <translation>端点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1322"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1454"/>
         <source>Center</source>
         <translation>中心</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1323"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1455"/>
         <source>Middle</source>
         <translation>中点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1324"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1456"/>
         <source>Intersection</source>
         <translation>交点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1325"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1457"/>
         <source>On Entity</source>
         <translation>最近点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1326"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1458"/>
         <source>Subsection</source>
         <translation>节点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1327"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1459"/>
         <source>Grid</source>
         <translation>网格</translation>
     </message>
@@ -412,7 +412,7 @@
         <translation>arch e</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="681"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="688"/>
         <source>command</source>
         <translation>命令</translation>
     </message>
@@ -471,7 +471,7 @@
         <translation>其他</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="572"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="579"/>
         <source>select qss file</source>
         <translation>选择qss文件</translation>
     </message>
@@ -491,47 +491,47 @@
         <translation>删除实体</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="416"/>
+        <location filename="../src/model/edit/Modification.cpp" line="399"/>
         <source>Move</source>
         <translation>移动</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="512"/>
+        <location filename="../src/model/edit/Modification.cpp" line="443"/>
         <source>Trim</source>
         <translation>修剪</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="785"/>
+        <location filename="../src/model/edit/Modification.cpp" line="682"/>
         <source>cut entity</source>
         <translation>单点打断</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="870"/>
+        <location filename="../src/model/edit/Modification.cpp" line="767"/>
         <source>cut entity 2P</source>
         <translation>2点打断</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="1340"/>
+        <location filename="../src/model/edit/Modification.cpp" line="1237"/>
         <source>move ref</source>
         <translation>移动引用点</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1353"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1357"/>
         <source>on all</source>
         <translation>显示所有图层</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1357"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1361"/>
         <source>unlock all</source>
         <translation>解锁所有图层</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1361"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1365"/>
         <source>new layer</source>
         <translation>新增图层</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1369"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1373"/>
         <source>rename layer</source>
         <translation>重命名图层</translation>
     </message>
@@ -541,7 +541,7 @@
         <translation>文字</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1365"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1369"/>
         <source>copy to layer</source>
         <translation>复制实体到指定图层</translation>
     </message>
@@ -577,40 +577,40 @@
         <translation>交点</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="742"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="717"/>
         <source>Closing Drawing</source>
         <translation>关闭画布</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="755"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="730"/>
         <source>Save changes to the following item?
 %1</source>
         <translation>保存对以下项目的更改？</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="562"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="569"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="44"/>
         <location filename="../src/shell/ApplicationWindowRibbon.cpp" line="47"/>
         <source>File</source>
         <translation>文件</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1267"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1271"/>
         <source>open</source>
         <translation>打开文件</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1263"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1267"/>
         <source>new</source>
         <translation>新建文件</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1275"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1279"/>
         <source>save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1279"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1283"/>
         <source>save as</source>
         <translation>另存为</translation>
     </message>
@@ -630,19 +630,19 @@
         <translation type="vanished">编辑</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1286"/>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1764"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1290"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1768"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1293"/>
-        <location filename="../src/shell/ApplicationWindow.cpp" line="1774"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1297"/>
+        <location filename="../src/shell/ApplicationWindow.cpp" line="1778"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../src/model/edit/Modification.cpp" line="112"/>
+        <location filename="../src/model/edit/Modification.cpp" line="109"/>
         <source>Cut</source>
         <translation>剪切</translation>
     </message>
@@ -856,9 +856,31 @@
         <translation>未定义错误</translation>
     </message>
     <message>
-        <location filename="../src/shell/Main.cpp" line="125"/>
+        <location filename="../src/shell/Main.cpp" line="115"/>
+        <source>The graphics driver provides OpenGL %1.%2 (%3) on %4.</source>
+        <translation>显卡驱动在 %4 上提供的是 OpenGL %1.%2（%3）。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/Main.cpp" line="119"/>
+        <source>No OpenGL context could be created.</source>
+        <translation>无法创建 OpenGL 上下文。</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/Main.cpp" line="120"/>
+        <location filename="../src/shell/Main.cpp" line="149"/>
         <source>YiCAD</source>
         <translation>易CAD</translation>
+    </message>
+    <message>
+        <location filename="../src/shell/Main.cpp" line="121"/>
+        <source>YiCAD requires OpenGL 4.3 (core profile).
+%1
+
+Please update the graphics driver.</source>
+        <translation>YiCAD 需要 OpenGL 4.3（core profile）。
+%1
+
+请更新显卡驱动。</translation>
     </message>
     <message>
         <location filename="../src/application/DocumentFileService.cpp" line="364"/>
@@ -1003,7 +1025,7 @@
 <context>
     <name>UIActionHandler</name>
     <message>
-        <location filename="../src/shell/UIActionHandler.cpp" line="242"/>
+        <location filename="../src/shell/UIActionHandler.cpp" line="241"/>
         <source>escape</source>
         <comment>escape, go back from action steps</comment>
         <translation>取消</translation>
@@ -1252,28 +1274,28 @@
 <context>
     <name>UICurrentActivePen</name>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="43"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="44"/>
         <source>Color:</source>
         <translation>颜色：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="48"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="49"/>
         <source>LineWindth:</source>
         <translation>线宽：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="53"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="54"/>
         <source>LineType:</source>
         <translation>线型：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="122"/>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="124"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="123"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="125"/>
         <source>Modify current pen</source>
         <translation>修改当前画笔</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="142"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="144"/>
         <source>Modify current selected entities</source>
         <translation>修改选中实体</translation>
     </message>
@@ -1633,43 +1655,43 @@
 <context>
     <name>UITabDrawWidget</name>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="616"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="603"/>
         <source>Export as</source>
         <translation>导出为</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="866"/>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="965"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="841"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="940"/>
         <source>Draft Mode</source>
         <translation>草稿模式</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="945"/>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="1024"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="920"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="998"/>
         <source>Saving drawing...</source>
         <translation>保存文件...</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="945"/>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="1024"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="920"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="998"/>
         <source>Saving drawing: %1</source>
         <translation>保存文件：%1</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="956"/>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="1035"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="931"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1009"/>
         <source>Saved drawing: %1</source>
         <translation>保存文件：%1</translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="974"/>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="1041"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="949"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1015"/>
         <source>Cannot save the file </source>
         <translation>无法保存文件 </translation>
     </message>
     <message>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="975"/>
-        <location filename="../src/shell/UITabDrawWidget.cpp" line="1041"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="950"/>
+        <location filename="../src/shell/UITabDrawWidget.cpp" line="1015"/>
         <source> , please check the filename and permissions.</source>
         <translation>，请检查文件名和权限。</translation>
     </message>

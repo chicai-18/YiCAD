@@ -1,0 +1,18 @@
+{
+  "bindGroupLayouts": {
+    "Frame": [
+      { "binding": 0, "type": "uniformBuffer", "stages": ["vertex", "fragment"], "dynamicOffset": true }
+    ],
+    "Tables": [
+      { "binding": 0, "type": "texelBuffer", "stages": ["vertex"] },
+      { "binding": 1, "type": "storageBuffer", "stages": ["fragment"] }
+    ],
+    "Image": [
+      { "binding": 0, "type": "combinedTextureSampler", "stages": ["fragment"] }
+    ]
+  },
+  "programs": {
+    "solid": { "vertex": "solid.vert", "fragment": "solid.frag", "bindGroups": ["Frame"] },
+    "records": { "vertex": "records.vert", "fragment": "records.frag", "bindGroups": ["Frame", "Tables", "Image"] }
+  }
+}

@@ -229,6 +229,7 @@ TEST(GLImageTextureCacheTest, 同一来源只解码一次_整图重建释放没�
     QOpenGLContext context;
     ASSERT_TRUE(context.create());
     ASSERT_TRUE(context.makeCurrent(&surface));
+    glewExperimental = GL_TRUE;  // 上下文是 4.3 core（默认格式），同产品代码
     ASSERT_EQ(glewInit(), static_cast<GLenum>(GLEW_OK));
 
     int loads = 0;

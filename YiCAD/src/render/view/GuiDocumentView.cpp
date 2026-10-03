@@ -64,6 +64,7 @@
 #include "QString"
 #include "GLFrameStats.h"
 #include "GLSceneBuffer.h"
+#include "GLRhiDevice.h"
 
 GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument* doc)
     : QOpenGLWidget(parent, f)
@@ -113,7 +114,8 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     DMSETTINGS->endGroup();
 
     const int MULTISAMPLE_COUNT = 4;
-    QSurfaceFormat format;
+    // 与程序的其他 GL 上下文同一格式（4.3 core），否则共享组里的上下文格式不一（RENDER_PLAN.md 第 4.7.3 节）
+    QSurfaceFormat format = GLRhiDevice::surfaceFormat();
     format.setSamples(MULTISAMPLE_COUNT);    // 设置多重采样的采样点数
     setFormat(format);
     // 此处原有一行 glEnable(GL_MULTISAMPLE)，已删除（P12）：构造函数里还没有

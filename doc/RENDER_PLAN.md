@@ -6,7 +6,7 @@
 
 > 本方案于 2026-09-27 提出，文中的行号与数量基于 `09c9768` 实测。引用 `ARCHITECTURE_EVOLUTION_PLAN.md`
 > 时写作"演进方案 x.y 节"，引用 `LAYER_RESTRUCTURE_PLAN.md` 时写作"分层方案 x.y 节"。
-> 状态：阶段 0、1、2 已完成（2026-09-27、2026-09-28、2026-09-28，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
+> 状态：阶段 0、1、2、3 已完成（2026-09-27、2026-09-28、2026-09-28、2026-10-03，见第 10 节），其余阶段尚未动工。第 7 节已定（均为 2026-09-27）：D1（自建薄 RHI，先只做 OpenGL 实现）、
 > D3（构建期 glslang + spirv-cross）、D5（插件实体的数据由宿主保管）、D6（代理图形随图纸存盘）、
 > D7（圆弧用片段着色器解析绘制）、D8（渲染侧在本方案内支持任意仿射变换；Model 侧的非等比块参照、炸开与去复制
 > 与 AutoCAD/ODA 一致，另立方案，见第 4.10 节）、D9（CI 用 Mesa 软件渲染跑出图测试）、D11（保留多重采样）、
@@ -647,6 +647,8 @@ public:
 ```
 
 资源对象用引用计数句柄（`Rhi*Ptr`），最后一个引用释放时进入设备的延迟释放队列，等使用过它的帧完成后才真正销毁。
+
+以上是草图。第 3 阶段实施时补了绑定组布局对象、离屏帧、读回与缓冲复制、能力里的读回行序等，见第 10 节阶段 3；接口以 `src/render/rhi/` 为准。
 
 **绑定组约定**（着色器与两个后端共用）：
 
@@ -1469,3 +1471,107 @@ Mesa 的 Windows 版本从固定版本的发布包下载，工作流里写死版
 
 **验证**：`cmake --build`、`ctest`（6 个测试程序全部通过，`test_render` 约 40 秒）、`cmake --install`、启动安装后的程序
 （系统 `OPENGL32.dll` 与 NVIDIA 驱动，正常退出）、`python tools/check_layering.py` 通过。用例数：`test_graphics` 38（新，1 个 `DISABLED_`），其余不变。
+
+### 阶段 3（2026-10-03 完成）
+
+**开工前的摸底与用户的决定**
+
+- ConanCenter 上 `glslang/1.4.357.0` 与 `spirv-cross/1.4.357.0` 都有本机构建配置（msvc 194，`conan profile detect` 的默认 cppstd 14）的预编译包，
+  CI 的 `conan install` 不用自己编；Conan 的 CMakeToolchain 把 `tool_requires` 的 bin 目录加进 `CMAKE_PROGRAM_PATH`，CMake 里 `find_program` 就能找到。
+- spirv-cross 的命令行没有给 GLSL 输出改绑定号的选项，而 GL 没有组的概念，去掉组号后不同组的同号绑定会撞上
+  （例如第 1 组 0 号的纹素缓冲与第 3 组 0 号的纹理都成了 `binding = 0`）。所以由构建脚本先改写 SPIR-V 里的 `Binding`/`DescriptorSet` 修饰，再交给 spirv-cross。
+- 第 3.2 步要显式请求 4.3 core 上下文，旧渲染器从此跑在 core 上下文里。摸底：它画图都绑了 VAO，着色器的 GLSL 版本不低于 1.40，
+  只有宽线（`GLPainter` 的 `glLineWidth`）在 forward-compatible 上下文里是错误，所以上下文不带 forward-compatible 标志。
+- 用户的决定：
+  - 旧着色器不迁到新工具链。第 4.7.4 节"现有 `.shader` 文件的 `#shader include` 改用 GLSL 标准的 `#include`"说的是新源码里包含文件的写法；
+    旧着色器依赖几何着色器、用块外的散 uniform（Vulkan 方言不允许），迁过去等于重写一遍再由第 4.8 步删掉。阶段 3 的工具链由 RHI 一致性测试自己的着色器验证，
+    产品着色器从第 4.3 步开始按工具链写；
+  - 第 4.7.4 节"RHI 管线描述里声明的绑定"落成着色器目录里的清单 `shaders.json`（有名字的绑定组布局与每个程序用到的组），构建时生成 C++ 布局头文件，C++ 据此建绑定组布局；
+  - 许可证照 Mesa 的先例：README 的第三方表与许可说明写明只在构建时使用、不随产品分发，`licenses/` 不放文本。
+
+**3.1 RHI 接口**（`src/render/rhi/`）
+
+- `RhiTypes.h`（枚举、描述结构、`RhiCaps`、间接绘制参数）、`RhiResources.h`（资源基类与 `RhiSurface`）、`RhiCommandList.h`、`RhiDevice.h`，
+  以及读入工具链产物的 `RhiShaderLibrary`（`rhiLoadProgram()` 按设备的着色器形式读 `<程序>.<阶段>.glsl` 或 `.spv`；`rhiCreateBindGroupLayouts()` 按生成头文件建布局）。
+- 相对第 4.7.2 节草图的补充：
+  - 绑定组布局是对象（`createBindGroupLayout()`），管线描述按组号给出各组的布局（Vulkan 的描述符集布局与管线布局）；布局项相同即兼容；
+  - 绑定类型只有四种：常量缓冲（可带动态偏移）、只读存储缓冲、纹素缓冲、纹理与采样器合一。没有推送常量、分离的采样器、存储图像（第 4.7.1 节"只抽象 GS 用得到的东西"）；
+  - `beginOffscreenFrame()`：只画离屏目标的帧，没有交换链图像（测试与以后的离屏出图用）；
+  - 读回：缓冲有 `Device` 与 `Readback` 两种内存，命令列表有 `copyBuffer()`，设备有 `waitIdle()`、`readBuffer()`；
+  - 视口与裁剪矩形以帧缓冲左上角为原点（同 Vulkan），GL 后端按目标高度换算；
+  - `RhiCaps::framebufferOriginBottomLeft`：第 4.7.3 节"读回图像时按后端翻转"的依据（GL 为真：渲染结果的第 0 行是画面底部）。
+    纹理上传不翻转：数据的第 0 行就是采样坐标 v = 0 处，两个后端相同；
+  - 句柄是带删除器的 `std::shared_ptr`，删除器把对象放进设备的延迟释放队列；设备先于句柄销毁时删除器不再碰 GL。
+
+**3.2 GL 4.3 core 实现**（`src/render/rhi/gl/`：`GLRhiDevice`、`GLRhiResources`、`GLRhiCommandList`、`GLRhiSurface`）
+
+第 4.7.3 节各条的落法：
+
+| 要点 | 做法 |
+|------|------|
+| 实例序号 | 顶点布局有步进为 1 的实例属性（`glVertexBindingDivisor`），绘制一律用 `*BaseInstance` 与多重间接绘制；工具链拒绝 `gl_InstanceIndex`、`gl_BaseInstance` 等内建变量 |
+| 顶点阶段的存储缓冲 | 工具链拒绝（清单里声明给顶点阶段也报错）；`RhiCaps` 给出各阶段的存储缓冲数 |
+| 没有推送常量 | 工具链拒绝 `push_constant` |
+| 裁剪空间 | `clipSpaceCorrection()` 为恒等；读回行序见上 |
+| 容器对象 | 每个上下文一份 `GLRhiContextState`：VAO 按管线、FBO 按渲染目标惰性创建，键是资源的序号而不是地址（地址会被复用）；管线、渲染目标销毁时，不是当前的上下文里的容器等它下次成为当前再删；上下文销毁时只丢记录。设备自带一个与 Qt 全局共享上下文共享的离屏上下文，没有当前上下文时用它建资源 |
+| 缓冲更新 | 上传环形缓冲：有 `ARB_buffer_storage`（或 GL 4.4）时持久、一致映射，否则 `glMapBufferRange` 非同步映射；区段按帧回收，一帧的上传放不下时翻倍扩容。`upload()` 先复制到 CPU 侧，下一次 `beginFrame` 在帧的上下文里写进环形缓冲再复制到目标，所以共享对象的修改都发生在使用它的上下文里。每帧结束插 fence；换了上下文画下一帧时先在 GPU 上等上一帧的 fence，设备自己的上下文建过资源后同样插 fence 让下一帧等（GL 4.3 规范附录 D） |
+| `QOpenGLWidget` | `GLRhiWidgetSurface`：交换链图像是 `defaultFramebufferObject()` |
+| 调试 | 调试构建或环境变量 `YICAD_GL_DEBUG=1` 时上下文为调试上下文，设备在用到的每个上下文里装 `KHR_debug` 回调，接到 `YICAD_LOG(render, ...)`（GL 错误为 Warning，提示类消息不要）；`debugErrorCount()` 计 GL 错误数 |
+| GLEW | 设备初始化前设 `glewExperimental`；旧渲染器的两处 `glewInit`（`GLPainterCommon`、`GuiPreviewWidget`）现在也跑在 core 上下文里，一并设上 |
+
+- 建管线时按程序反射（`glGetProgramResourceiv`）核对每个常量块、存储块、采样器落在管线布局给出的平铺绑定点上，不一致就失败。
+  构建期检查之外再加一道：C++ 的布局与着色器对不上时在建管线时就发现，而不是画出错的东西。
+- 上下文：`GLRhiDevice::surfaceFormat()` 是程序里全部 GL 上下文的格式（4.3 core；带 `DeprecatedFunctions`，Windows 上的 Qt 据此不加 forward-compatible 标志，
+  环境用例核对；调试时加 `DebugContext`）。`Main.cpp` 在建 `QApplication` 之前设置 `Qt::AA_ShareOpenGLContexts` 与这个默认格式；
+  `GuiDocumentView`（另加 4 重采样）与 `GuiPreviewWidget` 显式用它。启动时 `GLRhiDevice::checkSupport()` 建一个上下文看驱动给出的版本与 profile，
+  不是 4.3 及以上的 core 就弹框说明（实际的版本与显卡名，提示更新驱动）并退出，代替原来的黑屏（第 6 节）。提示文字已进 `YiCAD_zh_cn.ts`。
+
+**3.3 着色器工具链**（第 4.7.4 节，D3-A）
+
+- `conanfile.py` 的 `build_requirements()` 加 `tool_requires`：`glslang/1.4.357.0`、`spirv-cross/1.4.357.0`；`conan.lock` 的 `build_requires` 只增加这两个包与它们的依赖
+  `spirv-tools`、`spirv-headers`（`conan lock add`，已有条目不动）。CI 工作流不用改（预编译包、Python 已装）。
+- `cmake/YiCadShaders.cmake` 的 `yicad_add_shaders(<目标> SOURCE_DIR OUTPUT_DIR HEADER NAMESPACE [INSTALL_DESTINATION])` 调 `tools/compile_shaders.py`，对每个程序：
+  1. `glslangValidator -V --target-env vulkan1.3` 编成 SPIR-V（`<程序>.<阶段>.spv`，第 9 阶段的 Vulkan 后端用）；
+  2. `spirv-cross --reflect` 取各阶段用到的资源，对照清单检查组、绑定、类型、阶段，并拒绝顶点阶段的存储缓冲、内建实例序号、推送常量、资源数组、分离的纹理与采样器；
+  3. 按与 `GLRhiPipeline` 相同的平铺规则（按组号、组内按绑定号依次编号，常量缓冲、存储缓冲、纹理单元各自从 0 起）改写 SPIR-V 的绑定号，
+     再 `spirv-cross --version 430 --no-es` 生成 GLSL 430（`<程序>.<阶段>.glsl`）；输出里出现 spirv-cross 的辅助 uniform（`SPIRV_Cross_*`）也算失败；
+  4. 生成 C++ 头文件：各绑定组布局（`RhiBindGroupLayoutEntry` 数组）与每个程序按组号排列的布局。
+  只在内容变化时改写输出；源码目录里任何文件变了都重编整组（着色器不多，比维护 `#include` 依赖简单）。构建因此需要 Python 3（README 的依赖列表已加）。
+- `INSTALL_DESTINATION` 把 `.spv` 与 `.glsl` 装进安装目录。本阶段还没有产品着色器，第 4 阶段第一次用到；
+  届时 `YiCAD/CMakeLists.txt` 里把 `res/shaders/` 整个装进 `resources/shaders` 的规则要排除 `src/`，免得把源码也装进去。
+
+**3.4 测试**
+
+- `tests/render/test_render_rhi.cpp`（进 `test_render`）：9 个用例，每个在持久映射与非同步映射两条上传路径上各跑一遍，结束时要求 GL 调试输出没有报错、全部资源都已销毁：
+  - 缓冲上传后经复制读回（后上传的覆盖先上传的）；上传环形缓冲回绕（40 帧共约 200 KB 经过 64 KB 的环形缓冲）与扩容（一次 200 KB）；
+  - 每种绑定类型：常量缓冲的两个动态偏移、顶点阶段的纹素缓冲、片段阶段的存储缓冲、2×2 纹理按行序采样，像素颜色由四者相乘得到；
+  - 多重间接绘制按 baseInstance 读实例属性：`drawIndirect` 与 `drawIndexedIndirect` 各三条，每条的 firstInstance 选一条记录（位置与颜色），`firstInstance` 不生效时六块会叠在一处、同一种颜色；
+  - 裁剪空间校正与视口、裁剪矩形以左上角为原点；离屏目标读回按 `framebufferOriginBottomLeft` 翻转；
+  - 多重采样解析：4 重采样的斜边有半覆盖的像素，单采样没有；
+  - 延迟释放：帧内放掉句柄，对象等本帧完成才销毁，复制照样完成；绑定组持有它的缓冲；
+  - 画到 `QOpenGLWidget`：资源在设备的上下文里建，在窗口部件的上下文里用；
+  - 布局与着色器不一致时建管线失败（第 1、2 组对调），布局里多出着色器没用到的绑定不要紧。
+  另有一个用例确认 GL 错误确实会被调试输出计数，免得"错误数为 0"的检查形同虚设。
+- 测试着色器在 `tests/render/shaders/`（清单、`common.glsl` 经 `#include` 引入、`solid` 与 `records` 两个程序），构建时编到构建目录，布局头文件 `RhiTestShaders.h` 同时生成。
+- `MesaLoader.cpp` 在 `main` 之前做与 `Main.cpp` 相同的设置（共享上下文、默认格式），并设 `YICAD_GL_DEBUG=1`；环境用例加一条：有全局共享上下文、是 core profile、不是 forward-compatible、`checkSupport()` 通过。
+- CTest 新增 `shader_toolchain`：`tools/test_compile_shaders.py` 的 8 个用例，查平铺后的绑定号与生成的头文件，以及与清单不一致（不在布局里、类型不同、阶段不同）、
+  顶点阶段的存储缓冲、`gl_InstanceIndex`、推送常量、语法错误时都失败。
+- 用 Mesa 的 `MESA_GL_VERSION_OVERRIDE=3.3` 假装驱动只有 3.3：`checkSupport()` 判为不支持。弹框本身没有在真实的旧驱动上看过。
+
+**出图**
+
+- 13 张参考图纸在容差内全部一致。逐像素看（改写基准图像后对比）：12 张完全相同；`colors` 差 3 个像素，但第 2 阶段提交（HEAD）的程序在本机画出来与本阶段逐像素相同，
+  入库的 `colors.png` 是阶段 0 生成的，阶段 1、2 在容差内没有改写它，所以这 3 个像素不是本阶段引起的，基准图像不动。
+  对照试验里把上下文换回兼容 profile、不共享、非调试上下文，结果也一样。
+- 同一组测试在本机显卡上也跑了一遍（`YICAD_MESA_DIR` 指向不存在的目录）：除两个 Mesa 环境检查外全部通过，RHI 用例在 NVIDIA 驱动上同样没有 GL 错误。
+
+**遗留**
+
+- 在一个窗口部件的上下文里建的资源，第一次在另一个窗口部件的帧里用时，靠的是帧之间的 fence（换了上下文画下一帧时先等上一帧）；
+  只在设备自己的上下文里建资源时才另插 fence。第 4 阶段多视图共享 `GsModel` 时按实际用法再看要不要每次建资源都插。
+- 扩展的 `.ts` 文件里有以前的提交留下的行号漂移（`update_translations` 会改），与本阶段无关，没有提交。
+- 只验证了 Release 构建；Debug 构建（默认开调试上下文与 `KHR_debug`）没有编译运行过。
+
+**验证**：`cmake --build`、`ctest`（7 项全部通过：6 个测试程序加 `shader_toolchain`，`test_render` 约 49 秒）、`cmake --install`、启动安装后的程序
+（系统 `OPENGL32.dll` 与 NVIDIA 驱动，主窗口与画布的网格、原点、光标正常，正常退出）、`python tools/check_layering.py` 通过。
+用例数：`test_render` 43（+20：RHI 18、调试输出 1、环境 1），`shader_toolchain` 8（新）。

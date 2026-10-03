@@ -115,6 +115,9 @@ yicad_collect_sources(MODEL
 # 对应 YiCadRender。
 #   src/render/painter/  绘制抽象（Painter/PainterCreator）
 #   src/render/opengl/   OpenGL 实现（GL*）
+#   src/render/rhi/      RHI 接口（Rhi*，doc/RENDER_PLAN.md 第 4.7 节）：按 Vulkan 的形状设计的 GPU 抽象，
+#                        以及读入构建期工具链生成的着色器的 RhiShaderLibrary
+#   src/render/rhi/gl/   RHI 的 OpenGL 4.3 core 实现（GLRhi*）
 #   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter 与把实体的
 #                        GI 输出转成旧渲染器顶点格式的适配器 GLCacheWorldDraw（第 4 阶段随旧渲染器删除），
 #                        以及命令与工具眼中的视图接口 IDocumentView、捕捉接口 ISnapService，
@@ -123,10 +126,12 @@ yicad_collect_sources(MODEL
 #
 # 画布不认识命令与视图工具；装配工具的交互视图 UIView 在 application/view/。
 # 文档经 DmDocumentListener 通知画布，Model 不认识本分区。
-# 本分区的内部实现不在分层重组方案的排期内（渲染专项另行规划）。
+# 旧渲染器（painter/、opengl/ 与 view/ 里的 DmCachePainter）在渲染重构第 4 阶段由 GS 取代后删除。
 yicad_collect_sources(RENDER
     src/render/painter
     src/render/opengl
+    src/render/rhi
+    src/render/rhi/gl
     src/render/view)
 
 # 对应 YiCadApplication（沿用 DS 的 Application 命名）：扩展赖以运行的机制。
@@ -500,6 +505,8 @@ set_target_properties(YiCadRender PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINE
 target_include_directories(YiCadRender PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/painter
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/opengl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/rhi
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/rhi/gl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/view)
 
 # 画布 GuiDocumentView 是 QOpenGLWidget；GL* 直接调 GLEW 与 OpenGL。

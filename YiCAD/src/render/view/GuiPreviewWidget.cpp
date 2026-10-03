@@ -38,6 +38,7 @@
 #include "Math2d.h"
 #include "Debug.h"
 #include "GeometryMethods.h"
+#include "GLRhiDevice.h"
 
 
 GuiPreviewWidget::GuiPreviewWidget(QWidget* parent, Qt::WindowFlags f)
@@ -47,6 +48,8 @@ GuiPreviewWidget::GuiPreviewWidget(QWidget* parent, Qt::WindowFlags f)
     , m_isInitialized(false)
     , m_pPainter(nullptr)
 {
+    // 与程序的其他 GL 上下文同一格式（4.3 core，RENDER_PLAN.md 第 4.7.3 节）
+    setFormat(GLRhiDevice::surfaceFormat());
 }
 
 GuiPreviewWidget::~GuiPreviewWidget()
@@ -135,6 +138,8 @@ void GuiPreviewWidget::initializeGL()
 
     if (CC != 0)
     {
+        // core profile 下不设它，GLEW 取不到部分函数
+        glewExperimental = GL_TRUE;
         GLenum err = glewInit();
         // TODO : 在部分linux虚拟机中获得GLEW_ERROR_NO_GLX_DISPLAY
         if (err == GLEW_ERROR_NO_GLX_DISPLAY)

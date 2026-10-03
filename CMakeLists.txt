@@ -29,6 +29,9 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies.cmake)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/deployqt.cmake)
 
+# Shader toolchain (glslangValidator + spirv-cross from Conan tool_requires); provides yicad_add_shaders().
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/YiCadShaders.cmake)
+
 # Where binaries should be placed. Multi-config generators such as Visual
 # Studio append the configuration name unless each config is set explicitly.
 set(YICAD_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)

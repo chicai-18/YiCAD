@@ -32,6 +32,7 @@
 #include <QSettings>
 #include <QMessageBox>
 #include <QFileInfo>
+#include <QSurfaceFormat>
 #include <qmainwindow.h>
 
 #include "DmFontList.h"
@@ -43,6 +44,7 @@
 
 #include "ApplicationWindow.h"
 #include "BuiltinExtensions.h"
+#include "GLRhiDevice.h"
 
 #include "Debug.h"
 #include "ScopedTimer.h"
@@ -76,6 +78,10 @@ int App_Run(int argc, char* argv[])
 
     // Qt 6 的对话框默认不显示帮助按钮，不再需要 AA_DisableWindowContextHelpButton
     QCoreApplication::setAttribute(Qt::AA_UseDesktopOpenGL);
+    // 全部 GL 上下文共享缓冲、纹理与程序（RENDER_PLAN.md 第 4.7.3 节），并统一为 4.3 core profile。
+    // 两者都要在建 QApplication 之前设置：全局共享上下文随 QApplication 一起按默认格式建立
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QSurfaceFormat::setDefaultFormat(GLRhiDevice::surfaceFormat());
     QApplication app(argc, argv);
     // Qt 6.7 起在 Windows 11 上默认使用 windows11 样式，Ribbon 的面板标题几乎不可见、
     // 下拉框改为深色底。沿用 Qt 5 下的 windowsvista 样式，界面与原来一致。
@@ -100,6 +106,23 @@ int App_Run(int argc, char* argv[])
     QSettings settings;
     settings.endGroup();
     DMSYSTEM->loadTranslation(lang);  // 加载语言包
+
+    // 驱动给不出 4.3 core 上下文时明确提示后退出；不检查的话画布是黑的（RENDER_PLAN.md P15）
+    const GLRhiDevice::Support glSupport = GLRhiDevice::checkSupport();
+    if (!glSupport.ok)
+    {
+        const QString detail = glSupport.contextCreated
+            ? QObject::tr("The graphics driver provides OpenGL %1.%2 (%3) on %4.")
+                  .arg(glSupport.majorVersion).arg(glSupport.minorVersion)
+                  .arg(glSupport.coreProfile ? QStringLiteral("core profile") : QStringLiteral("compatibility profile"),
+                       QString::fromStdString(glSupport.renderer))
+            : QObject::tr("No OpenGL context could be created.");
+        QMessageBox::critical(nullptr, QObject::tr("YiCAD"),
+            QObject::tr("YiCAD requires OpenGL 4.3 (core profile).\n%1\n\nPlease update the graphics driver.")
+                .arg(detail));
+        return EXIT_FAILURE;
+    }
+
     DMPATTERNLIST->init();            // 初始化填充
 
     /// 读取注册表是否加载动画以及主题颜色数据

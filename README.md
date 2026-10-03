@@ -51,6 +51,7 @@ The complete build steps **must be executed in order**:
 - **CMake** 3.21+
 - **Visual Studio 2022** (Windows)
 - **Conan 2** — C/C++ package manager for most third-party dependencies
+- **Python 3** — the build compiles shaders with `tools/compile_shaders.py`
 - **Qt 6.8** — Must be installed by the developer (see below)
 - **SARibbonBar** — Must be built and installed separately (see below)
 - **CDT** — Must be built and installed separately (see below)
@@ -187,6 +188,8 @@ When Conan 2 uses `cmake_layout()`, the CMake toolchain is generated at `build/c
 | [libdxfrw 2.2](https://github.com/LibreCAD/libdxfrw) | DXF parsing for the DXF plugin | Bundled source |
 | [nlohmann/json 3.11](https://github.com/nlohmann/json) | JSON serialization | Conan |
 | [pugixml 1.14](https://pugixml.org/) | XML parsing | Conan |
+| [glslang 1.4.357.0](https://github.com/KhronosGroup/glslang) | Build-time shader compiler (GLSL 450 → SPIR-V); not linked into or shipped with YiCAD | Conan (`tool_requires`) |
+| [SPIRV-Cross 1.4.357.0](https://github.com/KhronosGroup/SPIRV-Cross) | Build-time shader reflection and GLSL 430 generation for the OpenGL backend; not linked into or shipped with YiCAD | Conan (`tool_requires`) |
 | [Mesa 26.2.3](https://github.com/pal1000/mesa-dist-win) (llvmpipe) | Software OpenGL for the render tests (`test_render`) only; not linked into or shipped with YiCAD | `python tools/fetch_mesa.py` (pinned version and SHA-256) |
 
 ### ⑥ CMake Configure, Build & Install
@@ -407,6 +410,10 @@ Third-party components are subject to their own licenses. See the [`LICENSE`](LI
 Mesa (mainly MIT; the mesa-dist-win build of llvmpipe also contains LLVM, Apache-2.0 with LLVM
 exceptions) is used only to run `test_render`; it is fetched into the ignored `external/mesa/`
 directory and is neither linked into nor distributed with YiCAD.
+glslang (a combination of BSD-3-Clause, BSD-2-Clause, MIT and Apache-2.0, with parts under GPL-3.0-or-later with the
+Bison exception) and SPIRV-Cross (Apache-2.0), together with their dependencies SPIRV-Tools (Apache-2.0) and
+SPIRV-Headers (MIT), are Conan build-time tools: they compile the shaders during the build and are neither linked
+into nor distributed with YiCAD.
 The DXF plugin bundles modified libdxfrw 2.2.0 source under
 `plugins/dxf_plugin/third_party/libdxfrw` under GPL-2.0-or-later. Its upstream
 `COPYING` file is retained, and the GPLv2 text is also available at

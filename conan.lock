@@ -24,10 +24,14 @@
     ],
     "build_requires": [
         "strawberryperl/5.32.1.1#8d114504d172cfea8ea1662d09b6333e%1751971032.423",
+        "spirv-tools/1.4.357.0#b6f5de6ef73ab1887deb9da902f8a719%1790162155.207",
+        "spirv-headers/1.4.357.0#9a9853ce0dd278c90c13c95ac1d02993%1789470990.613",
+        "spirv-cross/1.4.357.0#48ff59c0b8013dc9feb1a10997417642%1789470988.74",
         "pkgconf/2.5.1#93c2051284cba1279494a43a4fcfeae2%1757684701.089",
         "ninja/1.13.2#c8c5dc2a52ed6e4e42a66d75b4717ceb%1764096931.974",
         "nasm/2.16.01#31e26f2ee3c4346ecd347911bd126904%1745483323.489",
         "meson/1.10.2#9d2d10681fe7fe61c788c58626c89b25%1775558003.754",
+        "glslang/1.4.357.0#01ff8058b143fa0b76cbcc98d1ae4d15%1789470986.25",
         "cmake/4.3.3#840cf00ea09777e05c2050a50a82c722%1781521538.233"
     ],
     "python_requires": [],

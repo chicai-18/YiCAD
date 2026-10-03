@@ -16,6 +16,7 @@
 #include <QOpenGLContext>
 #include <QSurfaceFormat>
 
+#include "GLRhiDevice.h"
 #include "MesaLoader.h"
 
 namespace
@@ -28,6 +29,8 @@ struct GlInfo
     std::string version;
     int major = 0;
     int minor = 0;
+    GLint profileMask = 0;   ///< GL_CONTEXT_PROFILE_MASK
+    GLint contextFlags = 0;  ///< GL_CONTEXT_FLAGS
 };
 
 GlInfo queryGl()
@@ -45,6 +48,8 @@ GlInfo queryGl()
     info.version = reinterpret_cast<const char*>(glGetString(GL_VERSION));
     info.major = context.format().majorVersion();
     info.minor = context.format().minorVersion();
+    glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &info.profileMask);
+    glGetIntegerv(GL_CONTEXT_FLAGS, &info.contextFlags);
     context.doneCurrent();
     return info;
 }
@@ -66,4 +71,16 @@ TEST(RenderEnvironmentTest, OpenGL是llvmpipe且不低于4点3)
     // 现有着色器写的是 #version 430 且带几何着色器（RENDER_PLAN.md P15）
     EXPECT_TRUE(info.major > 4 || (info.major == 4 && info.minor >= 3))
         << "GL 版本 " << info.version << " 低于 4.3";
+}
+
+TEST(RenderEnvironmentTest, 上下文与程序相同_4点3core且共享)
+{
+    // MesaLoader.cpp 在 main 之前做了与 Main.cpp 相同的设置（RENDER_PLAN.md 第 4.7.3 节）
+    EXPECT_NE(QOpenGLContext::globalShareContext(), nullptr) << "没有设置 Qt::AA_ShareOpenGLContexts";
+    const GlInfo info = queryGl();
+    ASSERT_TRUE(info.created) << "建不了 OpenGL 上下文";
+    EXPECT_TRUE(info.profileMask & GL_CONTEXT_CORE_PROFILE_BIT) << "上下文不是 core profile";
+    // 旧渲染器用 glLineWidth 画宽线，forward-compatible 上下文里宽线是错误
+    EXPECT_FALSE(info.contextFlags & GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT) << "上下文是 forward-compatible";
+    EXPECT_TRUE(GLRhiDevice::checkSupport().ok);
 }

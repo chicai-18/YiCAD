@@ -87,6 +87,16 @@ class YiCADRecipe(ConanFile):
         # https://github.com/artem-ogre/CDT (v1.4.4, MPL-2.0) and found via
         # find_package with CDT_DIR. See README for build instructions.
 
+    def build_requirements(self):
+        """
+        构建期工具：只在构建时运行，不链接进 YiCAD、不随产品分发。
+        """
+        # ---- 着色器工具链（doc/RENDER_PLAN.md 第 4.7.4 节，D3-A） ----
+        # glslangValidator 把 GLSL 450 编成 SPIR-V，spirv-cross 反射并生成 GL 用的 GLSL 430；
+        # 由 tools/compile_shaders.py 调用。CMakeToolchain 把两者的 bin 目录加进 CMAKE_PROGRAM_PATH。
+        self.tool_requires("glslang/1.4.357.0")
+        self.tool_requires("spirv-cross/1.4.357.0")
+
     def configure(self):
         """
         Enforce consistent MSVC runtime and C++ standard.

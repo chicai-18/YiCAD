@@ -76,6 +76,8 @@ double opengl::GLPainterCommon::device_height()
 void opengl::GLPainterCommon::create_resources()
 {
     // On Windows, GLEW context is not shared between libraries. We have to recreate it
+    // core profile 下不设它，GLEW 取不到部分函数（RENDER_PLAN.md 第 4.7.3 节）
+    glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     // TODO : 在部分linux虚拟机中获得GLEW_ERROR_NO_GLX_DISPLAY
     if (err == GLEW_ERROR_NO_GLX_DISPLAY)

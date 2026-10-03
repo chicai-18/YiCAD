@@ -14,12 +14,19 @@
 /// - GALLIUM_DRIVER=llvmpipe：mesa-dist-win 的 opengl32.dll 在有 D3D12 的机器上默认走 d3d12 驱动（又回到了显卡）；
 /// - QT_ENABLE_HIGHDPI_SCALING=0：与 Main.cpp 相同，否则系统缩放不是 100% 时帧缓冲尺寸随机器而变；
 /// - YICAD_SHADER_DIR：着色器从源码树读（GLPainterCommon），构建目录里没有着色器，那是 cmake --install 复制的。
+/// - YICAD_GL_DEBUG=1：GL 上下文是调试上下文，RHI 一致性测试按 KHR_debug 数 GL 错误；
+/// - Qt::AA_ShareOpenGLContexts 与默认格式 GLRhiDevice::surfaceFormat()（4.3 core）：与 Main.cpp 相同。
 
 #include "MesaLoader.h"
+
+// GLEW 必须先于 Qt 拉入的 gl.h
+#include "GLRhiDevice.h"
 
 #include <string>
 
 #include <QByteArray>
+#include <QCoreApplication>
+#include <QSurfaceFormat>
 #include <QtGlobal>
 
 #ifdef _WIN32
@@ -54,6 +61,12 @@ MesaStatus load()
     setDefaultEnv("GALLIUM_DRIVER", "llvmpipe");
     setDefaultEnv("QT_ENABLE_HIGHDPI_SCALING", "0");
     setDefaultEnv("YICAD_SHADER_DIR", YICAD_SHADER_DIR);
+    // 调试上下文：RHI 一致性测试按 KHR_debug 报告的 GL 错误数判断（GLRhiDevice::debugErrorCount）
+    setDefaultEnv("YICAD_GL_DEBUG", "1");
+
+    // 与 Main.cpp 相同：上下文共享、4.3 core，都要在建 QApplication（yicad_test_main.cpp）之前设置
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    QSurfaceFormat::setDefaultFormat(GLRhiDevice::surfaceFormat());
 
     // YICAD_MESA_DIR 环境变量优先，便于指向别的 Mesa 版本比对
     std::string dir = YICAD_MESA_DIR;
