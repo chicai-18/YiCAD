@@ -21,13 +21,15 @@
 #ifndef UINESTEDBLOCKSELECT_DIALOG_H
 #define UINESTEDBLOCKSELECT_DIALOG_H
 
+#include <memory>
+
 #include <QDialog>
 #include <QStringList>
 
 class QListWidget;
 class QDialogButtonBox;
 class DmDocument;
-class DmEntityContainer;
+class GsModel;
 class GuiPreviewWidget;
 
 /// @brief 嵌套块选择对话框
@@ -39,9 +41,10 @@ class UINestedBlockSelectDialog : public QDialog
 public:
     /// @brief 构造函数
     /// @param doc 文档指针
+    /// @param graphics 文档的图形模型，预览直接画其中的块几何；可以为空
     /// @param blockNames 嵌套块名称列表（包含顶层块自身）
     /// @param parent 父窗口
-    UINestedBlockSelectDialog(DmDocument* doc, const QStringList& blockNames,
+    UINestedBlockSelectDialog(DmDocument* doc, std::shared_ptr<GsModel> graphics, const QStringList& blockNames,
                               QWidget* parent = nullptr);
     ~UINestedBlockSelectDialog() override;
 
@@ -56,7 +59,7 @@ private:
     QListWidget* m_listWidget;
     GuiPreviewWidget* m_previewWidget;
     QDialogButtonBox* m_buttonBox;
-    DmEntityContainer* m_previewContainer;
+    std::shared_ptr<GsModel> m_graphics;
     QString m_selectedName;
     QStringList m_blockNames;
 };

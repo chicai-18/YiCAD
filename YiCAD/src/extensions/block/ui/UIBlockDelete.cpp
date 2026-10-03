@@ -35,12 +35,8 @@ UIBlockDelete::UIBlockDelete(QWidget* parent, Qt::WindowFlags fl)
     : QDialog(parent, fl)
     , m_pBlockTable(nullptr)
     , m_pDocument(nullptr)
-    , m_pPreviewContainer(new DmEntityContainer())
 {
     setupUi(this);
-
-    // 初始化预览容器，避免 GuiPreviewWidget 初始化时容器为空
-    preview->setContainer(m_pPreviewContainer);
 
     connect(blockListWidget, &QListWidget::currentTextChanged, this, &UIBlockDelete::slotBlockSelectionChanged);
     connect(deleteButton, &QPushButton::clicked, this, [this]
@@ -53,14 +49,7 @@ UIBlockDelete::UIBlockDelete(QWidget* parent, Qt::WindowFlags fl)
     });
 }
 
-UIBlockDelete::~UIBlockDelete()
-{
-    if (m_pPreviewContainer)
-    {
-        delete m_pPreviewContainer;
-        m_pPreviewContainer = nullptr;
-    }
-}
+UIBlockDelete::~UIBlockDelete() = default;
 
 void UIBlockDelete::setBlockTable(DmBlockTable* blockTable)
 {
@@ -68,9 +57,10 @@ void UIBlockDelete::setBlockTable(DmBlockTable* blockTable)
     updateBlockList();
 }
 
-void UIBlockDelete::setDocument(DmDocument* doc)
+void UIBlockDelete::setDocument(DmDocument* doc, std::shared_ptr<GsModel> graphics)
 {
     m_pDocument = doc;
+    m_graphics = std::move(graphics);
 }
 
 void UIBlockDelete::updateBlockList()
@@ -117,22 +107,9 @@ void UIBlockDelete::slotBlockSelectionChanged(const QString& curBlock)
         return;
     }
 
-    // 清空预览容器
-    m_pPreviewContainer->clear();
-
-    auto block = m_pBlockTable->find(curBlock);
-    if (block)
-    {
-        // 克隆块的实体到预览容器
-        for (auto e : block->getEntityTable())
-        {
-            m_pPreviewContainer->addEntity(e->clone());
-        }
-    }
-
+    // 直接画文档图形模型里的块几何（RENDER_PLAN.md 第 4.8 步）；没有这个块时什么也不画
+    preview->setBlock(m_graphics, m_pBlockTable->find(curBlock));
     preview->zoomAuto();
-    preview->specifyModified();
-    preview->update();
 }
 
 void UIBlockDelete::slotDeleteClicked()
@@ -186,9 +163,7 @@ void UIBlockDelete::slotDeleteClicked()
     }
     else
     {
-        m_pPreviewContainer->clear();
-        preview->specifyModified();
-        preview->update();
+        preview->setBlock(m_graphics, nullptr);
     }
 }
 

@@ -134,8 +134,8 @@ ImageDiff diffImages(const QImage& expected, const QImage& actual)
 /// @brief 把实际图像（与差异图）写到输出目录，返回实际图像的路径
 QString writeOutput(const QString& name, const QImage& actual, const QImage* marked)
 {
-    QDir().mkpath(QStringLiteral(YICAD_RENDER_OUTPUT_DIR));
     const QString actualPath = QStringLiteral(YICAD_RENDER_OUTPUT_DIR "/%1.actual.png").arg(name);
+    QDir().mkpath(QFileInfo(actualPath).absolutePath());
     actual.save(actualPath);
     if (marked)
     {
@@ -171,6 +171,11 @@ bool requirementMet(RenderRequirement requirement, QString* reason)
 }
 
 bool ListSelection::isSelected(const DmEntity& entity) const
+{
+    return std::find(entities.begin(), entities.end(), &entity) != entities.end();
+}
+
+bool ListHidden::isHidden(const DmEntity& entity) const
 {
     return std::find(entities.begin(), entities.end(), &entity) != entities.end();
 }
@@ -225,13 +230,14 @@ RenderScene::RenderScene(const RenderRequest& request)
     view.setIsDrawCursor(false);
     view.setDocumentSelectionSource(&m_selection);
     view.setDocumentHighlightSource(&m_highlight);
+    view.setHiddenSource(&m_hidden);
     view.resize(request.width, request.height);
     // 不显示在屏幕上，但按可见控件走尺寸流程：没有 show() 的 QOpenGLWidget 收不到尺寸事件，
     // resizeGL 不被调用，画笔的设备尺寸是 0，画不出任何东西
     view.setAttribute(Qt::WA_DontShowOnScreen);
     view.show();
 
-    // 第一次取图建立 GL 上下文与画笔，之后才能设定视图
+    // 第一次取图建立 GL 上下文
     (void)view.grabFramebuffer();
     // 按有限实体的范围取景：不用 zoomAuto()，射线与构造线会把实体表的范围撑到无穷大
     DmVector min(false);
@@ -292,7 +298,7 @@ void expectMatchesBaseline(const QString& name, const QImage& actual)
 
     if (qEnvironmentVariableIntValue("YICAD_RENDER_UPDATE_BASELINE") != 0)
     {
-        QDir().mkpath(baselineDir());
+        QDir().mkpath(QFileInfo(baselinePath).absolutePath());
         ASSERT_TRUE(actual.save(baselinePath)) << baselinePath.toStdString();
         std::printf("已更新基准图像 %s\n", baselinePath.toLocal8Bit().constData());
         return;

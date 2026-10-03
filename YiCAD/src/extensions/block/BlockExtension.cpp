@@ -159,7 +159,8 @@ void BlockExtension::OnRegister(IExtensionContext& ctx)
         {
             if (c.document)
             {
-                BlockFileCommands::deleteBlocks(c.document, context->mainWindow());
+                BlockFileCommands::deleteBlocks(c.document, c.view ? c.view->graphicsModel() : nullptr,
+                                                context->mainWindow());
             }
         },
         {.description = text(QT_TRANSLATE_NOOP("BlockExtension", "Delete Block"))});
@@ -170,7 +171,8 @@ void BlockExtension::OnRegister(IExtensionContext& ctx)
         {
             if (c.document)
             {
-                BlockFileCommands::showSaveAs(c.document, context->mainWindow());
+                BlockFileCommands::showSaveAs(c.document, c.view ? c.view->graphicsModel() : nullptr,
+                                              context->mainWindow());
             }
         },
         {.description = text(QT_TRANSLATE_NOOP("BlockExtension", "save the block to a file")),

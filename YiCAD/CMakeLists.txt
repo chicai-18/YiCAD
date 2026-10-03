@@ -113,25 +113,22 @@ yicad_collect_sources(MODEL
     src/model/io/meta)
 
 # 对应 YiCadRender。
-#   src/render/painter/  绘制抽象（Painter/PainterCreator）
-#   src/render/opengl/   OpenGL 实现（GL*）
 #   src/render/rhi/      RHI 接口（Rhi*，doc/RENDER_PLAN.md 第 4.7 节）：按 Vulkan 的形状设计的 GPU 抽象，
 #                        以及读入构建期工具链生成的着色器的 RhiShaderLibrary
 #   src/render/rhi/gl/   RHI 的 OpenGL 4.3 core 实现（GLRhi*）
-#   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗、DmCachePainter 与把实体的
-#                        GI 输出转成旧渲染器顶点格式的适配器 GLCacheWorldDraw（第 4 阶段随旧渲染器删除），
+#   src/render/gs/       图形系统（Gs*，doc/RENDER_PLAN.md 第 4.3 节）：把实体的 GI 输出编译成 GPU 记录、
+#                        增量更新、分块裁剪、选中与高亮的状态，经 RHI 画出；着色器在 res/shaders/
+#   src/render/view/     画布 GuiDocumentView 及其事件、坐标输入、网格、预览窗 GuiPreviewWidget，
 #                        以及命令与工具眼中的视图接口 IDocumentView、捕捉接口 ISnapService，
 #                        绘制时判断实体是否选中的接口 ISelectionSource、取要高亮的实体的接口
-#                        IHighlightSource
+#                        IHighlightSource、取临时隐藏的实体的接口 IHiddenSource
 #
 # 画布不认识命令与视图工具；装配工具的交互视图 UIView 在 application/view/。
-# 文档经 DmDocumentListener 通知画布，Model 不认识本分区。
-# 旧渲染器（painter/、opengl/ 与 view/ 里的 DmCachePainter）在渲染重构第 4 阶段由 GS 取代后删除。
+# 文档经 DmDocumentListener 通知画布与图形模型，Model 不认识本分区。
 yicad_collect_sources(RENDER
-    src/render/painter
-    src/render/opengl
     src/render/rhi
     src/render/rhi/gl
+    src/render/gs
     src/render/view)
 
 # 对应 YiCadApplication（沿用 DS 的 Application 命名）：扩展赖以运行的机制。
@@ -497,26 +494,38 @@ endif()
 # 后续阶段做 C++ SDK 时，除 Shell 外改为 SHARED（LAYER_RESTRUCTURE_PLAN.md 11.1 节）。
 # #####################################################
 
-# ---- YiCadRender：画布与 OpenGL 绘制，只依赖 YiCadModel ----
+# ---- YiCadRender：RHI、图形系统与画布，只依赖 YiCadModel ----
 add_library(YiCadRender STATIC
     ${YICAD_RENDER_HEADERS} ${YICAD_RENDER_SOURCES})
 set_target_properties(YiCadRender PROPERTIES FOLDER "YiCAD" QT_NO_UNICODE_DEFINES TRUE)
 
 target_include_directories(YiCadRender PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/painter
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/opengl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/rhi
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/rhi/gl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/render/gs
     ${CMAKE_CURRENT_SOURCE_DIR}/src/render/view)
 
-# 画布 GuiDocumentView 是 QOpenGLWidget；GL* 直接调 GLEW 与 OpenGL。
+# 图形系统的着色器（res/shaders/，清单 shaders.json）：构建时经工具链编成 SPIR-V 与 GLSL 430，
+# 生成绑定组布局头文件 GsShaders.h（doc/RENDER_PLAN.md 第 4.7.4 节）；cmake --install 装进 resources/shaders。
+# 测试经环境变量 YICAD_SHADER_DIR 直接读构建目录里的结果
+set(YICAD_SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/shaders" CACHE INTERNAL "图形系统着色器的构建输出目录")
+yicad_add_shaders(gs_shaders
+    SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/res/shaders"
+    OUTPUT_DIR "${YICAD_SHADER_OUTPUT_DIR}"
+    HEADER "${CMAKE_CURRENT_BINARY_DIR}/generated/GsShaders.h"
+    NAMESPACE GsShaders
+    INSTALL_DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/shaders)
+add_dependencies(YiCadRender gs_shaders)
+target_include_directories(YiCadRender PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
+# 画布 GuiDocumentView 是 QOpenGLWidget；RHI 的 GL 后端（GLRhi*）直接调 GLEW 与 OpenGL。
 target_link_libraries(YiCadRender PUBLIC
     YiCadModel Qt6::Widgets Qt6::OpenGL Qt6::OpenGLWidgets)
 if(TARGET GLEW::GLEW)
     target_link_libraries(YiCadRender PUBLIC GLEW::GLEW)
 endif()
 if(TARGET OpenGL::GL)
-    target_link_libraries(YiCadRender PUBLIC OpenGL::GL OpenGL::GLU)
+    target_link_libraries(YiCadRender PUBLIC OpenGL::GL)
 endif()
 
 # ---- YiCadApplication：命令与视图工具机制、扩展框架、交互视图 UIView，只依赖 YiCadRender 及以下 ----
@@ -763,10 +772,7 @@ INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/fonts/
         DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/fonts
         COMPONENT Runtime
         FILES_MATCHING PATTERN "*.shx")
-INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res/shaders/
-        DESTINATION ${CMAKE_INSTALL_BINDIR}/resources/shaders
-        COMPONENT Runtime
-        FILES_MATCHING PATTERN "*.*")
+# 着色器由 yicad_add_shaders（YiCadRender 一节）编译后安装，res/shaders/ 里的是源码
 
 #install config file
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/support/config/

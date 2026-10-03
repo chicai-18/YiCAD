@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include <QOpenGLContext>
 #include <QOpenGLWidget>
 
 GLRhiWidgetSurface::GLRhiWidgetSurface(QOpenGLWidget& widget)
@@ -42,6 +43,18 @@ std::uint32_t GLRhiWidgetSurface::height() const
 
 std::uint32_t GLRhiWidgetSurface::sampleCount() const
 {
+    // 按帧缓冲实际的采样数：上下文建好后 format().samples() 不一定是 QOpenGLWidget 自己的帧缓冲的采样数
+    // （阶段 1 的场景底图也是查询目标后才建）。不在本表面的上下文里时退回请求的格式
+    if (QOpenGLContext::currentContext() == m_widget.context() && m_widget.context())
+    {
+        GLint previous = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, m_widget.defaultFramebufferObject());
+        GLint samples = 0;
+        glGetIntegerv(GL_SAMPLES, &samples);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<GLuint>(previous));
+        return static_cast<std::uint32_t>(std::max(1, samples));
+    }
     return static_cast<std::uint32_t>(std::max(1, m_widget.format().samples()));
 }
 

@@ -45,6 +45,7 @@
 #include "EntityTable.h"
 #include "GeometryMethods.h"
 #include "GuiDialogFactory.h"
+#include "HiddenSet.h"
 #include "GuiDocumentView.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
@@ -123,13 +124,13 @@ private:
     /// @brief 清空拾取状态，按当前选择重新确定边界
     void resetState();
 
-    /// @brief 预览延伸时隐藏了光标下的实体；结束前让它重新可见
-    ///        （原 Action 在右键或 Esc 结束时没有恢复，实体会一直不可见）
+    /// @brief 预览延伸时临时隐藏了光标下的实体；结束前恢复显示
+    /// @details 临时隐藏在视图的临时隐藏集里，不改实体的可见性（RENDER_PLAN.md 第 4.3.9 节，P18）
     void restoreEntityUnderCursor()
     {
         if (m_entUnderCursor)
         {
-            m_entUnderCursor->setVisible(true);
+            command().hidden()->remove(m_entUnderCursor);
         }
     }
 
@@ -224,10 +225,10 @@ void ModifyExtendTool::onMouseMove(QMouseEvent* e)
     {
     case ChooseEntity:
     {
-        // 上次光标下的实体与现在不同，还原该实体为可见
+        // 上次光标下的实体与现在不同，恢复显示
         if (m_entUnderCursor && m_entUnderCursor != se)
         {
-            m_entUnderCursor->setVisible(true);
+            command().hidden()->remove(m_entUnderCursor);
         }
         // 拾取的是同一实体且延伸的边不变，不再求交
         bool needRecalculate = true;
@@ -259,7 +260,7 @@ void ModifyExtendTool::onMouseMove(QMouseEvent* e)
                     DmEntity* extendEnt = extend(m_entUnderCursor, side);
                     if (extendEnt)
                     {
-                        m_entUnderCursor->setVisible(false);
+                        command().hidden()->add(m_entUnderCursor);
                         m_command.preview().entities().addEntity(extendEnt);
                         m_extendedEnt.reset(extendEnt->clone());
                         m_side = side;
@@ -293,7 +294,7 @@ void ModifyExtendTool::onMouseRelease(QMouseEvent* e)
             }
             else
             {
-                m_entToTrim->setVisible(true);
+                command().hidden()->remove(m_entToTrim);
                 if (!isExtendableEntity(m_entToTrim))
                 {
                     GUIDIALOGFACTORY->commandMessage(ModifyExtendCommand::tr("Entity is not extendable."));

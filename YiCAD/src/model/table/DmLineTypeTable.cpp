@@ -62,6 +62,7 @@ void DmLineTypeTable::startModify(DmObject* e)
     DmLineType* ent = static_cast<DmLineType*>(e);
     LineTypeTableModifyCmd* cmd = new LineTypeTableModifyCmd(this, ent);
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::LineType);
 }
 
 /// @brief 添加线型
@@ -139,12 +140,14 @@ bool DmLineTypeTable::add_direct(DmLineType* e)
         return false;
     m_lineTypeMap[id] = e;
     m_lineTypes.emplace_back(e);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::LineType);
     return true;
 }
 
 /// @brief 直接删除线型
 bool DmLineTypeTable::remove_direct(DmLineType* e)
 {
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::LineType);
     auto it2 = std::find(m_lineTypes.begin(), m_lineTypes.end(), e);
     m_lineTypes.erase(it2);
     m_lineTypeMap.erase(e->getId());

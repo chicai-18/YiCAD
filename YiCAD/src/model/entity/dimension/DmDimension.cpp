@@ -134,6 +134,7 @@ void DmDimension::setLabel(const QString& l)
 
 void DmDimension::update()
 {
+    bumpRevision();
 	updateDim();
 }
 

@@ -27,6 +27,7 @@
 #ifndef ISELECTIONSOURCE_H
 #define ISELECTIONSOURCE_H
 
+#include <cstddef>
 #include <vector>
 
 class DmEntity;
@@ -44,6 +45,10 @@ public:
     /// @brief 要按选中绘制的顶层实体：只含当前实体表里可见、未删除的，顺序不定
     /// @details 开销只随选中的实体数，与图纸大小无关
     virtual std::vector<DmEntity*> selectedEntities() const = 0;
+
+    /// @brief 选中的实体是否多于 count 个
+    /// @details 开销只随 count，不取出全部选中的实体（取夹点：多了就不画；图形模型：多了就改为遍历全部对象）
+    virtual bool hasMoreThan(std::size_t count) const = 0;
 };
 
 #endif  // ISELECTIONSOURCE_H

@@ -165,9 +165,12 @@ bool ModifyMoveCommand::onSelectionReady()
 
 void ModifyMoveCommand::previewMove(const DmVector& reference, const DmVector& target)
 {
-    m_preview->clear();
-    m_preview->entities().addSelectionFromDocument();
-    m_preview->entities().move(target - reference);
+    // 预览几何只生成一次（光标离开画布时清掉，回来再生成），拖动只改变换（RENDER_PLAN.md 第 4.3.9 节）
+    if (m_preview->entities().isEmpty())
+    {
+        m_preview->entities().addSelectionFromDocument();
+    }
+    m_preview->entities().setTransform(GiTransform::translation(target - reference));
     m_preview->draw();
 }
 

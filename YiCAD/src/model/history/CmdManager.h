@@ -110,6 +110,8 @@ private:
     void updateWhenDimStyleChanged(const CmdTypeObjectVector& cmdTypes);
     /// @brief 块发生改变，更新块参照
     void updateWhenBlockChanged(const CmdTypeObjectVector& cmdTypes);
+    /// @brief 补登命令涉及的符号表与块定义，并把累积的变更交给文档的监听者
+    void registerChanges(const CmdTypeObjectVector& cmdTypes);
 
 signals:
     /// @brief 实体修改信号

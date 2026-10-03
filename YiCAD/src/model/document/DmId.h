@@ -39,7 +39,9 @@ public:
     bool isValid() const;
 
     /// @brief 获取ID的字符串表示
-    std::string asString() const;
+    /// @details 返回引用：std::hash<DmId> 每次求哈希都要取它，按值返回时每次都复制一份字符串
+    ///          （选择集、实体表按 ID 查找都走这里，全选几十万个实体时这份复制就要上百毫秒）
+    const std::string& asString() const;
 
     DmId& operator=(const DmId& id);
     bool operator==(const DmId& id) const;

@@ -1641,6 +1641,7 @@ double DmSpline::getDirection2() const
 
 void DmSpline::update()
 {
+    bumpRevision();
 	pLineStrip->clear();
 
     if(!isValid())

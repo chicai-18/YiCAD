@@ -198,6 +198,8 @@ private:
     RhiCommandList& startFrame(QOpenGLContext* context, GLRhiSurface* surface);
     void resetGlState();
     void flushUploads();
+    /// @brief 取一块待上传数据的暂存（复用用过的，没有就是空的）
+    std::vector<std::byte> takeUploadStorage();
     void pollCompletedFrames();
     void releaseCompleted();
 
@@ -238,6 +240,7 @@ private:
     std::unique_ptr<GLRhiCommandList> m_commandList;
     std::unique_ptr<GLRhiUploadRing> m_uploadRing;
     std::vector<PendingUpload> m_pendingUploads;
+    std::vector<std::vector<std::byte>> m_uploadStorage;   ///< 待上传数据用过的暂存，复用其容量
     std::deque<InFlightFrame> m_inFlight;
     std::deque<PendingRelease> m_releaseQueue;
     std::uint64_t m_frameSerial = 0;

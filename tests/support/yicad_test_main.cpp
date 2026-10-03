@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QString>
+#include <QSurfaceFormat>
 
 #include "DmSettings.h"
 #include "DmSystem.h"
@@ -28,12 +29,27 @@ const char* const kApplication = "YiAppTest";
 int main(int argc, char* argv[])
 {
     // 用 QApplication 而非 QCoreApplication：内核里有依赖 QWidget/QPixmap
-    // 的代码路径（DmImage、DmCachePainter），构造 QCoreApplication 时
+    // 的代码路径（DmImage、预览控件），构造 QCoreApplication 时
     // 一旦被触达就会断言失败。
     //
     // 这意味着测试需要一个可用的窗口站。GitHub Actions 的 windows 运行器
     // 满足这个条件。不要改用 QT_QPA_PLATFORM=offscreen——windeployqt 只
     // 部署了 platforms/qwindows.dll，没有 qoffscreen.dll。
+    //
+    // 与 Main.cpp 相同：全部 GL 上下文在一个共享组里、都是 4.3 core（RENDER_PLAN.md 第 4.7.3 节），
+    // 都要在建 QApplication 之前设置；画布的图形系统建 RHI 设备时要用全局共享上下文。格式同
+    // GLRhiDevice::surfaceFormat()，这里不包含它（test_math 等只链接 Model）；test_render 的 MesaLoader
+    // 在 main 之前已经设过（另带调试上下文），不覆盖
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
+    if (QSurfaceFormat::defaultFormat().majorVersion() < 4)
+    {
+        QSurfaceFormat format;
+        format.setRenderableType(QSurfaceFormat::OpenGL);
+        format.setVersion(4, 3);
+        format.setProfile(QSurfaceFormat::CoreProfile);
+        format.setOption(QSurfaceFormat::DeprecatedFunctions);
+        QSurfaceFormat::setDefaultFormat(format);
+    }
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName(kOrganization);
     QCoreApplication::setOrganizationDomain(kOrganization);

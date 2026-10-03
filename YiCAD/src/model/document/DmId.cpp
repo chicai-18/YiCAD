@@ -40,7 +40,7 @@ bool DmId::isValid() const
     return m_idStr != "0";
 }
 
-std::string DmId::asString() const
+const std::string& DmId::asString() const
 {
     return m_idStr;
 }

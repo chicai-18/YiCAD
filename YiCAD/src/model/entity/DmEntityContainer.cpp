@@ -421,6 +421,7 @@ void DmEntityContainer::forcedCalculateBorders()
 // Updates the sub entities of this container.
 void DmEntityContainer::update()
 {
+    bumpRevision();
     for (DmEntity* e : entities)
     {
         e->update();

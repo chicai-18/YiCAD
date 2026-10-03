@@ -77,7 +77,7 @@ bool BlockEditTool::prepare(DmBlockReference* blockRef)
     if (nestedNames.size() > 1)
     {
         // 弹出嵌套块选择对话框（无父窗口，与原先一致）
-        UINestedBlockSelectDialog dlg(m_document, nestedNames, nullptr);
+        UINestedBlockSelectDialog dlg(m_document, m_view ? m_view->graphicsModel() : nullptr, nestedNames, nullptr);
         if (UIDialogRunner::exec(dlg) != QDialog::Accepted)
         {
             return false;

@@ -352,3 +352,22 @@ TEST(YiCadLogTest, 内置分类都已注册且命名稳定)
     EXPECT_STREQ(yicad::log::persistence().name(), "persistence");
     EXPECT_STREQ(yicad::log::plugin().name(), "plugin");
 }
+
+TEST(ScopedTimerTest, 渲染方案阶段4的计数器都已注册)
+{
+    // RENDER_PLAN.md 第 4 阶段：图形系统处理变更集与编译分块；整图重建沿用 render.regen
+    yicad::counters::gsChanges();
+    yicad::counters::gsCompile();
+
+    std::vector<std::string> timers;
+    for (const yicad::TimerCounter* c : yicad::Profiler::counters())
+    {
+        timers.emplace_back(c->name());
+    }
+    auto contains = [&timers](const char* name) {
+        return std::find(timers.begin(), timers.end(), name) != timers.end();
+    };
+
+    EXPECT_TRUE(contains("render.gsChanges"));
+    EXPECT_TRUE(contains("render.gsCompile"));
+}

@@ -29,6 +29,7 @@
 
 class DmDocument;
 class ExclusiveCommandBus;
+class HiddenSet;
 class HighlightSet;
 class IDocumentView;
 class SelectionSet;
@@ -46,6 +47,8 @@ public:
     virtual SelectionSet* selection() = 0;
     /// @brief 视图的高亮集：命令进行中的拾取反馈，命令结束时由视图清空
     virtual HighlightSet* highlight() = 0;
+    /// @brief 视图的临时隐藏集：命令为了显示预览暂时不画的文档实体，命令结束时由视图清空
+    virtual HiddenSet* hidden() = 0;
     /// @brief 视图
     virtual IDocumentView* view() = 0;
     /// @brief 视图的工具控制器：命令在其业务栈上激活自己的工具

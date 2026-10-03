@@ -40,6 +40,7 @@
 
 #include "DmIdManager.h"
 #include "CmdManager.h"
+#include "DmChangeSet.h"
 
 class DmVariableDict;
 class DmTextStyle;
@@ -184,8 +185,18 @@ public:
     /// @param listener 监听者
     void removeListener(DmDocumentListener* listener);
 
-    /// @brief 通知监听者文档内容已修改
+    /// @brief 通知监听者文档内容已修改：先交出累积的变更（flushChanges），再 documentModified()
     void notifyDocumentModified();
+
+    /// @brief 变更跟踪器：实体表、符号表与撤销系统在这里登记改动（RENDER_PLAN.md 第 4.3.6 节）
+    DmChangeTracker& changeTracker() { return m_changeTracker; }
+
+    /// @brief 把累积的变更交给监听者（DmDocumentListener::entitiesChanged）；没有变更时什么也不做
+    /// @details 撤销系统在提交、撤销、重做、回滚之后调用，读盘结束时调用（全部重建）
+    void flushChanges();
+
+    /// @brief 全部重建（REGEN）：监听者下一次取到的变更是 fullRebuild
+    void requestFullRebuild();
 
     /// @brief 请求监听者重绘
     void requestRedraw();
@@ -280,6 +291,7 @@ private:
 
     size_t                              m_savedUndoCount = 0; ///< 保存时的 undo 栈大小，用于判断文档是否需要保存
     std::vector<DmDocumentListener*>    m_listeners; ///< 监听者（如画布），不拥有
+    DmChangeTracker                     m_changeTracker; ///< 变更跟踪器；有监听者时才记录
     DmPen                               m_activePen; ///< 文档当前的画笔
     QString                             m_filename; ///< 文档保存路径
     QString                             m_formatType; ///< 保存格式名

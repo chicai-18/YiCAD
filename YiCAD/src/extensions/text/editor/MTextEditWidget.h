@@ -130,6 +130,8 @@ protected:
     void keyPressEvent_Escape();
 protected:
     void resizeGL(int w, int h) override;
+    /// @brief 按编辑框的位置与画布的比例设预览的相机
+    void syncCamera();
     /// @brief 为了能接受tab按键
     bool focusNextPrevChild(bool next) override;
 private:

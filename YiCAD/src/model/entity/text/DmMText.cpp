@@ -1916,6 +1916,7 @@ void DmMText::setLineSpace(const double lineSpace)
 
 void DmMText::update()
 {
+    bumpRevision();
     clear();
     MTextContentCmdMgr mgr(this);
     mgr.generateEntities();

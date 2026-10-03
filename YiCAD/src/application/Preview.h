@@ -22,6 +22,7 @@
 #define PREVIEW_H
 
 #include "DmEntityContainer.h"
+#include "GiTransform.h"
 
 class IDocumentView;
 class SelectionSet;
@@ -51,8 +52,12 @@ public:
     /// @param container 实体容器引用
     void addAllFrom(DmEntityContainer& container);
 
+    /// @brief 清空预览，变换复位为恒等
     void clear();
-    void setModelOffset(const DmVector& offset);
+
+    /// @brief 预览整体的变换（RENDER_PLAN.md 第 4.3.9 节）：移动、复制、旋转、缩放拖动时预览几何只生成一次，
+    ///        拖动只改变换，视图不重新编译预览
+    void setTransform(const GiTransform& transform);
 
     void addEntity(DmEntity* pEntity);
     void appendEntity(DmEntity* pEntity);

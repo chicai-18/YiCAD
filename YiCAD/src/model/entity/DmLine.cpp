@@ -472,6 +472,7 @@ void DmLine::restoreStream(InputStream& rdr)
 
 void DmLine::update()
 {
+    bumpRevision();
     calculateBorders();
 }
 

@@ -31,6 +31,7 @@
 #include "TableBase.h"
 #include <unordered_map>
 
+class DmBlock;
 class DmDocument;
 
 /// @brief 实体表
@@ -89,8 +90,15 @@ public:
         const std::list<DM::EntityType>& types = {});
     /// @brief 空间搜索树中全部实体包围框的并集；表中没有可索引的实体时返回 false
     bool getSearchBounds(DmVector& min, DmVector& max) const { return m_searchTree.getBounds(min, max); }
-    /// @brief 通知实体已修改，更新空间搜索树中的包围盒
-    void notifyEntityModified(DmEntity* e) { m_searchTree.update(e); }
+    /// @brief 通知实体已修改：更新空间搜索树中的包围盒，并向文档登记变更
+    void notifyEntityModified(DmEntity* e);
+
+    /// @brief 本表所属的块定义；为空表示文档的模型空间。块定义构造时设置
+    void setOwnerBlock(const DmBlock* block) { m_ownerBlock = block; }
+    const DmBlock* ownerBlock() const { return m_ownerBlock; }
+
+    /// @brief 向文档的变更跟踪器登记实体增、删、改（RENDER_PLAN.md 第 4.3.6 节）；没有文档时什么也不做
+    void touch(DmEntity* e);
 private:
     /// @brief 获得第一个未被删除的索引，没有则返回 -1
     int getFirstValidIndex() const;
@@ -107,6 +115,7 @@ protected:
     std::vector<DmEntity*> m_ents;                  ///< 所有实体列表
 private:
     SpacialSearchTree m_searchTree;                 ///< 空间搜索树
+    const DmBlock* m_ownerBlock = nullptr;          ///< 所属的块定义；为空表示模型空间
 };
 
 #endif //ENTITYTABLE_H

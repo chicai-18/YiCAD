@@ -316,13 +316,12 @@ void GiNurbs::sampleRecursive(double t1, double t2, double count, std::vector<Dm
     constexpr double MaxDelta = M_PI / 60.0; //3度
     if (angle > MaxDelta)
     {
-        const double step = (t2 - t1) / count;
-        for (int i = 0; i < count; i++)
-        {
-            const double tmpT1 = t1 + step * i;
-            const double tmpT2 = t1 + step * (i + 1);
-            sampleRecursive(tmpT1, tmpT2, count, pts, maxStep);
-        }
+        // 二分到每段转角不超过 3 度。原先一超就整段等分成 count（三次样条为 15）段再递归，
+        // 转弯处一段就要 225 个点，比 3 度的要求密得多（RENDER_PLAN.md 第 10 节阶段 4：基准图纸的
+        // 2 千条样条离散出 70 万个点，平移时的 GPU 开销大半在这里）
+        const double mid = (t1 + t2) * 0.5;
+        sampleRecursive(t1, mid, count, pts, maxStep);
+        sampleRecursive(mid, t2, count, pts, maxStep);
     }
     else
     {

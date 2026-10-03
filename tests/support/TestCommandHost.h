@@ -13,6 +13,7 @@
 #include "DmDocument.h"
 #include "EditTool.h"
 #include "ExclusiveCommandBus.h"
+#include "HiddenSet.h"
 #include "HighlightSet.h"
 #include "ICommandHost.h"
 #include "IDocumentView.h"
@@ -33,6 +34,7 @@ public:
         : m_doc(doc)
         , m_selection(selection)
         , m_highlight(doc)
+        , m_hidden(doc)
         , m_view(view)
         , m_control(control)
         , m_selectTool(selectTool)
@@ -56,6 +58,7 @@ public:
     DmDocument* document() override { return &m_doc; }
     SelectionSet* selection() override { return &m_selection; }
     HighlightSet* highlight() override { return &m_highlight; }
+    HiddenSet* hidden() override { return &m_hidden; }
     IDocumentView* view() override { return &m_view; }
     ViewToolControl* viewToolControl() override { return &m_control; }
     ExclusiveCommandBus* commandBus() override { return m_bus; }
@@ -80,6 +83,7 @@ private:
     void onCommandFinished()
     {
         m_highlight.clear();
+        m_hidden.clear();
         if (m_selectTool.inSelectionPhase())
         {
             m_selectTool.endSelectionPhase();
@@ -94,6 +98,7 @@ private:
     DmDocument& m_doc;
     SelectionSet& m_selection;
     HighlightSet m_highlight;  ///< 视图的高亮集，同 UIView 由宿主持有
+    HiddenSet m_hidden;        ///< 视图的临时隐藏集，同 UIView 由宿主持有
     IDocumentView& m_view;
     ViewToolControl& m_control;
     SelectTool& m_selectTool;

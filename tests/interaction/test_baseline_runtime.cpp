@@ -8,8 +8,11 @@
 /// 对每份图纸依次做，用代码调用而不经过鼠标事件：
 /// - 经 DmDocument::readFile() 打开（document.open），显示后首帧的整图重建（render.regen）；
 /// - 缩放到全图，连续重绘，取稳态帧（render.paintGL、每帧绘制调用与上传字节，以及 GPU 耗时）；
-/// - 通知画布文档已修改（DmDocumentListener::documentModified，改动任何实体都会这样），重绘一帧，
-///   取整图重建的耗时（render.regen；渲染方案阶段 2 加：实体里不再缓存顶点，每次整图重建都要重新生成）；
+/// - 每帧平移 1 像素，取场景整幅重画的帧（渲染方案阶段 4 加：平移、缩放时每帧都这样，CPU 与 GPU 耗时）；
+/// - 要求整图重建（REGEN：DmDocument::requestFullRebuild 加 notifyDocumentModified），
+///   重绘一帧，取整图重建的耗时（render.regen；渲染方案阶段 2 加：实体里不再缓存顶点，每次整图重建都要重新生成）；
+/// - 在事务里移动 20 条直线，每次一条，提交后重绘一帧（渲染方案阶段 4 加：旧渲染器整图重建，
+///   图形系统只处理变更集，render.gsChanges 与 render.gsCompile）；
 /// - 换 20 次高亮的实体，每次重绘一帧（render.frameAfterHighlight，其中 render.regen 或
 ///   阶段 1 起的 render.regenHighlight，以及场景底图的重画 render.scene）；
 /// - 在 20 条直线的中点点选（snap.catchEntity），选中后重绘一帧（render.frameAfterSelection，
@@ -19,7 +22,12 @@
 ///
 /// 除注明 GPU 的一项外，数值是 CPU 侧的提交耗时（与程序里 YICAD_PROFILE=1 的埋点相同，不等 GPU 完成）。
 /// GPU 耗时用 GL_TIME_ELAPSED 查询包住 paintGL 量得（渲染方案阶段 1 加：稳态帧的 CPU 提交与图纸大小无关，
-/// 画整图的开销在 GPU 上）。结果以表格打印在标准输出，由人抄进 BASELINE.md。
+/// 画整图的开销在 GPU 上）。显存占用用 GL_NVX_gpu_memory_info 量打开图纸前后可用显存之差（渲染方案阶段 4 加；
+/// 只有 NVIDIA 驱动有这个扩展，别的显卡上为 0）。
+/// 结果以表格打印在标准输出，由人抄进 BASELINE.md。
+
+// GLEW 必须先于 Qt 拉入的 gl.h（QOpenGLContext 会带进来）
+#include <GL/glew.h>
 
 #include <gtest/gtest.h>
 
@@ -33,6 +41,8 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QOffscreenSurface>
+#include <QOpenGLContext>
 #include <QWindow>
 
 #include "AppDocument.h"
@@ -44,6 +54,7 @@
 #include "ScopedTimer.h"
 #include "SelectionSet.h"
 #include "Snapper.h"
+#include "Transaction.h"
 #include "UIView.h"
 #include "support/DxfTestRuntime.h"
 #include "support/FakeDocumentManager.h"
@@ -102,7 +113,10 @@ protected:
     {
         if (m_query == 0)
         {
+            // 第一帧不计时：GLEW 由图形系统在第一帧建设备时初始化，在那之前 glGenQueries 还是空指针
+            UIView::paintGL();
             glGenQueries(1, &m_query);
+            return;
         }
         glBeginQuery(GL_TIME_ELAPSED, m_query);
         UIView::paintGL();
@@ -112,6 +126,28 @@ protected:
 private:
     GLuint m_query = 0;  ///< 计时查询对象，第一帧时在画布的上下文里建
 };
+
+/// @brief 显卡上可用的显存（KB，GL_NVX_gpu_memory_info）；没有这个扩展时为 0
+/// @details 量的是整块显卡，其他进程的分配也算在内；只在同一次运行里前后相减
+long long availableVideoMemoryKb()
+{
+    QOffscreenSurface surface;
+    surface.create();
+    QOpenGLContext context;
+    if (!context.create() || !context.makeCurrent(&surface))
+    {
+        return 0;
+    }
+    constexpr GLenum kCurrentAvailableVidMemNvx = 0x9049;
+    while (glGetError() != GL_NO_ERROR)
+    {
+    }
+    GLint kb = 0;
+    glGetIntegerv(kCurrentAvailableVidMemNvx, &kb);
+    const bool ok = glGetError() == GL_NO_ERROR;
+    context.doneCurrent();
+    return ok ? kb : 0;
+}
 
 /// @brief 一份图纸的结果
 struct Result
@@ -125,7 +161,14 @@ struct Result
     double steadyGpuMs = 0.0;
     double steadyDrawCalls = 0.0;
     double steadyUploadBytes = 0.0;
-    double modifiedRegenMs = 0.0;          ///< 文档修改后的整图重建
+    double panFrameMs = 0.0;               ///< 平移 1 像素后的帧（场景整幅重画）
+    double panGpuMs = 0.0;
+    double modifiedRegenMs = 0.0;          ///< 要求整图重建（REGEN）后的整图重建
+    double videoMemoryMb = 0.0;            ///< 打开图纸、画过稳态帧后少了的可用显存
+    double frameAfterModifyMs = 0.0;       ///< 移动一条直线后首帧
+    long long modifyRegens = 0;            ///< 移动 20 次的整图重建次数
+    double modifyChangesMs = 0.0;          ///< 其中处理变更集 render.gsChanges
+    double modifyCompileMs = 0.0;          ///< 其中编译分块 render.gsCompile
     double frameAfterHighlightMs = 0.0;
     double regenMs = 0.0;
     long long highlightRegens = 0;         ///< 换高亮时整图重建的次数
@@ -215,6 +258,7 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     result.openMs = yicad::counters::openDocument().averageMs();
     result.entities = document.getEntityTable()->count();
 
+    const long long memoryBefore = availableVideoMemoryKb();
     GpuTimedView view(nullptr, Qt::WindowFlags(), &appDocument);
     view.resize(kViewWidth, kViewHeight);
     view.show();
@@ -242,18 +286,55 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     result.steadyGpuMs = gpuMs / kSteadyFrames;
     result.steadyDrawCalls = yicad::counters::drawCalls().average();
     result.steadyUploadBytes = yicad::counters::uploadBytes().average();
+    // 平移：每帧移 1 像素，场景整幅重画
+    yicad::Profiler::resetAll();
+    gpuMs = 0.0;
+    for (int i = 0; i < kSteadyFrames; ++i)
+    {
+        view.zoomPan(1, 0);
+        renderFrame(view);
+        gpuMs += view.lastFrameGpuMs();
+    }
+    result.panFrameMs = yicad::counters::paintGL().averageMs();
+    result.panGpuMs = gpuMs / kSteadyFrames;
+    const long long memoryAfter = availableVideoMemoryKb();
+    result.videoMemoryMb = memoryBefore > 0 && memoryAfter > 0 ? (memoryBefore - memoryAfter) / 1024.0 : 0.0;
 
-    // 文档修改：画布整图重建
+    // 要求整图重建（REGEN）：图形模型收到 fullRebuild 的变更集时整图重建
     yicad::Profiler::resetAll();
     for (int i = 0; i < kModifiedRegens; ++i)
     {
-        view.documentModified();
+        document.requestFullRebuild();
+        document.notifyDocumentModified();
         renderFrame(view);
     }
     result.modifiedRegenMs = yicad::counters::regen().averageMs();
 
     const std::vector<DmLine*> lines = sampleLines(document, kSamples);
     EXPECT_FALSE(lines.empty());
+
+    // 修改一个实体：在事务里移动一条直线，提交后画一帧
+    yicad::Profiler::resetAll();
+    long long modifyFrames = 0;
+    double modifyFrameMs = 0.0;
+    for (DmLine* line : lines)
+    {
+        Transaction t("benchmark move", &document);
+        t.start();
+        document.getEntityTable()->startModify(line);
+        line->move(DmVector(1.0, 0.0));
+        line->update();
+        t.commit();
+        const long long beforeNs = yicad::counters::paintGL().totalNs();
+        const long long beforeCount = yicad::counters::paintGL().count();
+        renderFrame(view);
+        modifyFrameMs += (yicad::counters::paintGL().totalNs() - beforeNs) / 1.0e6;
+        modifyFrames += yicad::counters::paintGL().count() - beforeCount;
+    }
+    result.frameAfterModifyMs = modifyFrames > 0 ? modifyFrameMs / modifyFrames : 0.0;
+    result.modifyRegens = yicad::counters::regen().count();
+    result.modifyChangesMs = yicad::counters::gsChanges().averageMs();
+    result.modifyCompileMs = yicad::counters::gsCompile().averageMs();
 
     // 换高亮：相当于命令里光标从一个候选实体移到另一个上
     HighlightSet& highlight = *static_cast<ICommandHost&>(view).highlight();
@@ -362,7 +443,14 @@ void print(const std::vector<Result>& results)
     row("稳态帧 GPU 耗时（`GL_TIME_ELAPSED`）", [](const Result& r) { return fixed(r.steadyGpuMs, 2); });
     row("稳态帧绘制调用（次/帧）", [](const Result& r) { return fixed(r.steadyDrawCalls, 0); });
     row("稳态帧上传（字节/帧）", [](const Result& r) { return fixed(r.steadyUploadBytes, 0); });
-    row("文档修改后的整图重建 `render.regen`", [](const Result& r) { return fixed(r.modifiedRegenMs, 2); });
+    row("平移一帧 `render.paintGL`（场景整幅重画）", [](const Result& r) { return fixed(r.panFrameMs, 2); });
+    row("平移一帧 GPU 耗时（`GL_TIME_ELAPSED`）", [](const Result& r) { return fixed(r.panGpuMs, 2); });
+    row("显存占用（MB，`GL_NVX_gpu_memory_info`）", [](const Result& r) { return fixed(r.videoMemoryMb, 1); });
+    row("要求整图重建后的整图重建 `render.regen`", [](const Result& r) { return fixed(r.modifiedRegenMs, 2); });
+    row("移动一条直线后首帧 `render.paintGL`", [](const Result& r) { return fixed(r.frameAfterModifyMs, 2); });
+    row("移动 20 次的整图重建次数", [](const Result& r) { return std::to_string(r.modifyRegens); });
+    row("其中处理变更集 `render.gsChanges`", [](const Result& r) { return fixed(r.modifyChangesMs, 3); });
+    row("其中编译分块 `render.gsCompile`", [](const Result& r) { return fixed(r.modifyCompileMs, 3); });
     row("换高亮后首帧 `render.frameAfterHighlight`", [](const Result& r) { return fixed(r.frameAfterHighlightMs, 2); });
     row("其中整图重建 `render.regen`", [](const Result& r) { return fixed(r.regenMs, 2); });
     row("换高亮 20 次的整图重建次数", [](const Result& r) { return std::to_string(r.highlightRegens); });

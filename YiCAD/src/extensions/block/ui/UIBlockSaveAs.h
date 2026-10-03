@@ -28,6 +28,7 @@
 #include <QComboBox>
 
 class DmBlockTable;
+class GsModel;
 
 /// @class ModelComboBox
 /// @brief 块选择下拉框，支持文本变化信号
@@ -72,7 +73,8 @@ public:
 
     /// @brief 设置块表
     /// @param [in] blockList 块表指针
-    void setBlockList(DmBlockTable* blockList);
+    /// @param graphics 文档的图形模型，预览直接画其中的块几何；可以为空
+    void setBlockList(DmBlockTable* blockList, std::shared_ptr<GsModel> graphics = nullptr);
 
     /// @brief 下拉框文本变化槽
     void slotComBoxTextChanged();
@@ -90,7 +92,7 @@ private:
 private:
     ModelComboBox*      m_pBlockComboBox;   ///< 块选择下拉框
     DmBlockTable*       m_pBlockList;       ///< 块表指针
-    DmEntityContainer*  m_pPreview;         ///< 预览容器
+    std::shared_ptr<GsModel> m_graphics;    ///< 文档的图形模型
     std::function<void()> m_onSave;         ///< 点"另存为"时的回调
 };
 

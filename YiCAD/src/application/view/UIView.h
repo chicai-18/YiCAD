@@ -56,6 +56,7 @@
 class AppDocument;
 class EditTool;
 class ExclusiveCommandBus;
+class HiddenSet;
 class HighlightSet;
 class IExclusiveCommand;
 class ISnapService;
@@ -143,6 +144,7 @@ private:
     DmDocument* document() override { return getDocument(); }
     SelectionSet* selection() override { return m_pSelection; }
     HighlightSet* highlight() override { return m_pHighlight.get(); }
+    HiddenSet* hidden() override { return m_pHidden.get(); }
     IDocumentView* view() override { return this; }
     ViewToolControl* viewToolControl() override { return m_pViewToolControl.get(); }
     void beginSelectionPhase(const EntityTypeList& entityTypes) override;
@@ -176,6 +178,7 @@ private:
     // 发 commandFinished()，高亮集这时还在；它先于基类析构，析构函数里先把画布的来源置空。
     SelectionSet*                           m_pSelection = nullptr; ///< 图纸的选择集，不持有；没有文档时为空
     std::unique_ptr<HighlightSet>           m_pHighlight;           ///< 本视图的高亮集，命令结束时清空；没有文档时为空
+    std::unique_ptr<HiddenSet>              m_pHidden;              ///< 本视图的临时隐藏集，命令结束时清空；没有文档时为空
     std::unique_ptr<PanZoomTool>            m_pPanZoomTool;         ///< 导航层：中键/Ctrl+左键平移
     std::unique_ptr<Snapper>                m_pSelectSnapper;       ///< 选择层与夹点编辑工具的捕捉器，空闲态的捕捉提示也读它
     std::unique_ptr<Preview>                m_pSelectPreview;       ///< 夹点编辑工具移动夹点时的预览容器，选择层选择完成时清除它

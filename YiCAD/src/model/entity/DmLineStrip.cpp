@@ -142,6 +142,7 @@ bool DmLineStrip::isEmpty() const
 
 void DmLineStrip::update()
 {
+    bumpRevision();
     calculateBorders();
 }
 

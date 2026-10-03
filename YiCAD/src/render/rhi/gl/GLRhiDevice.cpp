@@ -20,6 +20,8 @@
 
 #include "GLRhiDevice.h"
 
+#include "RhiFrameStats.h"
+
 #include <algorithm>
 #include <cstring>
 #include <limits>
@@ -1208,8 +1210,22 @@ void GLRhiDevice::upload(RhiBuffer& dst, std::size_t offset, std::span<const std
     PendingUpload upload;
     upload.buffer = &static_cast<GLRhiBuffer&>(dst);
     upload.offset = offset;
+    upload.data = takeUploadStorage();
     upload.data.assign(data.begin(), data.end());
     m_pendingUploads.push_back(std::move(upload));
+}
+
+std::vector<std::byte> GLRhiDevice::takeUploadStorage()
+{
+    // 复用上一帧用过的暂存：大块上传（几百 KB 到几 MB）每次新分配都要向系统要新内存页，缺页比复制本身还贵
+    if (m_uploadStorage.empty())
+    {
+        return {};
+    }
+    std::vector<std::byte> storage = std::move(m_uploadStorage.back());
+    m_uploadStorage.pop_back();
+    storage.clear();
+    return storage;
 }
 
 void GLRhiDevice::upload(RhiTexture& dst, const RhiTextureRegion& region, std::span<const std::byte> data)
@@ -1227,6 +1243,7 @@ void GLRhiDevice::upload(RhiTexture& dst, const RhiTextureRegion& region, std::s
     PendingUpload upload;
     upload.texture = &static_cast<GLRhiTexture&>(dst);
     upload.region = region;
+    upload.data = takeUploadStorage();
     upload.data.assign(data.begin(), data.end());
     m_pendingUploads.push_back(std::move(upload));
 }
@@ -1235,6 +1252,7 @@ void GLRhiDevice::flushUploads()
 {
     for (const PendingUpload& upload : m_pendingUploads)
     {
+        RhiFrameStats::addUploadBytes(static_cast<long long>(upload.data.size()));
         std::size_t offset = m_uploadRing->write(upload.data, m_frameSerial);
         if (offset == std::numeric_limits<std::size_t>::max())
         {
@@ -1267,6 +1285,15 @@ void GLRhiDevice::flushUploads()
                             info.format, info.type, reinterpret_cast<const void*>(offset));
             glBindTexture(GL_TEXTURE_2D, 0);
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        }
+    }
+    // 暂存留着给下一帧用；只留有限几块，免得一次大上传之后长期占着内存
+    constexpr std::size_t kKeptStorage = 16;
+    for (PendingUpload& upload : m_pendingUploads)
+    {
+        if (m_uploadStorage.size() < kKeptStorage)
+        {
+            m_uploadStorage.push_back(std::move(upload.data));
         }
     }
     m_pendingUploads.clear();

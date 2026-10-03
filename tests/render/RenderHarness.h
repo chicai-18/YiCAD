@@ -1,7 +1,7 @@
 /// @file RenderHarness.h
 /// @brief 出图测试的公共部分：读参考图纸、离屏画成图像、与基准图像按容差比对
 ///
-/// 画的是程序里的画布 GuiDocumentView（渲染方案阶段 4 起旧渲染器与 GS 各画一遍），
+/// 画的是程序里的画布 GuiDocumentView（第 4 阶段起经图形系统画），
 /// 经 QOpenGLWidget::grabFramebuffer() 离屏取图，不显示窗口。GL 实现是 MesaLoader.cpp 装入的
 /// Mesa llvmpipe，结果在不同机器上一致，所以基准图像可以入库。
 
@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "Datamodel.h"
+#include "IHiddenSource.h"
 #include "IHighlightSource.h"
 #include "ISelectionSource.h"
 
@@ -57,6 +58,7 @@ class ListSelection : public ISelectionSource
 public:
     bool isSelected(const DmEntity& entity) const override;
     std::vector<DmEntity*> selectedEntities() const override { return entities; }
+    bool hasMoreThan(std::size_t count) const override { return entities.size() > count; }
 
     std::vector<DmEntity*> entities;  ///< 选中的实体，只放可见的顶层实体
 };
@@ -68,6 +70,16 @@ public:
     std::vector<DmEntity*> highlightedEntities() const override { return entities; }
 
     std::vector<DmEntity*> entities;  ///< 高亮的实体，只放可见的顶层实体
+};
+
+/// @brief 按列表临时隐藏的实体；测试改了列表之后调 GuiDocumentView::specifyHiddenChanged()
+class ListHidden : public IHiddenSource
+{
+public:
+    std::vector<DmEntity*> hiddenEntities() const override { return entities; }
+    bool isHidden(const DmEntity& entity) const override;
+
+    std::vector<DmEntity*> entities;  ///< 临时隐藏的实体，只放可见的顶层实体
 };
 
 /// @brief 图纸里指定类型的可见顶层实体，按实体表的顺序
@@ -89,6 +101,8 @@ public:
     ListSelection& selection() { return m_selection; }
     /// @brief 画布的高亮来源；请求了 highlightArcs 时里面是圆弧
     ListHighlight& highlight() { return m_highlight; }
+    /// @brief 画布的临时隐藏来源，开始时为空
+    ListHidden& hidden() { return m_hidden; }
 
     /// @brief 画一帧并取图（RGB32）
     QImage grab();
@@ -98,7 +112,8 @@ private:
     std::unique_ptr<DmDocument> m_document;
     ListSelection m_selection;
     ListHighlight m_highlight;
-    std::unique_ptr<GuiDocumentView> m_view;  ///< 最后建、最先释放：它是文档的监听者，又读两个来源
+    ListHidden m_hidden;
+    std::unique_ptr<GuiDocumentView> m_view;  ///< 最后建、最先释放：它是文档的监听者，又读三个来源
 };
 
 /// @brief 按请求画出图像（RGB32）；失败时返回空图像并在 error 里说明

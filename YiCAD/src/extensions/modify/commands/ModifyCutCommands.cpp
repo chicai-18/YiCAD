@@ -37,6 +37,7 @@
 #include "DmEntityContainer.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
+#include "HiddenSet.h"
 #include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
@@ -171,7 +172,7 @@ private:
     {
         if (cutEntity && firstCoord.valid && secondCoord.valid)
         {
-            cutEntity->setVisible(true);
+            command().hidden()->remove(cutEntity);
             view()->redraw();
 
             Modification m(document());
@@ -318,7 +319,7 @@ void ModifyCut2PTool::onMouseMove(QMouseEvent* e)
     case SetCutCoord:
     {
         pt = snapper()->snapPoint(e);
-        cutEntity->setVisible(true);
+        command().hidden()->remove(cutEntity);
         m_command.preview().clear();
         secondCoord = cutEntity->getNearestPointOnEntity(pt);
         std::vector<DmEntity*> remainEnts;
@@ -331,7 +332,8 @@ void ModifyCut2PTool::onMouseMove(QMouseEvent* e)
             {
                 m_command.preview().entities().getEntityContainer()->addEntity(e);
             }
-            cutEntity->setVisible(false);
+            // 原实体换成打断后的预览（视图的临时隐藏集，RENDER_PLAN.md 第 4.3.9 节）
+            command().hidden()->add(cutEntity);
         }
         m_command.preview().draw();
     }
@@ -399,7 +401,7 @@ void ModifyCut2PTool::onMouseRelease(QMouseEvent* e)
     {
         if (cutEntity)
         {
-            cutEntity->setVisible(true);    //还原为可见
+            command().hidden()->remove(cutEntity);    // 恢复显示
             m_command.preview().clear();
             view()->redraw();
         }

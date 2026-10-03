@@ -193,6 +193,8 @@ void Profiler::configureFromEnvironment()
     counters::selectWindow();
     counters::nearestVirtualIntersection();
     counters::openDocument();
+    counters::gsChanges();
+    counters::gsCompile();
 
     const char* value = std::getenv("YICAD_PROFILE");
     if (value == nullptr || *value == '\0')
@@ -383,6 +385,18 @@ TimerCounter& nearestVirtualIntersection()
 TimerCounter& openDocument()
 {
     static TimerCounter counter("document.open");
+    return counter;
+}
+
+TimerCounter& gsChanges()
+{
+    static TimerCounter counter("render.gsChanges");
+    return counter;
+}
+
+TimerCounter& gsCompile()
+{
+    static TimerCounter counter("render.gsCompile");
     return counter;
 }
 }  // namespace counters

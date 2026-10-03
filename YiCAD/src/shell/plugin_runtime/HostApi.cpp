@@ -902,6 +902,8 @@ YiCadResult YICAD_PLUGIN_CALL HostApi::documentRegen(
             return YICAD_FAILURE;
         }
 
+        // 插件的 REGEN：图形系统全部重建（RENDER_PLAN.md 第 4.3.6 节）
+        document->requestFullRebuild();
         document->regenerate();
         return YICAD_SUCCESS;
     }

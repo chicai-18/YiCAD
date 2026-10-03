@@ -20,10 +20,8 @@
 
 #include "GuiDocumentView.h"
 
-#include<climits>
-#include<cmath>
-#include <iostream>
-#include <unordered_map>
+#include <climits>
+#include <cmath>
 
 #include <QApplication>
 #include <QAction>
@@ -35,10 +33,7 @@
 #include <QLabel>
 #include <QToolButton>
 
-#include "PainterCreator.h"
-
 #include "DmLine.h"
-#include "DmCachePainter.h"
 #include "DmEntityContainer.h"
 #include "DmDocument.h"
 #include "GuiGrid.h"
@@ -62,15 +57,19 @@
 #include <set>
 #include <utility>
 #include "QString"
-#include "GLFrameStats.h"
-#include "GLSceneBuffer.h"
+#include "RhiFrameStats.h"
 #include "GLRhiDevice.h"
+#include "GLRhiSurface.h"
+#include "GsModel.h"
+#include "GsView.h"
+#include "IHiddenSource.h"
+#include "IHighlightSource.h"
+#include "ISelectionSource.h"
 
 GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument* doc)
     : QOpenGLWidget(parent, f)
     , pDocument(nullptr)
     , background(30, 30, 30, 255)
-    , foreground(30, 30, 30, 255)
     , gridColor(50, 55, 72, 255)
     , metaGridColor(73, 79, 105, 255)
     , grid(new GuiGrid())
@@ -82,14 +81,9 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     , relativeZero(DmVector(false))
     , orthogonalZero(DmVector(false))
     , relativeZeroLocked(false)
-    , m_overlayEntities(QMap<int, DmEntityContainer*>())
-    , m_pPreviewEntityContainer(new DmEntityContainer())
+    , m_gsView(std::make_unique<GsView>())
     , m_bIsCleanUp(false)
-    , m_pBackgroundPainter(nullptr)
-    , m_pDocumentPainter(nullptr)
-    , m_pForegroundPainter(nullptr)
-    , m_pPreviewPainter(nullptr)
-    , m_pSceneBuffer(std::make_unique<opengl::GLSceneBuffer>())
+    , m_pPreviewEntityContainer(new DmEntityContainer())
     , m_currentMousePt(DmVector(false))
     , m_eCursorType(DM::CadCursor)
     , m_selEntityCurcorStyle(new QCursor(QPixmap(":/ribbon/cursor_style/select_entity.svg"), CURSOR_SIZE, CURSOR_SIZE))
@@ -131,21 +125,22 @@ GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument*
     m_snapTooltipTimer = new QTimer(this);
     m_snapTooltipTimer->setSingleShot(true);
     connect(m_snapTooltipTimer, &QTimer::timeout, this, &GuiDocumentView::hideSnapTooltip);
+
+    // 图形系统：画到本画布的表面与预览容器的模型（文档模型由 AppDocument 注入或第一帧时自建）
+    m_gsSurface = std::make_unique<GLRhiWidgetSurface>(*this);
+    m_gsPreview = std::make_unique<GsModel>(m_pPreviewEntityContainer);
+    m_gsView->setTransient(m_gsPreview.get());
 }
 
 GuiDocumentView::~GuiDocumentView()
 {
-    // 场景底图属于画布的上下文，释放时它要是当前的；QOpenGLWidget 的上下文在基类析构时才销毁
-    if (m_pSceneBuffer->isValid())
-    {
-        makeCurrent();
-        m_pSceneBuffer->destroy();
-        doneCurrent();
-    }
+    // 图形系统的资源放进设备的延迟释放队列，不需要当前上下文
+    m_gsView->setTransient(nullptr);
+    m_gsView->release();
+    m_gsPreview.reset();
+    m_gsModel.reset();
     setDocument(nullptr);
     cleanUp();
-    qDeleteAll(m_overlayEntities);
-    deletePainters();
 
     if (m_pPreviewEntityContainer)
     {
@@ -166,6 +161,11 @@ void GuiDocumentView::setDocument(DmDocument* pDoc)
     if (pDocument)
     {
         pDocument->removeListener(this);
+    }
+    if (pDoc != pDocument && m_gsModel)
+    {
+        m_gsView->setModel(nullptr, true);
+        m_gsModel.reset();
     }
     this->pDocument = pDoc;
     if (pDocument)
@@ -286,18 +286,17 @@ void GuiDocumentView::zoomIn(double f, const DmVector& center)
         return;
     }
 
+    // 以 c 为不动点缩放：c 在屏幕上的位置不变。原先算了 c 却把 center 交给画笔，没给缩放中心时
+    // （缩放命令）绕世界原点缩放；现在按 c（鼠标在画布上时取鼠标，否则取画布中心）
     DmVector c = center;
     if (!c.valid)
     {
         c = getMousePosition();
     }
-    m_pBackgroundPainter->scale(f, center.x, center.y);
-    m_pPreviewPainter->scale(f, center.x, center.y);
-    m_pDocumentPainter->scale(f, center.x, center.y);
-    m_pForegroundPainter->scale(f, center.x, center.y);
-    invalidateScene();
-    redraw();
-    emit viewChanged();
+    const double newScale = m_unitsPerPixel * f;
+    m_viewCenter = DmVector(c.x - (c.x - m_viewCenter.x) * f, c.y - (c.y - m_viewCenter.y) * f);
+    m_unitsPerPixel = newScale;
+    cameraChanged();
 }
 
 /// @brief 缩小视图
@@ -353,28 +352,13 @@ void GuiDocumentView::zoomAuto()
 
 void GuiDocumentView::setView(const DmVector& center, double unitsPerPixel)
 {
-    if (m_pBackgroundPainter)
-    {
-        m_pBackgroundPainter->setViewPosition(center.x, center.y);
-        m_pBackgroundPainter->setScale(unitsPerPixel);
-    }
-    if (m_pDocumentPainter)
-    {
-        m_pDocumentPainter->setViewPosition(center.x, center.y);
-        m_pDocumentPainter->setScale(unitsPerPixel);
-    }
-    if (m_pPreviewPainter)
-    {
-        m_pPreviewPainter->setViewPosition(center.x, center.y);
-        m_pPreviewPainter->setScale(unitsPerPixel);
-    }
-    if (m_pForegroundPainter)
-    {
-        m_pForegroundPainter->setViewPosition(center.x, center.y);
-        m_pForegroundPainter->setScale(unitsPerPixel);
-    }
+    m_viewCenter = DmVector(center.x, center.y);
+    m_unitsPerPixel = unitsPerPixel;
+    cameraChanged();
+}
 
-    invalidateScene();
+void GuiDocumentView::cameraChanged()
+{
     redraw();
     emit viewChanged();
 }
@@ -386,162 +370,42 @@ void GuiDocumentView::zoomPan(int dx, int dy)
 {
     double dx_world = toGraphDX(dx);
     double dy_world = toGraphDY(dy);
-    m_pBackgroundPainter->translateView(dx_world, dy_world);
-    m_pPreviewPainter->translateView(dx_world, dy_world);
-    m_pDocumentPainter->translateView(dx_world, dy_world);
-    m_pForegroundPainter->translateView(dx_world, dy_world);
-    invalidateScene();
-    redraw();
-    emit viewChanged();
+    m_viewCenter = DmVector(m_viewCenter.x - dx_world, m_viewCenter.y - dy_world);
+    cameraChanged();
 }
 
-void GuiDocumentView::drawBackgroundLayer()
-{
-    // 绘制背景色
-    double backgroundColor_r = background.red() / 255.;
-    double backgroundColor_g = background.green() / 255.;
-    double backgroundColor_b = background.blue() / 255.;
-    m_pBackgroundPainter->source_rgb(backgroundColor_r, backgroundColor_g, backgroundColor_b);
-    double min_x = 0;
-    double min_y = 0;
-    double min_x_user = 0;
-    double min_y_user = 0;
-    m_pBackgroundPainter->device_to_user(min_x, min_y, &min_x_user, &min_y_user);
-    double max_x = getWidth();
-    double max_y = getHeight();
-    double max_x_user = 0;
-    double max_y_user = 0;
-    m_pBackgroundPainter->device_to_user(max_x, max_y, &max_x_user, &max_y_user);
-    m_pBackgroundPainter->rectangle(min_x_user, min_y_user, max_x_user - min_x_user, min_y_user - max_y_user);
-    m_pBackgroundPainter->setFill(true);
-    m_pBackgroundPainter->stroke();
-
-    // 背景栅格
-    drawGridLine();
-}
-
-void GuiDocumentView::drawDocumentLayer()
-{
-    // 普通组与选中组；缓存已由 updateDocumentCache() 更新，高亮组与夹点画在叠加层
-    m_pDocumentPainter->draw();
-}
-
-void GuiDocumentView::drawPreviewLayer()
-{
-    m_pPreviewPainter->draw();
-}
-
-void GuiDocumentView::drawForegroundLayer()
-{
-    // 原点坐标显示
-    drawAbsoluteZero();
-    // 选择框
-    drawOverlayBox();
-    // 光标
-    drawCursor();
-    // 捕捉点标识
-    drawSnapIndicator();
-}
-
-void GuiDocumentView::drawAbsoluteZero()
-{
-    const double zr = toGraphDX(20);
-    auto vp = DmVector(0, 0);
-
-    m_pForegroundPainter->lineWidth(1.0);
-
-    // 十字矩形
-    m_pForegroundPainter->source_rgba(0., 0., 1., 1.);
-    m_pForegroundPainter->move_to(vp.x - zr * 0.2, vp.y + zr * 0.2);
-    m_pForegroundPainter->line_to(vp.x + zr * 0.2, vp.y + zr * 0.2);
-    m_pForegroundPainter->move_to(vp.x + zr * 0.2, vp.y + zr * 0.2);
-    m_pForegroundPainter->line_to(vp.x + zr * 0.2, vp.y - zr * 0.2);
-    m_pForegroundPainter->move_to(vp.x + zr * 0.2, vp.y - zr * 0.2);
-    m_pForegroundPainter->line_to(vp.x - zr * 0.2, vp.y - zr * 0.2);
-    m_pForegroundPainter->move_to(vp.x - zr * 0.2, vp.y - zr * 0.2);
-    m_pForegroundPainter->line_to(vp.x - zr * 0.2, vp.y + zr * 0.2);
-    m_pForegroundPainter->stroke();
-
-    // 十字横线
-    m_pForegroundPainter->source_rgba(1., 0., 0., 1.);
-    m_pForegroundPainter->move_to(vp.x, vp.y);
-    m_pForegroundPainter->line_to(vp.x + 2. * zr, vp.y);
-    m_pForegroundPainter->stroke();
-
-    // 十字纵线
-    m_pForegroundPainter->source_rgba(0., 1., 0., 1.);
-    m_pForegroundPainter->move_to(vp.x, vp.y);
-    m_pForegroundPainter->line_to(vp.x, vp.y + 2. * zr);
-    m_pForegroundPainter->stroke();
-
-    // y轴指示文字
-    m_pForegroundPainter->source_rgb(0., 1., 0.);
-    m_pForegroundPainter->move_to(vp.x - zr * 0.15, vp.y + 2.8 * zr);
-    m_pForegroundPainter->line_to(vp.x, vp.y + 2.5 * zr);
-    m_pForegroundPainter->stroke();
-    m_pForegroundPainter->move_to(vp.x + zr * 0.15, vp.y + 2.8 * zr);
-    m_pForegroundPainter->line_to(vp.x, vp.y + 2.5 * zr);
-    m_pForegroundPainter->stroke();
-    m_pForegroundPainter->move_to(vp.x, vp.y + 2.5 * zr);
-    m_pForegroundPainter->line_to(vp.x, vp.y + 2.2 * zr);
-    m_pForegroundPainter->stroke();
-
-    // x轴指示文字
-    m_pForegroundPainter->source_rgb(1., 0., 0.);
-    m_pForegroundPainter->move_to(vp.x + zr * 2.2, vp.y + 0.3 * zr);
-    m_pForegroundPainter->line_to(vp.x + zr * 2.5, vp.y - 0.3 * zr);
-    m_pForegroundPainter->stroke();
-    m_pForegroundPainter->move_to(vp.x + zr * 2.2, vp.y - 0.3 * zr);
-    m_pForegroundPainter->line_to(vp.x + zr * 2.5, vp.y + 0.3 * zr);
-    m_pForegroundPainter->stroke();
-}
-
-void GuiDocumentView::drawGridLine()
+double GuiDocumentView::updateGrid()
 {
     const double MIN_GRID_SPACING_INIT = 20.;  // 最小网格间距
-    const double NUM_MINOR_LINES = 5.;           // 最小格子数
     const double MIN_DISTANCE_LOWER = 10.0;      // 距离下限
     const double MIN_DISTANCE_UPPER = 100.0;     // 距离上限
     const double SCALE_FACTOR = 10.0;            // 缩放调整因子
     const double THRESHOLD_10 = 10.0;
     const double THRESHOLD_20 = 20.0;
     const double THRESHOLD_50 = 50.0;
+    const double NUM_MINOR_LINES = 5.;
 
-    if (!grid || !isGridOn())
+    if (!grid)
     {
-        return;
+        return 0.0;
     }
 
-    std::vector<DmVector> points; // 记录栅格交点
-
-    const geo::Area updateRect = { {toGraph(DmVector(0,0))},{toGraph(DmVector(getWidth(), getHeight()))} };
-
-    m_pBackgroundPainter->lineWidth(1.0);
-    m_pBackgroundPainter->setFill(false);
-
+    // 间距：与原先 drawGridLine 相同，屏幕上 10 到 100 像素之间取 10、20、50、100 的整数倍
     DmVector zeroCorner = toGraph(DmVector(0., 0.));
-    double iMinimumGridSpacing = MIN_GRID_SPACING_INIT;
-    DmVector gridSPacing = toGraph(DmVector(iMinimumGridSpacing, iMinimumGridSpacing));
-
-    // 距离始终在10到100之间
+    DmVector gridSPacing = toGraph(DmVector(MIN_GRID_SPACING_INIT, MIN_GRID_SPACING_INIT));
     double minDistancePoints = gridSPacing.x - zeroCorner.x;
     double factor = 1.0;
-
-    while (minDistancePoints < MIN_DISTANCE_LOWER)
+    while (minDistancePoints < MIN_DISTANCE_LOWER && minDistancePoints > 0.0)
     {
         minDistancePoints *= SCALE_FACTOR;
         factor = factor * SCALE_FACTOR;
     }
-
     while (minDistancePoints > MIN_DISTANCE_UPPER)
     {
         minDistancePoints = minDistancePoints / SCALE_FACTOR;
         factor = factor / SCALE_FACTOR;
     }
-
-    // 栅格距离
     double gridSize;
-
     if (minDistancePoints < THRESHOLD_10)
     {
         gridSize = (THRESHOLD_10 / factor);
@@ -558,227 +422,33 @@ void GuiDocumentView::drawGridLine()
     {
         gridSize = (MIN_DISTANCE_UPPER / factor);
     }
-
     grid->setCellVector(DmVector(gridSize, gridSize));
 
-    // 绘制网格主线
-    double majorColor_r = gridColor.red() / 255.;
-    double majorColor_g = gridColor.green() / 255.;
-    double majorColor_b = gridColor.blue() / 255.;
-    double majorColor_a = gridColor.alpha() / 255.;
-    m_pBackgroundPainter->source_rgba(majorColor_r, majorColor_g, majorColor_b, majorColor_a);
-
+    // 交点（捕捉网格用）：细线与粗线的交点，同原先
+    const geo::Area updateRect = { {toGraph(DmVector(0,0))},{toGraph(DmVector(getWidth(), getHeight()))} };
+    std::vector<DmVector> points;
     double left = updateRect.minP().x - fmod(updateRect.minP().x, gridSize);
     double top = updateRect.maxP().y - fmod(updateRect.maxP().y, gridSize);
     grid->setBaseGrid(DmVector(left, updateRect.minP().y - fmod(updateRect.minP().y, gridSize)));
-
     for (double x = left; x < updateRect.maxP().x; x += gridSize)
     {
-        m_pBackgroundPainter->move_to(x, updateRect.maxP().y);
-        m_pBackgroundPainter->line_to(x, updateRect.minP().y);
-
-        // 计算交点
         for (double y = top; y > updateRect.minP().y; y -= gridSize)
         {
             points.emplace_back(DmVector(x, y));
         }
     }
-
-    for (double y = top; y > updateRect.minP().y; y -= gridSize)
+    const double major = gridSize * static_cast<int>(NUM_MINOR_LINES);
+    left = updateRect.minP().x - fmod(updateRect.minP().x, major);
+    top = updateRect.maxP().y - fmod(updateRect.maxP().y, major);
+    for (double x = left; x < updateRect.maxP().x; x += major)
     {
-        m_pBackgroundPainter->move_to(updateRect.minP().x, y);
-        m_pBackgroundPainter->line_to(updateRect.maxP().x, y);
-    }
-    m_pBackgroundPainter->stroke();
-
-    // 绘制网格辅线
-    double minorColor_r = metaGridColor.red() / 255.;
-    double minorColor_g = metaGridColor.green() / 255.;
-    double minorColor_b = metaGridColor.blue() / 255.;
-    double minorColor_a = metaGridColor.alpha() / 255.;
-    m_pBackgroundPainter->source_rgba(minorColor_r, minorColor_g, minorColor_b, minorColor_a);
-
-    int iNumMinorLines = static_cast<int>(NUM_MINOR_LINES);
-    gridSize *= iNumMinorLines;
-    left = updateRect.minP().x - fmod(updateRect.minP().x, gridSize);
-    top = updateRect.maxP().y - fmod(updateRect.maxP().y, gridSize);
-
-    for (double x = left; x < updateRect.maxP().x; x += gridSize)
-    {
-        m_pBackgroundPainter->move_to(x, updateRect.maxP().y);
-        m_pBackgroundPainter->line_to(x, updateRect.minP().y);
-
-        // 计算交点
-        for (double y = top; y > updateRect.minP().y; y -= gridSize)
+        for (double y = top; y > updateRect.minP().y; y -= major)
         {
             points.emplace_back(DmVector(x, y));
         }
     }
-
-    for (double y = top; y > updateRect.minP().y; y -= gridSize)
-    {
-        m_pBackgroundPainter->move_to(updateRect.minP().x, y);
-        m_pBackgroundPainter->line_to(updateRect.maxP().x, y);
-    }
-
-    m_pBackgroundPainter->stroke();
-
     grid->setPoints(points);
-}
-
-void GuiDocumentView::drawCursor()
-{
-    const double CURSOR_LENGTH_FACTOR = 60;  // 光标线长像素系数
-    const double CURSOR_BOX_RATIO = 0.08;     // 光标中心方块尺寸比例
-
-    if (m_isDrawCursor)
-    {
-        const double zr = toGraphDX(CURSOR_LENGTH_FACTOR);
-        const double tr = zr * CURSOR_BOX_RATIO;
-
-        auto vp = DmVector(m_currentMousePt.x, m_currentMousePt.y);
-
-        m_pForegroundPainter->lineWidth(1.0);
-        m_pForegroundPainter->setFill(false);
-
-        // 鼠标绘图交互选点状态
-        if (m_eCursorType == DM::CadCursor)
-        {
-            // 不带中心方块的十字线
-
-            // 十字横线
-            m_pForegroundPainter->move_to(vp.x - zr, vp.y);
-            m_pForegroundPainter->line_to(vp.x + zr, vp.y);
-            m_pForegroundPainter->source_rgba(1., 1., 1., 1.);
-            // 十字纵线
-            m_pForegroundPainter->move_to(vp.x, vp.y - zr);
-            m_pForegroundPainter->line_to(vp.x, vp.y + zr);
-            m_pForegroundPainter->source_rgba(1., 1., 1., 1.);
-        }
-        // 鼠标空载状态
-        else if (m_eCursorType == DM::ArrowCursor)
-        {
-            // 带中心方块的十字光标
-
-            // 十字中心矩形
-            m_pForegroundPainter->source_rgba(1., 1., 1., 1.);
-            m_pForegroundPainter->move_to(vp.x - tr, vp.y + tr);
-            m_pForegroundPainter->line_to(vp.x + tr, vp.y + tr);
-            m_pForegroundPainter->move_to(vp.x + tr, vp.y + tr);
-            m_pForegroundPainter->line_to(vp.x + tr, vp.y - tr);
-            m_pForegroundPainter->move_to(vp.x + tr, vp.y - tr);
-            m_pForegroundPainter->line_to(vp.x - tr, vp.y - tr);
-            m_pForegroundPainter->move_to(vp.x - tr, vp.y - tr);
-            m_pForegroundPainter->line_to(vp.x - tr, vp.y + tr);
-
-            // 十字横线
-            m_pForegroundPainter->move_to(vp.x - zr, vp.y);
-            m_pForegroundPainter->line_to(vp.x + zr, vp.y);
-            m_pForegroundPainter->source_rgba(1., 1., 1., 1.);
-            // 十字纵线
-            m_pForegroundPainter->move_to(vp.x, vp.y - zr);
-            m_pForegroundPainter->line_to(vp.x, vp.y + zr);
-            m_pForegroundPainter->source_rgba(1., 1., 1., 1.);
-        }
-
-        m_pForegroundPainter->stroke();
-    }
-}
-
-void GuiDocumentView::drawSnapIndicator()
-{
-    SnapResultType snapResult = currentSnapResult();
-    if (snapResult == SnapResultType::SnapNone)
-        return;
-
-    DmVector snapSpot = currentSnapSpot();
-    if (!snapSpot.valid)
-        return;
-
-    const double HALF_SIZE = toGraphDX(12);  // half size ~12px (x2 from original ~6px)
-
-    m_pForegroundPainter->lineWidth(1.5);
-    m_pForegroundPainter->setFill(false);
-
-    m_pForegroundPainter->source_rgba(1.0, 0.85, 0.0, 1.0);
-
-    double x = snapSpot.x;
-    double y = snapSpot.y;
-    double hs = HALF_SIZE;
-
-    switch (snapResult)
-    {
-    case SnapResultType::SnapEndpoint:
-    {
-        m_pForegroundPainter->move_to(x - hs, y + hs);
-        m_pForegroundPainter->line_to(x + hs, y + hs);
-        m_pForegroundPainter->move_to(x + hs, y + hs);
-        m_pForegroundPainter->line_to(x + hs, y - hs);
-        m_pForegroundPainter->move_to(x + hs, y - hs);
-        m_pForegroundPainter->line_to(x - hs, y - hs);
-        m_pForegroundPainter->move_to(x - hs, y - hs);
-        m_pForegroundPainter->line_to(x - hs, y + hs);
-        break;
-    }
-    case SnapResultType::SnapCenter:
-    {
-        const int SEGS = 12;
-        for (int i = 0; i < SEGS; i++)
-        {
-            double angle1 = 2.0 * M_PI * i / SEGS;
-            double angle2 = 2.0 * M_PI * (i + 1) / SEGS;
-            m_pForegroundPainter->move_to(x + hs * cos(angle1), y + hs * sin(angle1));
-            m_pForegroundPainter->line_to(x + hs * cos(angle2), y + hs * sin(angle2));
-        }
-        break;
-    }
-    case SnapResultType::SnapMiddle:
-    {
-        double h = hs * 1.2;
-        double w = hs * 1.2;
-        m_pForegroundPainter->move_to(x, y + h);
-        m_pForegroundPainter->line_to(x - w, y - h * 0.6);
-        m_pForegroundPainter->move_to(x - w, y - h * 0.6);
-        m_pForegroundPainter->line_to(x + w, y - h * 0.6);
-        m_pForegroundPainter->move_to(x + w, y - h * 0.6);
-        m_pForegroundPainter->line_to(x, y + h);
-        break;
-    }
-    case SnapResultType::SnapIntersection:
-    {
-        double d = hs * 1.2;
-        m_pForegroundPainter->move_to(x - d, y - d);
-        m_pForegroundPainter->line_to(x + d, y + d);
-        m_pForegroundPainter->move_to(x + d, y - d);
-        m_pForegroundPainter->line_to(x - d, y + d);
-        break;
-    }
-    case SnapResultType::SnapOnEntity:
-    case SnapResultType::SnapSubsection:
-    {
-        m_pForegroundPainter->move_to(x, y + hs);
-        m_pForegroundPainter->line_to(x + hs * 0.7, y);
-        m_pForegroundPainter->move_to(x + hs * 0.7, y);
-        m_pForegroundPainter->line_to(x, y - hs);
-        m_pForegroundPainter->move_to(x, y - hs);
-        m_pForegroundPainter->line_to(x - hs * 0.7, y);
-        m_pForegroundPainter->move_to(x - hs * 0.7, y);
-        m_pForegroundPainter->line_to(x, y + hs);
-        break;
-    }
-    case SnapResultType::SnapGrid:
-    {
-        m_pForegroundPainter->move_to(x, y - hs);
-        m_pForegroundPainter->line_to(x, y + hs);
-        m_pForegroundPainter->move_to(x - hs, y);
-        m_pForegroundPainter->line_to(x + hs, y);
-        break;
-    }
-    default:
-        break;
-    }
-
-    m_pForegroundPainter->stroke();
+    return gridSize;
 }
 
 void GuiDocumentView::hideSnapTooltip()
@@ -792,64 +462,6 @@ void GuiDocumentView::setOverlayCorners(const DmVector& corner1, const DmVector&
     m_overlayCorner1 = corner1;
     m_overlayCorner2 = corner2;
     m_isDrawOverlayBox = true;
-}
-
-void GuiDocumentView::drawOverlayBox()
-{
-    const double DASH_PATTERN[] = { 5.0, -5.0 };
-    const int DASH_PATTERN_SIZE = 2;
-
-    if (m_isDrawOverlayBox)
-    {
-        m_pForegroundPainter->lineWidth(1.0);
-        DmVector v1 = m_overlayCorner1;
-        DmVector v2 = m_overlayCorner2;
-        DmVector lt(std::min(v2.x, v1.x), std::max(v2.y, v1.y));
-        double w = std::abs(v2.x - v1.x);
-        double h = std::abs(v2.y - v1.y);
-        DmVector lb(lt.x, lt.y - h);
-        DmVector rb(lt.x + w, lt.y - h);
-        DmVector rt(lt.x + w, lt.y);
-        if (v1.x > v2.x)
-        {
-            m_pForegroundPainter->source_rgba(.1, .45, .2, .6);
-            m_pForegroundPainter->rectangle(lt.x, lt.y, w, h);
-            m_pForegroundPainter->setFill(true);
-            m_pForegroundPainter->stroke();
-
-            m_pForegroundPainter->move_to(lt.x, lt.y);
-            m_pForegroundPainter->line_to(lb.x, lb.y);
-            m_pForegroundPainter->move_to(lb.x, lb.y);
-            m_pForegroundPainter->line_to(rb.x, rb.y);
-            m_pForegroundPainter->move_to(rb.x, rb.y);
-            m_pForegroundPainter->line_to(rt.x, rt.y);
-            m_pForegroundPainter->move_to(rt.x, rt.y);
-            m_pForegroundPainter->line_to(lt.x, lt.y);
-            m_pForegroundPainter->source_rgba(1.0, 1.0, 1.0, 1.0);
-            m_pForegroundPainter->setDash(DASH_PATTERN, DASH_PATTERN_SIZE);
-            m_pForegroundPainter->setFill(false);
-            m_pForegroundPainter->stroke();
-            m_pForegroundPainter->resetDash();
-        }
-        else
-        {
-            m_pForegroundPainter->source_rgba(.1, 0.22, 0.55, .7);
-            m_pForegroundPainter->rectangle(lt.x, lt.y, w, h);
-            m_pForegroundPainter->setFill(true);
-            m_pForegroundPainter->stroke();
-            m_pForegroundPainter->move_to(lt.x, lt.y);
-            m_pForegroundPainter->line_to(lb.x, lb.y);
-            m_pForegroundPainter->move_to(lb.x, lb.y);
-            m_pForegroundPainter->line_to(rb.x, rb.y);
-            m_pForegroundPainter->move_to(rb.x, rb.y);
-            m_pForegroundPainter->line_to(rt.x, rt.y);
-            m_pForegroundPainter->move_to(rt.x, rt.y);
-            m_pForegroundPainter->line_to(lt.x, lt.y);
-            m_pForegroundPainter->source_rgba(1.0, 1.0, 1.0, 1.0);
-            m_pForegroundPainter->setFill(false);
-            m_pForegroundPainter->stroke();
-        }
-    }
 }
 
 void GuiDocumentView::disableOverlayBox()
@@ -882,25 +494,20 @@ void GuiDocumentView::setSnapRestriction(DM::SnapRestriction sr)
 /// @brief 将实际坐标转为屏幕坐标
 DmVector GuiDocumentView::toGui(DmVector v) const
 {
-    double guiX, guiY;
-    m_pBackgroundPainter->user_to_device(v.x, v.y, &guiX, &guiY);
-    return DmVector(guiX, guiY);
+    return DmVector(toGuiX(v.x), toGuiY(v.y));
 }
 
 /// @brief 将实际 X 坐标转为屏幕 X 坐标
 double GuiDocumentView::toGuiX(double x) const
 {
-    double guiX, guiY;
-    m_pBackgroundPainter->user_to_device(x, 0.0, &guiX, &guiY);
-    return guiX;
+    // 与旧画笔的 user_to_device 相同：画布中心对着相机中心，y 向下
+    return getWidth() / 2.0 + (x - m_viewCenter.x) / m_unitsPerPixel;
 }
 
 /// @brief 将实际 Y 坐标转为屏幕 Y 坐标
 double GuiDocumentView::toGuiY(double y) const
 {
-    double guiX, guiY;
-    m_pBackgroundPainter->user_to_device(0.0, y, &guiX, &guiY);
-    return guiY;
+    return getHeight() / 2.0 - (y - m_viewCenter.y) / m_unitsPerPixel;
 }
 
 /// @brief 将实际距离转为屏幕距离
@@ -923,25 +530,19 @@ DmVector GuiDocumentView::toGraph(DmVector v) const
 /// @brief 将屏幕坐标转换为实际坐标
 DmVector GuiDocumentView::toGraph(int x, int y) const
 {
-    double userX, userY;
-    m_pBackgroundPainter->device_to_user(x, y, &userX, &userY);
-    return DmVector(userX, userY);
+    return DmVector(toGraphX(x), toGraphY(y));
 }
 
 /// @brief 将屏幕坐标 X 转换为实际坐标 X
 double GuiDocumentView::toGraphX(int x) const
 {
-    double userX, userY;
-    m_pBackgroundPainter->device_to_user(x, 0.0, &userX, &userY);
-    return userX;
+    return m_viewCenter.x + (x - getWidth() / 2.0) * m_unitsPerPixel;
 }
 
 /// @brief 将屏幕坐标 Y 转换为实际坐标 Y
 double GuiDocumentView::toGraphY(int y) const
 {
-    double userX, userY;
-    m_pBackgroundPainter->device_to_user(0.0, y, &userX, &userY);
-    return userY;
+    return m_viewCenter.y + (getHeight() / 2.0 - y) * m_unitsPerPixel;
 }
 
 /// @brief 将屏幕坐标距离 X 转换为实际坐标距离 X
@@ -989,18 +590,6 @@ void GuiDocumentView::hideRelativeZero(const bool isHide)
     relativeZero.valid = isHide;
 }
 
-/// @brief 获取指定的前景覆盖容器
-DmEntityContainer* GuiDocumentView::getOverlayContainer(DM::OverlayDocument position)
-{
-    if (m_overlayEntities[position])
-    {
-        return m_overlayEntities[position];
-    }
-    m_overlayEntities[position] = new DmEntityContainer(nullptr);
-
-    return m_overlayEntities[position];
-}
-
 DmEntityContainer* GuiDocumentView::getPreviewContainer()
 {
     return m_pPreviewEntityContainer;
@@ -1008,49 +597,65 @@ DmEntityContainer* GuiDocumentView::getPreviewContainer()
 
 void GuiDocumentView::specifyPreviewModified()
 {
-    m_pPreviewPainter->specifyModified();
-}
-
-void GuiDocumentView::specifyDocumentModified()
-{
-    if (m_pDocumentPainter)
-    {
-        m_pDocumentPainter->specifyModified();
-    }
+    m_gsPreview->invalidate();
 }
 
 void GuiDocumentView::specifySelectChanged()
 {
-    if (m_pDocumentPainter)
+    if (m_gsModel)
     {
-        m_pDocumentPainter->specifySelectChanged();
+        m_gsModel->selectionChanged();
     }
+    m_gsGripsDirty = true;
 }
 
 void GuiDocumentView::specifyHighlightChanged()
 {
-    if (m_pDocumentPainter)
-    {
-        m_pDocumentPainter->specifyHighlightChanged();
-    }
+    m_gsView->setHighlighted(m_pDocumentHighlight ? m_pDocumentHighlight->highlightedEntities()
+                                                  : std::vector<DmEntity*>());
 }
 
-void GuiDocumentView::setPreviewModelOffset(const DmVector& offset)
+void GuiDocumentView::setHiddenSource(const IHiddenSource* source)
 {
-    m_pPreviewPainter->setModelOffset(offset);
+    m_pHiddenSource = source;
+    specifyHiddenChanged();
 }
 
-void GuiDocumentView::setDocumentPainterContainer(DmEntityContainer* container)
+void GuiDocumentView::specifyHiddenChanged()
 {
-    m_pDocumentPainter->clearContainers();
-    m_pDocumentPainter->addContainer(container);
-    m_pDocumentPainter->specifyModified();
+    m_gsView->setHidden(m_pHiddenSource ? m_pHiddenSource->hiddenEntities() : std::vector<DmEntity*>());
     redraw();
+}
+
+void GuiDocumentView::setGraphicsModel(std::shared_ptr<GsModel> model)
+{
+    m_gsModel = std::move(model);
+    if (m_gsModel && m_pDocumentSelection)
+    {
+        m_gsModel->setSelectionSource(m_pDocumentSelection);
+    }
+    m_gsView->setModel(m_gsModel, true);
+}
+
+std::shared_ptr<GsModel> GuiDocumentView::graphicsModel() const
+{
+    if (!m_gsModel && pDocument)
+    {
+        // 没有注入（测试、独立的画布）：为自己的文档建一个
+        const_cast<GuiDocumentView*>(this)->setGraphicsModel(std::make_shared<GsModel>(*pDocument));
+    }
+    return m_gsModel;
+}
+
+void GuiDocumentView::setPreviewTransform(const GiTransform& transform)
+{
+    m_gsPreview->setRootTransform(transform);
 }
 
 void GuiDocumentView::documentModified()
 {
-    specifyDocumentModified();
+    // 几何由图形模型按变更集更新；选中的实体可能动了，夹点跟着重取
+    m_gsGripsDirty = true;
 }
 
 void GuiDocumentView::redrawRequested()
@@ -1058,9 +663,11 @@ void GuiDocumentView::redrawRequested()
     redraw();
 }
 
-void GuiDocumentView::paintContainerChanged(DmEntityContainer* container)
+void GuiDocumentView::paintContainerChanged(DmEntityContainer*)
 {
-    setDocumentPainterContainer(container);
+    // 图形模型自己是文档的监听者，块编辑时换根（GsModel::paintContainerChanged）
+    m_gsGripsDirty = true;
+    redraw();
 }
 
 DmRect GuiDocumentView::getViewRect()
@@ -1091,7 +698,6 @@ DmVector GuiDocumentView::currentSnapSpot()
 void GuiDocumentView::setBackground(const QColor& bg)
 {
     background = bg;
-    invalidateScene();
 }
 
 /// @brief 设置鼠标光标类型
@@ -1221,47 +827,39 @@ DmVector GuiDocumentView::getMousePosition() const
 void GuiDocumentView::setGridColor(const QColor& c)
 {
     gridColor = c;
-    invalidateScene();
 }
 
 void GuiDocumentView::setMetaGridColor(const QColor& c)
 {
     metaGridColor = c;
-    invalidateScene();
 }
 
 void GuiDocumentView::setSelectedColor(const QColor& c)
 {
     selectedColor = c;
-    if (m_pDocumentPainter)
-        m_pDocumentPainter->setSelectedColor(c);
-    if (m_pPreviewPainter)
-        m_pPreviewPainter->setSelectedColor(c);
-    invalidateScene();
 }
 
 void GuiDocumentView::setHighlightColor(const QColor& c)
 {
-    // 高亮组画在叠加层，场景底图不作废
+    // 高亮画在叠加通道，场景底图不作废（GsView 比对显示设置时只在高亮走状态位图时看高亮色）
     highlightColor = c;
-    if (m_pDocumentPainter)
-        m_pDocumentPainter->setHighlightColor(c);
-    if (m_pPreviewPainter)
-        m_pPreviewPainter->setHighlightColor(c);
 }
 
 void GuiDocumentView::setDocumentSelectionSource(const ISelectionSource* source)
 {
     m_pDocumentSelection = source;
-    if (m_pDocumentPainter)
-        m_pDocumentPainter->setSelectionSource(source);
+    m_gsGripsDirty = true;
+    if (m_gsModel && source)
+    {
+        // 文档模型由同一文档的视图共用，选择集也是文档的：只设不清（画布释放时不把共用模型的来源置空）
+        m_gsModel->setSelectionSource(source);
+    }
 }
 
 void GuiDocumentView::setDocumentHighlightSource(const IHighlightSource* source)
 {
     m_pDocumentHighlight = source;
-    if (m_pDocumentPainter)
-        m_pDocumentPainter->setHighlightSource(source);
+    m_gsView->setHighlighted(source ? source->highlightedEntities() : std::vector<DmEntity*>());
 }
 
 DmDocument* GuiDocumentView::getDocument() const
@@ -1271,8 +869,7 @@ DmDocument* GuiDocumentView::getDocument() const
 
 DmVector GuiDocumentView::getFactor() const
 {
-    double s = m_pBackgroundPainter->getScale();
-    return DmVector(s, s);
+    return DmVector(m_unitsPerPixel, m_unitsPerPixel);
 }
 
 void GuiDocumentView::lockRelativeZero(bool lock)
@@ -1297,10 +894,7 @@ bool GuiDocumentView::isDraftMode() const
 
 void GuiDocumentView::setDraftMode(bool dm)
 {
-    m_pDocumentPainter->setIsDisplayLineWidth(dm);
-    m_pPreviewPainter->setIsDisplayLineWidth(dm);
     draftMode = dm;
-    invalidateScene();
 }
 
 bool GuiDocumentView::isCleanUp(void) const
@@ -1310,28 +904,7 @@ bool GuiDocumentView::isCleanUp(void) const
 
 void GuiDocumentView::initializeGL()
 {
-    QOpenGLWidget::makeCurrent();
-    QOpenGLContext* CC = QOpenGLContext::currentContext();
-
-    // 再次初始化时上下文是新建的，原来的场景底图已随旧上下文释放
-    m_pSceneBuffer->forget();
-    invalidateScene();
-
-    int width = size().width();
-    int height = size().height();
-
-    if (CC != 0)
-    {
-        createPainters(width, height);
-        m_pBackgroundPainter->create_resources();
-        m_pPreviewPainter->create_resources();
-        m_pDocumentPainter->create_resources();
-        m_pForegroundPainter->create_resources();
-    }
-    else
-    {
-        createPainters(width, height);
-    }
+    // 图形系统在第一帧取设备（GsDevice::acquire）；上下文重建时视图的目标与缓冲照常可用（资源在共享组里）
 }
 
 void GuiDocumentView::paintGL()
@@ -1346,94 +919,35 @@ void GuiDocumentView::paintGL()
     {
         nextFrameTimer.emplace(*nextFrameCounter);
     }
-    opengl::GLFrameStats::beginFrame();
+    RhiFrameStats::beginFrame();
 
-    updateDocumentCache();
+    graphicsModel();  // 没有注入时为自己的文档建一个
 
-    // Qt 5 的 QOpenGLWidget 在每次 paintGL 之前清空颜色、深度、模板缓冲；Qt 6 在支持
-    // glInvalidateFramebuffer（GL 4.3 起）的驱动上改为只作废 FBO 内容，不再清零。各绘制层
-    // 开着深度测试（GL_LEQUAL）却从不清深度，未定义的深度值会随机剔除片元，画面出现
-    // 彩色噪点。这里显式清一次，恢复 Qt 5 下的行为（清除色沿用默认的全零）。
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    GsViewStyle style;
+    style.background = background;
+    style.selected = selectedColor;
+    style.highlight = highlightColor;
+    style.grid = gridColor;
+    style.metaGrid = metaGridColor;
+    style.lineWidths = draftMode;
+    style.gridOn = isGridOn();
+    style.gridSpacing = style.gridOn ? updateGrid() : 0.0;
+    m_gsView->setStyle(style);
+    m_gsView->setCamera(m_viewCenter, m_unitsPerPixel);
+    if (m_gsGripsDirty)
+    {
+        m_gsView->setGrips(collectGrips());
+        m_gsGripsDirty = false;
+    }
+    fillOverlay();
+    m_gsView->render(*m_gsSurface, devicePixelRatioF());
 
-    // 背景层（背景色、网格）与文档层的普通组、选中组，经场景底图
-    drawScene();
-
-    // 叠加层，每帧都画（RENDER_PLAN.md 第 4.3.8 节的次序）：高亮、预览、夹点、前景
-    m_pDocumentPainter->drawHighlight();
-    drawPreviewLayer();
-    m_pDocumentPainter->drawSelectedPoints();
-    drawForegroundLayer();
-
-    opengl::GLFrameStats::endFrame();
+    RhiFrameStats::endFrame();
 }
 
-void GuiDocumentView::updateDocumentCache()
+void GuiDocumentView::resizeGL(int, int)
 {
-    // 三种重建分别计时。选中组在场景底图里，选择集变了场景作废；高亮组在叠加层，场景不作废
-    if (m_pDocumentPainter->isModified())
-    {
-        YICAD_SCOPED_TIMER(yicad::counters::regen());
-        m_pDocumentPainter->update();
-        invalidateScene();
-    }
-    else if (m_pDocumentPainter->isSelectChanged())
-    {
-        YICAD_SCOPED_TIMER(yicad::counters::regenSelection());
-        m_pDocumentPainter->update();
-        invalidateScene();
-    }
-    else if (m_pDocumentPainter->isHighlightChanged())
-    {
-        YICAD_SCOPED_TIMER(yicad::counters::regenHighlight());
-        m_pDocumentPainter->update();
-    }
-}
-
-void GuiDocumentView::drawScene()
-{
-    const GLuint target = defaultFramebufferObject();
-    GLint viewport[4] = {0, 0, 0, 0};
-    glGetIntegerv(GL_VIEWPORT, viewport);
-    bool recreated = false;
-    if (!m_pSceneBuffer->resize(target, viewport[2], viewport[3], &recreated))
-    {
-        drawBackgroundLayer();
-        drawDocumentLayer();
-        return;
-    }
-
-    // 网格开关是文档变量，改它的地方（UIActionHandler::slotViewGrid）只请求重绘，不通知画布
-    const bool gridOn = isGridOn();
-    if (recreated || gridOn != m_bSceneGridOn)
-    {
-        invalidateScene();
-    }
-    if (!m_bSceneValid)
-    {
-        YICAD_SCOPED_TIMER(yicad::counters::scene());
-        m_pSceneBuffer->bind();
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        drawBackgroundLayer();
-        drawDocumentLayer();
-        m_bSceneValid = true;
-        m_bSceneGridOn = gridOn;
-    }
-    m_pSceneBuffer->blitTo(target);
-}
-
-void GuiDocumentView::invalidateScene()
-{
-    m_bSceneValid = false;
-}
-
-void GuiDocumentView::resizeGL(int w, int h)
-{
-    m_pBackgroundPainter->new_device_size(w, h);
-    m_pPreviewPainter->new_device_size(w, h);
-    m_pDocumentPainter->new_device_size(w, h);
-    m_pForegroundPainter->new_device_size(w, h);
-    invalidateScene();
+    // 场景底图按表面尺寸由 GsView 重建
 }
 
 void GuiDocumentView::mouseMoveEvent(QMouseEvent* e)
@@ -1481,46 +995,6 @@ void GuiDocumentView::focusOutEvent(QFocusEvent* e)
     QWidget::focusOutEvent(e);
 }
 
-void GuiDocumentView::createPainters(unsigned int width, unsigned int height)
-{
-    m_pBackgroundPainter = PainterCreator::createOpenGLPainter(width, height);
-    m_pPreviewPainter = new DmCachePainter();
-    m_pPreviewPainter->addContainer(m_pPreviewEntityContainer);
-    m_pDocumentPainter = new DmCachePainter();
-    m_pDocumentPainter->addContainer(pDocument->getEntityTable()->getEntityContainer());
-    m_pDocumentPainter->setSelectedColor(selectedColor);
-    m_pDocumentPainter->setHighlightColor(highlightColor);
-    m_pPreviewPainter->setSelectedColor(selectedColor);
-    m_pPreviewPainter->setHighlightColor(highlightColor);
-    m_pDocumentPainter->setSelectionSource(m_pDocumentSelection);
-    m_pDocumentPainter->setHighlightSource(m_pDocumentHighlight);
-    m_pForegroundPainter = new opengl::GLPainter();
-}
-
-void GuiDocumentView::deletePainters()
-{
-    if (m_pBackgroundPainter)
-    {
-        delete m_pBackgroundPainter;
-        m_pBackgroundPainter = nullptr;
-    }
-    if (m_pDocumentPainter)
-    {
-        delete m_pDocumentPainter;
-        m_pDocumentPainter = nullptr;
-    }
-    if (m_pPreviewPainter)
-    {
-        delete m_pPreviewPainter;
-        m_pPreviewPainter = nullptr;
-    }
-    if (m_pForegroundPainter)
-    {
-        delete m_pForegroundPainter;
-        m_pForegroundPainter = nullptr;
-    }
-}
-
 void GuiDocumentView::setStrDevice(const QString& strDevice)
 {
     m_strDevice = strDevice;
@@ -1535,3 +1009,160 @@ void GuiDocumentView::setIsDrawCursor(const bool& isDrawCursor)
 {
     m_isDrawCursor = isDrawCursor;
 }
+
+// ---------------------------------------------------------------------------
+// 叠加层与夹点
+// ---------------------------------------------------------------------------
+
+std::vector<DmVector> GuiDocumentView::collectGrips() const
+{
+    // 与原先旧渲染器的 DmCachePainter::cacheSelectedPoints 相同：参考点超过 100 个就一个也不画
+    constexpr std::size_t kMaxSelectedPoints = 100;
+    std::vector<DmVector> grips;
+    // 每个实体至少一个参考点：选中的实体多于上限时不必取出它们（全选几十万个实体时这一步原先要上百毫秒）
+    if (!m_pDocumentSelection || m_pDocumentSelection->hasMoreThan(kMaxSelectedPoints))
+    {
+        return grips;
+    }
+    for (DmEntity* e : m_pDocumentSelection->selectedEntities())
+    {
+        for (const DmVector& pt : e->getRefPoints())
+        {
+            grips.push_back(pt);
+        }
+        if (grips.size() > kMaxSelectedPoints)
+        {
+            return {};
+        }
+    }
+    return grips;
+}
+
+void GuiDocumentView::fillOverlay()
+{
+    GsOverlay& overlay = m_gsView->overlay();
+    overlay.clear();
+
+    // 原点标记（同 drawAbsoluteZero）：长度单位 zr 为 20 像素，世界坐标的 y 向上即像素的 y 向下
+    {
+        const DmVector o = toGui(DmVector(0.0, 0.0));
+        constexpr double zr = 20.0;
+        auto seg = [&](double x0, double y0, double x1, double y1, const QColor& c) {
+            overlay.line(o.x + x0 * zr, o.y - y0 * zr, o.x + x1 * zr, o.y - y1 * zr, 1.0, c);
+        };
+        const QColor blue(0, 0, 255);
+        const QColor red(255, 0, 0);
+        const QColor green(0, 255, 0);
+        seg(-0.2, 0.2, 0.2, 0.2, blue);
+        seg(0.2, 0.2, 0.2, -0.2, blue);
+        seg(0.2, -0.2, -0.2, -0.2, blue);
+        seg(-0.2, -0.2, -0.2, 0.2, blue);
+        seg(0.0, 0.0, 2.0, 0.0, red);
+        seg(0.0, 0.0, 0.0, 2.0, green);
+        seg(-0.15, 2.8, 0.0, 2.5, green);
+        seg(0.15, 2.8, 0.0, 2.5, green);
+        seg(0.0, 2.5, 0.0, 2.2, green);
+        seg(2.2, 0.3, 2.5, -0.3, red);
+        seg(2.2, -0.3, 2.5, 0.3, red);
+    }
+
+    // 选择框（同 drawOverlayBox）：从右往左为交叉选，绿色、虚线边；从左往右为窗选，蓝色、实线边
+    if (m_isDrawOverlayBox)
+    {
+        const DmVector a = toGui(m_overlayCorner1);
+        const DmVector b = toGui(m_overlayCorner2);
+        const double x0 = std::min(a.x, b.x);
+        const double x1 = std::max(a.x, b.x);
+        const double y0 = std::min(a.y, b.y);
+        const double y1 = std::max(a.y, b.y);
+        const bool crossing = m_overlayCorner1.x > m_overlayCorner2.x;
+        overlay.fillRect(x0, y0, x1, y1, crossing ? QColor::fromRgbF(0.1f, 0.45f, 0.2f, 0.6f)
+                                                  : QColor::fromRgbF(0.1f, 0.22f, 0.55f, 0.7f));
+        const QColor white(255, 255, 255);
+        overlay.line(x0, y0, x0, y1, 1.0, white, crossing);
+        overlay.line(x0, y1, x1, y1, 1.0, white, crossing);
+        overlay.line(x1, y1, x1, y0, 1.0, white, crossing);
+        overlay.line(x1, y0, x0, y0, 1.0, white, crossing);
+    }
+
+    // 光标（同 drawCursor）：十字线 60 像素，空闲时中心加一个方块
+    if (m_isDrawCursor && (m_eCursorType == DM::CadCursor || m_eCursorType == DM::ArrowCursor))
+    {
+        const DmVector p = toGui(m_currentMousePt);
+        constexpr double zr = 60.0;
+        constexpr double tr = zr * 0.08;
+        const QColor white(255, 255, 255);
+        overlay.line(p.x - zr, p.y, p.x + zr, p.y, 1.0, white);
+        overlay.line(p.x, p.y - zr, p.x, p.y + zr, 1.0, white);
+        if (m_eCursorType == DM::ArrowCursor)
+        {
+            overlay.line(p.x - tr, p.y - tr, p.x + tr, p.y - tr, 1.0, white);
+            overlay.line(p.x + tr, p.y - tr, p.x + tr, p.y + tr, 1.0, white);
+            overlay.line(p.x + tr, p.y + tr, p.x - tr, p.y + tr, 1.0, white);
+            overlay.line(p.x - tr, p.y + tr, p.x - tr, p.y - tr, 1.0, white);
+        }
+    }
+
+    // 捕捉标记（同 drawSnapIndicator）：半边长 12 像素，金色，线宽 1.5
+    const SnapResultType snapResult = currentSnapResult();
+    const DmVector snapSpot = snapResult == SnapResultType::SnapNone ? DmVector(false) : currentSnapSpot();
+    if (snapSpot.valid)
+    {
+        const DmVector c = toGui(snapSpot);
+        constexpr double hs = 12.0;
+        const QColor gold = QColor::fromRgbF(1.0f, 0.85f, 0.0f, 1.0f);
+        auto seg = [&](double x0, double y0, double x1, double y1) {
+            overlay.line(c.x + x0, c.y - y0, c.x + x1, c.y - y1, 1.5, gold);
+        };
+        switch (snapResult)
+        {
+        case SnapResultType::SnapEndpoint:
+            seg(-hs, hs, hs, hs);
+            seg(hs, hs, hs, -hs);
+            seg(hs, -hs, -hs, -hs);
+            seg(-hs, -hs, -hs, hs);
+            break;
+        case SnapResultType::SnapCenter:
+        {
+            constexpr int kSegments = 12;
+            for (int i = 0; i < kSegments; ++i)
+            {
+                const double a1 = 2.0 * M_PI * i / kSegments;
+                const double a2 = 2.0 * M_PI * (i + 1) / kSegments;
+                seg(hs * std::cos(a1), hs * std::sin(a1), hs * std::cos(a2), hs * std::sin(a2));
+            }
+            break;
+        }
+        case SnapResultType::SnapMiddle:
+        {
+            const double h = hs * 1.2;
+            const double w = hs * 1.2;
+            seg(0.0, h, -w, -h * 0.6);
+            seg(-w, -h * 0.6, w, -h * 0.6);
+            seg(w, -h * 0.6, 0.0, h);
+            break;
+        }
+        case SnapResultType::SnapIntersection:
+        {
+            const double d = hs * 1.2;
+            seg(-d, -d, d, d);
+            seg(d, -d, -d, d);
+            break;
+        }
+        case SnapResultType::SnapOnEntity:
+        case SnapResultType::SnapSubsection:
+            seg(0.0, hs, hs * 0.7, 0.0);
+            seg(hs * 0.7, 0.0, 0.0, -hs);
+            seg(0.0, -hs, -hs * 0.7, 0.0);
+            seg(-hs * 0.7, 0.0, 0.0, hs);
+            break;
+        case SnapResultType::SnapGrid:
+            seg(0.0, -hs, 0.0, hs);
+            seg(-hs, 0.0, hs, 0.0);
+            break;
+        default:
+            break;
+        }
+    }
+}
+

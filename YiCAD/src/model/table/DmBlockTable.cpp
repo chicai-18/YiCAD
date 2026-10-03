@@ -49,6 +49,7 @@ void DmBlockTable::startModify(DmObject* e)
     DmBlock* block = static_cast<DmBlock*>(e);
     BlockTableModifyCmd* cmd = new BlockTableModifyCmd(this, block);
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
+    m_pDoc->changeTracker().touchBlock(block);
 }
 
 /// @brief 直接删除全部块与块内图元（不产生命令）
@@ -152,10 +153,18 @@ void DmBlockTable::add_direct(DmBlock* block)
 {
     m_blocks.emplace_back(block);
     m_blockMap[block->getId()] = block;
+    if (m_pDoc)
+    {
+        m_pDoc->changeTracker().touchBlock(block);
+    }
 }
 
 void DmBlockTable::remove_direct(DmBlock* block)
 {
+    if (m_pDoc)
+    {
+        m_pDoc->changeTracker().touchBlock(block);
+    }
     auto it2 = std::find(m_blocks.begin(), m_blocks.end(), block);
     if (it2 != m_blocks.end())
     {

@@ -19,13 +19,15 @@
 /// @brief 文档监听接口：文档经它通知关心自身变化的对象（如画布）
 ///
 /// 分层重组 S3 取代 DmDocument 原先持有的视图指针：Model 不再认识视图，
-/// 一份文档可以有任意多个监听者。三个方法与原先对视图的调用一一对应，
-/// 见 doc/LAYER_RESTRUCTURE_PLAN.md 7.2 节。
+/// 一份文档可以有任意多个监听者。documentModified、redrawRequested、paintContainerChanged
+/// 与原先对视图的调用一一对应，见 doc/LAYER_RESTRUCTURE_PLAN.md 7.2 节；entitiesChanged 是渲染方案
+/// 第 4 阶段加的按对象的通知。
 
 #ifndef DMDOCUMENTLISTENER_H
 #define DMDOCUMENTLISTENER_H
 
 class DmEntityContainer;
+struct DmChangeSet;
 
 /// @brief 文档监听者
 ///
@@ -38,6 +40,11 @@ public:
 
     /// @brief 文档内容已修改（实体、画笔），绘制缓存需要更新。选中状态不在文档里，选择改变不经这里通知
     virtual void documentModified() = 0;
+
+    /// @brief 按对象的变更（RENDER_PLAN.md 第 4.3.6 节）：在提交、撤销、重做、回滚之后与读盘结束时，
+    ///        先于 documentModified() 交出这期间登记的变更；没有变更时不调用
+    /// @details 图形系统据此只更新变化的部分；不关心的监听者不必实现
+    virtual void entitiesChanged(const DmChangeSet& changes) {}
 
     /// @brief 请求重绘
     virtual void redrawRequested() = 0;

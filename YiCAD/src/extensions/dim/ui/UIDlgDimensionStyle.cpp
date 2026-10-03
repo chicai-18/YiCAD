@@ -260,11 +260,6 @@ void UIDlgDimensionStyle::updatePreview()
     {
         return;
     }
-    if (!previewLine->initialized() && !previewArrow->initialized()
-        && !previewText->initialized() && !previewUnit->initialized())
-    {
-        return;
-    }
     m_pStyle->updateData(m_tempData);
     //lswDimStyles->selectedStyle()->getPreview(m_pPreview.get());
     //preview->zoomAuto(false, true);

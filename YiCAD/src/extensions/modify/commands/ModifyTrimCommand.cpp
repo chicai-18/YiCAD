@@ -37,6 +37,7 @@
 #include "ModifyCommands.h"
 #include "DmEntityContainer.h"
 #include "GuiDialogFactory.h"
+#include "HiddenSet.h"
 #include "HighlightSet.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
@@ -81,9 +82,8 @@ protected:
 
     void onFinish() override
     {
-        // 高亮由视图在命令结束时清空；恢复可见要重建缓存才显示
+        // 高亮与临时隐藏由视图在命令结束时清空
         restoreEntityUnderCursor();
-        view()->specifyDocumentModified();
         view()->redraw();
     }
 
@@ -100,13 +100,14 @@ private:
         restart(s);
     }
 
-    /// @brief 预览修剪时隐藏了光标下的实体；离开这一步前让它重新可见
-    ///        （原 Action 在右键退回或结束时没有恢复，实体会一直不可见）
+    /// @brief 预览修剪时临时隐藏了光标下的实体；离开这一步前恢复显示
+    /// @details 原先改实体的可见性再要求画布整图重建，现在放进视图的临时隐藏集（RENDER_PLAN.md 第 4.3.9 节，P18），
+    ///          实体本身一直可见，捕捉照常能拾取到它
     void restoreEntityUnderCursor()
     {
         if (status() == ChooseTrimEntity && m_entUnderCursor)
         {
-            m_entUnderCursor->setVisible(true);
+            command().hidden()->remove(m_entUnderCursor);
         }
     }
 
@@ -173,10 +174,10 @@ void ModifyTrimTool::onMouseMove(QMouseEvent* e)
 
         case ChooseTrimEntity:
         {
-            // 上次光标下的实体与现在不同，还原该实体为可见
+            // 上次光标下的实体与现在不同，恢复显示
             if (m_entUnderCursor && (m_entUnderCursor != se))
             {
-                m_entUnderCursor->setVisible(true);
+                command().hidden()->remove(m_entUnderCursor);
             }
 
             m_entUnderCursor = se;
@@ -195,13 +196,13 @@ void ModifyTrimTool::onMouseMove(QMouseEvent* e)
                     selectedEntsCopy.erase(it);
                 }
 
-                m_entUnderCursor->setVisible(true); // 临时设为可见以可裁剪
                 DmVector pointOnEnt = m_entUnderCursor->getNearestPointOnEntity(mouse);
                 bool isDel = Modification::tryTrim(selectedEntsCopy, m_entUnderCursor, pointOnEnt, remainEnts, deleteEnt);
 
                 if (isDel)
                 {
-                    m_entUnderCursor->setVisible(false);
+                    // 原实体换成修剪后的预览
+                    command().hidden()->add(m_entUnderCursor);
 
                     if (deleteEnt)
                     {
@@ -249,7 +250,7 @@ void ModifyTrimTool::onMouseRelease(QMouseEvent* e)
                 {
                     DmVector pointOnEnt = se->getNearestPointOnEntity(mouse);
                     m_entToTrim = se;
-                    m_entToTrim->setVisible(true);
+                    command().hidden()->remove(m_entToTrim);
                     m_trimPt = pointOnEnt;
                     trigger();
                     m_command.preview().clear();

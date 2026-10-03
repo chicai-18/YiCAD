@@ -123,6 +123,7 @@ int DmRegion::size() const
 
 void DmRegion::update()
 {
+    bumpRevision();
     calculateBorders();
 }
 

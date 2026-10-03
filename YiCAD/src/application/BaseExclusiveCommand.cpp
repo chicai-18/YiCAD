@@ -75,6 +75,11 @@ HighlightSet* BaseExclusiveCommand::highlight() const
     return m_host ? m_host->highlight() : nullptr;
 }
 
+HiddenSet* BaseExclusiveCommand::hidden() const
+{
+    return m_host ? m_host->hidden() : nullptr;
+}
+
 IDocumentView* BaseExclusiveCommand::view() const
 {
     return m_host ? m_host->view() : nullptr;

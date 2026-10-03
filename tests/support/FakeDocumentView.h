@@ -78,13 +78,13 @@ public:
 
     bool isCleanUp() const override { return false; }
 
-    // Snapper::deleteSnapper() 等无条件解引用返回值；同一个容器复用于
-    // 所有 overlay 位置，测试不关心不同图层之间的隔离。
-    DmEntityContainer* getOverlayContainer(DM::OverlayDocument) override { return &m_overlayContainer; }
-    DmEntityContainer* getPreviewContainer() override { return &m_overlayContainer; }
+    DmEntityContainer* getPreviewContainer() override { return &m_previewContainer; }
     void specifyPreviewModified() override {}
-    void specifyDocumentModified() override {}
-    void setPreviewModelOffset(const DmVector&) override {}
+    void setPreviewTransform(const GiTransform& transform) override { previewTransform = transform; }
+    std::shared_ptr<GsModel> graphicsModel() const override { return nullptr; }
+
+    /// @brief 最近一次设置的预览变换（移动、复制等拖动时只改它）
+    GiTransform previewTransform;
 
     DmRect getViewRect() override { return DmRect(); }
 
@@ -104,7 +104,7 @@ private:
     DmVector m_relativeZero{false};
     DmVector m_orthogonalZero{false};
     mutable GuiGrid m_grid;               ///< getGrid() 是 const，需要 mutable 才能返回非 const 指针
-    DmEntityContainer m_overlayContainer;
+    DmEntityContainer m_previewContainer; ///< 预览容器
 };
 
 #endif  // YICAD_TEST_FAKE_DOCUMENT_VIEW_H

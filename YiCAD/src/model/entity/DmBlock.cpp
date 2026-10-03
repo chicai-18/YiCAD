@@ -62,7 +62,7 @@ bool DmBlockData::isValid() const
 
 DmBlock::DmBlock()
 {
-
+    m_entityTable.setOwnerBlock(this);
 }
 
 /// @param doc 该块所属的文档
@@ -71,11 +71,17 @@ DmBlock::DmBlock(DmDocument* doc, const DmBlockData& d)
     : DmObject()
     , data(d)
 {
+    m_entityTable.setOwnerBlock(this);
     setDocument(doc);
 }
 
 DmBlock::~DmBlock()
 {
+    // 变更跟踪器里可能记着本块（块内图元改过），释放之后不能再解引用
+    if (getDocument())
+    {
+        getDocument()->changeTracker().destroyBlock(this);
+    }
 }
 
 DM::EntityType DmBlock::getEntityType() const
@@ -86,6 +92,8 @@ DM::EntityType DmBlock::getEntityType() const
 DmBlock* DmBlock::clone() const
 {
     DmBlock* blk = new DmBlock(*this);
+    // 复制构造连同实体表的所属块一起复制了，改成新块自己
+    blk->m_entityTable.setOwnerBlock(blk);
     return blk;
 }
 

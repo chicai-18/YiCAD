@@ -105,6 +105,7 @@ DmBlockReferenceData DmBlockReference::getData() const
 // 当其依赖的块定义发生变化时，需要调用此方法。
 void DmBlockReference::update()
 {
+    bumpRevision();
     if (updateEnabled == false)
     {
         return;

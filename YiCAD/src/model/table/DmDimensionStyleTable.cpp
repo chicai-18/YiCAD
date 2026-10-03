@@ -82,6 +82,7 @@ void DmDimensionStyleTable::startModify(DmObject *e)
     DmDimensionStyle* ent = static_cast<DmDimensionStyle*>(e);
     DimensionStyleTableModifyCmd* cmd = new DimensionStyleTableModifyCmd(this, ent);
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::DimensionStyle);
 }
 
 /// @brief 添加标注样式
@@ -153,12 +154,14 @@ bool DmDimensionStyleTable::add_direct(DmDimensionStyle *e)
         return false;
     m_dimStyleMap[id] = e;
     m_styles.emplace_back(e);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::DimensionStyle);
     return true;
 }
 
 /// @brief 直接删除（不产生命令）
-bool DmDimensionStyleTable::remove_direct(DmDimensionStyle *e)
+bool DmDimensionStyleTable::remove_direct(DmDimensionStyle* e)
 {
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::DimensionStyle);
     auto it2 = std::find(m_styles.begin(), m_styles.end(), e);
     m_styles.erase(it2);
     m_dimStyleMap.erase(e->getId());

@@ -161,6 +161,7 @@ bool EntityTable::add_direct(DmEntity *e)
     m_entMap[id] = e;
     m_ents.emplace_back(e);
     m_searchTree.insert(e);
+    touch(e);
     return true;
 }
 
@@ -337,6 +338,7 @@ void EntityTable::updateContainer()
 /// @brief 直接删除实体
 bool EntityTable::remove_direct(DmEntity *obj)
 {
+    m_pDoc->changeTracker().destroyEntity(obj, m_ownerBlock);
     auto it2 = std::find(m_ents.begin(), m_ents.end(), obj);
     m_ents.erase(it2);
     m_entMap.erase(obj->getId());
@@ -351,6 +353,7 @@ void EntityTable::clear_direct()
 {
     for (auto obj : m_ents)
     {
+        m_pDoc->changeTracker().destroyEntity(obj, m_ownerBlock);
         m_entMap.erase(obj->getId());
         m_searchTree.remove(obj);
         m_pDoc->getIdManager()->removeID(obj->getId());
@@ -408,6 +411,21 @@ void EntityTable::startModify(DmObject *e)
     DmEntity* ent = static_cast<DmEntity*>(e);
     EntityTableModifyCmd* cmd = new EntityTableModifyCmd(this, ent);
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
+    touch(ent);
+}
+
+void EntityTable::notifyEntityModified(DmEntity* e)
+{
+    m_searchTree.update(e);
+    touch(e);
+}
+
+void EntityTable::touch(DmEntity* e)
+{
+    if (m_pDoc)
+    {
+        m_pDoc->changeTracker().touchEntity(e, m_ownerBlock);
+    }
 }
 
 EntityTable::iterator EntityTable::begin()

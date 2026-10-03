@@ -33,6 +33,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiCoordinateInput.h"
 #include "GuiDialogFactory.h"
+#include "HiddenSet.h"
 #include "HighlightSet.h"
 #include "PanZoomTool.h"
 #include "Preview.h"
@@ -55,6 +56,8 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
     {
         DmDocument* document = &doc->document();
         m_pSelection = &doc->selection();
+        // 文档的图形模型由 AppDocument 持有，同一图纸的视图共用（RENDER_PLAN.md 第 4.3.1 节）
+        setGraphicsModel(doc->graphics());
         m_pSelectSnapper = std::make_unique<Snapper>(document, this);
         m_pSelectPreview = std::make_unique<Preview>(m_pSelection, this);
         // 文档画笔按图纸的选择集判断实体是否选中；选择改变不经文档通知，这里让画笔重建选中组并重绘
@@ -73,6 +76,13 @@ UIView::UIView(QWidget* parent, Qt::WindowFlags fl, AppDocument* doc)
             specifyHighlightChanged();
             setNextFrameCounter(yicad::counters::frameAfterHighlight());
             redraw();
+        });
+        // 临时隐藏集（RENDER_PLAN.md 第 4.3.9 节）：命令为了显示预览暂时不画的实体，改了就重画场景
+        m_pHidden = std::make_unique<HiddenSet>(*document);
+        setHiddenSource(m_pHidden.get());
+        connect(m_pHidden.get(), &HiddenSet::changed, this, [this]()
+        {
+            specifyHiddenChanged();
         });
         m_pSelectTool = std::make_unique<SelectTool>(document, m_pSelection, this, m_pSelectSnapper.get(),
                                                      m_pSelectPreview.get(), m_pPanZoomTool.get());
@@ -120,8 +130,9 @@ UIView::~UIView()
 {
     // 先结束活动命令：它的工具、选择层与 ViewToolControl 都还在。
     m_pCommandBus.reset();
-    // 高亮集随成员先于基类释放，基类画布析构时不再读它
+    // 高亮集、临时隐藏集随成员先于基类释放，基类画布析构时不再读它们
     setDocumentHighlightSource(nullptr);
+    setHiddenSource(nullptr);
 }
 
 void UIView::beginSelectionPhase(const EntityTypeList& entityTypes)
@@ -147,8 +158,9 @@ void UIView::onCommandStarting()
 
 void UIView::onCommandFinished()
 {
-    // 高亮是命令进行中的拾取反馈，命令结束时由视图统一清空（doc/HIGHLIGHT_SET_PLAN.md D2）
+    // 高亮是命令进行中的拾取反馈，命令结束时由视图统一清空（doc/HIGHLIGHT_SET_PLAN.md D2）；临时隐藏同样
     m_pHighlight->clear();
+    m_pHidden->clear();
     // 命令没有退出选择阶段就结束时，由视图清除约束（SelectFirstCommand 自己会退出，这里是兜底）
     if (m_pSelectTool->inSelectionPhase())
     {

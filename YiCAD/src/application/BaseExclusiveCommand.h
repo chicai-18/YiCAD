@@ -28,6 +28,7 @@
 
 class DmDocument;
 class ExclusiveCommandBus;
+class HiddenSet;
 class HighlightSet;
 class ICommandHost;
 class IDocumentView;
@@ -63,6 +64,8 @@ public:
     SelectionSet* selection() const;
     /// @brief 视图的高亮集；只在活动期间有效，命令结束时由视图清空。公开的理由同 selection()
     HighlightSet* highlight() const;
+    /// @brief 视图的临时隐藏集；只在活动期间有效，命令结束时由视图清空。公开的理由同 selection()
+    HiddenSet* hidden() const;
 
 protected:
     /// @brief 进入活动态时的命令逻辑：激活自己的工具、显示提示等

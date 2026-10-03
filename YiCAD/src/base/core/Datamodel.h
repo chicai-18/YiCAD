@@ -403,13 +403,6 @@ namespace DM
         NPageFormat
     };
 
-    // Items that can be put on a overlay, the items are rendered in this order. Best is to leave snapper as last so it always shows up
-    enum OverlayDocument
-    {
-        ActionPreviewEntity,  // Action Entities
-        Snapper               // Snapper
-    };
-
     // Text drawing direction.
     enum TextLocaleDirection
     {

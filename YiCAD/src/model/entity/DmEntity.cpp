@@ -140,6 +140,7 @@ bool DmEntity::isProcessed() const
 
 void DmEntity::update()
 {
+    bumpRevision();
 }
 
 void DmEntity::setUpdateEnabled(bool on)

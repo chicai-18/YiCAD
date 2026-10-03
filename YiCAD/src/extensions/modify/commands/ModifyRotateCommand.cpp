@@ -173,9 +173,12 @@ bool ModifyRotateCommand::onSelectionReady()
 
 void ModifyRotateCommand::previewRotate(const DmVector& center, double angle)
 {
-    m_preview->clear();
-    m_preview->entities().addSelectionFromDocument();
-    m_preview->entities().getEntityContainer()->rotateAngle(center, angle);
+    // 预览几何只生成一次，拖动只改变换（RENDER_PLAN.md 第 4.3.9 节）
+    if (m_preview->entities().isEmpty())
+    {
+        m_preview->entities().addSelectionFromDocument();
+    }
+    m_preview->entities().setTransform(GiTransform::rotation(angle, center));
     m_preview->draw();
 }
 

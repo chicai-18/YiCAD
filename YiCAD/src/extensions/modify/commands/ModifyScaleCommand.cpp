@@ -190,9 +190,12 @@ double ModifyScaleCommand::factorAt(const DmVector& reference, const DmVector& m
 
 void ModifyScaleCommand::previewScale(const DmVector& reference, double factor)
 {
-    m_preview->clear();
-    m_preview->entities().addSelectionFromDocument();
-    m_preview->entities().getEntityContainer()->scale(reference, DmVector(factor, factor));
+    // 预览几何只生成一次，拖动只改变换（RENDER_PLAN.md 第 4.3.9 节）
+    if (m_preview->entities().isEmpty())
+    {
+        m_preview->entities().addSelectionFromDocument();
+    }
+    m_preview->entities().setTransform(GiTransform::scaling(DmVector(factor, factor), reference));
     m_preview->draw();
 }
 

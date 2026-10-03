@@ -461,7 +461,7 @@ bool BlockInsertCommand::onStarted()
     dialog->move(window->width() - dialog->width(),
                  static_cast<int>((window->height() - dialog->height()) * DIALOG_CENTER_RATIO));
     auto* list = new UIBlockListWidget([this](DmBlock* block) { chooseBlock(block); }, dialog, "Block");
-    list->setBlockList(document()->getBlockTable());
+    list->setBlockList(document()->getBlockTable(), view()->graphicsModel());
     list->resize(dialog->size());
     dialog->show();
     m_blockList = dialog;

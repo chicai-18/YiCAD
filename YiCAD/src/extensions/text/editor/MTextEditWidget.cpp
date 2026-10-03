@@ -177,6 +177,8 @@ void MTextEditWidget::updateGeometry()
     double height = m_pDocumentView->toGuiDY(m_leftTop.y - m_rightBottom.y);
     DmVector pos = m_pDocumentView->toGui(m_leftTop);
     setGeometry((int)pos.x, (int)(pos.y), (int)width, (int)height);
+    // 尺寸没变时不会调 resizeGL，比例与位置在这里同步
+    syncCamera();
 }
 
 void MTextEditWidget::increaseHeightIfNotEnough()
@@ -1475,16 +1477,21 @@ void MTextEditWidget::keyPressEvent_Escape()
 	m_pContext->emitEscPressed(save);
 }
 
-void MTextEditWidget::resizeGL(int w, int h)
+void MTextEditWidget::resizeGL(int, int)
 {
-	if (m_pPainter)
-	{
-		double centerx = m_leftTop.x + ((double)w) * 0.5 / m_factor.x;
-		double centery = m_leftTop.y - ((double)h) * 0.5 / m_factor.y;
-		m_pPainter->new_device_size(w, h);
-		m_pPainter->setScale(1.0 / m_factor.x);
-		m_pPainter->setViewPosition(centerx, centery);
-	}
+    syncCamera();
+}
+
+void MTextEditWidget::syncCamera()
+{
+    // 编辑框的左上角对齐 m_leftTop，比例与画布相同
+    if (m_factor.x <= 0.0)
+    {
+        return;
+    }
+    const double centerx = m_leftTop.x + width() * 0.5 / m_factor.x;
+    const double centery = m_leftTop.y - height() * 0.5 / m_factor.y;
+    setCamera(DmVector(centerx, centery), 1.0 / m_factor.x);
 }
 
 bool MTextEditWidget::focusNextPrevChild(bool next)

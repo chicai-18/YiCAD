@@ -142,7 +142,7 @@ bool SelectionSet::contains(const DmEntity* entity) const
 {
     // 集合为空是常态，先判断，画布重建缓存时对每个实体都要问一次
     return entity && !m_ids.empty() && entity->isVisible() && !entity->isErased()
-           && m_ids.find(entity->getId()) != m_ids.end();
+           && m_ids.find(entity->getIdRef()) != m_ids.end();
 }
 
 int SelectionSet::count() const
@@ -227,6 +227,23 @@ std::vector<DmEntity*> SelectionSet::selectedEntities() const
         }
     }
     return selected;
+}
+
+bool SelectionSet::hasMoreThan(std::size_t count) const
+{
+    if (m_ids.size() <= count)
+    {
+        return false;
+    }
+    std::size_t n = 0;
+    for (const DmId& id : m_ids)
+    {
+        if (findVisible(id) && ++n > count)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void SelectionSet::documentModified()

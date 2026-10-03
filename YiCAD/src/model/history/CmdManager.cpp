@@ -20,6 +20,7 @@
 
 #include "CmdManager.h"
 
+#include "DmBlock.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
 #include "DmText.h"
@@ -54,6 +55,7 @@ void CmdManager::undo()
     m_redoCmds.emplace_back(m_undoCmds.back());
     m_undoCmds.pop_back();
 
+    registerChanges(cmdTypes);
     emitSignals(cmdTypes);
 }
 
@@ -71,6 +73,7 @@ void CmdManager::redo()
     m_undoCmds.emplace_back(m_redoCmds.back());
     m_redoCmds.pop_back();
 
+    registerChanges(cmdTypes);
     emitSignals(cmdTypes);
 }
 
@@ -99,6 +102,7 @@ void CmdManager::commit()
         updateWhenStyleChanged(cmdTypes);
         m_currentGroupCmd->addCmd(m_currentCmd);
         m_currentCmd = nullptr;
+        registerChanges(cmdTypes);
         // emitSignals(cmdTypes); // commitGroup()发送信号
     }
     // 没有 group
@@ -113,6 +117,7 @@ void CmdManager::commit()
         // 清空 redo 列表
         clearRedo();
 
+        registerChanges(cmdTypes);
         emitSignals(cmdTypes);
     }
 }
@@ -143,9 +148,11 @@ int CmdManager::indexOfCmd(ICmd* cmd) const
 /// @brief 回滚并删除指定索引（包含）之后的所有命令
 void CmdManager::rollbackAndRemoveAfter(size_t index)
 {
+    CmdTypeObjectVector cmdTypes;
     for (size_t i = m_undoCmds.size(); i > index; )
     {
         --i;
+        static_cast<MacroCmd*>(m_undoCmds[i])->getCmdTypes(cmdTypes);
         if (m_undoCmds[i]->isExecuted())
         {
             m_undoCmds[i]->undo();
@@ -153,6 +160,7 @@ void CmdManager::rollbackAndRemoveAfter(size_t index)
         delete m_undoCmds[i];
     }
     m_undoCmds.resize(index);
+    registerChanges(cmdTypes);
 }
 
 /// @brief 开始事务
@@ -194,7 +202,10 @@ void CmdManager::rollback()
 {
     if (m_currentCmd) // 命令还没 commit，commit 之后的命令不能 rollback
     {
+        CmdTypeObjectVector cmdTypes;
+        m_currentCmd->getCmdTypes(cmdTypes);
         m_currentCmd->rollback();
+        registerChanges(cmdTypes);
         m_currentCmd->clear();
         delete m_currentCmd;
         m_currentCmd = nullptr;
@@ -221,6 +232,7 @@ void CmdManager::commitGroup()
     // 清空 redo 列表
     clearRedo();
 
+    registerChanges(cmdTypes);
     emitSignals(cmdTypes);
 }
 
@@ -229,7 +241,10 @@ void CmdManager::rollbackGroup()
 {
     if (m_currentGroupCmd)
     {
+        CmdTypeObjectVector cmdTypes;
+        m_currentGroupCmd->getCmdTypes(cmdTypes);
         m_currentGroupCmd->rollback();
+        registerChanges(cmdTypes);
         m_currentGroupCmd->clear();
         delete m_currentGroupCmd;
         m_currentGroupCmd = nullptr;
@@ -396,6 +411,7 @@ void CmdManager::updateWhenTextStyleChanged(const CmdTypeObjectVector &cmdTypes)
                         if (text->getStyle() == textStyle)
                         {
                             text->update();
+                            entTable->touch(text);
                         }
                     }
                     else if (e->getEntityType() == DM::EntityMText)
@@ -404,6 +420,7 @@ void CmdManager::updateWhenTextStyleChanged(const CmdTypeObjectVector &cmdTypes)
                         if (mtext->getStyle() == textStyle)
                         {
                             mtext->update();
+                            entTable->touch(mtext);
                         }
                     }
                     else if (e->getEntityType() == DM::EntityDimAligned || e->getEntityType() == DM::EntityDimLinear ||
@@ -414,6 +431,7 @@ void CmdManager::updateWhenTextStyleChanged(const CmdTypeObjectVector &cmdTypes)
                         if (dim->getStyle()->getDataConstRef().textStyle() == textStyle)
                         {
                             dim->update();
+                            entTable->touch(dim);
                         }
                     }
                     else if (e->getEntityType() == DM::EntityDimLeader)
@@ -422,6 +440,7 @@ void CmdManager::updateWhenTextStyleChanged(const CmdTypeObjectVector &cmdTypes)
                         if (l->getDataRef().textStyle() == textStyle)
                         {
                             l->update();
+                            entTable->touch(l);
                         }
                     }
                 }
@@ -462,6 +481,7 @@ void CmdManager::updateWhenDimStyleChanged(const CmdTypeObjectVector &cmdTypes)
                         if (dim->getStyle() == dimStyle)
                         {
                             dim->update();
+                            entTable->touch(dim);
                         }
                     }
                     else if (e->getEntityType() == DM::EntityDimLeader)
@@ -470,6 +490,7 @@ void CmdManager::updateWhenDimStyleChanged(const CmdTypeObjectVector &cmdTypes)
                         if (l->getDataRef().pStyle == dimStyle)
                         {
                             l->update();
+                            entTable->touch(l);
                         }
                     }
                 }
@@ -508,10 +529,57 @@ void CmdManager::updateWhenBlockChanged(const CmdTypeObjectVector& cmdTypes)
                         if (blockRef->getName() == block->getName())
                         {
                             blockRef->update();
+                            entTable->touch(blockRef);
                         }
                     }
                 }
             }
         }
     }
+}
+
+/// @brief 把命令涉及的符号表与块定义登记进文档的变更跟踪器，再交给监听者
+/// @details 实体表的命令在执行、撤销、重做时自己登记实体；符号表、块表的命令撤销、重做时直接改删除标记或
+///          从数据流恢复，不经表的 add_direct 等，在这里按命令类型补登（RENDER_PLAN.md 第 4.3.6 节）
+void CmdManager::registerChanges(const CmdTypeObjectVector& cmdTypes)
+{
+    if (!m_pDocument)
+    {
+        return;
+    }
+    DmChangeTracker& tracker = m_pDocument->changeTracker();
+    for (const auto& [type, object] : cmdTypes)
+    {
+        switch (type)
+        {
+        case CmdType::LayerTableAddCmd:
+        case CmdType::LayerTableModifyCmd:
+        case CmdType::LayerTableRemoveCmd:
+            tracker.touchTable(DmSymbolTableKind::Layer);
+            break;
+        case CmdType::LineTypeTableAddCmd:
+        case CmdType::LineTypeTableModifyCmd:
+        case CmdType::LineTypeTableRemoveCmd:
+            tracker.touchTable(DmSymbolTableKind::LineType);
+            break;
+        case CmdType::TextStyleTableAddCmd:
+        case CmdType::TextStyleTableModifyCmd:
+        case CmdType::TextStyleTableRemoveCmd:
+            tracker.touchTable(DmSymbolTableKind::TextStyle);
+            break;
+        case CmdType::DimensionStyleTableAddCmd:
+        case CmdType::DimensionStyleTableModifyCmd:
+        case CmdType::DimensionStyleTableRemoveCmd:
+            tracker.touchTable(DmSymbolTableKind::DimensionStyle);
+            break;
+        case CmdType::BlockTableAddCmd:
+        case CmdType::BlockTableModifyCmd:
+        case CmdType::BlockTableRemoveCmd:
+            tracker.touchBlock(dynamic_cast<const DmBlock*>(object));
+            break;
+        default:
+            break;
+        }
+    }
+    m_pDocument->flushChanges();
 }

@@ -98,10 +98,6 @@ void UIDlgDimensionStyleMgr::updatePreview()
         return;
     }
 
-    if (!preview->initialized())
-    {
-        return;
-    }
     if (lswDimStyles->selectedStyle() == nullptr)
     {
         return;

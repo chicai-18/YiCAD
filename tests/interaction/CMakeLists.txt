@@ -3,7 +3,8 @@
 # 插件命令与按钮接入宿主注册表（src/shell/plugin_runtime/PluginUiAdapter），文档经
 # DmDocumentListener 通知画布（分层重组 S3），文档的存盘策略 DocumentFileService（S4c），
 # 持有文档与存盘策略的每文档对象 AppDocument（选择集方案第 2 步），文档的选择集
-# SelectionSet（第 3 步），以及视图的高亮集 HighlightSet（高亮方案第 1 步）。
+# SelectionSet（第 3 步），视图的高亮集 HighlightSet（高亮方案第 1 步），以及文档的变更集
+# DmChangeSet（渲染方案 4.1 步，图形系统据此增量更新）。
 # test_baseline_runtime 是基准图纸的运行期数据采集（渲染方案 0.1 步），设了 YICAD_BENCHMARK_DIR 才运行。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
@@ -18,6 +19,7 @@ yicad_add_test(interaction
         test_select_tool.cpp
         test_edit_tool.cpp
         test_document_listener.cpp
+        test_change_set.cpp
         test_document_file_service.cpp
         test_app_document.cpp
         test_selection_set.cpp

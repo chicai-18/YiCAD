@@ -95,6 +95,7 @@ void DmLayerTable::startModify(DmObject *e)
     DmLayer* ent = static_cast<DmLayer*>(e);
     LayerTableModifyCmd* cmd = new LayerTableModifyCmd(this, ent);
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::Layer);
 }
 
 /// @brief 添加图层
@@ -144,12 +145,14 @@ bool DmLayerTable::add_direct(DmLayer *e)
         return false;
     m_layerMap[id] = e;
     m_layers.emplace_back(e);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::Layer);
     return true;
 }
 
 /// @brief 直接删除图层
-bool DmLayerTable::remove_direct(DmLayer *e)
+bool DmLayerTable::remove_direct(DmLayer* e)
 {
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::Layer);
     auto it2 = std::find(m_layers.begin(), m_layers.end(), e);
     m_layers.erase(it2);
     m_layerMap.erase(e->getId());

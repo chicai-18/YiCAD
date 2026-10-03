@@ -252,7 +252,7 @@ TEST_F(ModifyFixture, 修剪只响应小键盘回车且不接受按键)
     EXPECT_FALSE(bus.hasActiveCommand());
 }
 
-TEST_F(ModifyFixture, 修剪预览隐藏的实体在退回和结束时恢复可见)
+TEST_F(ModifyFixture, 修剪预览隐藏的实体在退回和结束时恢复显示)
 {
     DmLine* boundary = addLine(DmVector(0, -10), DmVector(0, 10));
     DmLine* target = addLine(DmVector(-10, 0), DmVector(10, 0));
@@ -261,19 +261,22 @@ TEST_F(ModifyFixture, 修剪预览隐藏的实体在退回和结束时恢复可�
     EXPECT_TRUE(highlight().contains(boundary));
     pressKey(Qt::Key_Enter);
 
+    // 预览修剪：原实体放进视图的临时隐藏集，实体本身的可见性不变（RENDER_PLAN.md 第 4.3.9 节，P18）
     move(5, 0);
-    EXPECT_FALSE(target->isVisible());
+    EXPECT_TRUE(hidden().isHidden(*target));
+    EXPECT_TRUE(target->isVisible());
     EXPECT_GT(previewCount(), 0);
 
     // 右键退回第一步：原 Action 不恢复，实体一直不可见
     rightClick();
     EXPECT_EQ(ui.lastHint(), QStringLiteral("Select entitys"));
-    EXPECT_TRUE(target->isVisible());
+    EXPECT_FALSE(hidden().isHidden(*target));
 
     pressKey(Qt::Key_Enter);
     move(5, 0);
-    EXPECT_FALSE(target->isVisible());
+    EXPECT_TRUE(hidden().isHidden(*target));
     endCommand();
+    EXPECT_TRUE(hidden().hiddenEntities().empty());
     EXPECT_TRUE(target->isVisible());
     EXPECT_TRUE(highlight().entities().empty());
 }
@@ -309,7 +312,7 @@ TEST_F(ModifyFixture, 修剪掉一条边界后它不再高亮)
     EXPECT_TRUE(highlight().entities().empty());
 }
 
-TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复可见)
+TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复显示)
 {
     DmLine* boundary = addLine(DmVector(10, -10), DmVector(10, 10));
     DmLine* target = addLine(DmVector(0, 0), DmVector(5, 0));
@@ -318,14 +321,15 @@ TEST_F(ModifyFixture, 延伸预览隐藏的实体在结束时恢复可见)
     ASSERT_TRUE(start("ext.modify.extend"));
 
     move(4, 0);
-    EXPECT_FALSE(target->isVisible());
+    EXPECT_TRUE(hidden().isHidden(*target));
+    EXPECT_TRUE(target->isVisible());
     ASSERT_EQ(previewCount(), 1);
     DmEntity* extended = view.getPreviewContainer()->entityAt(0);
     ASSERT_NE(extended, nullptr);
     EXPECT_NEAR(extended->getEndpoint().x, 10.0, 1e-9);
 
     endCommand();
-    EXPECT_TRUE(target->isVisible());
+    EXPECT_TRUE(hidden().hiddenEntities().empty());
 }
 
 TEST_F(ModifyFixture, 多段线节点命令只接受多段线)
@@ -699,6 +703,70 @@ TEST_F(ModifyFixture, 移动提交只移动选中实体并取消选中)
     doc.getCmdManager()->undo();
     EXPECT_EQ(selected->getStartpoint(), DmVector(10.0, 10.0));
     EXPECT_FALSE(selection.contains(selected));
+}
+
+TEST_F(ModifyFixture, 移动预览只生成一次拖动只改变换)
+{
+    DmLine* line = addLine(DmVector(10.0, 10.0), DmVector(50.0, 10.0));
+    selection.add(line);
+    ASSERT_TRUE(start("ext.modify.move"));
+    typeCoordinate(0.0, 0.0);
+
+    // 预览实体留在原位，位移在视图的预览变换里（RENDER_PLAN.md 第 4.3.9 节）
+    move(100, 200);
+    ASSERT_EQ(previewCount(), 1);
+    DmEntity* preview = view.getPreviewContainer()->entityAt(0);
+    EXPECT_EQ(preview->getStartpoint(), DmVector(10.0, 10.0));
+    DmVector moved = view.previewTransform.apply(preview->getStartpoint());
+    EXPECT_NEAR(moved.x, 110.0, 1e-9);
+    EXPECT_NEAR(moved.y, 210.0, 1e-9);
+
+    // 再拖动：还是同一个预览实体，只有变换变了
+    move(300, 100);
+    ASSERT_EQ(previewCount(), 1);
+    EXPECT_EQ(view.getPreviewContainer()->entityAt(0), preview);
+    moved = view.previewTransform.apply(preview->getStartpoint());
+    EXPECT_NEAR(moved.x, 310.0, 1e-9);
+    EXPECT_NEAR(moved.y, 110.0, 1e-9);
+
+    // 结束时预览清空，变换复位，下一个命令的预览不带着它
+    endCommand();
+    EXPECT_EQ(previewCount(), 0);
+    EXPECT_TRUE(view.previewTransform.isIdentity());
+}
+
+TEST_F(ModifyFixture, 旋转与缩放预览用变换表达)
+{
+    DmLine* line = addLine(DmVector(10.0, 0.0), DmVector(50.0, 0.0));
+    selection.add(line);
+    ASSERT_TRUE(start("ext.modify.rotate"));
+    typeCoordinate(0.0, 0.0);
+    move(0, 100);
+    ASSERT_EQ(previewCount(), 1);
+    DmEntity* preview = view.getPreviewContainer()->entityAt(0);
+    EXPECT_EQ(preview->getStartpoint(), DmVector(10.0, 0.0));
+    // 光标在正上方：转 90 度
+    const DmVector rotated = view.previewTransform.apply(preview->getStartpoint());
+    EXPECT_NEAR(rotated.x, 0.0, 1e-9);
+    EXPECT_NEAR(rotated.y, 10.0, 1e-9);
+    endCommand();
+    EXPECT_TRUE(view.previewTransform.isIdentity());
+
+    selection.add(line);
+    ASSERT_TRUE(start("ext.modify.scale"));
+    typeCoordinate(0.0, 0.0);
+    move(100, 0);
+    ASSERT_EQ(previewCount(), 1);
+    preview = view.getPreviewContainer()->entityAt(0);
+    EXPECT_EQ(preview->getStartpoint(), DmVector(10.0, 0.0));
+    double scale = 0.0;
+    EXPECT_TRUE(view.previewTransform.isSimilarity(&scale));
+    EXPECT_GT(scale, 0.0);
+    // 基点不动
+    const DmVector base = view.previewTransform.apply(DmVector(0.0, 0.0));
+    EXPECT_NEAR(base.x, 0.0, 1e-9);
+    EXPECT_NEAR(base.y, 0.0, 1e-9);
+    endCommand();
 }
 
 TEST_F(ModifyFixture, 复制到剪贴板后取消选中并通知视图剪切还删掉实体)

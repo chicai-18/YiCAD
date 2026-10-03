@@ -28,6 +28,7 @@
 #include "GuiCommandEvent.h"
 #include "GuiDialogFactory.h"
 #include "GuiDialogFactoryAdapter.h"
+#include "HiddenSet.h"
 #include "HighlightSet.h"
 #include "IExclusiveCommand.h"
 #include "PanZoomTool.h"
@@ -192,6 +193,9 @@ struct CommandFixture : ::testing::Test
 
     /// @brief 视图的高亮集（宿主持有，命令结束时清空）
     HighlightSet& highlight() { return *host.highlight(); }
+
+    /// @brief 视图的临时隐藏集（宿主持有，命令结束时清空）
+    HiddenSet& hidden() { return *host.hidden(); }
 
     /// @brief 光标仲裁的结果（ViewToolControl 最后一次设置的光标）
     std::optional<DM::CursorType> cursor() const { return view.lastCursor(); }

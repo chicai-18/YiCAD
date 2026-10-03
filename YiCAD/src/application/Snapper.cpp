@@ -801,13 +801,12 @@ void Snapper::showOptions()
     // not used any more, will be removed
 }
 
-// Deletes the snapper from the screen.
+/// @brief 从画布上去掉捕捉标记：标记由画布按当前捕捉结果每帧画在叠加层里，这里只要求重画
 void Snapper::deleteSnapper()
 {
     if (docView)
     {
-        docView->getOverlayContainer(DM::Snapper)->clear();
-        docView->redraw(); // redraw will happen in the mouse movement event
+        docView->redraw();
     }
 }
 

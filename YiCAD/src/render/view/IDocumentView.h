@@ -34,15 +34,19 @@
 #ifndef IDOCUMENTVIEW_H
 #define IDOCUMENTVIEW_H
 
+#include <memory>
+
 #include <QString>
 
 #include "DmRect.h"
+#include "GiTransform.h"
 #include "ISnapService.h"
 
 class QCursor;
 class QObject;
 class DmDocument;
 class DmEntityContainer;
+class GsModel;
 class GuiGrid;
 
 /// @brief 命令、工具与 Snapper 视角下的文档视图接口
@@ -103,14 +107,14 @@ public:
 
     virtual bool isCleanUp() const = 0;
 
-    virtual DmEntityContainer* getOverlayContainer(DM::OverlayDocument position) = 0;
     virtual DmEntityContainer* getPreviewContainer() = 0;
     /// @brief 指示预览已修改
     virtual void specifyPreviewModified() = 0;
-    /// @brief 指示文档已修改
-    virtual void specifyDocumentModified() = 0;
-    /// @brief 指定预览模型矩阵的偏移量
-    virtual void setPreviewModelOffset(const DmVector& offset) = 0;
+    /// @brief 预览的整体变换：移动、复制、旋转、缩放拖动时预览几何只生成一次，拖动只改变换（RENDER_PLAN.md 第 4.3.9 节）
+    virtual void setPreviewTransform(const GiTransform& transform) = 0;
+
+    /// @brief 视图画的文档图形模型（块预览与画布共用块的几何）；没有时为空
+    virtual std::shared_ptr<GsModel> graphicsModel() const = 0;
 
     /// @brief 获得视图范围（世界坐标）
     virtual DmRect getViewRect() = 0;

@@ -25,25 +25,29 @@
 #ifndef BLOCKFILECOMMANDS_H
 #define BLOCKFILECOMMANDS_H
 
+#include <memory>
+
 #include <QCoreApplication>
 
 class DmBlockReference;
 class DmDocument;
 class DmEntity;
+class GsModel;
 class QWidget;
 
-/// @brief 块的文件类命令；parent 是对话框的父窗口（扩展上下文的主窗口）
+/// @brief 块的文件类命令；parent 是对话框的父窗口（扩展上下文的主窗口），graphics 是文档的图形模型
+///        （对话框里的块预览直接画其中的块几何，可以为空）
 class BlockFileCommands
 {
     Q_DECLARE_TR_FUNCTIONS(BlockFileCommands)
 
 public:
     /// @brief 弹出删除块对话框（ext.block.delete）
-    static void deleteBlocks(DmDocument* doc, QWidget* parent);
+    static void deleteBlocks(DmDocument* doc, std::shared_ptr<GsModel> graphics, QWidget* parent);
     /// @brief 把当前激活的块连同它引用的样式与嵌套块存成文件（ext.block.save）
     static void saveActiveBlock(DmDocument* doc, QWidget* parent);
     /// @brief 弹出块另存为对话框，选好块后按"另存为"执行 saveActiveBlock（ext.block.save_as）
-    static void showSaveAs(DmDocument* doc, QWidget* parent);
+    static void showSaveAs(DmDocument* doc, std::shared_ptr<GsModel> graphics, QWidget* parent);
     /// @brief 从文件导入块定义与它们用到的线型、图层、文字样式、标注样式（ext.block.import）
     static void importBlocks(DmDocument* doc, QWidget* parent);
 

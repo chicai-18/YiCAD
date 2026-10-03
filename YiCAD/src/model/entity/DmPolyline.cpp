@@ -154,6 +154,7 @@ void DmPolyline::appendVertex(const DmVector& v, double bulge,
 
 void DmPolyline::update()
 {
+    bumpRevision();
     clear();
 
     if (!isValid())

@@ -244,6 +244,7 @@ const TextData* DmText::getDataConstPtr() const
 
 void DmText::update()
 {
+    bumpRevision();
     clear();
     QString text = m_data->getTextString();
     if (text.isEmpty())

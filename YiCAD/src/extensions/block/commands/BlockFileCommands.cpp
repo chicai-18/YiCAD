@@ -49,21 +49,21 @@
 #include "UIBlockSaveAs.h"
 #include "UIFileDialog.h"
 
-void BlockFileCommands::deleteBlocks(DmDocument* doc, QWidget* parent)
+void BlockFileCommands::deleteBlocks(DmDocument* doc, std::shared_ptr<GsModel> graphics, QWidget* parent)
 {
     UIBlockDelete dialog(parent);
+    dialog.setDocument(doc, std::move(graphics));
     dialog.setBlockTable(doc->getBlockTable());
-    dialog.setDocument(doc);
     dialog.exec();
 }
 
-void BlockFileCommands::showSaveAs(DmDocument* doc, QWidget* parent)
+void BlockFileCommands::showSaveAs(DmDocument* doc, std::shared_ptr<GsModel> graphics, QWidget* parent)
 {
     // 原 Action 每次新建一个对话框、从不释放；关闭时释放。第三个参数原先由字符串字面量
     // 隐式转换成 true，对话框一直是模态的
     auto* dialog = new UIBlockSaveAs([doc, parent]() { saveActiveBlock(doc, parent); }, parent, true);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setBlockList(doc->getBlockTable());
+    dialog->setBlockList(doc->getBlockTable(), std::move(graphics));
     dialog->show();
 }
 

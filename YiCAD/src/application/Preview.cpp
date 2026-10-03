@@ -106,13 +106,15 @@ void Preview::clear()
 {
     m_pPreviewContainer->clear();
     specifyPreviewModified();
+    // 预览容器是视图共用的，下一个命令的预览从恒等变换开始
+    setTransform(GiTransform());
 }
 
-void Preview::setModelOffset(const DmVector& offset)
+void Preview::setTransform(const GiTransform& transform)
 {
     if (m_pView)
     {
-        m_pView->setPreviewModelOffset(offset);
+        m_pView->setPreviewTransform(transform);
     }
 }
 

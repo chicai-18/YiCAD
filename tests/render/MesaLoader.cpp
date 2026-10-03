@@ -13,7 +13,7 @@
 /// 另外几件必须在 QApplication 与画布构造之前做的事也放在这里（外部已设置的以外部为准）：
 /// - GALLIUM_DRIVER=llvmpipe：mesa-dist-win 的 opengl32.dll 在有 D3D12 的机器上默认走 d3d12 驱动（又回到了显卡）；
 /// - QT_ENABLE_HIGHDPI_SCALING=0：与 Main.cpp 相同，否则系统缩放不是 100% 时帧缓冲尺寸随机器而变；
-/// - YICAD_SHADER_DIR：着色器从源码树读（GLPainterCommon），构建目录里没有着色器，那是 cmake --install 复制的。
+/// - YICAD_SHADER_DIR：图形系统的着色器从构建目录读（GsDevice），bin/resources/shaders 里的是 cmake --install 复制的。
 /// - YICAD_GL_DEBUG=1：GL 上下文是调试上下文，RHI 一致性测试按 KHR_debug 数 GL 错误；
 /// - Qt::AA_ShareOpenGLContexts 与默认格式 GLRhiDevice::surfaceFormat()（4.3 core）：与 Main.cpp 相同。
 
@@ -37,7 +37,7 @@
 #error "test_render 需要 YICAD_MESA_DIR（Mesa 的 opengl32.dll 所在目录）"
 #endif
 #ifndef YICAD_SHADER_DIR
-#error "test_render 需要 YICAD_SHADER_DIR（源码树的着色器目录 YiCAD/res/shaders）"
+#error "test_render 需要 YICAD_SHADER_DIR（图形系统着色器的构建输出目录）"
 #endif
 
 namespace yicad_test

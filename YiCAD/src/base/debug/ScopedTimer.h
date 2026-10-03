@@ -193,13 +193,16 @@ namespace counters
 {
 /// @brief GuiDocumentView::paintGL 的帧耗时
 TimerCounter& paintGL();
-/// @brief 文档画笔的整图重建（删除全部缓存、重新分组、重新上传）的次数与耗时
+/// @brief 文档的整图重建的次数与耗时：第 4 阶段起是文档图形模型（GsModel）全部重建，含建节点、编译、上传
+///        （阶段 0～3 是旧渲染器的文档画笔：删除全部缓存、重新分组、重新上传）
 TimerCounter& regen();
-/// @brief 选择集变化后文档画笔的局部重建（只重建选中组、夹点与高亮组）的次数与耗时
+/// @brief 选择集变化后的局部更新：第 4 阶段起是改对象状态里的选中标记（GsModel::updateSelection）；
+///        之前是旧渲染器只重建选中组、夹点与高亮组
 TimerCounter& regenSelection();
-/// @brief 高亮集变化后文档画笔的局部重建（只重建高亮组）的次数与耗时
+/// @brief 高亮集变化后的局部更新：第 4 阶段起是重新收集叠加通道里要重画的高亮对象（GsView）；
+///        之前是旧渲染器只重建高亮组
 TimerCounter& regenHighlight();
-/// @brief 场景底图（背景、网格与文档）的重画次数与耗时；只有预览与前景变化的帧不重画
+/// @brief 场景底图（网格与文档）的重画次数与耗时；只有叠加层（高亮、预览、光标等）变化的帧不重画
 TimerCounter& scene();
 /// @brief 高亮集变化后的首帧耗时（命令里悬停到候选实体上时出现高亮）
 TimerCounter& frameAfterHighlight();
@@ -217,6 +220,10 @@ TimerCounter& selectWindow();
 TimerCounter& nearestVirtualIntersection();
 /// @brief 文档打开耗时
 TimerCounter& openDocument();
+/// @brief 图形系统处理变更集（重新记录改动实体的 GI 流、放进分块）的次数与耗时（渲染方案第 4 阶段）
+TimerCounter& gsChanges();
+/// @brief 图形系统编译分块与共享几何（GI 流 -> GPU 记录）的次数与耗时
+TimerCounter& gsCompile();
 }  // namespace counters
 
 }  // namespace yicad

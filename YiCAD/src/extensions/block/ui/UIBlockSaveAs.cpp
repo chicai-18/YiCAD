@@ -49,7 +49,6 @@ UIBlockSaveAs::UIBlockSaveAs(std::function<void()> onSave, QWidget* parent, bool
     : QDialog(parent, fl)
     , m_pBlockComboBox(nullptr)
     , m_pBlockList(nullptr)
-    , m_pPreview(nullptr)
     , m_onSave(std::move(onSave))
 {
     setModal(modal);
@@ -64,9 +63,6 @@ UIBlockSaveAs::UIBlockSaveAs(std::function<void()> onSave, QWidget* parent, bool
         saveAs();
     });
 
-    m_pPreview = new DmEntityContainer();
-    preview->setContainer(m_pPreview);
-
     m_pBlockComboBox = new ModelComboBox(parent);
     m_pBlockComboBox->setObjectName(QString::fromUtf8("blockComboBox"));
     m_pBlockComboBox->setMaximumSize(QSize(COMBOBOX_MAX_WIDTH, COMBOBOX_MAX_HEIGHT));
@@ -80,18 +76,12 @@ UIBlockSaveAs::UIBlockSaveAs(std::function<void()> onSave, QWidget* parent, bool
     });
 }
 
-UIBlockSaveAs::~UIBlockSaveAs()
-{
-    if (m_pPreview)
-    {
-        delete m_pPreview;
-        m_pPreview = nullptr;
-    }
-}
+UIBlockSaveAs::~UIBlockSaveAs() = default;
 
-void UIBlockSaveAs::setBlockList(DmBlockTable* blockTable)
+void UIBlockSaveAs::setBlockList(DmBlockTable* blockTable, std::shared_ptr<GsModel> graphics)
 {
     m_pBlockList = blockTable;
+    m_graphics = std::move(graphics);
     updateBlockList();
     updatePreview();
 }
@@ -137,14 +127,9 @@ void UIBlockSaveAs::slotComBoxTextChanged()
     auto block = m_pBlockList->find(currentName);
     if (block)
     {
-        m_pPreview->clear();
-        for (auto e : block->getEntityTable())
-        {
-            m_pPreview->addEntity(e->clone());
-        }
-        preview->setContainer(m_pPreview);
+        // 直接画文档图形模型里的块几何（RENDER_PLAN.md 第 4.8 步）
+        preview->setBlock(m_graphics, block);
         preview->zoomAuto();
-        preview->update();
 
         auto origin = block->getBasePoint();
         QString originText = QString::number(origin.x, 'f', 3) + "," + QString::number(origin.y, 'f', 3);
@@ -156,7 +141,7 @@ void UIBlockSaveAs::slotComBoxTextChanged()
 
 void UIBlockSaveAs::updatePreview()
 {
-    if (m_pPreview == nullptr)
+    if (m_pBlockComboBox == nullptr || m_pBlockList == nullptr)
     {
         return;
     }
@@ -165,12 +150,7 @@ void UIBlockSaveAs::updatePreview()
     auto block = m_pBlockList->find(currentName);
     if (block)
     {
-        m_pPreview->clear();
-        for (auto e : block->getEntityTable())
-        {
-            m_pPreview->addEntity(e->clone());
-        }
-        preview->setContainer(m_pPreview);
+        preview->setBlock(m_graphics, block);
         preview->zoomAuto();
 
         auto origin = block->getBasePoint();
@@ -179,7 +159,6 @@ void UIBlockSaveAs::updatePreview()
     }
     else
     {
-        preview->setContainer(new DmEntityContainer());
-        preview->update();
+        preview->setBlock(m_graphics, nullptr);
     }
 }

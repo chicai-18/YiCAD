@@ -68,9 +68,10 @@ UIBlockListWidget::~UIBlockListWidget()
 {
 }
 
-void UIBlockListWidget::setBlockList(DmBlockTable* blockTable)
+void UIBlockListWidget::setBlockList(DmBlockTable* blockTable, std::shared_ptr<GsModel> graphics)
 {
     m_pBlockList = blockTable;
+    m_graphics = std::move(graphics);
     update();
 }
 
@@ -93,7 +94,6 @@ void UIBlockListWidget::update()
     m_pBackWidget->show();
 
     int num = 0;
-    int blockIdx = 0;
     for (auto block : *m_pBlockList)
     {
         // 过滤匿名块
@@ -128,12 +128,8 @@ void UIBlockListWidget::update()
         GuiPreviewWidget* preview = new GuiPreviewWidget(pan);
         preview->resize(PREVIEW_WIDGET_WIDTH, PREVIEW_WIDGET_HEIGHT);
         preview->move(PANEL_SPACING, 0);
-        m_blockIdxMap[blockIdx] = std::make_unique<DmEntityContainer>();
-        for (auto e : block->getEntityTable())
-        {
-            m_blockIdxMap[blockIdx]->addEntity(e->clone());
-        }
-        preview->setContainer(m_blockIdxMap[blockIdx].get());
+        // 直接画文档图形模型里的块几何（RENDER_PLAN.md 第 4.8 步），不再克隆块里的实体
+        preview->setBlock(m_graphics, block);
         preview->zoomAuto();
         preview->show();
 
@@ -152,7 +148,6 @@ void UIBlockListWidget::update()
         });
 
         num++;
-        blockIdx++;
     }
 
     m_pBackWidget->resize(BACK_WIDGET_WIDTH, ((num + 1) / COL_COUNT) * PREVIEW_PANEL_SIZE);

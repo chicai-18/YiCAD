@@ -20,6 +20,8 @@
 
 #include "GLRhiCommandList.h"
 
+#include "RhiFrameStats.h"
+
 #include <algorithm>
 
 #include "GLRhiDevice.h"
@@ -479,6 +481,7 @@ void GLRhiCommandList::draw(std::uint32_t vertexCount, std::uint32_t instanceCou
     glDrawArraysInstancedBaseInstance(m_pipeline->mode(), static_cast<GLint>(firstVertex),
                                       static_cast<GLsizei>(vertexCount), static_cast<GLsizei>(instanceCount),
                                       firstInstance);
+    RhiFrameStats::addDrawCalls();
 }
 
 void GLRhiCommandList::drawIndexed(std::uint32_t indexCount, std::uint32_t instanceCount, std::uint32_t firstIndex,
@@ -497,6 +500,7 @@ void GLRhiCommandList::drawIndexed(std::uint32_t indexCount, std::uint32_t insta
     glDrawElementsInstancedBaseVertexBaseInstance(m_pipeline->mode(), static_cast<GLsizei>(indexCount),
                                                   indexType(m_indexFormat), reinterpret_cast<const void*>(byteOffset),
                                                   static_cast<GLsizei>(instanceCount), vertexOffset, firstInstance);
+    RhiFrameStats::addDrawCalls();
 }
 
 void GLRhiCommandList::drawIndirect(const RhiBuffer& args, std::size_t offset, std::uint32_t drawCount,
@@ -509,6 +513,7 @@ void GLRhiCommandList::drawIndirect(const RhiBuffer& args, std::size_t offset, s
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, static_cast<const GLRhiBuffer&>(args).name());
     glMultiDrawArraysIndirect(m_pipeline->mode(), reinterpret_cast<const void*>(offset),
                               static_cast<GLsizei>(drawCount), static_cast<GLsizei>(stride));
+    RhiFrameStats::addDrawCalls();
 }
 
 void GLRhiCommandList::drawIndexedIndirect(const RhiBuffer& args, std::size_t offset, std::uint32_t drawCount,
@@ -532,6 +537,7 @@ void GLRhiCommandList::drawIndexedIndirect(const RhiBuffer& args, std::size_t of
     glBindBuffer(GL_DRAW_INDIRECT_BUFFER, static_cast<const GLRhiBuffer&>(args).name());
     glMultiDrawElementsIndirect(m_pipeline->mode(), indexType(m_indexFormat), reinterpret_cast<const void*>(offset),
                                 static_cast<GLsizei>(drawCount), static_cast<GLsizei>(stride));
+    RhiFrameStats::addDrawCalls();
 }
 
 // ---------------------------------------------------------------------------

@@ -22,13 +22,14 @@
 #define UIBLOCKLISTWIDGET_H
 
 #include <functional>
+#include <memory>
 
 #include <QWidget>
 #include <QIcon>
 
 class DmBlock;
 class DmBlockTable;
-class DmEntityContainer;
+class GsModel;
 
 /// @class ModelWidget
 /// @brief 块预览子控件，响应点击事件
@@ -73,7 +74,8 @@ public:
 
     /// @brief 设置块表
     /// @param [in] blockTable 块表指针
-    void setBlockList(DmBlockTable* blockTable);
+    /// @param [in] graphics 文档的图形模型，预览直接画其中的块几何；为空时每个预览自建模型
+    void setBlockList(DmBlockTable* blockTable, std::shared_ptr<GsModel> graphics = nullptr);
 
     /// @brief 获取块表
     /// @return 块表指针
@@ -84,7 +86,7 @@ public:
 
 private:
     DmBlockTable*       m_pBlockList;                                           ///< 块表指针
-    std::map<int, std::unique_ptr<DmEntityContainer>> m_blockIdxMap;            ///< 块索引到预览容器的映射
+    std::shared_ptr<GsModel> m_graphics;                                        ///< 文档的图形模型
     std::function<void(DmBlock*)> m_onChosen;                                   ///< 点了一个块之后的回调
     QWidget*            m_pBackWidget;                                          ///< 背景控件
 };

@@ -1,0 +1,33 @@
+{
+  "bindGroupLayouts": {
+    "Frame": [
+      { "binding": 0, "type": "uniformBuffer", "stages": ["vertex", "fragment"] },
+      { "binding": 1, "type": "texelBuffer", "stages": ["vertex"] },
+      { "binding": 2, "type": "texelBuffer", "stages": ["vertex"] }
+    ],
+    "Model": [
+      { "binding": 0, "type": "texelBuffer", "stages": ["vertex"] },
+      { "binding": 1, "type": "texelBuffer", "stages": ["vertex"] },
+      { "binding": 2, "type": "texelBuffer", "stages": ["vertex", "fragment"] },
+      { "binding": 3, "type": "texelBuffer", "stages": ["vertex"] }
+    ],
+    "Geometry": [
+      { "binding": 0, "type": "texelBuffer", "stages": ["vertex"] }
+    ],
+    "Image": [
+      { "binding": 0, "type": "combinedTextureSampler", "stages": ["fragment"] }
+    ]
+  },
+  "programs": {
+    "gs_segment": { "vertex": "gs_segment.vert", "fragment": "gs_line.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_hairline": { "vertex": "gs_hairline.vert", "fragment": "gs_hairline.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_xline": { "vertex": "gs_xline.vert", "fragment": "gs_line.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_arc": { "vertex": "gs_arc.vert", "fragment": "gs_arc.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_fill": { "vertex": "gs_fill.vert", "fragment": "gs_fill.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_point": { "vertex": "gs_point.vert", "fragment": "gs_fill.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_image": { "vertex": "gs_image.vert", "fragment": "gs_image.frag", "bindGroups": ["Frame", "Model", "Geometry", "Image"] },
+    "gs_grid": { "vertex": "gs_screen.vert", "fragment": "gs_grid.frag", "bindGroups": ["Frame"] },
+    "gs_blit": { "vertex": "gs_screen.vert", "fragment": "gs_blit.frag", "bindGroups": ["Frame", null, null, "Image"] },
+    "gs_overlay": { "vertex": "gs_overlay.vert", "fragment": "gs_overlay.frag", "bindGroups": ["Frame"] }
+  }
+}

@@ -705,11 +705,6 @@ void UIDlgTextStyle::updatePreview()
         return;
     }
 
-    if (!ui->preview->initialized())
-    {
-        return;
-    }
-
     m_pTempTextStyle->getPreview(m_pPreview);
     ui->preview->specifyModified();
     ui->preview->zoomAuto();

@@ -57,6 +57,7 @@ AttributeDefinitionData DmAttributeDefinition::getAttributeData() const
 
 void DmAttributeDefinition::update()
 {
+    bumpRevision();
 	clear();
 
 	QString text = getTag().toUpper();

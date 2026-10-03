@@ -67,13 +67,17 @@ DmFileResult runFilter(Call&& call)
 }
 
 /// @brief 用给定的过滤器读入文档，成功后记为已保存
+/// @details 读盘期间不逐个登记变更，结束时（成功与否）记为全部重建并交给监听者
 DmFileResult importInto(DmDocument& document, FilterInterface& filter, const QString& file)
 {
+    document.changeTracker().beginBulk();
     const DmFileResult result = runFilter([&]() { return filter.fileImport(document, file); });
+    document.changeTracker().endBulk();
     if (result.ok())
     {
         document.markSaved();
     }
+    document.flushChanges();
     return result;
 }
 }  // namespace
@@ -266,20 +270,41 @@ void DmDocument::addListener(DmDocumentListener* listener)
     if (listener && std::find(m_listeners.begin(), m_listeners.end(), listener) == m_listeners.end())
     {
         m_listeners.push_back(listener);
+        m_changeTracker.setEnabled(true);
     }
 }
 
 void DmDocument::removeListener(DmDocumentListener* listener)
 {
     m_listeners.erase(std::remove(m_listeners.begin(), m_listeners.end(), listener), m_listeners.end());
+    m_changeTracker.setEnabled(!m_listeners.empty());
 }
 
 void DmDocument::notifyDocumentModified()
 {
+    flushChanges();
     for (DmDocumentListener* listener : m_listeners)
     {
         listener->documentModified();
     }
+}
+
+void DmDocument::flushChanges()
+{
+    if (!m_changeTracker.hasPendingChanges())
+    {
+        return;
+    }
+    const DmChangeSet changes = m_changeTracker.takeChanges();
+    for (DmDocumentListener* listener : m_listeners)
+    {
+        listener->entitiesChanged(changes);
+    }
+}
+
+void DmDocument::requestFullRebuild()
+{
+    m_changeTracker.requestFullRebuild();
 }
 
 void DmDocument::requestRedraw()
@@ -333,21 +358,25 @@ int DmDocument::countVariables()
 void DmDocument::addVariable(const QString& key, const DmVector& value, int code)
 {
     m_variableDict.add(key, value, code);
+    m_changeTracker.touchVariables();
 }
 
 void DmDocument::addVariable(const QString& key, const QString& value, int code)
 {
     m_variableDict.add(key, value, code);
+    m_changeTracker.touchVariables();
 }
 
 void DmDocument::addVariable(const QString& key, int value, int code)
 {
     m_variableDict.add(key, value, code);
+    m_changeTracker.touchVariables();
 }
 
 void DmDocument::addVariable(const QString& key, double value, int code)
 {
     m_variableDict.add(key, value, code);
+    m_changeTracker.touchVariables();
 }
 
 DmVector DmDocument::getVariableVector(const QString& key, const DmVector& def)
@@ -373,6 +402,7 @@ double DmDocument::getVariableDouble(const QString& key, double def)
 void DmDocument::removeVariable(const QString& key)
 {
     m_variableDict.remove(key);
+    m_changeTracker.touchVariables();
 }
 
 QHash<QString, DmVariable>& DmDocument::getVariableDict()

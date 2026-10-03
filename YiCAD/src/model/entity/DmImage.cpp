@@ -189,6 +189,7 @@ double DmImage::getImageHeight()
 
 void DmImage::update()
 {
+    bumpRevision();
     if (data.getPath() != "")
     {
         img.reset(

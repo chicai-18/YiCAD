@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
  * This file is free software: you can redistribute it and/or modify
@@ -16,22 +16,17 @@
  */
 
 /// @file GuiDocumentView.h
-/// @brief 文档画布类，使用 OpenGL 渲染四层画布
+/// @brief 文档的画布：经图形系统（GsView）画文档、预览与叠加层
 
 #ifndef GUIDOCUMENTVIEW_H
 #define GUIDOCUMENTVIEW_H
 
-// GLEW 必须先于任何 gl.h 被包含（见 GL/glew.h 的 #error 保护），且这是整个
-// 翻译单元级别的约束，不是本文件内部的顺序问题：下面的 <QOpenGLWidget> 经由
-// Qt 的 qopengl.h 间接拉入系统 GL/gl.h。本文件被 100+ 个文件包含，一旦某个
-// 包含者后续还引入了需要 glew.h 的画笔代码（GLShader.h 等），如果 gl.h 已经
-// 在此之前被 Qt 拉入过，glew.h 就会报错。只保留 glew.h 本身（不再是完整的
-// GL/gl.h、GL/glu.h 与 PainterCreator.h），把这条不变量维持在尽量小的代价上。
-#define GL_GLEXT_PROTOTYPES
+// GLEW 必须先于任何 gl.h 被包含（见 GL/glew.h 的 #error 保护），且这是整个翻译单元级别的约束：
+// 下面的 <QOpenGLWidget> 经由 Qt 的 qopengl.h 间接拉入系统 GL/gl.h。本文件被很多文件包含，
+// 其中有的随后还包含 GL 后端的头文件（GLRhiSurface.h 等，它们要 glew.h），所以在这里先包含它。
 #include <GL/glew.h>
 
 #include <QColor>
-#include <QMap>
 #include <QOpenGLWidget>
 #include <QString>
 #include <memory>
@@ -46,19 +41,16 @@ class QKeyEvent;
 class QCursor;
 class QLabel;
 class QTimer;
-class DmCachePainter;
 class DmDocument;
 class DmEntityContainer;
+class GLRhiWidgetSurface;
+class GsModel;
+class GsView;
 class GuiCommandEvent;
 class GuiGrid;
+class IHiddenSource;
 class IHighlightSource;
 class ISelectionSource;
-
-namespace opengl
-{
-class GLPainter;
-class GLSceneBuffer;
-}
 
 namespace yicad
 {
@@ -66,11 +58,12 @@ class TimerCounter;
 }
 
 /// @brief 文档的画布
-/// @details 包括4层：背景层，文档层，预览层，前景层。背景层与文档层的普通组、选中组画进场景底图，
-///          只在场景作废时重画；文档层的高亮组与夹点、预览层、前景层每帧画在底图之上（RENDER_PLAN.md 1.3 步）。
-///          本类只负责渲染与视图状态，
-///          不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView（application/view/UIView.h）
-///          接收并交给 ViewToolControl 分发，对应 DS 的 HQWidget 与 UIView 之分。
+/// @details 经图形系统画（RENDER_PLAN.md 第 4.3 节）：文档模型 GsModel 由 AppDocument 持有、同一文档的视图共用
+///          （没有注入时画布为自己的文档建一个），本画布的 GsView 持有相机、场景底图与每视图的状态；
+///          预览容器是一个容器模型，画在叠加通道里；原点标记、选择框、光标、捕捉标记每帧填进叠加层。
+///          相机（画布中心的世界坐标与每像素的世界长度，double）归本类。
+///          本类只负责渲染与视图状态，不认识交互层的工具；鼠标、滚轮等输入由派生类 UIView
+///          （application/view/UIView.h）接收并交给 ViewToolControl 分发，对应 DS 的 HQWidget 与 UIView 之分。
 ///          关联文档时注册为它的监听者，析构时注销，因此必须先于文档析构。
 class GuiDocumentView : public QOpenGLWidget, public IDocumentView, public DmDocumentListener
 {
@@ -99,12 +92,23 @@ public:
     void setSelectedColor(const QColor& c);
     /// @brief 设置高亮颜色
     void setHighlightColor(const QColor& c);
-    /// @brief 设置文档画笔判断实体是否选中的来源（文档的选择集）；预览画笔不设来源，预览里没有选中的实体
+    /// @brief 设置判断实体是否选中的来源（文档的选择集）；预览里没有选中的实体
     /// @param source 非持有指针，可为空（没有实体按选中绘制）；必须比本画布活得久或在释放前置空
     void setDocumentSelectionSource(const ISelectionSource* source);
-    /// @brief 设置文档画笔取要高亮的实体的来源（视图的高亮集）；预览画笔不设来源，预览不涉及高亮
+    /// @brief 设置取要高亮的实体的来源（视图的高亮集）；预览不涉及高亮
     /// @param source 非持有指针，可为空（没有实体按高亮绘制）；必须比本画布活得久或在释放前置空
     void setDocumentHighlightSource(const IHighlightSource* source);
+    /// @brief 设置取临时隐藏的实体的来源（视图的临时隐藏集，RENDER_PLAN.md 第 4.3.9 节）
+    /// @param source 非持有指针，可为空；必须比本画布活得久或在释放前置空
+    void setHiddenSource(const IHiddenSource* source);
+    /// @brief 临时隐藏集变了：下一帧按它重画场景
+    void specifyHiddenChanged();
+    /// @brief 文档的图形模型（AppDocument 持有，同一文档的视图共用）；不设时画布为自己的文档建一个
+    void setGraphicsModel(std::shared_ptr<GsModel> model);
+    /// @brief 文档的图形模型；还没有文档时为空
+    std::shared_ptr<GsModel> graphicsModel() const override;
+    /// @brief 本画布的图形系统视图（测试用：看上一帧是否重画了场景底图）
+    const GsView& graphicsView() const { return *m_gsView; }
     /// @brief 设置文档对象：从原文档注销监听，在新文档注册
     /// @param pDoc 文档对象指针，可为空
     void setDocument(DmDocument* pDoc);
@@ -168,7 +172,7 @@ public:
     void zoomOut(double f = 1.5, const DmVector& center = DmVector(false)) override;
     /// @brief 适屏显示
     void zoomAuto() override;
-    /// @brief 直接设定视图：画布中心对应的世界坐标与比例；画笔未建立（initializeGL 之前）时不起作用
+    /// @brief 直接设定视图：画布中心对应的世界坐标与比例
     /// @param center 画布中心的世界坐标
     /// @param unitsPerPixel 每像素的世界长度
     void setView(const DmVector& center, double unitsPerPixel);
@@ -177,23 +181,11 @@ public:
     /// @param dy Y 方向偏移
     void zoomPan(int dx, int dy) override;
 
-    void drawBackgroundLayer();
-    void drawDocumentLayer();
-    void drawPreviewLayer();
-    void drawForegroundLayer();
+    /// @brief 按当前相机算网格的间距与交点（捕捉网格用）；返回细网格的间距
+    double updateGrid();
 
-    /// @brief 绘制原点坐标
-    void drawAbsoluteZero();
-    /// @brief 绘制背景栅格
-    void drawGridLine();
-    /// @brief 绘制鼠标十字光标
-    void drawCursor();
-    /// @brief 绘制捕捉点标识
-    void drawSnapIndicator();
     /// @brief 设置选择框角点
     void setOverlayCorners(const DmVector& corner1, const DmVector& corner2) override;
-    /// @brief 绘制选择框
-    void drawOverlayBox();
     /// @brief 禁用选择框
     void disableOverlayBox() override;
 
@@ -240,32 +232,27 @@ public:
     void setOrthogonalZero(const DmVector& pos) override;
     DmVector const& getOrthogonalZero() const override;
 
-    /// @return true 表示草稿模式（线宽为 1 像素，无样式缩放）
+    /// @return true 表示显示线宽（旧称草稿模式）
     bool isDraftMode() const;
     void setDraftMode(bool dm);
     bool isCleanUp(void) const override;
 
-    DmEntityContainer* getOverlayContainer(DM::OverlayDocument position) override;
     DmEntityContainer* getPreviewContainer() override;
-    /// @brief 指示预览已修改
+    /// @brief 指示预览已修改：下一帧预览的模型整体重建
     void specifyPreviewModified() override;
-    /// @brief 指示文档已修改：下一帧文档画笔整图重建
-    void specifyDocumentModified() override;
-    /// @brief 指示选择集已修改：下一帧文档画笔只重建选中组、夹点与高亮组
+    /// @brief 指示选择集已修改：下一帧只改对象状态与夹点
     void specifySelectChanged();
-    /// @brief 指示高亮集已修改：下一帧文档画笔只重建高亮组，场景底图不作废
+    /// @brief 指示高亮集已修改：下一帧只重画高亮，场景底图不作废（高亮集很大时除外）
     void specifyHighlightChanged();
-    /// @brief 指定预览模型矩阵的偏移量
-    void setPreviewModelOffset(const DmVector& offset) override;
-    /// @brief 切换文档画笔的实体容器（用于块编辑）
-    void setDocumentPainterContainer(DmEntityContainer* container);
+    /// @brief 预览的整体变换：预览几何只生成一次，拖动只改变换（RENDER_PLAN.md 第 4.3.9 节）
+    void setPreviewTransform(const GiTransform& transform) override;
 
     // ---- DmDocumentListener ----
-    /// @brief 文档已修改：同 specifyDocumentModified()
+    /// @brief 文档已修改：选中的实体可能动了，夹点跟着重取（几何由图形模型按变更集更新）
     void documentModified() override;
     /// @brief 文档请求重绘：同 redraw()
     void redrawRequested() override;
-    /// @brief 文档切换了要绘制的实体容器：同 setDocumentPainterContainer()
+    /// @brief 进入、退出块编辑：图形模型自己换根，这里只重绘
     void paintContainerChanged(DmEntityContainer* container) override;
 
     /// @brief 获得视图范围（世界坐标）
@@ -302,23 +289,18 @@ private slots:
     void hideSnapTooltip();
 
 private:
-    void createPainters(unsigned int width, unsigned int height);
-    void deletePainters();
-
-    /// @brief 按修改标记更新文档画笔的缓存并分别计时；整图重建与选择集修改使场景底图作废
-    void updateDocumentCache();
-    /// @brief 画背景层与文档层（普通组、选中组）：场景作废时重画进场景底图，再把底图拷到画布上；
-    ///        建不成场景底图时每帧直接画
-    void drawScene();
-    /// @brief 场景底图作废，下一帧重画（相机、尺寸、颜色与显示设置改变时）
-    void invalidateScene();
+    /// @brief 相机改了：重绘并发出 viewChanged（场景底图由 GsView 比对相机后作废）
+    void cameraChanged();
+    /// @brief 叠加层（原点标记、选择框、光标、捕捉标记）填进 GsView 的动态批次
+    void fillOverlay();
+    /// @brief 选中实体的夹点：参考点超过 100 个时一个也不画（与原先相同）
+    std::vector<DmVector> collectGrips() const;
 
 protected:
     DmDocument*                         pDocument;              ///< 文档实体容器
     bool                                m_isCoordinateInputEnabled = true; ///< 命令行坐标输入是否启用
 
     QColor                              background;             ///< 背景色
-    QColor                              foreground;             ///< 前景色
     QColor                              gridColor;              ///< 网格主线色
     QColor                              metaGridColor;          ///< 网格辅线色
     QColor                              selectedColor;          ///< 选中实体颜色
@@ -338,20 +320,23 @@ private:
     DmVector                            orthogonalZero;         ///< 正交零点
     bool                                relativeZeroLocked;     ///< 相对零点是否锁定
 
-    QMap<int, DmEntityContainer*>       m_overlayEntities;      ///< 交互时的前景实体集（TODO 删除）
+    // 相机
+    DmVector                            m_viewCenter = DmVector(0.0, 0.0); ///< 画布中心的世界坐标
+    double                              m_unitsPerPixel = 1.0;  ///< 每（逻辑）像素的世界长度
+
+    // 图形系统（RENDER_PLAN.md 第 4 阶段）
+    std::shared_ptr<GsModel>            m_gsModel;              ///< 文档模型
+    std::unique_ptr<GsModel>            m_gsPreview;            ///< 预览容器的模型
+    std::unique_ptr<GsView>             m_gsView;               ///< 本画布的视图
+    std::unique_ptr<GLRhiWidgetSurface> m_gsSurface;            ///< 画到本画布的表面
+    const IHiddenSource*                m_pHiddenSource = nullptr; ///< 临时隐藏集
+    bool                                m_gsGripsDirty = true;  ///< 选择集或文档变了，下一帧重新取夹点
 
     bool                                m_bIsCleanUp;           ///< 如果为 true 则清理 docView
 
     DmEntityContainer*                  m_pPreviewEntityContainer;  ///< 预览实体容器
-    opengl::GLPainter*                  m_pBackgroundPainter;       ///< 背景画笔
-    DmCachePainter*                     m_pDocumentPainter;         ///< 文档画笔
-    DmCachePainter*                     m_pPreviewPainter;          ///< 预览画笔
-    opengl::GLPainter*                  m_pForegroundPainter;       ///< 前景画笔
-    const ISelectionSource*             m_pDocumentSelection = nullptr; ///< 文档画笔判断选中的来源，建画笔时交给它
-    const IHighlightSource*             m_pDocumentHighlight = nullptr; ///< 文档画笔取高亮实体的来源，建画笔时交给它
-    std::unique_ptr<opengl::GLSceneBuffer> m_pSceneBuffer;          ///< 场景底图，属于画布的 GL 上下文
-    bool                                m_bSceneValid = false;      ///< 场景底图的内容是否仍然有效
-    bool                                m_bSceneGridOn = false;     ///< 画场景底图时网格是否开着（文档变量，改它时不通知画布，每帧比对）
+    const ISelectionSource*             m_pDocumentSelection = nullptr; ///< 判断选中的来源
+    const IHighlightSource*             m_pDocumentHighlight = nullptr; ///< 取高亮实体的来源
 
     DmVector                            m_currentMousePt;           ///< 当前鼠标位置（世界坐标）
     DM::CursorType                      m_eCursorType;              ///< 当前鼠标类型
@@ -361,7 +346,7 @@ private:
     QString                             m_strDevice;                ///< 输入设备名称
 
     bool                                m_isDrawCursor;             ///< 是否绘制光标
-    bool                                m_isDrawOverlayBox;         ///< 是否绘制选择框
+    bool                                m_isDrawOverlayBox = false; ///< 是否绘制选择框
     DmVector                            m_overlayCorner1;           ///< 选择框角点1
     DmVector                            m_overlayCorner2;           ///< 选择框角点2
 

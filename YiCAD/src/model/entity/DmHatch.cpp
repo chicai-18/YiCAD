@@ -206,6 +206,7 @@ void DmHatch::calculateBorders()
 
 void DmHatch::update()
 {
+    bumpRevision();
     DmRegionPtr boundary = data.getBoundary();
     // 没有轮廓不能创建填充
     if (!boundary || boundary->size() == 0)

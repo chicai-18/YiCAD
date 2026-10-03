@@ -156,6 +156,7 @@ void DmTextStyleTable::startModify(DmObject *e)
     DmTextStyle* ent = static_cast<DmTextStyle*>(e);
     TextStyleTableModifyCmd* cmd = new TextStyleTableModifyCmd(this, ent);
     m_pDoc->getCmdManager()->addToCurrentCmd(cmd);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::TextStyle);
 }
 
 /// @brief 按名称激活文字样式
@@ -196,8 +197,9 @@ void DmTextStyleTable::remove(DmTextStyle *e)
 }
 
 /// @brief 直接删除文字样式
-bool DmTextStyleTable::remove_direct(DmTextStyle *e)
+bool DmTextStyleTable::remove_direct(DmTextStyle* e)
 {
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::TextStyle);
     auto it2 = std::find(m_styles.begin(), m_styles.end(), e);
     m_styles.erase(it2);
     m_textStyleMap.erase(e->getId());
@@ -230,6 +232,7 @@ bool DmTextStyleTable::add_direct(DmTextStyle *e)
         return false;
     m_textStyleMap[id] = e;
     m_styles.emplace_back(e);
+    m_pDoc->changeTracker().touchTable(DmSymbolTableKind::TextStyle);
     return true;
 }
 

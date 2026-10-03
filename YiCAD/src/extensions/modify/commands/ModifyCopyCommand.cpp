@@ -230,10 +230,23 @@ std::vector<DmEntity*> ModifyCopyCommand::cloneSelection(const DmVector& offset)
 
 void ModifyCopyCommand::previewCopy(const DmVector& reference, const DmVector& target)
 {
-    m_preview->clear();
-    for (auto ent : cloneSelection(target - reference))
+    if (m_copyCount == 1)
     {
-        m_preview->entities().addEntity(ent);
+        // 只复制一份：预览几何只生成一次，拖动只改变换（RENDER_PLAN.md 第 4.3.9 节）
+        if (m_preview->entities().isEmpty())
+        {
+            m_preview->entities().addSelectionFromDocument();
+        }
+        m_preview->entities().setTransform(GiTransform::translation(target - reference));
+    }
+    else
+    {
+        // 多份：第 n 份偏移 n 倍，不是一个整体变换，每次重新生成
+        m_preview->clear();
+        for (auto ent : cloneSelection(target - reference))
+        {
+            m_preview->entities().addEntity(ent);
+        }
     }
     m_preview->draw();
 }

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2024-2026 YiCAD Contributors
  *
  * This file is free software: you can redistribute it and/or modify
@@ -16,187 +16,202 @@
  */
 
 /// @file GuiPreviewWidget.cpp
-/// @brief OpenGL 预览控件实现
+/// @brief 预览控件的实现
 
 #include "GuiPreviewWidget.h"
 
-#include "DmLine.h"
-#include "DmCircle.h"
-#include "DmArc.h"
-#include "DmEllipse.h"
-#include "DmSolid.h"
-#include "DmPolyline.h"
-#include "DmSpline.h"
-#include "DmText.h"
-#include "DmMText.h"
-#include "DmDocument.h"
-#include "GuiGrid.h"
-#include "DmMText.h"
-#include "DmText.h"
-#include "DmBlockReference.h"
-#include "DmSettings.h"
-#include "Math2d.h"
-#include "Debug.h"
-#include "GeometryMethods.h"
-#include "GLRhiDevice.h"
+#include <algorithm>
 
+#include <QColor>
+
+#include "DmBlock.h"
+#include "DmEntityContainer.h"
+#include "EntityTable.h"
+#include "GLRhiDevice.h"
+#include "GLRhiSurface.h"
+#include "GsModel.h"
+#include "GsView.h"
+#include "Math2d.h"
+
+namespace
+{
+/// @brief 与画布相同的多重采样数（图形系统按表面的采样数画场景）
+constexpr int kPreviewSamples = 4;
+}
 
 GuiPreviewWidget::GuiPreviewWidget(QWidget* parent, Qt::WindowFlags f)
     : QOpenGLWidget(parent, f)
-    , container(nullptr)
-    , background(30, 30, 30, 255)
-    , m_isInitialized(false)
-    , m_pPainter(nullptr)
+    , m_view(std::make_unique<GsView>())
+    , m_surface(std::make_unique<GLRhiWidgetSurface>(*this))
 {
     // 与程序的其他 GL 上下文同一格式（4.3 core，RENDER_PLAN.md 第 4.7.3 节）
-    setFormat(GLRhiDevice::surfaceFormat());
+    QSurfaceFormat format = GLRhiDevice::surfaceFormat();
+    format.setSamples(kPreviewSamples);
+    setFormat(format);
 }
 
 GuiPreviewWidget::~GuiPreviewWidget()
 {
-    if (m_pPainter)
-    {
-        delete m_pPainter;
-        m_pPainter = nullptr;
-    }
-    // 由使用者负责释放
+    // 图形系统的资源放进设备的延迟释放队列，不需要当前上下文
+    m_view->release();
+    // 容器由使用者负责释放
 }
 
-/// @brief 指定预览的实体集
 void GuiPreviewWidget::setContainer(DmEntityContainer* container)
 {
     this->container = container;
+    m_block = nullptr;
+    syncContainerModel();
+    if (m_model)
+    {
+        m_model->invalidate();
+    }
+    update();
 }
 
-/// @brief 适屏显示
-void GuiPreviewWidget::zoomAuto()
+void GuiPreviewWidget::setBlock(std::shared_ptr<GsModel> model, const DmBlock* block)
 {
-    if (container)
+    container = nullptr;
+    m_modelContainer = nullptr;
+    m_block = block;
+    m_hasBlockBounds = false;
+    if (block)
     {
-        if (width() == 0 || height() == 0)
+        // 块的包围框：定义坐标，适屏用
+        for (DmEntity* e : block->getEntityTable())
         {
-            return;
+            if (!e || e->isErased() || !e->isVisible())
+            {
+                continue;
+            }
+            const DmVector lo = e->getMin();
+            const DmVector hi = e->getMax();
+            if (!m_hasBlockBounds)
+            {
+                m_blockMin = lo;
+                m_blockMax = hi;
+                m_hasBlockBounds = true;
+            }
+            else
+            {
+                m_blockMin = DmVector(std::min(m_blockMin.x, lo.x), std::min(m_blockMin.y, lo.y));
+                m_blockMax = DmVector(std::max(m_blockMax.x, hi.x), std::max(m_blockMax.y, hi.y));
+            }
         }
-        double sx = 0.0;
-        double sy = 0.0;
-        DmVector max = container->getMax();
-        DmVector min = container->getMin();
-        DmVector center = (max + min) / 2.0;
-        auto const dV = max - min;
-        sx = std::max(dV.x, 0.);
-        sy = std::max(dV.y, 0.);
+    }
+    if (!model && block)
+    {
+        // 没有文档的图形模型：为这个块建一个只有它的模型（块的共享几何在其中编译）
+        model = std::make_shared<GsModel>(static_cast<const DmEntityContainer*>(nullptr));
+    }
+    m_model = std::move(model);
+    m_view->setBlock(m_model, block);
+    update();
+}
 
-        double fx = 1., fy = 1.;
-        if (sx > DM_TOLERANCE && sy > DM_TOLERANCE)
-        {
-            fx = sx / width();
-            fy = sy / height();
-        }
-        else
-        {
-            return;
-        }
-        fx = fy = std::max(fx, fy);
-
-        if (m_pPainter)
-        {
-            m_pPainter->setViewPosition(center.x, center.y);
-            m_pPainter->setScale(fx);
-        }
-        redraw();
+void GuiPreviewWidget::syncContainerModel()
+{
+    if (m_block)
+    {
+        return;
+    }
+    if (container != m_modelContainer || !m_model)
+    {
+        m_modelContainer = container;
+        m_model = std::make_shared<GsModel>(container);
+        m_view->setModel(m_model, false);
     }
 }
 
-/// @brief 检查是否已初始化
-bool GuiPreviewWidget::initialized() const
+void GuiPreviewWidget::zoomAuto()
 {
-    return m_isInitialized;
+    m_fit = true;
+    update();
 }
 
-/// @brief 重绘控件
 void GuiPreviewWidget::redraw()
 {
     update();
 }
 
-/// @brief 指示内容已修改
 void GuiPreviewWidget::specifyModified()
 {
-    if (m_pPainter)
+    if (m_model && !m_block)
     {
-        m_pPainter->specifyModified();
+        m_model->invalidate();
     }
+    update();
+}
+
+void GuiPreviewWidget::setCamera(const DmVector& center, double worldPerPixel)
+{
+    m_fit = false;
+    m_center = center;
+    m_worldPerPixel = worldPerPixel;
+    update();
+}
+
+bool GuiPreviewWidget::contentBounds(DmVector& minCorner, DmVector& maxCorner) const
+{
+    if (m_block)
+    {
+        minCorner = m_blockMin;
+        maxCorner = m_blockMax;
+        return m_hasBlockBounds;
+    }
+    if (!container)
+    {
+        return false;
+    }
+    minCorner = container->getMin();
+    maxCorner = container->getMax();
+    return minCorner.valid && maxCorner.valid && maxCorner.x >= minCorner.x && maxCorner.y >= minCorner.y;
+}
+
+void GuiPreviewWidget::fitCamera()
+{
+    if (width() <= 0 || height() <= 0)
+    {
+        return;
+    }
+    DmVector lo;
+    DmVector hi;
+    if (!contentBounds(lo, hi))
+    {
+        return;
+    }
+    const double sx = std::max(hi.x - lo.x, 0.0);
+    const double sy = std::max(hi.y - lo.y, 0.0);
+    if (sx <= DM_TOLERANCE && sy <= DM_TOLERANCE)
+    {
+        return;
+    }
+    // 与原先相同：内容恰好铺满控件，不留边
+    m_center = (lo + hi) / 2.0;
+    m_worldPerPixel = std::max(sx / width(), sy / height());
 }
 
 void GuiPreviewWidget::initializeGL()
 {
-    QOpenGLWidget::makeCurrent();
-    QOpenGLContext* CC = QOpenGLContext::currentContext();
-
-    int width = size().width();
-    int height = size().height();
-
-    if (CC != 0)
-    {
-        // core profile 下不设它，GLEW 取不到部分函数
-        glewExperimental = GL_TRUE;
-        GLenum err = glewInit();
-        // TODO : 在部分linux虚拟机中获得GLEW_ERROR_NO_GLX_DISPLAY
-        if (err == GLEW_ERROR_NO_GLX_DISPLAY)
-        {
-            err = GLEW_OK;
-        }
-        if (err != GLEW_OK)
-        {
-            exit(1);
-        }
-
-        if (!GLEW_VERSION_2_1)
-        {
-            exit(1);
-        }
-
-        createPainters(width, height);
-        if (m_pPainter)
-        {
-            m_pPainter->create_resources();
-            m_isInitialized = true;
-        }
-    }
-    else
-    {
-        createPainters(width, height);
-    }
+    // 图形系统在第一次画时建设备与资源
 }
 
 void GuiPreviewWidget::paintGL()
 {
-    if (!m_isInitialized)
+    syncContainerModel();
+    if (m_fit)
     {
-        return;
+        fitCamera();
     }
-    // 与 GuiDocumentView::paintGL 相同：Qt 6 不再在 paintGL 之前清空缓冲，这里显式清空
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    m_pPainter->draw();
+    GsViewStyle style;
+    style.background = QColor(background.red(), background.green(), background.blue(), background.alpha());
+    m_view->setStyle(style);
+    m_view->setCamera(m_center, m_worldPerPixel);
+    m_view->overlay().clear();
+    m_view->render(*m_surface, devicePixelRatioF());
 }
 
-void GuiPreviewWidget::resizeGL(int w, int h)
+void GuiPreviewWidget::resizeGL(int, int)
 {
-    if (!m_isInitialized)
-    {
-        return;
-    }
-    m_pPainter->new_device_size(w, h);
-    zoomAuto();
-    redraw();
-}
-
-void GuiPreviewWidget::createPainters(unsigned int width, unsigned int height)
-{
-    if (container == nullptr)
-    {
-        return;
-    }
-    m_pPainter = new DmCachePainter();
-    m_pPainter->addContainer(container);
+    update();
 }

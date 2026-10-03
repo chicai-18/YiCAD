@@ -31,29 +31,13 @@
 #include "DmBlockTable.h"
 #include "DmDocument.h"
 #include "DmEntity.h"
-#include "DmEntityContainer.h"
 #include "GuiPreviewWidget.h"
 
-namespace
-{
-void appendPreviewEntities(DmEntityContainer* previewContainer, DmEntity* entity)
-{
-    if (!previewContainer || !entity || entity->isErased())
-    {
-        return;
-    }
-
-    DmEntity* clone = entity->clone();
-    clone->setParent(previewContainer);
-    previewContainer->addEntity(clone);
-}
-}
-
 UINestedBlockSelectDialog::UINestedBlockSelectDialog(
-    DmDocument* doc, const QStringList& blockNames, QWidget* parent)
+    DmDocument* doc, std::shared_ptr<GsModel> graphics, const QStringList& blockNames, QWidget* parent)
     : QDialog(parent)
     , m_document(doc)
-    , m_previewContainer(new DmEntityContainer())
+    , m_graphics(std::move(graphics))
     , m_blockNames(blockNames)
 {
     setWindowTitle(tr("Select Block to Edit"));
@@ -105,10 +89,7 @@ UINestedBlockSelectDialog::UINestedBlockSelectDialog(
     }
 }
 
-UINestedBlockSelectDialog::~UINestedBlockSelectDialog()
-{
-    delete m_previewContainer;
-}
+UINestedBlockSelectDialog::~UINestedBlockSelectDialog() = default;
 
 QString UINestedBlockSelectDialog::selectedBlockName() const
 {
@@ -132,19 +113,7 @@ void UINestedBlockSelectDialog::onSelectionChanged(int row)
     if (!block)
         return;
 
-    // 清空并重新填充预览容器
-    m_previewContainer->clear();
-    for (auto e : block->getEntityTable())
-    {
-        if (e && !e->isErased())
-        {
-            appendPreviewEntities(m_previewContainer, e);
-        }
-    }
-    m_previewContainer->forcedCalculateBorders();
-
-    m_previewWidget->setContainer(m_previewContainer);
-    m_previewWidget->specifyModified();
+    // 直接画文档图形模型里的块几何（RENDER_PLAN.md 第 4.8 步），不再克隆块里的实体
+    m_previewWidget->setBlock(m_graphics, block);
     m_previewWidget->zoomAuto();
-    m_previewWidget->redraw();
 }

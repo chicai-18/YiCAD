@@ -21,11 +21,13 @@
 #ifndef UIBLOCKDELETE_H
 #define UIBLOCKDELETE_H
 
+#include <memory>
+
 #include "ui_UIBlockDelete.h"
 
 class DmBlockTable;
 class DmDocument;
-class DmEntityContainer;
+class GsModel;
 
 class UIBlockDelete : public QDialog, public Ui::UIBlockDelete
 {
@@ -46,7 +48,8 @@ public:
 
     /// @brief 设置文档
     /// @param [in] doc 文档指针
-    void setDocument(DmDocument* doc);
+    /// @param [in] graphics 文档的图形模型，预览直接画其中的块几何；可以为空
+    void setDocument(DmDocument* doc, std::shared_ptr<GsModel> graphics = nullptr);
 
 private slots:
     /// @brief 块选择变化槽
@@ -68,7 +71,7 @@ private:
 private:
     DmBlockTable*       m_pBlockTable;          ///< 块表指针
     DmDocument*         m_pDocument;            ///< 文档指针
-    DmEntityContainer*  m_pPreviewContainer;    ///< 预览用空容器，由本类负责释放
+    std::shared_ptr<GsModel> m_graphics;        ///< 文档的图形模型
 };
 
 #endif // UIBLOCKDELETE_H

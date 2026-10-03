@@ -78,6 +78,7 @@ DM::EntityType DmLeader::getEntityType() const
 // Implementation of update. Updates the arrow.
 void DmLeader::update()
 {
+    bumpRevision();
 	clear();
 
 	if(data.vertextes.size() == 0)

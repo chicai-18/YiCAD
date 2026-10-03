@@ -3,8 +3,8 @@
 ///
 /// 每个用例把 tests/render/drawings/ 里的一张参考图纸（tools/gen_render_references.py 生成，
 /// autocad_linetype.dxf 是 AutoCAD 画的线型对照图纸）画成图像，与 tests/render/baseline/ 里的
-/// 基准图像比对。基准图像记录的是当前旧渲染器的样子，包括已知的问题（RGB 全 0 画成白色、非等比块里
-/// X<Y 的圆仍是圆、离原点远时的浮点抖动等，见 RENDER_PLAN.md 第 3.2 节），是重构每一步的回归依据；
+/// 基准图像比对。第 4 阶段起基准图像是图形系统画的（旧渲染器已删除），记录的是当前的样子，
+/// 包括还没解决的问题（见 RENDER_PLAN.md 第 10 节阶段 4 的遗留问题），是重构每一步的回归依据；
 /// 有意改变显示时，确认新图后设 YICAD_RENDER_UPDATE_BASELINE=1 重跑以更新基准图像。
 ///
 /// 依赖用户自备字体的用例在字体缺失时跳过（SHX 字体不入库，CI 上没有）。

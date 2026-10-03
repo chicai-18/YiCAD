@@ -52,6 +52,7 @@ void EntityTableAddCmd::execute()
         m_isOwnByCommand = false;
         e->setErased(false);
         m_table->m_searchTree.insert(e);
+        m_table->touch(e);
     }
     ICmd::execute();
 }
@@ -73,6 +74,7 @@ void EntityTableAddCmd::undo()
     {
         e->setErased(true);
         m_table->m_searchTree.remove(e);
+        m_table->touch(e);
     }
     ICmd::undo();
 }
@@ -95,6 +97,7 @@ void EntityTableAddCmd::redo()
         // 一般不出现
         e->setErased(false);
         m_table->m_searchTree.insert(e);
+        m_table->touch(e);
     }
     ICmd::redo();
 }
@@ -134,6 +137,7 @@ void EntityTableRemoveCmd::execute()
     {
         e->setErased(true);
         m_table->m_searchTree.remove(e);
+        m_table->touch(e);
     }
     ICmd::execute();
 }
@@ -154,6 +158,7 @@ void EntityTableRemoveCmd::undo()
     {
         e->setErased(false);
         m_table->m_searchTree.insert(e);
+        m_table->touch(e);
     }
     ICmd::undo();
 }
@@ -196,6 +201,7 @@ void EntityTableModifyCmd::execute()
     m_newData = oss.str();
     m_modifiedEnt->update();
     m_table->m_searchTree.update(m_modifiedEnt);//更新到空间树
+    m_table->touch(m_modifiedEnt);
     ICmd::execute();
 }
 
@@ -211,6 +217,7 @@ void EntityTableModifyCmd::undo()
     m_modifiedEnt->restoreStream(str);
     m_modifiedEnt->update();
     m_table->m_searchTree.update(m_modifiedEnt);
+    m_table->touch(m_modifiedEnt);
     ICmd::undo();
 }
 
@@ -226,6 +233,7 @@ void EntityTableModifyCmd::redo()
     m_modifiedEnt->restoreStream(str);
     m_modifiedEnt->update();
     m_table->m_searchTree.update(m_modifiedEnt);
+    m_table->touch(m_modifiedEnt);
     ICmd::redo();
 }
 
