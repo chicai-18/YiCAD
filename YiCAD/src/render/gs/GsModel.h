@@ -35,6 +35,7 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -114,8 +115,11 @@ public:
     /// @brief 处理累积的变更：重建节点、编译分块、上传；在开始一帧之前调用
     void update(GsDevice& device);
 
-    /// @brief 内容的版本：可见的东西（几何、选中、图层表）变了就递增，视图据此判断场景底图是否作废
+    /// @brief 内容的版本：可见的东西（几何、选中、图层表、LTSCALE）变了就递增，视图据此判断场景底图是否作废
     std::uint64_t version() const { return m_version; }
+
+    /// @brief 全局线型比例：文档变量 $LTSCALE（容器模型为 1）；视图把它放进每帧常量，改了不重建几何
+    double globalLineTypeScale() const { return m_lineTypeScale; }
 
     /// @brief 可见分块的绘制命令
     /// @param minCorner、maxCorner 视口（世界坐标，外扩过）
@@ -204,9 +208,10 @@ private:
         Shared* shared = nullptr;
         GiTransform transform;   ///< 定义坐标（不含共享几何的原点）-> 世界
         GsAttributes byBlock;    ///< 已解析：种类只有值与随层
+        double lineTypeScale = 1.0;  ///< 块参照的线型比例（嵌套逐层相乘）
     };
-    void expand(Shared& shared, const GiTransform& transform, const GsAttributes& byBlock, std::vector<Leaf>& leaves,
-                int depth);
+    void expand(Shared& shared, const GiTransform& transform, const GsAttributes& byBlock, double lineTypeScale,
+                std::vector<Leaf>& leaves, int depth);
     static GsAttributes resolveAgainst(const GsAttributes& inner, const GsAttributes& outer);
     GsInstanceRecord instanceRecord(const Leaf& leaf, const DmVector& origin, std::uint32_t slot, std::uint32_t cell) const;
     /// @brief 一个节点的绘制命令（顶层几何、共享几何的实例、图片）
@@ -215,10 +220,23 @@ private:
     std::vector<GsInstanceRecord> instanceRecords(const Cell& cell) const;
 
     // ---- 表 ----
-    void readLayers();
+    /// @brief 重读图层表
+    /// @return 有图层的线型变了（超长虚线要重新分段）
+    bool readLayers();
     void readLineTypes();
+    /// @brief 重读文档变量 $LTSCALE
+    /// @return 变了
+    bool readLineTypeScale();
     std::uint16_t layerIndexOf(const DmLayer* layer);
     std::uint16_t lineTypeIndexOf(const DmLineType* lineType);
+    /// @brief 内联图案（填充图案线）在线型表里的序号；同样的图案只有一项
+    std::uint16_t patternIndexOf(const std::vector<double>& dashes);
+    /// @brief 线型表的一项（序号 index）按 dashes 写入，并记下 double 的周期与第一段划线中点
+    void setLineTypeEntry(std::uint16_t index, const std::vector<double>& dashes);
+    /// @brief 解析后的线型（值或随层）的周期与第一段划线中点，见 GsCompileContext::lineTypeMetrics
+    bool lineTypeMetrics(const GsLineTypeRef& lineType, double& period, double& firstDashCenter) const;
+    /// @brief LTSCALE、线型的图案或图层的线型改了：有分了段或该分段的虚线的分块重新编译（第 4.5.5 节）
+    void resplitLongRuns();
     bool layerDashed(std::uint16_t layer) const;
     void updateSelection();
     void setStateFlag(std::uint32_t slot, std::uint32_t flag, bool on);
@@ -263,8 +281,12 @@ private:
     std::unordered_map<const DmLayer*, std::uint16_t> m_layerIndex;
     std::vector<GsLayerRecord> m_layers;
     std::unordered_map<const DmLineType*, std::uint16_t> m_lineTypeIndex;
+    std::map<std::vector<double>, std::uint16_t> m_patternIndex;   ///< 内联图案 -> 线型表里的序号
     std::vector<GsLineTypeRecord> m_lineTypes;
     std::vector<bool> m_lineTypeDashed;
+    /// @brief 每项线型的周期与第一段划线中点（double，分段的相位按它算；表里的 float 不够准）
+    std::vector<std::pair<double, double>> m_lineTypeMetrics;
+    double m_lineTypeScale = 1.0;   ///< 全局线型比例 $LTSCALE
     bool m_tablesDirty = true;
 
     std::vector<GsObjectState> m_states;   ///< 按槽位；CPU 上的副本
@@ -296,6 +318,7 @@ private:
         std::vector<const void*> destroyedBlocks;
         bool layersChanged = false;
         bool lineTypesChanged = false;
+        bool variablesChanged = false;
 
         void merge(const DmChangeSet& changes);
         bool isEmpty() const;

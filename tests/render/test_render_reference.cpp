@@ -14,6 +14,11 @@
 #include <ostream>
 #include <string>
 
+#include "DmBlock.h"
+#include "DmBlockTable.h"
+#include "DmDocument.h"
+#include "DmLayer.h"
+#include "EntityTable.h"
 #include "RenderHarness.h"
 
 namespace
@@ -72,6 +77,35 @@ RenderRequest sized(RenderRequest request, int width, int height)
     return request;
 }
 
+/// @brief 实体线型比例按图层名补上：图层 LTS-<比例> 上的实体（模型空间与块定义里的）线型比例为该值
+/// @details linetype_scale.dxf 把实体线型比例写在组码 48 里给 AutoCAD 读，同时用图层名表示；
+///          YiCAD 的 DXF 导入这一阶段不读组码 48（不改插件 ABI，RENDER_PLAN.md 第 10 节阶段 5）
+void lineTypeScalesFromLayerNames(DmDocument& document)
+{
+    auto apply = [](EntityTable& table) {
+        for (DmEntity* e : table)
+        {
+            DmLayer* layer = e->getLayer(false);
+            const QString name = layer ? layer->getName() : QString();
+            if (name.startsWith(QStringLiteral("LTS-")))
+            {
+                e->setLineTypeScale(name.mid(4).toDouble());
+            }
+        }
+    };
+    apply(*document.getEntityTable());
+    for (DmBlock* block : *document.getBlockTable())
+    {
+        apply(block->getEntityTable());
+    }
+}
+
+RenderRequest prepared(RenderRequest request, std::function<void(DmDocument&)> prepare)
+{
+    request.prepare = std::move(prepare);
+    return request;
+}
+
 const RenderCase kCases[] = {
     {"entities", drawing("entities.dxf")},
     {"entities_grid", withGrid(drawing("entities.dxf"))},
@@ -84,6 +118,9 @@ const RenderCase kCases[] = {
     {"far_coords", drawing("far_coords.dxf")},
     {"image", drawing("image.dxf")},
     {"autocad_linetype", sized(drawing("autocad_linetype.dxf"), 960, 1040)},
+    // LTSCALE、实体线型比例、块参照的线型比例、闭合曲线的整周期、点的大小（阶段 5 的 AutoCAD 对照图纸）
+    {"linetype_scale",
+     sized(withLineWidth(prepared(drawing("linetype_scale.dxf"), lineTypeScalesFromLayerNames)), 800, 1000)},
     {"text_shx", requiring(drawing("text_shx.dxf"), RenderRequirement::ShxFont)},
     {"text_truetype", requiring(drawing("text_truetype.dxf"), RenderRequirement::TrueTypeFont)},
 };

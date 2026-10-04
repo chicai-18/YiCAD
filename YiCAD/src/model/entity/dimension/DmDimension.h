@@ -86,6 +86,8 @@ public:
 
 	void update() override;
 	virtual void updateDim(bool autoText = false);
+	/// @brief 加入文档：没指定的尺寸线、尺寸界线线型取文档的随层线型
+	void setDocument(DmDocument* pDoc) override;
 	void addEntity(DmEntity* e);
 	void clear();
 	bool removeEntity(DmEntity* entity);

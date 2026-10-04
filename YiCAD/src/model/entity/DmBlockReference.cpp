@@ -224,7 +224,7 @@ void DmBlockReference::update()
                 }
 
                 // 处理来自块的线型（独立存储）
-                if (tmpPen.getLineType() == DmLineTypeTable::ByBlock)
+                if (DmLineTypeTable::isByBlock(tmpPen.getLineType()))
                 {
                     tmpPen.setLineType(getPen().getLineType());
                 }
@@ -921,13 +921,9 @@ void DmBlockReference::worldDraw(IGiWorldDraw& wd) const
     constexpr double MIN_SCALE_EPSILON = 1.0e-6;
     if (blk && std::abs(data.scaleFactor.x) >= MIN_SCALE_EPSILON && std::abs(data.scaleFactor.y) >= MIN_SCALE_EPSILON)
     {
-        // 块里 ByBlock 的属性取块参照自己的属性；无效画笔表示三项都取外层
+        // 块里 ByBlock 的属性取块参照自己的属性；无效画笔表示三项都取外层（GiByBlockTraits 的初值即全随块，线型为空）
         GiByBlockTraits byBlock;
-        if (pen.getFlag(DM::FlagInvalid))
-        {
-            byBlock.lineType = DmLineTypeTable::ByBlock;
-        }
-        else
+        if (!pen.getFlag(DM::FlagInvalid))
         {
             byBlock.color = pen.getColor();
             byBlock.lineWeight = pen.getWidth();

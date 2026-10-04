@@ -371,12 +371,10 @@ void BlockFileCommands::repointEntityStyles(DmDocument* doc, DmEntity* entity)
         }
     }
 
-    // 重定向画笔的线型指针
+    // 重定向画笔的线型指针（随层、随块是各文档线型表里的保留记录，同样按名字换）
     DmPen currentPen = entity->getPen(false);
     DmLineType* currentLineType = currentPen.getLineType();
-    if (currentLineType
-        && currentLineType != DmLineTypeTable::ByLayer
-        && currentLineType != DmLineTypeTable::ByBlock)
+    if (currentLineType)
     {
         DmLineType* newLineType = doc->getLineTypeTable()->find(currentLineType->getLineTypeName());
         if (newLineType && newLineType != currentLineType)

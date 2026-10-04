@@ -316,6 +316,8 @@ void FilterOcdIO::saveXML(Writer& writer)
 
     writer.incInd();
 
+    // variables
+    saveVariables(writer);
     // lineTypes
     saveLineTypes(writer);
     //layers
@@ -358,6 +360,8 @@ void FilterOcdIO::restoreXML(XMLReader& reader)
         reader.FileVersion = 0;
     }
 
+    //variables
+    restoreVariables(reader);
     //lineTypes
     restoreLineTypes(reader);
     //layers
@@ -373,6 +377,55 @@ void FilterOcdIO::restoreXML(XMLReader& reader)
     restoreEntities(reader);
 
     reader.readEndElement("EntityContainer");
+}
+
+void FilterOcdIO::saveVariables(Writer& writer)
+{
+    // 按名字排序：变量字典是散列表，不排序时同一份文档每次写出的顺序都不同
+    const QHash<QString, DmVariable>& variables = m_pDocument->getVariableDict();
+    QStringList names = variables.keys();
+    names.sort();
+    writer.Stream() << writer.ind() << "<Variables Count=\"" << names.size() << "\">" << std::endl;
+    writer.incInd();
+    for (const QString& name : names)
+    {
+        const DmVariable& variable = variables[name];
+        const char* type = nullptr;
+        QString value;
+        switch (variable.getType())
+        {
+        case DM::VariableInt:
+            type = "int";
+            value = QString::number(variable.getInt());
+            break;
+        case DM::VariableDouble:
+            type = "double";
+            value = QString::number(variable.getDouble(), 'g', 17);
+            break;
+        case DM::VariableString:
+            type = "string";
+            value = variable.getString();
+            break;
+        case DM::VariableVector:
+            type = "vector";
+            value = QStringLiteral("%1 %2 %3")
+                        .arg(variable.getVector().x, 0, 'g', 17)
+                        .arg(variable.getVector().y, 0, 'g', 17)
+                        .arg(variable.getVector().z, 0, 'g', 17);
+            break;
+        case DM::VariableVoid:
+            break;
+        }
+        if (!type)
+        {
+            continue;
+        }
+        writer.Stream() << writer.ind() << "<Variable name=\"" << Persistence::encodeAttribute(name.toStdString())
+                        << "\" code=\"" << variable.getCode() << "\" type=\"" << type << "\" value=\""
+                        << Persistence::encodeAttribute(value.toStdString()) << "\"/>" << std::endl;
+    }
+    writer.decInd();
+    writer.Stream() << writer.ind() << "</Variables>" << std::endl;
 }
 
 void FilterOcdIO::saveLineTypes(Writer& writer)
@@ -592,6 +645,41 @@ void FilterOcdIO::saveEntities(Writer& writer)
     }
 }
 
+
+void FilterOcdIO::restoreVariables(XMLReader& reader)
+{
+    reader.readElement("Variables");
+    const long count = reader.getAttributeAsInteger("Count");
+    for (long i = 0; i < count; ++i)
+    {
+        reader.readElement("Variable");
+        const QString name = QString::fromUtf8(reader.getAttribute("name"));
+        const int code = static_cast<int>(reader.getAttributeAsInteger("code"));
+        const std::string type = reader.getAttribute("type");
+        const QString value = QString::fromUtf8(reader.getAttribute("value"));
+        if (type == "int")
+        {
+            m_pDocument->addVariable(name, value.toInt(), code);
+        }
+        else if (type == "double")
+        {
+            m_pDocument->addVariable(name, value.toDouble(), code);
+        }
+        else if (type == "string")
+        {
+            m_pDocument->addVariable(name, value, code);
+        }
+        else if (type == "vector")
+        {
+            const QStringList xyz = value.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+            if (xyz.size() == 3)
+            {
+                m_pDocument->addVariable(name, DmVector(xyz[0].toDouble(), xyz[1].toDouble(), xyz[2].toDouble()), code);
+            }
+        }
+    }
+    reader.readEndElement("Variables");
+}
 
 void FilterOcdIO::restoreLineTypes(XMLReader& reader)
 {

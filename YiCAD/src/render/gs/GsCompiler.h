@@ -26,9 +26,11 @@
 /// 适配器（原先的 GLCacheWorldDraw::resolve，更早是 DmEntity::getPen(true)）相同：嵌套绘制与 drawShared 各开一层，
 /// ByBlock 取外层解析后的属性，ByLayer 取所在图层，图层为空取外层的图层。
 ///
-/// 曲线的离散与线型的对齐沿用旧渲染器（第 4 阶段的决定，阶段 5 再改语义）：直线、多段线的每一段、圆弧
-/// 各自是一段居中对齐的虚线；圆、整椭圆、闭合的线串按整周期对齐；椭圆弧按旧的分段数离散；
-/// 线型生成的多段线与样条连成一条线串。圆、圆弧在相似变换下是解析的圆弧记录，否则离散成椭圆。
+/// 线型的对齐（第 4.5.1 节）：直线、多段线的每一段、圆弧各自是一段居中对齐的虚线；圆、整椭圆、闭合的线串按整周期对齐；
+/// 线型生成的多段线与样条连成一条线串；填充图案线（setLinePattern）按给定的相位周期重复、不做端点对齐。
+/// 比例链里的实体线型比例逐层相乘（嵌套绘制），块参照的线型比例放在实例记录里；LTSCALE 在着色器里乘。
+/// 超长的虚线在 double 下分段（第 4.5.5 节）：顶层几何按当时的 LTSCALE 与线型的周期，共享几何只分填充图案线
+/// （图案的长度随块缩放，与插入无关）。椭圆弧按旧的分段数离散；圆、圆弧在相似变换下是解析的圆弧记录，否则离散成椭圆。
 
 #ifndef GSCOMPILER_H
 #define GSCOMPILER_H
@@ -98,6 +100,14 @@ struct GsSharedUse
     const IGiDrawable* drawable = nullptr;
     GiTransform transform;        ///< 共享对象的定义坐标 -> 本单元坐标（不含本单元的原点）
     GsAttributes byBlock;         ///< 共享对象里 ByBlock 取的属性；layer 是图层为空的图元取的图层
+    double lineTypeScale = 1.0;   ///< 调用处的线型比例（块参照的），共享对象里的线型比例另乘它
+};
+
+/// @brief 顶层几何里按线型画的线的长度摘要：LTSCALE、线型的图案或图层的线型改了，据此判断要不要重新分段
+struct GsRunSummary
+{
+    GsLineTypeRef lineType;       ///< 解析后的线型：值（非连续线）或随层
+    double length = 0.0;          ///< 线长 ÷ 实体线型比例 的最大值（世界长度）
 };
 
 /// @brief 一条射线或构造线（double，本单元坐标，不减原点）
@@ -126,10 +136,20 @@ struct GsCompiled
     std::vector<GsInfiniteLine> infinite;
     std::vector<GsImageSource> images;     ///< 与 Image 类的记录一一对应
     bool hasNonUniformUse = false;         ///< 有非相似变换的块参照（图层、线型改了要重新判断要不要展开）
+    std::vector<GsRunSummary> runs;        ///< 顶层几何里按线型画的线，每种线型一条
+    bool hasPieces = false;                ///< 有按线型分了段的线（分段的相位取决于 LTSCALE 与线型的周期）
 
     void clear();
     bool empty() const;
 };
+
+/// @brief 图案（线型的元素，最多取 12 个）的周期与第一段划线的中点（double）；只有点的图案中点为 0
+void gsPatternMetrics(const std::vector<double>& dashes, double& period, double& firstDashCenter);
+
+/// @brief 超长的虚线超过这么多个周期时分段（第 4.5.5 节：float 的弧长参数到约 2^14 个周期时相位误差可见）
+constexpr double kGsPieceLimitPeriods = 16384.0;
+/// @brief 分段时每段的周期数（最后一段另含余下的，不超过 kGsPieceLimitPeriods）
+constexpr double kGsPiecePeriods = 8192.0;
 
 /// @brief 编译时向图形系统要的东西
 class GsCompileContext
@@ -152,6 +172,19 @@ public:
     /// @param nonUniform 输出：叶子里有没有非相似变换（不展开时也要记下，图层、线型改了要重新判断）
     virtual bool needsFlatten(const IGiDrawable& drawable, const GiTransform& transform, const GsAttributes& byBlock,
                               bool* nonUniform) = 0;
+
+    /// @brief 内联图案（填充图案线）在线型表里的序号；同样的图案只有一项
+    virtual std::uint16_t patternIndex(const std::vector<double>& dashes) = 0;
+
+    /// @brief 超长的线要不要分段：文档模型要；预览等容器模型不分（整体变换可能带缩放，分段的参数对不上）
+    virtual bool splitLongRuns() const = 0;
+
+    /// @brief 全局线型比例 LTSCALE（分段时用）
+    virtual double globalLineTypeScale() const = 0;
+
+    /// @brief 解析后的线型（值或随层）的周期与第一段划线的中点（图案长度，double；分段时用）
+    /// @return 连续线与随块返回 false
+    virtual bool lineTypeMetrics(const GsLineTypeRef& lineType, double& period, double& firstDashCenter) = 0;
 };
 
 /// @brief GI 编译器，见文件说明。一次编译一个单元，可以反复使用
@@ -222,17 +255,41 @@ private:
         std::vector<GiTransform> savedTransforms;
         bool resolvedValid = false;
         GsAttributes resolved;                  ///< 本层解析后的属性（属性改了作废）
+        double lineTypeScale = 1.0;             ///< 本层设的实体线型比例
+        double parentLineTypeScale = 1.0;       ///< 外层的线型比例（逐层相乘）
+        bool hasPattern = false;                ///< 设了内联图案（填充图案线）
+        GiLinePattern pattern;
+    };
+
+    /// @brief 一条线怎么画：对齐方式与分段（各段的 dash 参数）
+    struct RunPlan
+    {
+        GsDashMode mode = GsDashMode::None;
+        bool pattern = false;                   ///< 填充图案线：线型取内联图案
+        std::uint16_t patternIndex = 0;
+        std::vector<double> cuts;               ///< 段的分界（弧长参数，不含 0 与总长）；空为不分段
+        std::vector<std::array<float, 4>> dash; ///< 每段的 dash（不分段时一个）
     };
 
     void begin(std::uint32_t slot, const DmVector& origin, GsCompiled& out);
-    void pushFrame(const GiTransform& transform, const GsAttributes* parent, bool sharedTop);
+    void pushFrame(const GiTransform& transform, const GsAttributes* parent, bool sharedTop, double parentLineTypeScale);
     void drawInFrame(const IGiDrawable& drawable);
     Frame& frame() { return m_frames.back(); }
     const GsAttributes& attributes();
     GsAttributes resolve(const Frame& f);
 
+    /// @brief 本层的线型比例（逐层相乘）
+    double lineTypeScale() const;
+
+    /// @brief 一条线（总长 length，弧长参数单位）按线型怎么画：对齐方式 mode（开放或闭合），设了内联图案时为图案线；
+    ///        需要时分段并算好各段的参数
+    /// @param patternScale 图案长度到弧长参数的比例（填充图案线在变换下不为 1）；负数为按本层的变换取
+    RunPlan planRun(GsDashMode mode, double length, double patternScale);
+
     /// @brief 按当前属性加一条图元记录，返回本单元的序号
+    /// @param plan 线的画法；segment 是第几段（plan 不分段时为 0）
     std::uint32_t addPrim(GsDashMode mode, double runLength, std::uint8_t flags);
+    std::uint32_t addRunPrim(const RunPlan& plan, std::size_t segment, double segmentLength);
     /// @brief 填充、点、图片共用的图元记录（同一组属性只建一条）
     std::uint32_t fillPrim(std::uint8_t flags);
 
@@ -240,9 +297,11 @@ private:
     GsTexel localPoint(const DmVector& p, float z, std::uint32_t prim) const;
 
     // 各类几何（点已在本单元坐标）
-    void addStrip(const std::vector<DmVector>& points, bool closed);
-    void addLine(const DmVector& a, const DmVector& b);
-    void addArcRecord(const DmVector& center, double radius, double start, double sweep, bool closed);
+    // patternScale 见 planRun()
+    void addStrip(const std::vector<DmVector>& points, bool closed, double patternScale = -1.0);
+    void addLine(const DmVector& a, const DmVector& b, double patternScale = -1.0);
+    void addArcRecord(const DmVector& center, double radius, double start, double sweep, bool closed,
+                      double patternScale = -1.0);
     void addTransformedArc(const DmVector& center, double radius, double start, double sweep, bool full);
     void addTransformedEllipse(const DmVector& center, const DmVector& majorAxis, double ratio,
                                double startParam, double endParam, bool closed);

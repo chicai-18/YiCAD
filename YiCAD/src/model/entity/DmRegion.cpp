@@ -23,6 +23,10 @@
 /// @brief DmRegion 区域实体类的实现，包括点判断、三角化、序列化等
 
 #include "DmRegion.h"
+
+#include <algorithm>
+#include <cmath>
+
 #include "DmEntityHelper.h"
 #include "DmLine.h"
 #include "Information.h"
@@ -251,6 +255,20 @@ void DmRegion::isPointInside_subroutineForSegment(const DmVector& point, const D
                             counter++;
                             sure = false;
                         }
+                    }
+                    else
+                    {
+                        counter++;
+                    }
+                }
+                else if (e->getEntityType() == DM::EntityCircle)
+                {
+                    // 整圆没有端点，交点都计数；射线与圆相切时判不准，转一个角度再试（同上面对端点的处理）
+                    const DmVector radial = p - e->getCenter();
+                    const DmVector dir = DmVector::polar(1.0, ray->getDirection1());
+                    if (std::abs(radial.dotP(dir)) < 1.0e-6 * std::max(e->getRadius(), 1.0))
+                    {
+                        sure = false;
                     }
                     else
                     {

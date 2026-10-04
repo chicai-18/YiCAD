@@ -42,7 +42,9 @@ constexpr std::uint32_t kSlotPlain = 3;
 constexpr double kGripSize = 15.0;          ///< 夹点边长（像素），与旧渲染器的选中控制点相同
 constexpr float kEmphasisPixels = 4.0f;     ///< 选中、高亮加宽的像素，与旧渲染器的 HIGHLIGHT_WIDTH 相同
 constexpr float kPointPixels = 2.0f;        ///< 点的像素，与旧渲染器的 DEFAULT_POINT_SIZE 相同
-constexpr float kLineWidthPerCode = 0.05f;  ///< 显示线宽时每单位线宽代码的像素（旧渲染器的换算）
+/// @brief 显示线宽时每单位线宽代码（毫米 × 100）的像素：线宽按 5 像素/毫米显示，不随缩放变（第 4.6 节，用户定的固定换算）
+constexpr float kLineWidthPerCode = 0.05f;
+constexpr float kMinDashPeriodPixels = 2.0f;  ///< 线型的周期在屏幕上短于它时画实线（第 4.5.4 节）
 
 std::uint32_t packColor(const QColor& c)
 {
@@ -611,9 +613,14 @@ bool GsView::render(RhiSurface& surface, double dpr)
         f.background = toFloat4(m_style.background);
         f.selectedColor = toFloat4(m_style.selected);
         f.highlightColor = toFloat4(m_style.highlight);
-        f.lineStyle = {m_style.lineWidths ? kLineWidthPerCode : 0.0f, kEmphasisPixels, kPointPixels,
+        // 以像素计的量都乘设备像素比（第 4.6 节）；抗锯齿外扩（viewport.w）按设备像素
+        const float px = static_cast<float>(dpr);
+        f.lineStyle = {m_style.lineWidths ? kLineWidthPerCode * px : 0.0f, kEmphasisPixels * px, kPointPixels * px,
                        static_cast<float>(16.0 * wpp)};
         f.mode = {pass, bits ? 1u : 0u, selection ? 1u : 0u, samples};
+        // LTSCALE 取场景的模型（文档的变量），预览等叠加的临时模型也按它画
+        f.strokeStyle = {static_cast<float>(m_model ? m_model->globalLineTypeScale() : 1.0), kMinDashPeriodPixels * px, px,
+                         0.0f};
         const double spacing = m_style.gridSpacing;
         const bool grid = m_style.gridOn && spacing > 0.0 && std::isfinite(spacing);
         f.grid = {static_cast<float>(spacing), static_cast<float>(spacing * 5.0), grid ? 1.0f : 0.0f, 0.0f};

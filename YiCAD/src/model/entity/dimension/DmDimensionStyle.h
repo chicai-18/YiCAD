@@ -71,6 +71,8 @@ public:
 	explicit DmDimensionStyle(const DmDimensionStyle& temp, const QString& name);
 	QString getName() const;
 	void setName(const QString& name) { m_styleData.name = name; }
+	/// @brief 加入文档：没指定的尺寸线、尺寸界线线型取文档的随层线型
+	void setDocument(DmDocument* pDoc) override;
 	void updateData(const DmDimensionStyleData& data);
 	DmDimensionStyleData& getDataRef() { return m_styleData; }
 	const DmDimensionStyleData& getDataConstRef() const { return m_styleData; }

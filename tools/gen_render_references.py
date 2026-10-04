@@ -9,6 +9,10 @@
     linetypes.dxf       五种线型（DASHED、HIDDEN、CENTER、DASHDOT、DOT）× 直线（短于一个周期、1.4、1.6、2.2、长线）、
                         圆弧、两个圆、整椭圆、闭合四边形（线型生成禁用）
     lineweights.dxf     0、0.13、0.25、0.50、1.00、2.11 毫米与 ByLayer 线宽，直线、圆弧、圆
+    linetype_scale.dxf  LTSCALE 为 2：实体线型比例 0.5、1、2 的直线；块参照自身线型比例 1 与 3（块里显式线型、
+                        ByBlock 线型、自带线型比例的直线）；短于一个周期的小圆；DOT 线型按三种线宽画点
+                        （第 4.5 节，阶段 5 的 AutoCAD 对照图纸）。实体线型比例写在组码 48 里给 AutoCAD 读，
+                        同时用图层名表示（LTS-<比例>）：YiCAD 的 DXF 导入暂不读组码 48，test_render 按图层名补上
     colors.dxf          ACI 1~7、真彩色、RGB 0,0,0、ByLayer（图层颜色）、ByBlock（块参照不同颜色）、0 层块内实体随插入图层
     blocks.dxf          嵌套块；等比、X≠Y 的非等比（两个方向）、镜像、旋转、阵列插入；块内虚线按两个比例插入（D10）
     far_coords.dxf      离原点 3.5e6 的坐标（测绘坐标量级），毫米级的小图形
@@ -72,6 +76,7 @@ class Drawing(object):
         self.blocks = []            # (名字, 块记录句柄, [实体写出函数])
         self.entities = []          # 模型空间实体写出函数
         self.images = []            # (IMAGEDEF 句柄, 路径)
+        self.ltscale = 1.0          # 表头的 $LTSCALE
         self._next_block_record = 0x30
 
     # -- 资源 --------------------------------------------------------------
@@ -98,7 +103,7 @@ class Drawing(object):
     def write(self, path):
         with open(path, 'w', encoding='utf-8', newline='') as fp:
             w = Writer(fp, self.handles)
-            w.header()
+            w.header(self.ltscale)
             w.tables(self)
             w.begin('BLOCKS')
             w.block_begin(self.MODEL, '*Model_Space')
@@ -148,7 +153,7 @@ class Writer(object):
     def end(self):
         self.tag(0, 'ENDSEC')
 
-    def header(self):
+    def header(self, ltscale=1.0):
         self.begin('HEADER')
         self.tag(9, '$ACADVER')
         self.tag(1, 'AC1015')
@@ -157,7 +162,7 @@ class Writer(object):
         self.tag(9, '$INSUNITS')
         self.tag(70, '4')
         self.tag(9, '$LTSCALE')
-        self.num(40, 1.0)
+        self.num(40, ltscale)
         self.tag(9, '$HANDSEED')
         self.tag(5, 'FFFFFF')
         self.end()
@@ -300,7 +305,8 @@ class Writer(object):
     # -- 实体 --------------------------------------------------------------
 
     def head(self, kind, owner, attrs, subclass):
-        """实体通用头。attrs：layer、color（ACI，0 为 ByBlock，256 为 ByLayer）、rgb、linetype、lineweight。"""
+        """实体通用头。attrs：layer、color（ACI，0 为 ByBlock，256 为 ByLayer）、rgb、linetype、lineweight、
+        ltscale（实体线型比例，组码 48）。"""
         self.tag(0, kind)
         self.tag(5, self.handle())
         self.tag(330, owner)
@@ -312,6 +318,8 @@ class Writer(object):
             self.tag(62, str(attrs['color']))
         if 'lineweight' in attrs:
             self.tag(370, str(attrs['lineweight']))
+        if 'ltscale' in attrs:
+            self.num(48, attrs['ltscale'])
         if 'rgb' in attrs:
             r, g, b = attrs['rgb']
             self.tag(420, str((r << 16) | (g << 8) | b))
@@ -687,6 +695,44 @@ def gen_lineweights():
     return d
 
 
+def gen_linetype_scale():
+    """LTSCALE 为 2，DASHED 的周期 0.75 在世界里是 1.5（第 4.5.1 节的比例链）。
+
+    实体线型比例同时写在组码 48（AutoCAD 读）与图层名 LTS-<比例>（test_render 读）里，两者一致。
+    """
+    d = Drawing()
+    d.ltscale = 2.0
+    for name, descr, elements in LINETYPES:
+        d.linetype(name, descr, elements)
+    for scale in ('0.5', '2', '3'):
+        d.layer('LTS-' + scale)
+    e = d.entities
+
+    def scaled(scale, **attrs):
+        attrs['layer'] = 'LTS-' + scale
+        attrs['ltscale'] = float(scale)
+        return attrs
+
+    # 实体线型比例 0.5、1、2：长 9 的直线分别是 12、6、3 个周期
+    e.append(line(0.0, 0.0, 9.0, 0.0, **scaled('0.5', linetype='DASHED')))
+    e.append(line(0.0, -1.0, 9.0, -1.0, linetype='DASHED'))
+    e.append(line(0.0, -2.0, 9.0, -2.0, **scaled('2', linetype='DASHED')))
+    # 块参照自身的线型比例：块里显式 DASHED、ByBlock 线型、自带线型比例 0.5 的 DASHED 各一条
+    _, items = d.block('LTSBLK')
+    items.append(line(0.0, 0.0, 9.0, 0.0, linetype='DASHED'))
+    items.append(line(0.0, -0.6, 9.0, -0.6, linetype='BYBLOCK'))
+    items.append(line(0.0, -1.2, 9.0, -1.2, **scaled('0.5', linetype='DASHED')))
+    e.append(insert('LTSBLK', 0.0, -4.0, linetype='DASHED'))
+    e.append(insert('LTSBLK', 0.0, -6.5, **scaled('3', linetype='DASHED')))
+    # 闭合曲线的整周期规则（周期数取 round，至少 1）：周长 0.42、0.84、1.26、2.09 个周期
+    for x, r in ((0.5, 0.1), (2.0, 0.2), (4.0, 0.3), (6.5, 0.5)):
+        e.append(circle(x, -10.0, r, linetype='DASHED'))
+    # 点：直径等于线宽（0、0.50、1.00 毫米）
+    for y, weight in ((-12.0, 0), (-12.6, 50), (-13.2, 100)):
+        e.append(line(0.0, y, 9.0, y, linetype='DOT', lineweight=weight))
+    return d
+
+
 def gen_colors():
     d = Drawing()
     d.layer('RED', 1)
@@ -852,6 +898,7 @@ def main(argv):
         ('entities.dxf', gen_entities()),
         ('linetypes.dxf', gen_linetypes()),
         ('lineweights.dxf', gen_lineweights()),
+        ('linetype_scale.dxf', gen_linetype_scale()),
         ('colors.dxf', gen_colors()),
         ('blocks.dxf', gen_blocks()),
         ('far_coords.dxf', gen_far_coords()),

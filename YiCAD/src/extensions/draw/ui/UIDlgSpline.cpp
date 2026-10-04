@@ -56,6 +56,7 @@ void UIDlgSpline::setSpline(DmSpline& e)
 {
     m_pSpline = &e;
     wPen->setPen(m_pSpline->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pSpline->getLineTypeScale());
     DmDocument* document = m_pSpline->getDocument();
     if (document != nullptr)
     {
@@ -119,6 +120,7 @@ void UIDlgSpline::updateSpline()
     }
 
     m_pSpline->setPen(wPen->getPen());
+    m_pSpline->setLineTypeScale(wPen->getLineTypeScale());
     m_pSpline->setLayer(cbLayer->currentText());
     m_pSpline->update();
     t.commit();

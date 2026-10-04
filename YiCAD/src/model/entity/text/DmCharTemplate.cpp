@@ -381,7 +381,8 @@ DmLine* DmCharTemplate::getShearedEntityForLine(const DmLine& line, const DmVect
         double deltaY_end = end.y + deltaX_end * tana;
         DmVector end_offet(end.x, end.y + deltaY_end, 0.0);
         DmLine* pLine = new DmLine(start_offet, end_offet);
-        DmPen pen(DmColor(DM::FlagByBlock), DM::WidthByBlock, DmLineTypeTable::ByBlock);
+        // 字形不属于任何文档：无效画笔，颜色、线宽、线型都取外层（即随块）
+        DmPen pen(DM::FlagInvalid);
         pLine->setPen(pen);
         pLine->setLayer(nullptr);
         return pLine;

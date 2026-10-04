@@ -209,6 +209,10 @@ RenderScene::RenderScene(const RenderRequest& request)
         m_error = QStringLiteral("读入失败：%1\n插件消息：%2").arg(path, runtime->messages().join(QLatin1Char('\n')));
         return;
     }
+    if (request.prepare)
+    {
+        request.prepare(*m_document);
+    }
     m_document->setGridOn(request.grid);
     if (request.selectCircles)
     {
@@ -329,14 +333,16 @@ void expectMatchesBaseline(const QString& name, const QImage& actual)
     }
 }
 
-void expectSameImage(const QString& name, const QImage& expected, const QImage& actual)
+namespace
+{
+/// @brief 两张图比对，不同像素超过 allowed 时以 gtest 断言报告并写出图像
+void compareImages(const QString& name, const QImage& expected, const QImage& actual, int allowed)
 {
     ASSERT_FALSE(expected.isNull());
     ASSERT_FALSE(actual.isNull());
     ASSERT_EQ(expected.size(), actual.size());
 
     const ImageDiff diff = diffImages(expected, actual);
-    const int allowed = static_cast<int>(kMaxDifferentRatio * actual.width() * actual.height());
     if (diff.differing > allowed)
     {
         const QString written = writeOutput(name, actual, &diff.marked);
@@ -344,6 +350,17 @@ void expectSameImage(const QString& name, const QImage& expected, const QImage& 
         ADD_FAILURE() << name.toStdString() << "：" << diff.differing << " 个像素超出容差（允许 " << allowed
                       << "，最大通道差 " << diff.maxDelta << "）；实际图像与差异图见 " << written.toStdString();
     }
+}
+}  // namespace
+
+void expectSameImage(const QString& name, const QImage& expected, const QImage& actual)
+{
+    compareImages(name, expected, actual, static_cast<int>(kMaxDifferentRatio * actual.width() * actual.height()));
+}
+
+void expectIdenticalImage(const QString& name, const QImage& expected, const QImage& actual)
+{
+    compareImages(name, expected, actual, 0);
 }
 
 }  // namespace yicad_test

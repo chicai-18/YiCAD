@@ -521,6 +521,150 @@ TEST_F(OcdDocumentRoundTrip, 实体的图层与画笔不变)
     EXPECT_EQ(hatch->getLayer()->getName(), kLayerOutline);
 }
 
+TEST(LineTypeTableTest, 随层随块是线型表里不能删除的保留记录)
+{
+    // 与 AutoCAD/ODA 相同：ByLayer、ByBlock、Continuous 是每个文档线型表里的保留记录，只有名字没有图案
+    DmDocument doc;
+    DmLineTypeTable* table = doc.getLineTypeTable();
+    DmLineType* byLayer = table->getLineTypeByLayer();
+    DmLineType* byBlock = table->getLineTypeByBlock();
+    ASSERT_NE(byLayer, nullptr);
+    ASSERT_NE(byBlock, nullptr);
+    ASSERT_NE(table->getLineTypeContinuous(), nullptr);
+    EXPECT_EQ(table->find(LineType::ByLayer), byLayer);
+    EXPECT_EQ(table->find(LineType::ByBlock), byBlock);
+    EXPECT_EQ(byLayer->getNum(), 0u);
+    EXPECT_TRUE(byLayer->getLineTypeDesp().isEmpty());
+    EXPECT_EQ(byLayer->getDocument(), &doc);
+
+    // 判断按所属文档的保留记录：别的文档的记录、同名的独立对象都不是本文档的随层
+    EXPECT_TRUE(DmLineTypeTable::isByLayer(byLayer));
+    EXPECT_FALSE(DmLineTypeTable::isByLayer(byBlock));
+    EXPECT_TRUE(DmLineTypeTable::isByBlock(byBlock));
+    EXPECT_FALSE(DmLineTypeTable::isByBlock(nullptr));
+    DmLineType loose(LineType::ByLayer);
+    EXPECT_FALSE(DmLineTypeTable::isByLayer(&loose)) << "不属于任何文档的线型不是随层";
+    DmDocument other;
+    EXPECT_FALSE(byLayer == other.getLineTypeTable()->getLineTypeByLayer());
+    EXPECT_TRUE(DmLineTypeTable::isByLayer(other.getLineTypeTable()->getLineTypeByLayer()));
+
+    // 名字工具不区分大小写（同 OdDbSymUtil）
+    EXPECT_TRUE(LineType::isLinetypeByLayerName(QStringLiteral("BYLAYER")));
+    EXPECT_TRUE(LineType::isLinetypeByBlockName(QStringLiteral("byblock")));
+    EXPECT_TRUE(LineType::isLinetypeContinuousName(QStringLiteral("CONTINUOUS")));
+    EXPECT_FALSE(LineType::isLinetypeByLayerName(QStringLiteral("DASHED")));
+
+    // 不能删除
+    const unsigned int count = table->count();
+    table->remove(byLayer);
+    table->remove(byBlock);
+    table->remove(table->getLineTypeContinuous());
+    EXPECT_EQ(table->count(), count);
+    EXPECT_FALSE(byLayer->isErased());
+}
+
+TEST_F(OcdDocumentRoundTrip, 随层线型读回后仍取图层的线型)
+{
+    DmDocument original;
+    DmDocument restored;
+    ASSERT_NO_FATAL_FAILURE(roundTrip(original, restored));
+
+    // 样本里圆的线型随层，所在的轮廓层的线型是自定义线型
+    auto* circle = first<DmCircle>(*restored.getEntityTable(), DM::EntityCircle);
+    ASSERT_NE(circle, nullptr);
+    ASSERT_NE(circle->getLayer(), nullptr);
+    ASSERT_EQ(circle->getLayer()->getName(), kLayerOutline);
+    const DmPen pen = circle->getPen(true);
+    ASSERT_NE(pen.getLineType(), nullptr);
+    EXPECT_EQ(pen.getLineType()->getLineTypeName(), kLineTypeName);
+}
+
+TEST_F(OcdDocumentRoundTrip, 块里随块线型读回后仍取块参照的线型)
+{
+    DmDocument original;
+    ASSERT_NO_FATAL_FAILURE(build(original));
+    // 块里加一条线型随块的直线（线型取线型表里的 ByBlock 记录），块参照的线型改为自定义线型
+    DmBlock* block = original.getBlockTable()->find(kBlockName);
+    ASSERT_NE(block, nullptr);
+    DmLineType* lineType = original.getLineTypeTable()->find(kLineTypeName);
+    DmLineType* byBlock = original.getLineTypeTable()->find(LineType::ByBlock);
+    ASSERT_NE(lineType, nullptr);
+    ASSERT_NE(byBlock, nullptr);
+    addTo(block->getEntityTable(), original, new DmLine(DmVector(0.0, 5.0), DmVector(5.0, 5.0)),
+          original.getLayerTable()->find(QStringLiteral("0")),
+          DmPen(DmColor(DM::FlagByBlock), DM::WidthByBlock, byBlock));
+    auto* insert = first<DmBlockReference>(*original.getEntityTable(), DM::EntityBlockReference);
+    ASSERT_NE(insert, nullptr);
+    DmPen insertPen = insert->getPen(false);
+    insertPen.setLineType(lineType);
+    insert->setPen(insertPen);
+    insert->update();
+
+    // 块参照生成的子实体里，那条直线（插入后 y = 50 + 2 × 5 附近）的线型取块参照的线型
+    auto lineTypeOfByBlockLine = [](DmBlockReference& reference) -> QString {
+        for (DmEntity* sub : reference.getSubEntities())
+        {
+            if (sub->getEntityType() == DM::EntityLine && sub->getMin().y > 55.0)
+            {
+                DmLineType* lt = sub->getPen(true).getLineType();
+                return lt ? lt->getLineTypeName() : QStringLiteral("<null>");
+            }
+        }
+        return QStringLiteral("<没有找到>");
+    };
+    EXPECT_EQ(lineTypeOfByBlockLine(*insert), kLineTypeName) << "写出前";
+
+    const QString file = path(QStringLiteral("byblock.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(original, file));
+    DmDocument restored;
+    ASSERT_NO_FATAL_FAILURE(importFrom(restored, file));
+    auto* restoredInsert = first<DmBlockReference>(*restored.getEntityTable(), DM::EntityBlockReference);
+    ASSERT_NE(restoredInsert, nullptr);
+    EXPECT_EQ(lineTypeOfByBlockLine(*restoredInsert), kLineTypeName) << "读回后";
+}
+
+TEST_F(OcdDocumentRoundTrip, 实体线型比例与文档变量不变)
+{
+    DmDocument original;
+    ASSERT_NO_FATAL_FAILURE(build(original));
+    auto* line = first<DmLine>(*original.getEntityTable(), DM::EntityLine);
+    ASSERT_NE(line, nullptr);
+    line->setLineTypeScale(0.25);
+    // 全部文档变量都存（同 DXF 的 HEADER 段），四种类型各一个；字符串含要转义的字符
+    original.addVariable(QStringLiteral("$LTSCALE"), 2.5, 40);
+    original.addVariable(QStringLiteral("$CELTSCALE"), 0.1, 40);
+    original.addVariable(QStringLiteral("$TESTINT"), 7, 70);
+    original.addVariable(QStringLiteral("$TESTSTR"), QStringLiteral("中文 <&\"'> a\tb"), 1);
+    original.addVariable(QStringLiteral("$TESTVEC"), DmVector(1.5, -2.25, 1.0 / 3.0), 10);
+
+    const QString file = path(QStringLiteral("variables.ycd"));
+    ASSERT_NO_FATAL_FAILURE(exportTo(original, file));
+    DmDocument restored;
+    ASSERT_NO_FATAL_FAILURE(importFrom(restored, file));
+
+    auto* restoredLine = first<DmLine>(*restored.getEntityTable(), DM::EntityLine);
+    ASSERT_NE(restoredLine, nullptr);
+    EXPECT_DOUBLE_EQ(restoredLine->getLineTypeScale(), 0.25);
+    auto* circle = first<DmCircle>(*restored.getEntityTable(), DM::EntityCircle);
+    ASSERT_NE(circle, nullptr);
+    EXPECT_DOUBLE_EQ(circle->getLineTypeScale(), 1.0);
+
+    EXPECT_DOUBLE_EQ(restored.getVariableDouble(QStringLiteral("$LTSCALE"), 0.0), 2.5);
+    EXPECT_DOUBLE_EQ(restored.getVariableDouble(QStringLiteral("$CELTSCALE"), 0.0), 0.1);
+    EXPECT_EQ(restored.getVariableInt(QStringLiteral("$TESTINT"), 0), 7);
+    EXPECT_EQ(restored.getVariableString(QStringLiteral("$TESTSTR"), QString()), QStringLiteral("中文 <&\"'> a\tb"));
+    const DmVector v = restored.getVariableVector(QStringLiteral("$TESTVEC"), DmVector(0.0, 0.0));
+    EXPECT_DOUBLE_EQ(v.x, 1.5);
+    EXPECT_DOUBLE_EQ(v.y, -2.25);
+    EXPECT_DOUBLE_EQ(v.z, 1.0 / 3.0);
+    EXPECT_EQ(restored.getVariableDict().value(QStringLiteral("$TESTINT")).getCode(), 70);
+
+    // 读回的文档里新画的实体取当前对象线型比例
+    DmLine added(DmVector(0.0, 0.0), DmVector(1.0, 0.0));
+    added.setDocument(&restored);
+    EXPECT_DOUBLE_EQ(added.getLineTypeScale(), 0.1);
+}
+
 TEST_F(OcdDocumentRoundTrip, 文字与多行文字不变)
 {
     DmDocument original;

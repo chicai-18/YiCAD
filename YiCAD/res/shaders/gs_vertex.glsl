@@ -14,7 +14,9 @@ layout(set = 0, binding = 2) uniform usamplerBuffer viewBits;
 layout(set = 1, binding = 0) uniform usamplerBuffer objectStates;
 // 图层表：x 颜色 RGBA y 线型序号 | 线宽代码 << 16 z 标志（1 冻结） w 保留
 layout(set = 1, binding = 1) uniform usamplerBuffer layers;
-// 图元记录：每条 2 个纹素，见 GsPrimRecord
+// 线型表：每个线型 4 个纹素，见 gs_dash.glsl
+layout(set = 1, binding = 2) uniform samplerBuffer lineTypes;
+// 图元记录：每条 3 个纹素，见 GsPrimRecord
 layout(set = 1, binding = 3) uniform usamplerBuffer prims;
 
 // ---------------------------------------------------------------------------
@@ -22,13 +24,14 @@ layout(set = 1, binding = 3) uniform usamplerBuffer prims;
 // ---------------------------------------------------------------------------
 
 layout(location = 0) in vec4 iLinear;     // 线性部分 a b c d：x' = a·x + c·y
-layout(location = 1) in vec4 iTranslate;  // xy 平移（相对分块原点） z 线型长度比例 w 保留
+layout(location = 1) in vec4 iTranslate;  // xy 平移（相对分块原点） z 长度比例（弧长参数换成世界长度） w 块参照的线型比例
 layout(location = 2) in uvec4 iInfo0;     // x 槽位 y ByBlock 颜色 z ByBlock 种类 w 实例图层 | ByBlock 图层 << 16
 layout(location = 3) in uvec4 iInfo1;     // x ByBlock 线型 | ByBlock 线宽 << 16 y 分块序号 z 保留 w 保留
 
-/// @brief 图元记录
+/// @brief 图元记录（第三个纹素的 dash 参数按需另取，见 loadPrimDash）
 struct Prim
 {
+    uint index;       // 图元记录序号
     uint slot;
     vec4 color;
     uint primLayer;
@@ -42,6 +45,9 @@ struct Prim
     uint lineWeightKind;
     uint dashMode;
     uint flags;
+    bool piece;       // 超长线的一段（第 4.5.5 节）
+    bool runStart;    // 分段时：这一段从线的起点开始
+    bool runEnd;      // 分段时：这一段到线的终点结束
     float runLength;
     float lineTypeScale;
 };
@@ -53,9 +59,10 @@ vec4 unpackColor(uint c)
 
 Prim loadPrim(uint index)
 {
-    uvec4 a = texelFetch(prims, int(index * 2u));
-    uvec4 b = texelFetch(prims, int(index * 2u + 1u));
+    uvec4 a = texelFetch(prims, int(index * 3u));
+    uvec4 b = texelFetch(prims, int(index * 3u + 1u));
     Prim p;
+    p.index = index;
     p.slot = a.x;
     p.color = unpackColor(a.y);
     p.primLayer = a.z & 0xFFFFu;
@@ -67,11 +74,20 @@ Prim loadPrim(uint index)
     p.colorKind = b.y & 3u;
     p.lineTypeKind = (b.y >> 2) & 3u;
     p.lineWeightKind = (b.y >> 4) & 3u;
-    p.dashMode = (b.y >> 6) & 3u;
-    p.flags = (b.y >> 8) & 0xFFu;
+    p.dashMode = (b.y >> 6) & 7u;
+    p.flags = (b.y >> 9) & 0xFFu;
+    p.piece = (b.y & (1u << 17)) != 0u;
+    p.runStart = (b.y & (1u << 18)) != 0u;
+    p.runEnd = (b.y & (1u << 19)) != 0u;
     p.runLength = uintBitsToFloat(b.z);
     p.lineTypeScale = uintBitsToFloat(b.w);
     return p;
+}
+
+/// @brief 图元记录的 dash 参数（GsPrimRecord::dash）：只有分段的线与填充图案线用，按需取（大多数线是连续线，不读这个纹素）
+vec4 loadPrimDash(uint index)
+{
+    return uintBitsToFloat(texelFetch(prims, int(index * 3u + 2u)));
 }
 
 uint instanceLayer()
@@ -170,10 +186,104 @@ int resolveLineWeight(Prim p)
     return int(iInfo1.x) >> 16;
 }
 
-/// @brief 线宽的像素：显示线宽时为 代码 × 0.05，至少 1 像素（旧渲染器的换算，阶段 5 改为毫米换算）
+/// @brief 线宽的（设备）像素：显示线宽时为 毫米 × 5 × 设备像素比（每单位线宽代码 0.05 像素），0、默认与随层随块
+///        解析不了的（负的代码）以及不显示线宽时为 1 个像素 × 设备像素比（第 4.6 节）
 float lineWidthPixels(int code)
 {
-    return max(float(code) * frame.lineStyle.x, 1.0);
+    return max(float(code) * frame.lineStyle.x, frame.strokeStyle.z);
+}
+
+/// @brief 线型的画法与参数，平直插值传给片段着色器的 dashDistance（gs_dash.glsl）
+struct Stroke
+{
+    uint code;      // 画法 | 端点标志 | 线型序号 << 16
+    float scale;    // 图案长度到弧长参数（世界长度）的比例
+    float len;      // 这一段线的长度（世界长度）
+    vec3 params;    // 相位、头部划线终点、尾部划线起点
+};
+
+/// @brief 按图元记录的对齐方式与比例链定线型的画法（第 4.5.1 节）
+/// @param lengthScale 弧长参数换成世界长度的比例（实例记录的长度比例）
+/// @param instanceLineTypeScale 块参照的线型比例（实例记录的 w；无限线已乘进图元记录，传 1）
+Stroke strokeOf(Prim p, float lengthScale, float instanceLineTypeScale)
+{
+    Stroke st;
+    st.len = p.runLength * lengthScale;
+    st.scale = 1.0;
+    st.params = vec3(0.0);
+    uint caps = kStrokeCapStart | kStrokeCapEnd;
+    if (p.piece)
+    {
+        caps = (p.runStart ? kStrokeCapStart : 0u) | (p.runEnd ? kStrokeCapEnd : 0u);
+    }
+    else if (p.dashMode == kDashClosed)
+    {
+        caps = 0u;
+    }
+    uint lineType = p.dashMode == kDashNone ? 0u : (p.dashMode == kDashPattern ? p.lineType : resolveLineType(p));
+    st.code = kStrokeSolid | caps;
+    if (lineType == 0u)
+    {
+        return st;
+    }
+    vec4 header = texelFetch(lineTypes, int(lineType * 4u));
+    if (header.x == 0.0 || header.y <= 0.0)
+    {
+        return st;
+    }
+    st.code |= lineType << 16;
+    vec4 dash = p.piece || p.dashMode == kDashPattern ? loadPrimDash(p.index) : vec4(0.0, 1.0, 0.0, 0.0);
+
+    // 比例链：线型为 图案 × 实体线型比例 × 块参照的线型比例 × LTSCALE（块的插入比例不在链上，D10）；
+    // 填充图案线的图案在实体自身的坐标系里，随块缩放
+    float scale = p.dashMode == kDashPattern ? dash.y * lengthScale
+                                             : p.lineTypeScale * instanceLineTypeScale * frame.strokeStyle.x;
+    if (p.dashMode == kDashClosed)
+    {
+        // 整周期：周期数取 round，至少 1，图案按 周长 / (周期数 × 周期) 伸缩；分段的拉伸比例编译时算好
+        float n = max(round(st.len / (header.y * scale)), 1.0);
+        scale = p.piece ? scale * dash.y : st.len / (n * header.y);
+    }
+    st.scale = scale;
+    float period = header.y * scale;
+    // 周期在屏幕上过密时画实线（第 4.5.4 节）
+    if (period < frame.strokeStyle.y * frame.viewport.z)
+    {
+        return st;
+    }
+
+    uint kind = kStrokePeriodic;
+    if (p.dashMode == kDashPattern)
+    {
+        st.params.x = dash.x * lengthScale;
+    }
+    else if (p.dashMode == kDashClosed)
+    {
+        st.params.x = p.piece ? dash.x : 0.0;
+    }
+    else if (p.dashMode == kDashOpen)
+    {
+        if (p.piece)
+        {
+            kind = kStrokeCentered;
+            st.params = dash.xyz;
+        }
+        else if (st.len < period)
+        {
+            // 短于一个周期：有划线的图案画实线，只有点的图案只在两端画点
+            kind = header.w <= header.z ? kStrokeEndDots : kStrokeSolid;
+        }
+        else
+        {
+            // 居中：整数个周期之外的余量平分到两端，第一段划线的中点对准头部划线的终点
+            float head = fract(st.len / period) * 0.5 * period;
+            float shift = (header.z + header.w) * 0.5 * scale;
+            kind = kStrokeCentered;
+            st.params = vec3(shift - head, head, st.len - head);
+        }
+    }
+    st.code = kind | caps | (lineType << 16);
+    return st;
 }
 
 /// @brief 这个图元怎么画

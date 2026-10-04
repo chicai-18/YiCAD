@@ -132,6 +132,15 @@ void DmDimension::setLabel(const QString& l)
 	data.text = l;
 }
 
+void DmDimension::setDocument(DmDocument* pDoc)
+{
+	DmEntity::setDocument(pDoc);
+	if (pDoc)
+	{
+		data.lineDataRef().fillUnsetLineTypes(pDoc->getLineTypeTable()->getLineTypeByLayer());
+	}
+}
+
 void DmDimension::update()
 {
     bumpRevision();
@@ -204,6 +213,8 @@ void DmDimension::transferReferences(DmDocumentTransfer& transfer)
 {
 	data.pDimStyle = transfer.dimStyle(data.pDimStyle);
 	data.setTextStyle(transfer.textStyle(data.textStyle()));
+	data.setDimLineType(transfer.lineType(data.dimLineType()));
+	data.setBoundLineType(transfer.lineType(data.boundLineType()));
 }
 
 double DmDimension::getAngle()

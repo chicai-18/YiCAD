@@ -25,9 +25,22 @@
 #ifndef DMHATCH_H
 #define DMHATCH_H
 
+#include <cstdint>
+#include <vector>
+
 #include "HatchData.h"
 
 class DmEntityContainer;
+
+/// @brief 一条图案线：填充边界内的一整段，与它的图案、起点在图案里的位置（RENDER_PLAN.md 第 4.5.1 节）
+/// @details 图形系统按图案与相位画划线（GI 的 setLinePattern），相位锚定在图案原点，不做端点对齐
+struct DmHatchPatternRun
+{
+    DmVector start;
+    DmVector end;
+    std::uint32_t pattern = 0;   ///< 图案线定义的序号（DmHatch::getPatternDashes() 的下标）
+    double phase = 0.0;          ///< 起点在图案里的位置
+};
 
 class DmHatch : public DmEntity
 {
@@ -96,8 +109,14 @@ public:
     /// @brief 获取填充边界区域
     DmRegionPtr getBoundary() const;
 
-    /// @brief 获取填充生成的实体容器
+    /// @brief 获取填充生成的实体容器（图案的划线逐段切开的线段与点，供选择、捕捉、炸开）
     DmEntityContainerPtr getFilledEntities() const;
+
+    /// @brief 图案线（画图用：每条一整段，划线由图形系统按图案画）
+    const std::vector<DmHatchPatternRun>& getPatternRuns() const { return m_patternRuns; }
+
+    /// @brief 各条图案线定义的划线（已按图案比例缩放；空为实线）
+    const std::vector<std::vector<double>>& getPatternDashes() const { return m_patternDashes; }
 
     void calculateBorders() override;
 
@@ -115,6 +134,12 @@ public:
     /// @param [in] maxY 轮廓最大Y
     void fillPattern(DmEntityContainerPtr parent, const std::vector<double>& pat,
         double minX, double maxX, double minY, double maxY);
+
+    /// @brief 记下一条图案线：边界内 a、b 之间的一整段，相位按它在图案线上相对 origin 的位置（沿 dir）算
+    /// @param pattern 图案线定义的序号
+    /// @param period 图案的周期；实线为 0
+    void addPatternRun(const DmVector& a, const DmVector& b, const DmVector& origin, const DmVector& dir,
+                       std::uint32_t pattern, double period);
 
     /// @brief 对于pattern存在虚线的情况，计算实线及点的相对pattern线起始点的"坐标对"
     /// @param [in] dashLineLengths 虚线各段长度
@@ -177,6 +202,8 @@ protected:
 
     HatchData data;                          ///< 填充数据
     DmEntityContainerPtr m_filledEntities;   ///< 填充生成的实体容器
+    std::vector<DmHatchPatternRun> m_patternRuns;          ///< 图案线
+    std::vector<std::vector<double>> m_patternDashes;      ///< 各条图案线定义的划线
 };
 
 #endif // DMHATCH_H

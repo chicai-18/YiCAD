@@ -86,7 +86,7 @@ static_assert(sizeof(GsTexel) == 16);
 constexpr std::uint32_t kGsPointBreak = 0x80000000u;
 
 // ---------------------------------------------------------------------------
-// 图元记录（每条 2 个 RGBA32UI 纹素）
+// 图元记录（每条 3 个 RGBA32UI 纹素）
 // ---------------------------------------------------------------------------
 
 constexpr std::uint32_t kGsNoSlot = 0xFFFFFFFFu;         ///< 槽位取实例记录
@@ -101,31 +101,46 @@ enum class GsKind : std::uint8_t
     ByBlock = 2,  ///< 随块：取实例记录
 };
 
-/// @brief 线型的对齐方式
+/// @brief 线型的对齐方式（第 4.5.1 节）
 enum class GsDashMode : std::uint8_t
 {
     None = 0,      ///< 不按线型
-    Open = 1,      ///< 开放曲线：居中
-    Closed = 2,    ///< 闭合曲线：整周期
-    Infinite = 3,  ///< 射线、构造线
+    Open = 1,      ///< 开放曲线：居中（A 型对齐），短于一个周期时画实线或只画两端的点
+    Closed = 2,    ///< 闭合曲线：整周期，周期数取 round（至少 1），从起点开始
+    Infinite = 3,  ///< 射线、构造线：从基点起周期重复
+    Pattern = 4,   ///< 填充图案线：内联图案（线型表里的一项），相位给定，不做端点对齐，随块缩放
 };
 
 constexpr std::uint8_t kGsPrimFlagFill = 1;    ///< 选中、高亮时半透明叠色，不加宽
 constexpr std::uint8_t kGsPrimFlagPoint = 2;
 
-/// @brief 图元记录：一组属性相同的图元共用（颜色、图层、线型、线宽、所属对象、虚线的段长）
+/// @brief kinds 里的位
+constexpr std::uint32_t kGsKindsDashShift = 6;      ///< 对齐方式，3 位
+constexpr std::uint32_t kGsKindsFlagsShift = 9;     ///< 图元标志（kGsPrimFlag*），8 位
+constexpr std::uint32_t kGsKindsPiece = 1u << 17;   ///< 超长线的一段（第 4.5.5 节），dash 里是这一段的参数
+constexpr std::uint32_t kGsKindsRunStart = 1u << 18;  ///< 分段时：这一段从线的起点开始（起点是线端）
+constexpr std::uint32_t kGsKindsRunEnd = 1u << 19;    ///< 分段时：这一段到线的终点结束（终点是线端）
+
+/// @brief 图元记录：一组属性相同的图元共用（颜色、图层、线型、线宽、所属对象、虚线的段长与参数）
+/// @details dash 的含义（长度都是弧长参数的单位，即局部长度；分段的在编译时按 double 算好）：
+///          - 填充图案线（Pattern）：[0] 曲线起点在图案里的位置（相位）、[1] 图案长度到弧长参数的比例（非等比插入展开时
+///            不为 1）；分段时 [0] 是这一段起点的相位；
+///          - 开放曲线的一段（Open 且 kGsKindsPiece）：[0] 这一段起点在图案里的位置（中间部分的相位）、[1] 头部划线的终点
+///            （不是第一段时为负）、[2] 尾部划线的起点（不是最后一段时超过段长）；周期按着色器里的比例链算；
+///          - 闭合曲线的一段（Closed 且 kGsKindsPiece）：[0] 这一段起点的相位（已按整周期拉伸）、[1] 整周期的拉伸比例
 struct GsPrimRecord
 {
     std::uint32_t slot = kGsNoSlot;          ///< 顶层对象的槽位；块与字形的几何取实例记录
     std::uint32_t color = 0xFF000000u;       ///< RGBA，种类为值时用
     std::uint32_t layers0 = 0;               ///< 所在图层（冻结判断） | 颜色随层用的图层 << 16
     std::uint32_t layers1 = 0;               ///< 线型随层用的图层 | 线宽随层用的图层 << 16
-    std::uint32_t lineTypeAndWeight = 0;     ///< 线型序号 | 线宽代码（int16）<< 16
-    std::uint32_t kinds = 0;                 ///< 颜色、线型、线宽的种类各 2 位 | 对齐方式 << 6 | 标志 << 8
-    float runLength = 0.0f;                  ///< 这一段线的总长（局部长度）
-    float lineTypeScale = 1.0f;              ///< 实体线型比例（阶段 5 起生效）
+    std::uint32_t lineTypeAndWeight = 0;     ///< 线型序号（填充图案线为图案在线型表里的序号） | 线宽代码（int16）<< 16
+    std::uint32_t kinds = 0;                 ///< 颜色、线型、线宽的种类各 2 位 | 对齐方式 << 6 | 标志 << 9 | 分段的位（17～19）
+    float runLength = 0.0f;                  ///< 这一段线的长度（局部长度）；分段时为这一段的长度
+    float lineTypeScale = 1.0f;              ///< 实体线型比例（嵌套绘制逐层相乘；块参照的在实例记录里）
+    std::array<float, 4> dash{0.0f, 1.0f, 0.0f, 0.0f};  ///< 见上
 };
-static_assert(sizeof(GsPrimRecord) == 32);
+static_assert(sizeof(GsPrimRecord) == 48);
 
 // ---------------------------------------------------------------------------
 // 实例记录（步进为 1 的实例属性，64 字节）
@@ -136,7 +151,8 @@ static_assert(sizeof(GsPrimRecord) == 32);
 struct GsInstanceRecord
 {
     std::array<float, 4> linear = {1.0f, 0.0f, 0.0f, 1.0f};  ///< a b c d：x' = a·x + c·y
-    std::array<float, 4> translate = {0.0f, 0.0f, 1.0f, 0.0f}; ///< 平移（相对分块原点）、线型长度比例
+    std::array<float, 4> translate = {0.0f, 0.0f, 1.0f, 1.0f}; ///< 平移（相对分块原点）、长度比例（等比插入的比例，
+                                                               ///< 弧长参数换成世界长度）、块参照的线型比例
     std::uint32_t slot = kGsNoSlot;          ///< 顶层对象的槽位
     std::uint32_t byBlockColor = 0xFF000000u; ///< 随块颜色 RGBA
     std::uint32_t byBlockKinds = 0;          ///< 随块颜色、线型、线宽的种类各 2 位（值或随层）
@@ -199,14 +215,16 @@ struct GsFrameConstants
     std::array<float, 4> background{};
     std::array<float, 4> selectedColor{};
     std::array<float, 4> highlightColor{};
-    std::array<float, 4> lineStyle{};      ///< 每单位线宽代码的像素、选中加宽、点像素、无限线外扩
+    std::array<float, 4> lineStyle{};      ///< 每单位线宽代码的像素（已乘设备像素比）、选中加宽、点像素、无限线外扩
     std::array<std::uint32_t, 4> mode{};   ///< 通道、状态位图有效、选中生效、目标的采样数（片段着色器逐采样判断覆盖）
+    std::array<float, 4> strokeStyle{};    ///< 全局线型比例 LTSCALE、线型周期短于它（设备像素）时画实线、
+                                           ///< 最细线宽（设备像素，即设备像素比）、保留
     std::array<float, 4> grid{};           ///< 细间距、粗间距、是否画、保留
     std::array<float, 4> gridOffset{};     ///< 视点对细、粗间距取模
     std::array<float, 4> gridColor{};
     std::array<float, 4> metaGridColor{};
 };
-static_assert(sizeof(GsFrameConstants) == 240);
+static_assert(sizeof(GsFrameConstants) == 256);
 
 constexpr std::uint32_t kGsPassScene = 0;      ///< 场景通道：选中按对象状态
 constexpr std::uint32_t kGsPassHighlight = 1;  ///< 高亮叠加：全部按高亮画

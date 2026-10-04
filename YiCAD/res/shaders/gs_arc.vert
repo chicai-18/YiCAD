@@ -16,10 +16,11 @@ layout(location = 0) out vec2 vLocal;          // 相对圆心的局部坐标
 layout(location = 1) flat out vec4 vArc;       // 半径、起始角、扫角、弧长参数起点
 layout(location = 2) flat out vec4 vColor;
 layout(location = 3) flat out float vHalfWidth; // 半线宽（世界长度）
-layout(location = 4) flat out float vLength;    // 这一段线的总长（世界长度）
-layout(location = 5) flat out uint vDashMode;
-layout(location = 6) flat out uint vLineType;
-layout(location = 7) flat out float vLengthScale;
+layout(location = 4) flat out float vLength;    // 这一段线的长度（世界长度）
+layout(location = 5) flat out uint vStroke;     // 线型的画法（Stroke::code）
+layout(location = 6) flat out float vDashScale; // 图案长度到弧长参数的比例
+layout(location = 7) flat out vec3 vDashParams; // 相位、头部划线终点、尾部划线起点
+layout(location = 8) flat out float vLengthScale;
 
 const int kSegments = 8;
 const float kTwoPi = 6.28318530718;
@@ -74,13 +75,15 @@ void main()
     float r = outside ? outer : inner;
     vec2 offset = vec2(cos(angle), sin(angle)) * r;
 
+    Stroke stroke = strokeOf(prim, iTranslate.z, iTranslate.w);
     vLocal = offset;
     vArc = vec4(radius, start, sweep, b.y);
     vColor = style.color;
     vHalfWidth = halfWidth;
-    vLength = prim.runLength * iTranslate.z;
-    vDashMode = prim.dashMode;
-    vLineType = resolveLineType(prim);
+    vLength = stroke.len;
+    vStroke = stroke.code;
+    vDashScale = stroke.scale;
+    vDashParams = stroke.params;
     vLengthScale = iTranslate.z;
     gl_Position = eyeToClip(toEye(a.xy + offset), style.depth);
 }

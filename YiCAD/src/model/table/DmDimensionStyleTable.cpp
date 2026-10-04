@@ -228,7 +228,7 @@ DmBlockTable* DmDimensionStyleTable::getArrowBlocks()
 void DmDimensionStyleTable::initArrowBlocks()
 {
     // 以右侧箭头（第二箭头）为标准，箭头顶部坐标为(0,0)，一般箭头整体宽度为1.0（小点等除外）
-    DmPen pen(DmColor(DM::FlagByBlock), DM::WidthByBlock, DmLineTypeTable::ByBlock);
+    DmPen pen(DmColor(DM::FlagByBlock), DM::WidthByBlock, m_pDoc->getLineTypeTable()->getLineTypeByBlock());
     {
         // 实心闭合
         DmBlockData data(DmDimensionStyle::getArrowBlockName(DM::ArrowType::ClosedFilled), DmVector(0.0, 0.0), false);

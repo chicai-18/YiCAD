@@ -95,12 +95,12 @@ DmDocument::DmDocument()
     m_filename = "";
     m_formatType = DOCDEFAULTFORMAT;
 
-    m_activePen = DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, DmLineTypeTable::ByLayer);
-
     // ****** 初始化 *******
     // 线型表
     m_LineTypeTable = new DmLineTypeTable();
     m_LineTypeTable->setDocument(this);
+    // 当前画笔：随层（线型为本文档线型表里的 ByLayer 记录）
+    m_activePen = DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, m_LineTypeTable->getLineTypeByLayer());
     // 层表
     m_layerTable = new DmLayerTable();
     m_layerTable->setDocument(this);

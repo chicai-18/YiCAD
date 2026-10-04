@@ -74,9 +74,10 @@ public:
 
     virtual DmEntity* clone() const = 0;
 
-    /// @brief 按实体自身的画笔与图层设置图元属性
+    /// @brief 按实体自身的画笔、图层与线型比例设置图元属性
     /// @details 颜色、线宽、线型原样给出（可以是 ByLayer、ByBlock）；无效画笔（DM::FlagInvalid）表示三项都取外层，
-    ///          给出 ByBlock。图层为空表示取外层的图层。与 getPen(true)、getLayer(true) 沿父实体解析的规则一致
+    ///          给出 ByBlock。图层为空表示取外层的图层。与 getPen(true)、getLayer(true) 沿父实体解析的规则一致。
+    ///          实体线型比例不为 1 时给出（GI 里初值为 1）
     void setAttributes(IGiSubEntityTraits& traits) const override;
 
     /// @brief 经 GI 描述自身几何，见 IGiDrawable::worldDraw
@@ -127,6 +128,11 @@ public:
     void setPen(const DmPen& pen);
     void setPenToActive();
     DmPen getPen(bool resolve = true) const;
+
+    /// @brief 实体线型比例（AutoCAD 的"线型比例"特性），默认 1；加入文档时取文档变量 $CELTSCALE
+    /// @details 屏幕上的划线长度 = 线型图案长度 × 实体线型比例 × LTSCALE（RENDER_PLAN.md 第 4.5.1 节）
+    double getLineTypeScale() const { return m_lineTypeScale; }
+    void setLineTypeScale(double scale) { m_lineTypeScale = scale; }
 
     /// @brief 实体是否为容器
     /// @return 如果是容器则返回true
@@ -253,6 +259,7 @@ protected:
     bool                            updateEnabled = true;           ///< 是否启用自动更新。TODO ：不知道干啥用的，块参照和填充里有用到，不需要可删除
 
 private:
+    double                          m_lineTypeScale = 1.0;          ///< 实体线型比例
     std::map<QString, QString>      m_varList;                      ///< 实体扩展属性集合(类似于AutoCAD的XData)
     std::list<DmObserver*>          m_observerList;                 ///< 观察者列表
 };

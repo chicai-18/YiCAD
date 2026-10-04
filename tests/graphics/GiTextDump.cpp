@@ -77,11 +77,11 @@ std::string weight(DM::LineWidth w)
 
 std::string lineType(const DmLineType* lt)
 {
-    if (!lt || lt == DmLineTypeTable::ByBlock)
+    if (!lt || DmLineTypeTable::isByBlock(lt))
     {
         return "ByBlock";
     }
-    if (lt == DmLineTypeTable::ByLayer)
+    if (DmLineTypeTable::isByLayer(lt))
     {
         return "ByLayer";
     }

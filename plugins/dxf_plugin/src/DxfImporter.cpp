@@ -186,6 +186,8 @@ bool DxfImporter::read(const char* path)
     }
 
     m_currentContainer = m_modelSpace;
+    // 随块线型的资源先建好：R12 等图纸的线型表里没有 ByBlock 记录，实体却可以写 BYBLOCK
+    ensureLineType("ByBlock");
     dxfRW file(path);
     if (!file.read(this, true) || m_failed ||
         !resolvePendingInserts() || !resolvePendingImages())

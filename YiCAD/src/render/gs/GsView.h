@@ -74,7 +74,7 @@ struct GsViewStyle
     QColor highlight = QColor(Qt::cyan);
     QColor grid = QColor(50, 55, 72);
     QColor metaGrid = QColor(73, 79, 105);
-    bool lineWidths = false;      ///< 显示线宽（旧渲染器的换算：线宽代码 × 0.05 像素）
+    bool lineWidths = false;      ///< 显示线宽：按 5 像素/毫米（乘设备像素比）；不显示时都画 1 个像素（第 4.6 节）
     bool gridOn = false;
     double gridSpacing = 0.0;     ///< 细网格的间距（世界长度），粗网格为它的 5 倍
 

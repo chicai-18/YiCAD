@@ -1075,7 +1075,8 @@ DmSolid* DmMText::getSelectedCoverOfLine(DmChar* startChar, DmChar* endChar)
     DmVector p4(x1, topY - heightWidthSpace);
     std::vector<DmVector> pts{ p1, p2, p3, p4 };
     DmSolid* solid = new DmSolid(nullptr, SolidData(pts));
-    DmPen pen(DmColor(DM::FlagByBlock), DM::WidthByBlock, DmLineTypeTable::ByBlock);
+    // 无效画笔：颜色、线宽、线型都取多行文字（即随块）
+    DmPen pen(DM::FlagInvalid);
     solid->setPen(pen);
     return solid;
 }

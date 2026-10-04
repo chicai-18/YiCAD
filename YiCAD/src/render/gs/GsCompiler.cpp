@@ -58,6 +58,46 @@ float bitsToFloat(std::uint32_t bits)
     return std::bit_cast<float>(bits);
 }
 
+/// @brief x 对 period 取模，结果在 [0, period)
+double positiveMod(double x, double period)
+{
+    const double r = std::fmod(x, period);
+    return r < 0.0 ? r + period : r;
+}
+
+/// @brief 变换下长度的比例：相似变换为它的比例，否则取面积比例的平方根（填充图案线在非等比变换下的曲线用）
+double lengthScaleOf(const GiTransform& m)
+{
+    double scale = 1.0;
+    if (m.isSimilarity(&scale))
+    {
+        return scale;
+    }
+    return std::sqrt(std::fabs(m.determinant()));
+}
+
+}  // namespace
+
+void gsPatternMetrics(const std::vector<double>& dashes, double& period, double& firstDashCenter)
+{
+    period = 0.0;
+    firstDashCenter = 0.0;
+    bool haveDash = false;
+    for (std::size_t i = 0; i < dashes.size() && i < 12; ++i)
+    {
+        const double v = dashes[i];
+        if (v > 1.0e-8 && !haveDash)
+        {
+            firstDashCenter = period + v * 0.5;
+            haveDash = true;
+        }
+        period += std::abs(v);
+    }
+}
+
+namespace
+{
+
 /// @brief 多段线凸度段的圆弧：圆心、半径与逆时针的起止角，同原先 DmPolyline 生成的 DmArc 的"翻正"角度
 void bulgeArc(const DmVector& start, const DmVector& end, double bulge, DmVector& center, double& radius,
               double& startAngle, double& endAngle)
@@ -126,6 +166,8 @@ void GsCompiled::clear()
     infinite.clear();
     images.clear();
     hasNonUniformUse = false;
+    runs.clear();
+    hasPieces = false;
 }
 
 bool GsCompiled::empty() const
@@ -157,7 +199,7 @@ void GsCompiler::begin(std::uint32_t slot, const DmVector& origin, GsCompiled& o
 void GsCompiler::compileNode(const IGiDrawable& drawable, std::uint32_t slot, const DmVector& origin, GsCompiled& out)
 {
     begin(slot, origin, out);
-    pushFrame(GiTransform(), nullptr, false);
+    pushFrame(GiTransform(), nullptr, false, 1.0);
     drawInFrame(drawable);
     m_frames.clear();
     m_out = nullptr;
@@ -166,7 +208,7 @@ void GsCompiler::compileNode(const IGiDrawable& drawable, std::uint32_t slot, co
 void GsCompiler::compileShared(const IGiDrawable& drawable, const DmVector& origin, GsCompiled& out)
 {
     begin(kGsNoSlot, origin, out);
-    pushFrame(GiTransform(), nullptr, true);
+    pushFrame(GiTransform(), nullptr, true, 1.0);
     drawInFrame(drawable);
     m_frames.clear();
     m_out = nullptr;
@@ -205,15 +247,18 @@ void GsCompiler::setLineWeight(DM::LineWidth weight)
     frame().resolvedValid = false;
 }
 
-// 与旧渲染器相同，实体线型比例、内联图案、透明度、子实体标记与屏幕空间图元在第 4 阶段不起作用（阶段 5 起逐项补上）
-void GsCompiler::setLineTypeScale(double)
+void GsCompiler::setLineTypeScale(double scale)
 {
+    frame().lineTypeScale = scale;
 }
 
-void GsCompiler::setLinePattern(const GiLinePattern&)
+void GsCompiler::setLinePattern(const GiLinePattern& pattern)
 {
+    frame().hasPattern = !pattern.dashes.empty();
+    frame().pattern = pattern;
 }
 
+// 透明度、子实体标记与屏幕空间图元还不起作用
 void GsCompiler::setTransparency(std::uint8_t)
 {
 }
@@ -226,7 +271,8 @@ void GsCompiler::setScreenSpace(const DmVector*)
 {
 }
 
-void GsCompiler::pushFrame(const GiTransform& transform, const GsAttributes* parent, bool sharedTop)
+void GsCompiler::pushFrame(const GiTransform& transform, const GsAttributes* parent, bool sharedTop,
+                           double parentLineTypeScale)
 {
     Frame f;
     f.hasParent = parent != nullptr;
@@ -236,7 +282,14 @@ void GsCompiler::pushFrame(const GiTransform& transform, const GsAttributes* par
     }
     f.sharedTop = sharedTop;
     f.transform = transform;
+    f.parentLineTypeScale = parentLineTypeScale;
     m_frames.push_back(std::move(f));
+}
+
+double GsCompiler::lineTypeScale() const
+{
+    const Frame& f = m_frames.back();
+    return f.lineTypeScale * f.parentLineTypeScale;
 }
 
 void GsCompiler::drawInFrame(const IGiDrawable& drawable)
@@ -348,9 +401,9 @@ GsAttributes GsCompiler::resolve(const Frame& f)
         r.lineWeight = GsLineWeightRef{GsKind::Value, static_cast<std::int16_t>(DM::WidthByLayer), kGsLayerNone};
     }
 
-    // 线型：空视为 ByBlock
-    const DmLineType* lineType = f.lineType ? f.lineType : DmLineTypeTable::ByBlock;
-    if (lineType == DmLineTypeTable::ByBlock)
+    // 线型：空视为 ByBlock（GI 的约定）；随层、随块是线型所属文档线型表里的保留记录
+    const DmLineType* lineType = f.lineType;
+    if (!lineType || DmLineTypeTable::isByBlock(lineType))
     {
         if (f.hasParent)
         {
@@ -365,7 +418,7 @@ GsAttributes GsCompiler::resolve(const Frame& f)
             r.lineType.kind = GsKind::ByBlock;
         }
     }
-    else if (lineType == DmLineTypeTable::ByLayer)
+    else if (DmLineTypeTable::isByLayer(lineType))
     {
         if (r.layer != kGsLayerNone)
         {
@@ -394,12 +447,157 @@ std::uint32_t GsCompiler::addPrim(GsDashMode mode, double runLength, std::uint8_
     p.layers1 = static_cast<std::uint32_t>(a.lineType.layer) | (static_cast<std::uint32_t>(a.lineWeight.layer) << 16);
     p.lineTypeAndWeight = gsPackLineTypeAndWeight(a.lineType.index, a.lineWeight.code);
     p.kinds = static_cast<std::uint32_t>(a.color.kind) | (static_cast<std::uint32_t>(a.lineType.kind) << 2)
-            | (static_cast<std::uint32_t>(a.lineWeight.kind) << 4) | (static_cast<std::uint32_t>(mode) << 6)
-            | (static_cast<std::uint32_t>(flags) << 8);
+            | (static_cast<std::uint32_t>(a.lineWeight.kind) << 4) | (static_cast<std::uint32_t>(mode) << kGsKindsDashShift)
+            | (static_cast<std::uint32_t>(flags) << kGsKindsFlagsShift);
     p.runLength = static_cast<float>(runLength);
-    p.lineTypeScale = 1.0f;
+    p.lineTypeScale = static_cast<float>(lineTypeScale());
     m_out->prims.push_back(p);
     return static_cast<std::uint32_t>(m_out->prims.size() - 1);
+}
+
+std::uint32_t GsCompiler::addRunPrim(const RunPlan& plan, std::size_t segment, double segmentLength)
+{
+    const std::uint32_t index = addPrim(plan.mode, segmentLength, 0);
+    GsPrimRecord& p = m_out->prims[index];
+    if (plan.pattern)
+    {
+        // 填充图案线：线型取内联图案（值），不按图层、块解析
+        const GsAttributes& a = attributes();
+        p.lineTypeAndWeight = gsPackLineTypeAndWeight(plan.patternIndex, a.lineWeight.code);
+        p.layers1 = static_cast<std::uint32_t>(kGsLayerNone) | (static_cast<std::uint32_t>(a.lineWeight.layer) << 16);
+        p.kinds &= ~(3u << 2);
+    }
+    if (segment < plan.dash.size())
+    {
+        p.dash = plan.dash[segment];
+    }
+    if (!plan.cuts.empty())
+    {
+        p.kinds |= kGsKindsPiece;
+        if (segment == 0)
+        {
+            p.kinds |= kGsKindsRunStart;
+        }
+        if (segment == plan.cuts.size())
+        {
+            p.kinds |= kGsKindsRunEnd;
+        }
+    }
+    return index;
+}
+
+GsCompiler::RunPlan GsCompiler::planRun(GsDashMode mode, double length, double patternScale)
+{
+    RunPlan plan;
+    plan.mode = mode;
+    const Frame& f = frame();
+    if (f.hasPattern)
+    {
+        if (patternScale < 0.0)
+        {
+            patternScale = lengthScaleOf(f.transform);
+        }
+        // 填充图案线（第 4.5.1 节）：相位锚定在图案原点，不做端点对齐；图案在实体自身的坐标系里，随块缩放
+        plan.mode = GsDashMode::Pattern;
+        plan.pattern = true;
+        plan.patternIndex = m_context.patternIndex(f.pattern.dashes);
+        double period = 0.0;
+        double center = 0.0;
+        gsPatternMetrics(f.pattern.dashes, period, center);
+        period *= patternScale;
+        const double phase = period > 0.0 ? positiveMod(f.pattern.phase * patternScale, period) : 0.0;
+        if (period > 0.0 && m_context.splitLongRuns() && length / period > kGsPieceLimitPeriods)
+        {
+            const double step = kGsPiecePeriods * period;
+            const int pieces = static_cast<int>(std::floor(length / step));
+            for (int k = 0; k < pieces; ++k)
+            {
+                const double start = k * step;
+                if (k > 0)
+                {
+                    plan.cuts.push_back(start);
+                }
+                plan.dash.push_back({static_cast<float>(positiveMod(phase + start, period)),
+                                     static_cast<float>(patternScale), 0.0f, 0.0f});
+            }
+        }
+        else
+        {
+            plan.dash.push_back({static_cast<float>(phase), static_cast<float>(patternScale), 0.0f, 0.0f});
+        }
+        return plan;
+    }
+
+    // 线型：只有顶层几何分段（共享几何的插入各有自己的线型比例），周期按当时的 LTSCALE 与图层表算
+    if (m_slot == kGsNoSlot || !m_context.splitLongRuns())
+    {
+        return plan;
+    }
+    const GsLineTypeRef& lineType = attributes().lineType;
+    const bool tracked = (lineType.kind == GsKind::Value && lineType.index != 0) || lineType.kind == GsKind::ByLayer;
+    const double scale = lineTypeScale();
+    if (!tracked || scale <= 0.0)
+    {
+        return plan;
+    }
+    // 长度摘要：LTSCALE、线型、图层的线型改了，模型据此判断这个分块要不要重新分段
+    auto summary = std::find_if(m_out->runs.begin(), m_out->runs.end(),
+                                [&lineType](const GsRunSummary& r) { return r.lineType == lineType; });
+    if (summary == m_out->runs.end())
+    {
+        m_out->runs.push_back({lineType, length / scale});
+    }
+    else
+    {
+        summary->length = std::max(summary->length, length / scale);
+    }
+    double patternPeriod = 0.0;
+    double center = 0.0;
+    if (!m_context.lineTypeMetrics(lineType, patternPeriod, center))
+    {
+        return plan;
+    }
+    const double chain = scale * m_context.globalLineTypeScale();
+    const double period = patternPeriod * chain;
+    if (!(period > 0.0) || length / period <= kGsPieceLimitPeriods)
+    {
+        return plan;
+    }
+
+    m_out->hasPieces = true;
+    const double step = kGsPiecePeriods * period;
+    const int pieces = static_cast<int>(std::floor(length / step));
+    if (mode == GsDashMode::Closed)
+    {
+        // 整周期：周期数取 round，图案拉伸到正好 n 个周期，各段起点的相位按拉伸后的周期算
+        const double n = std::max(std::round(length / period), 1.0);
+        const double stretched = length / n;
+        for (int k = 0; k < pieces; ++k)
+        {
+            const double start = k * step;
+            if (k > 0)
+            {
+                plan.cuts.push_back(start);
+            }
+            plan.dash.push_back({static_cast<float>(positiveMod(start, stretched)),
+                                 static_cast<float>(stretched / period), 0.0f, 0.0f});
+        }
+        return plan;
+    }
+    // 居中：头部划线到 head，尾部划线从 length - head 起，中间从第一段划线的中点对准 head 起周期重复
+    center *= chain;
+    const double head = (length / period - std::floor(length / period)) * 0.5 * period;
+    for (int k = 0; k < pieces; ++k)
+    {
+        const double start = k * step;
+        if (k > 0)
+        {
+            plan.cuts.push_back(start);
+        }
+        plan.dash.push_back({static_cast<float>(positiveMod(start - head + center, period)),
+                             static_cast<float>(head - start), static_cast<float>(length - head - start), 0.0f});
+    }
+    return plan;
 }
 
 std::uint32_t GsCompiler::fillPrim(std::uint8_t flags)
@@ -429,7 +627,7 @@ GsTexel GsCompiler::localPoint(const DmVector& p, float z, std::uint32_t prim) c
 void GsCompiler::draw(const IGiDrawable& drawable)
 {
     const GsAttributes parent = attributes();
-    pushFrame(frame().transform, &parent, false);
+    pushFrame(frame().transform, &parent, false, lineTypeScale());
     drawInFrame(drawable);
     m_frames.pop_back();
 }
@@ -455,14 +653,14 @@ void GsCompiler::drawShared(const IGiDrawable& drawable, const GiTransform& tran
         bool nonUniform = false;
         if (m_context.needsFlatten(drawable, composed, parent, &nonUniform))
         {
-            pushFrame(composed, &parent, false);
+            pushFrame(composed, &parent, false, lineTypeScale());
             drawInFrame(drawable);
             m_frames.pop_back();
             return;
         }
         m_out->hasNonUniformUse = m_out->hasNonUniformUse || nonUniform;
     }
-    m_out->shared.push_back({&drawable, composed, parent});
+    m_out->shared.push_back({&drawable, composed, parent, lineTypeScale()});
 }
 
 void GsCompiler::pushTransform(const GiTransform& transform)
@@ -497,7 +695,7 @@ void GsCompiler::glyphRun(const GiGlyphRun& run)
         {
             continue;
         }
-        m_out->shared.push_back({glyph, frame().transform * g.transform, parent});
+        m_out->shared.push_back({glyph, frame().transform * g.transform, parent, lineTypeScale()});
     }
 }
 
@@ -567,7 +765,11 @@ void GsCompiler::polyline(std::span<const DmVector> points, std::span<const doub
         }
         else if (std::fabs(b) < kBulgeTolerance)
         {
-            addLine(m.apply(s), m.apply(e));
+            // 填充图案线的图案按这一段在变换下的长度比例伸缩
+            const double local = s.distanceTo(e);
+            const DmVector worldDir = m.applyVector(e - s);
+            const double k = local > 0.0 ? std::hypot(worldDir.x, worldDir.y) / local : 1.0;
+            addLine(m.apply(s), m.apply(e), k);
         }
         else
         {
@@ -878,23 +1080,45 @@ void GsCompiler::addWideSegment(const DmVector& startPt, const DmVector& endPt, 
 // 记录
 // ---------------------------------------------------------------------------
 
-void GsCompiler::addLine(const DmVector& a, const DmVector& b)
+void GsCompiler::addLine(const DmVector& a, const DmVector& b, double patternScale)
 {
     const double length = a.distanceTo(b);
-    const std::uint32_t prim = addPrim(GsDashMode::Open, length, 0);
+    const RunPlan plan = planRun(GsDashMode::Open, length, patternScale);
     auto& points = m_out->records[static_cast<std::size_t>(GsClass::Segment)];
-    points.push_back(localPoint(a, 0.0f, prim));
-    points.push_back(localPoint(b, static_cast<float>(length), prim | kGsPointBreak));
+    // 每段两个点，弧长参数从 0 起（不分段时就是整条线）
+    double start = 0.0;
+    for (std::size_t k = 0; k <= plan.cuts.size(); ++k)
+    {
+        const bool last = k == plan.cuts.size();
+        const double end = last ? length : plan.cuts[k];
+        const DmVector pa = k == 0 ? a : a + (b - a) * (start / length);
+        const DmVector pb = last ? b : a + (b - a) * (end / length);
+        const std::uint32_t prim = addRunPrim(plan, k, end - start);
+        points.push_back(localPoint(pa, 0.0f, prim));
+        points.push_back(localPoint(pb, static_cast<float>(end - start), prim | kGsPointBreak));
+        start = end;
+    }
 }
 
-void GsCompiler::addArcRecord(const DmVector& center, double radius, double start, double sweep, bool closed)
+void GsCompiler::addArcRecord(const DmVector& center, double radius, double start, double sweep, bool closed,
+                              double patternScale)
 {
     const double length = radius * sweep;
-    const std::uint32_t prim = addPrim(closed ? GsDashMode::Closed : GsDashMode::Open, length, 0);
+    const RunPlan plan = planRun(closed ? GsDashMode::Closed : GsDashMode::Open, length, patternScale);
     auto& arcs = m_out->records[static_cast<std::size_t>(GsClass::Arc)];
-    arcs.push_back(GsTexel{static_cast<float>(center.x - m_origin.x), static_cast<float>(center.y - m_origin.y),
-                           static_cast<float>(radius), static_cast<float>(start)});
-    arcs.push_back(GsTexel{static_cast<float>(sweep), 0.0f, 0.0f, bitsToFloat(prim)});
+    // 分段时每段一条圆弧记录，弧长参数各自从 0 起
+    double s0 = 0.0;
+    for (std::size_t k = 0; k <= plan.cuts.size(); ++k)
+    {
+        const double s1 = k == plan.cuts.size() ? length : plan.cuts[k];
+        const double pieceStart = plan.cuts.empty() ? start : start + s0 / radius;
+        const double pieceSweep = plan.cuts.empty() ? sweep : (s1 - s0) / radius;
+        const std::uint32_t prim = addRunPrim(plan, k, s1 - s0);
+        arcs.push_back(GsTexel{static_cast<float>(center.x - m_origin.x), static_cast<float>(center.y - m_origin.y),
+                               static_cast<float>(radius), static_cast<float>(pieceStart)});
+        arcs.push_back(GsTexel{static_cast<float>(pieceSweep), 0.0f, 0.0f, bitsToFloat(prim)});
+        s0 = s1;
+    }
 }
 
 void GsCompiler::addEllipse(const DmVector& center, const DmVector& majorAxis, double ratio, double startParam,
@@ -943,7 +1167,7 @@ void GsCompiler::addEllipse(const DmVector& center, const DmVector& majorAxis, d
     }
 }
 
-void GsCompiler::addStrip(const std::vector<DmVector>& pts, bool closed)
+void GsCompiler::addStrip(const std::vector<DmVector>& pts, bool closed, double patternScale)
 {
     // 原 DmLineStrip::updateVertices：去掉相邻的重复点，闭合时末点不与首点重复
     if (pts.empty())
@@ -979,17 +1203,30 @@ void GsCompiler::addStrip(const std::vector<DmVector>& pts, bool closed)
     {
         total += unique[i - 1].distanceTo(unique[i]);
     }
-    const std::uint32_t prim = addPrim(closed ? GsDashMode::Closed : GsDashMode::Open, total, 0);
+    const RunPlan plan = planRun(closed ? GsDashMode::Closed : GsDashMode::Open, total, patternScale);
     auto& points = m_out->records[static_cast<std::size_t>(GsClass::Segment)];
+    // 分段时在分界处断开：插入插值点，前一段到此结束，后一段从它开始、弧长参数从 0 起
+    std::size_t piece = 0;
+    double pieceStart = 0.0;
+    auto pieceEnd = [&plan, total](std::size_t k) { return k < plan.cuts.size() ? plan.cuts[k] : total; };
+    std::uint32_t prim = addRunPrim(plan, 0, pieceEnd(0));
     double s = 0.0;
-    for (std::size_t i = 0; i < unique.size(); ++i)
+    points.push_back(localPoint(unique[0], 0.0f, prim));
+    for (std::size_t i = 1; i < unique.size(); ++i)
     {
-        if (i > 0)
+        const double d = unique[i - 1].distanceTo(unique[i]);
+        while (piece < plan.cuts.size() && plan.cuts[piece] < s + d)
         {
-            s += unique[i - 1].distanceTo(unique[i]);
+            const DmVector cut = unique[i - 1] + (unique[i] - unique[i - 1]) * ((plan.cuts[piece] - s) / d);
+            points.push_back(localPoint(cut, static_cast<float>(plan.cuts[piece] - pieceStart), prim | kGsPointBreak));
+            pieceStart = plan.cuts[piece];
+            ++piece;
+            prim = addRunPrim(plan, piece, pieceEnd(piece) - pieceStart);
+            points.push_back(localPoint(cut, 0.0f, prim));
         }
+        s += d;
         const bool last = i + 1 == unique.size();
-        points.push_back(localPoint(unique[i], static_cast<float>(s), last ? (prim | kGsPointBreak) : prim));
+        points.push_back(localPoint(unique[i], static_cast<float>(s - pieceStart), last ? (prim | kGsPointBreak) : prim));
     }
 }
 

@@ -46,8 +46,10 @@
 #include "DmSolid.h"
 #include "DmEntityHelper.h"
 #include "ConstrainedDelaunayTriangulation.h"
+#include "DmDocument.h"
 #include "GeometryMethods.h"
 #include "IGiGeometry.h"
+#include "IGiSubEntityTraits.h"
 
 TYPESYSTEM_SOURCE(DmHatch, DmEntity, 0);
 
@@ -82,6 +84,8 @@ DmHatch::DmHatch(const DmHatch& hatch)
             hatch.m_filledEntities->clone());
         m_filledEntities = std::make_shared<DmEntityContainer>(c);
     }
+    m_patternRuns = hatch.m_patternRuns;
+    m_patternDashes = hatch.m_patternDashes;
 }
 
 DmHatch::~DmHatch()
@@ -207,6 +211,8 @@ void DmHatch::calculateBorders()
 void DmHatch::update()
 {
     bumpRevision();
+    m_patternRuns.clear();
+    m_patternDashes.clear();
     DmRegionPtr boundary = data.getBoundary();
     // 没有轮廓不能创建填充
     if (!boundary || boundary->size() == 0)
@@ -376,6 +382,9 @@ void DmHatch::fillPattern(DmEntityContainerPtr parent,
     // 虚线非空段（起点终点）到初始位置距离的组合
     std::vector<std::pair<double, double>> dashPosPairs;
     getDashPositionPairs(dashLineLengths, dashPosPairs);
+    // 这条图案线定义的划线（画图用，实线为空）
+    const std::uint32_t patternIndex = static_cast<std::uint32_t>(m_patternDashes.size());
+    m_patternDashes.push_back(isSolidPat ? std::vector<double>() : dashLineLengths);
 
     // 逐条pat线填充
     double minPos = std::min(pos1, pos2);
@@ -465,6 +474,8 @@ void DmHatch::fillPattern(DmEntityContainerPtr parent,
                 {
                     continue;
                 }
+                addPatternRun(intersectPt1, intersectPt2, currentPatPt, patDir, patternIndex,
+                    isSolidPat ? 0.0 : totalDashLen);
                 if (isSolidPat)
                 {
                     // 实线填充
@@ -486,6 +497,21 @@ void DmHatch::fillPattern(DmEntityContainerPtr parent,
         // 迭代下一条pat线
         curPos += absOffsetY_local;
     }
+}
+
+void DmHatch::addPatternRun(const DmVector& a, const DmVector& b, const DmVector& origin, const DmVector& dir,
+    std::uint32_t pattern, double period)
+{
+    // 沿图案线方向从小到大：图案的位置与 fillDashBetweenTwoPoints 切划线时相同（从图案线的起始点量起）
+    const double posA = (a - origin).dotP(dir);
+    const double posB = (b - origin).dotP(dir);
+    DmHatchPatternRun run;
+    run.pattern = pattern;
+    run.start = posA <= posB ? a : b;
+    run.end = posA <= posB ? b : a;
+    const double startPos = std::min(posA, posB);
+    run.phase = period > 0.0 ? startPos - std::floor(startPos / period) * period : 0.0;
+    m_patternRuns.push_back(run);
 }
 
 void DmHatch::getDashPositionPairs(
@@ -675,6 +701,11 @@ void DmHatch::move(const DmVector& offset)
 {
     data.getBoundary()->move(offset);
     m_filledEntities->move(offset);
+    for (DmHatchPatternRun& run : m_patternRuns)
+    {
+        run.start += offset;
+        run.end += offset;
+    }
     DmEntity::moveBorders(offset);
 }
 
@@ -682,6 +713,11 @@ void DmHatch::rotate(const DmVector& center, const DmVector& angleVector)
 {
     data.getBoundary()->rotate(center, angleVector);
     m_filledEntities->rotate(center, angleVector);
+    for (DmHatchPatternRun& run : m_patternRuns)
+    {
+        run.start.rotate(center, angleVector);
+        run.end.rotate(center, angleVector);
+    }
     data.setPatternAngle(
         Math2d::correctAngle(data.getPatternAngle() + angleVector.angle()));
     calculateBorders();
@@ -691,6 +727,20 @@ void DmHatch::scale(const DmVector& center, const DmVector& factor)
 {
     data.getBoundary()->scale(center, factor);
     m_filledEntities->scale(center, factor);
+    // 图案按 X 向比例缩放（与图案比例的更新相同）
+    for (DmHatchPatternRun& run : m_patternRuns)
+    {
+        run.start.scale(center, factor);
+        run.end.scale(center, factor);
+        run.phase *= std::abs(factor.x);
+    }
+    for (std::vector<double>& dashes : m_patternDashes)
+    {
+        for (double& d : dashes)
+        {
+            d *= std::abs(factor.x);
+        }
+    }
     calculateBorders();
     data.setPatternScale(data.getPatternScale() * factor.x);
 }
@@ -699,6 +749,11 @@ void DmHatch::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
 {
     data.getBoundary()->mirror(axisPoint1, axisPoint2);
     m_filledEntities->mirror(axisPoint1, axisPoint2);
+    for (DmHatchPatternRun& run : m_patternRuns)
+    {
+        run.start.mirror(axisPoint1, axisPoint2);
+        run.end.mirror(axisPoint1, axisPoint2);
+    }
     calculateBorders();
     double ang = axisPoint1.angleTo(axisPoint2);
     data.setPatternAngle(
@@ -926,9 +981,18 @@ void DmHatch::worldDraw(IGiWorldDraw& wd) const
         }
         return;
     }
-    // 图案：update() 按图案裁好的线段，放在以填充为父实体的容器里，线段颜色随填充
-    if (m_filledEntities)
+    // 图案：每条图案线（边界内的一整段）画一次，划线由图形系统按图案与起点的相位画（不做端点对齐，第 4.5.1 节）；
+    // 颜色、线宽随填充自己的，实线的图案线按连续线画，不随填充的线型
+    IGiSubEntityTraits& traits = wd.traits();
+    DmDocument* doc = getDocument();
+    traits.setLineType(doc ? doc->getLineTypeTable()->getLineTypeContinuous() : DmLineTypeTable::Continuous);
+    GiLinePattern pattern;
+    for (const DmHatchPatternRun& run : m_patternRuns)
     {
-        wd.geometry().draw(*m_filledEntities);
+        pattern.dashes = run.pattern < m_patternDashes.size() ? m_patternDashes[run.pattern] : std::vector<double>();
+        pattern.phase = run.phase;
+        traits.setLinePattern(pattern);
+        const DmVector points[2] = {run.start, run.end};
+        wd.geometry().polyline(points, {}, {}, GiPolylineFlags::None);
     }
 }

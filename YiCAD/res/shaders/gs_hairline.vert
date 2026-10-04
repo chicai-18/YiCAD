@@ -13,9 +13,10 @@ layout(set = 2, binding = 0) uniform samplerBuffer points;
 
 layout(location = 0) out float vAlong;          // 弧长参数（世界长度）
 layout(location = 1) flat out vec4 vColor;
-layout(location = 2) flat out float vLength;    // 这一段线的总长（世界长度）
-layout(location = 3) flat out uint vDashMode;
-layout(location = 4) flat out uint vLineType;
+layout(location = 2) flat out float vLength;    // 这一段线的长度（世界长度）
+layout(location = 3) flat out uint vStroke;     // 线型的画法（Stroke::code）
+layout(location = 4) flat out float vDashScale;
+layout(location = 5) flat out vec3 vDashParams;
 
 void main()
 {
@@ -37,10 +38,12 @@ void main()
     }
     vec4 p = atEnd ? texelFetch(points, k + 1) : p0;
     float lengthScale = iTranslate.z;
+    Stroke stroke = strokeOf(prim, lengthScale, iTranslate.w);
     vAlong = p.z * lengthScale;
     vColor = style.color;
-    vLength = prim.runLength * lengthScale;
-    vDashMode = prim.dashMode;
-    vLineType = vDashMode != kDashNone ? resolveLineType(prim) : 0u;
+    vLength = stroke.len;
+    vStroke = stroke.code;
+    vDashScale = stroke.scale;
+    vDashParams = stroke.params;
     gl_Position = eyeToClip(toEye(p.xy), style.depth);
 }

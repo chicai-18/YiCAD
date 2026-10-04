@@ -54,7 +54,7 @@ void DmEntity::setAttributes(IGiSubEntityTraits& traits) const
     {
         traits.setColor(DmColor(DM::FlagByBlock));
         traits.setLineWeight(DM::WidthByBlock);
-        traits.setLineType(DmLineTypeTable::ByBlock);
+        traits.setLineType(nullptr);  // GI 里线型为空即随块
     }
     else
     {
@@ -63,6 +63,10 @@ void DmEntity::setAttributes(IGiSubEntityTraits& traits) const
         traits.setLineType(pen.getLineType());
     }
     traits.setLayer(layer);
+    if (m_lineTypeScale != 1.0)
+    {
+        traits.setLineTypeScale(m_lineTypeScale);
+    }
 }
 
 void DmEntity::init()
@@ -329,9 +333,10 @@ void DmEntity::setDocument(DmDocument* pDoc)
 {
     m_pDocument = pDoc;
 
-    // 初始化实体属性
+    // 初始化实体属性：当前图层、当前画笔与当前对象线型比例（CELTSCALE）
     this->setLayer(pDoc->getLayerTable()->getActive());
     this->setPen(pDoc->getActivePen());
+    m_lineTypeScale = pDoc->getVariableDouble(QStringLiteral("$CELTSCALE"), 1.0);
 }
 
 void DmEntity::transferTo(DmDocumentTransfer& transfer)
@@ -456,7 +461,7 @@ DmPen DmEntity::getPen(bool resolve) const
                 }
             }
             ep = parent;
-            while (p.getLineType() == DmLineTypeTable::ByBlock)
+            while (DmLineTypeTable::isByBlock(p.getLineType()))
             {
                 if (ep)
                 {
@@ -485,7 +490,7 @@ DmPen DmEntity::getPen(bool resolve) const
             }
 
             // use layer's linetype:
-            if (p.getLineType() == DmLineTypeTable::ByLayer)
+            if (DmLineTypeTable::isByLayer(p.getLineType()))
             {
                 p.setLineType(l->getPen().getLineType());
             }
@@ -681,6 +686,7 @@ void DmEntity::saveStream(OutputStream& wrt) const
     int lineWidth = (int)pen.getWidth();
 
     wrt << (bool)byBlock << (bool)byLayer << (int)color_r << (int)color_g << (int)color_b << (std::string)lineTypeName << (int)lineWidth;
+    wrt << (double)m_lineTypeScale;
 }
 
 void DmEntity::restoreStream(InputStream& reader, const std::vector<PAIR>& revs)
@@ -758,4 +764,5 @@ void DmEntity::restoreStream(InputStream& reader)
     }
     auto pen = DmPen(color, (DM::LineWidth)lineWidth, lineType);
     this->setPen(std::move(pen));
+    reader >> (double&)m_lineTypeScale;
 }

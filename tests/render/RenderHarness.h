@@ -11,6 +11,7 @@
 #include <QImage>
 #include <QString>
 
+#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <vector>
@@ -47,6 +48,7 @@ struct RenderRequest
     bool selectCircles = false;     ///< 圆与块参照按选中绘制（经 ISelectionSource）
     bool highlightArcs = false;     ///< 圆弧按高亮绘制（经 IHighlightSource）
     RenderRequirement requirement = RenderRequirement::None;
+    std::function<void(DmDocument&)> prepare;  ///< 读入后、建画布前改文档（例如补上 DXF 导入还不读的属性）
 };
 
 /// @brief 资源是否就位；不就位时 reason 给出跳过的理由
@@ -127,6 +129,11 @@ void expectMatchesBaseline(const QString& name, const QImage& actual);
 /// @brief 两张图按与 expectMatchesBaseline() 相同的容差比对，结果以 gtest 断言报告
 /// @details 不一致时把两张图与差异图写到构建目录的 tests/render/output/<name>.{expected,actual,diff}.png。
 void expectSameImage(const QString& name, const QImage& expected, const QImage& actual);
+
+/// @brief 两张图逐像素一致（通道差都不超过与 expectSameImage() 相同的阈值），结果以 gtest 断言报告
+/// @details 同一进程、同一画法下画出的两张图（例如同一画面经两种数据表示画出）应当完全一致；
+///          差别只在少量像素上时（例如虚线画成了实线）expectSameImage() 的比例容差会漏掉。
+void expectIdenticalImage(const QString& name, const QImage& expected, const QImage& actual);
 
 }  // namespace yicad_test
 

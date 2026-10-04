@@ -16,8 +16,9 @@ layout(location = 1) out float vAcross;
 layout(location = 2) flat out vec4 vColor;
 layout(location = 3) flat out float vHalfWidth;
 layout(location = 4) flat out float vLength;
-layout(location = 5) flat out uint vDashMode;
-layout(location = 6) flat out uint vLineType;
+layout(location = 5) flat out uint vStroke;
+layout(location = 6) flat out float vDashScale;
+layout(location = 7) flat out vec3 vDashParams;
 
 void main()
 {
@@ -78,12 +79,17 @@ void main()
     float side = positive ? 1.0 : -1.0;
     vec2 eye = base + dir * t + normal * (side * extent);
 
+    // 从基点起周期重复；射线的基点是线端（画圆头），构造线没有端点。无限线不用实例记录（编译时已变换到世界坐标），
+    // 块参照的线型比例已乘进图元记录
+    Stroke stroke = strokeOf(prim, 1.0, 1.0);
+    uint caps = ray ? kStrokeCapStart : 0u;
     vAlong = t;
     vAcross = side * extent;
     vColor = style.color;
     vHalfWidth = halfWidth;
-    vLength = ray ? 1.0e30 : -1.0;  // 射线在基点处画圆头；构造线没有端点
-    vDashMode = kDashInfinite;
-    vLineType = resolveLineType(prim);
+    vLength = 1.0e30;
+    vStroke = (stroke.code & ~(kStrokeCapStart | kStrokeCapEnd)) | caps;
+    vDashScale = stroke.scale;
+    vDashParams = vec3(0.0);
     gl_Position = eyeToClip(eye, style.depth);
 }

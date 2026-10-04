@@ -66,7 +66,7 @@ TEST(GiEntityTest, 属性按实体自身的画笔与图层给出)
     ASSERT_NE(layer0, nullptr);
     DmPoint p(nullptr, PointData(DmVector(0.0, 0.0)));
     p.setLayer(layer0);
-    p.setPen(DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, DmLineTypeTable::ByLayer));
+    p.setPen(DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, doc.getLineTypeTable()->getLineTypeByLayer()));
     EXPECT_EQ(giDump(p), "color ByLayer\n"
                          "lineweight ByLayer\n"
                          "linetype ByLayer\n"
@@ -80,6 +80,22 @@ TEST(GiEntityTest, 属性按实体自身的画笔与图层给出)
                          "lineweight 25\n"
                          "linetype Continuous\n"
                          "layer -\n"
+                         "---\n"
+                         "point (0,0)\n");
+}
+
+TEST(GiEntityTest, 实体线型比例不为1时给出)
+{
+    // GI 里线型比例的初值为 1，为 1 时不给出（其余用例的输出因此不变）
+    DmDocument doc;
+    DmPoint p(nullptr, PointData(DmVector(0.0, 0.0)));
+    p.setPen(DmPen(DmColor(10, 20, 30), DM::Width07, doc.getLineTypeTable()->getLineTypeContinuous()));
+    p.setLineTypeScale(0.5);
+    EXPECT_EQ(giDump(p), "color rgb(10,20,30)\n"
+                         "lineweight 25\n"
+                         "linetype Continuous\n"
+                         "layer -\n"
+                         "linetypescale 0.5\n"
                          "---\n"
                          "point (0,0)\n");
 }
@@ -286,7 +302,7 @@ TEST(GiEntityTest, DISABLED_多段线边界的实心填充交出环)
     EXPECT_NE(giDumpGeometry(hatch).find("fill evenodd [(0,0)"), std::string::npos);
 }
 
-TEST(GiEntityTest, 图案填充的线段在以填充为父实体的容器里)
+TEST(GiEntityTest, 图案填充的实线图案线按连续线逐条画)
 {
     DmDocument doc;
     DmPattern pattern;
@@ -298,17 +314,66 @@ TEST(GiEntityTest, 图案填充的线段在以填充为父实体的容器里)
     hatch.setDocument(&doc);
     hatch.update();
     const std::string text = giDumpGeometry(hatch);
-    // 容器的颜色 ByBlock（取填充）、线宽 0、实线；线段逐条嵌套
-    EXPECT_EQ(text.rfind("draw {\n"
-                         "  color ByBlock\n"
-                         "  lineweight 0\n"
-                         "  linetype Continuous\n"
-                         "  layer -\n"
-                         "  ---\n",
-                         0),
-              0u)
-        << text;
+    // 颜色、线宽随填充自己的；图案线按连续线，每条一整段，图案为空
+    EXPECT_EQ(text.rfind("linetype Continuous\n", 0), 0u) << text;
     EXPECT_GE(count(text, "polyline"), 3) << text;
+    EXPECT_EQ(count(text, "linepattern phase=0\n"), count(text, "polyline")) << text;
+}
+
+TEST(GiEntityTest, 图案填充的虚线图案线带图案与起点的相位)
+{
+    // 图案线：水平、过 (0.3, 0)、行距 1，划线 0.5、空白 0.25。边界 [0,4]：每行从 x = 0 画到 4，
+    // 起点在图案线上相对图案原点的位置是 -0.3，相位 = -0.3 对 0.75 取模 = 0.45（相位锚定在图案原点，第 4.5.1 节）
+    DmDocument doc;
+    DmPattern pattern;
+    pattern.setPatternData({ { 0.0, 0.3, 0.0, 0.0, 1.0, 0.5, -0.25 } });
+    HatchData data(false, 1.0, 0.0, &pattern);
+    data.setBoundary(std::make_shared<DmRegion>(nullptr, RegionData(rectangle(0.0, 0.0, 4.0, 4.0), {})));
+    DmHatch hatch(nullptr, data);
+    hatch.setDocument(&doc);
+    hatch.update();
+    std::string text = giDumpGeometry(hatch);
+    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.45\npolyline (0,2) (4,2)\n"), std::string::npos) << text;
+    EXPECT_EQ(count(text, "linepattern 0.5 -0.25 phase=0.45\n"), count(text, "polyline")) << text;
+
+    // 移动、缩放时图案线跟着变：移动不改相位；按 2 倍缩放（基点 (0,0)）时划线与相位一起放大
+    hatch.move(DmVector(10.0, 0.0));
+    text = giDumpGeometry(hatch);
+    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.45\npolyline (10,2) (14,2)\n"), std::string::npos) << text;
+    hatch.scale(DmVector(0.0, 0.0), DmVector(2.0, 2.0));
+    text = giDumpGeometry(hatch);
+    EXPECT_NE(text.find("linepattern 1 -0.5 phase=0.9\npolyline (20,4) (28,4)\n"), std::string::npos) << text;
+}
+
+TEST(GiEntityTest, 圆环图案填充穿过孔洞的图案线分成两段各按图案原点取相位)
+{
+    // 外边界圆心 (0,0) 半径 4，孔洞半径 2；图案线水平、过原点、行距 1，划线 0.5、空白 0.25。
+    // y = 0 的图案线被孔洞分成 [-4,-2] 与 [2,4] 两段，起点相对图案原点的位置 -4、2，对 0.75 取模都是 0.5；
+    // y = 3 的只穿过外圆，从 x = -√7 起，相位 = -√7 对 0.75 取模 = 3 - √7
+    DmDocument doc;
+    DmPattern pattern;
+    pattern.setPatternData({ { 0.0, 0.0, 0.0, 0.0, 1.0, 0.5, -0.25 } });
+    HatchData data(false, 1.0, 0.0, &pattern);
+    auto outer = std::make_shared<DmEntityContainer>(nullptr);
+    outer->addEntity(new DmCircle(outer.get(), CircleData(DmVector(0.0, 0.0), 4.0)));
+    auto hole = std::make_shared<DmEntityContainer>(nullptr);
+    hole->addEntity(new DmCircle(hole.get(), CircleData(DmVector(0.0, 0.0), 2.0)));
+    data.setBoundary(std::make_shared<DmRegion>(nullptr, RegionData(outer, { hole })));
+    DmHatch hatch(nullptr, data);
+    hatch.setDocument(&doc);
+    hatch.update();
+    const std::string text = giDumpGeometry(hatch);
+    // 圆环内的点在区域里，孔洞里的不在（原先区域的射线法不计整圆边界的交点，圆环里一条图案线也生成不了）
+    EXPECT_TRUE(hatch.getBoundary()->isPointInside(DmVector(3.0, 0.0)));
+    EXPECT_TRUE(hatch.getBoundary()->isPointInside(DmVector(0.0, 3.0)));
+    EXPECT_FALSE(hatch.getBoundary()->isPointInside(DmVector(0.0, 0.0)));
+    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.5\npolyline (-4,0) (-2,0)\n"), std::string::npos) << text;
+    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.5\npolyline (2,0) (4,0)\n"), std::string::npos) << text;
+    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.354249\npolyline (-2.64575,3) (2.64575,3)\n"), std::string::npos)
+        << text;
+    // 穿过孔洞的 y = -1、0、1 各两段，其余的各一段；每段都带图案
+    EXPECT_EQ(count(text, "linepattern 0.5 -0.25"), count(text, "polyline")) << text;
+    EXPECT_EQ(count(text, ",0) ("), 2) << text;
 }
 
 TEST(GiEntityTest, 区域画边界与孔洞的轮廓)
@@ -346,7 +411,7 @@ TEST(GiEntityTest, 块参照按阵列逐格引用块定义)
     auto* block = new DmBlock(&doc, DmBlockData(QStringLiteral("B"), DmVector(1.0, 1.0), false));
     doc.getBlockTable()->add_direct(block);
     auto* line = new DmLine(DmVector(1.0, 1.0), DmVector(2.0, 1.0));
-    line->setPen(DmPen(DmColor(DM::FlagByBlock), DM::WidthByBlock, DmLineTypeTable::ByBlock));
+    line->setPen(DmPen(DmColor(DM::FlagByBlock), DM::WidthByBlock, doc.getLineTypeTable()->getLineTypeByBlock()));
     line->setLayer(static_cast<DmLayer*>(nullptr));
     block->getEntityTable().add_direct(line);
     TextData attText(DmVector(0.0, 0.0), 1.0, ETextVertMode::kTextBase, ETextHorzMode::kTextLeft, QStringLiteral("T"),

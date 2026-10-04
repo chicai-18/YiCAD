@@ -40,6 +40,7 @@ yicad_add_test(interaction
         test_ribbon_registry.cpp
         test_plugin_ui_adapter.cpp
         test_dxf_encoding.cpp
+        test_dxf_linetype.cpp
         test_baseline_runtime.cpp
     # 用例用到壳层：UIActionHandler（test_command_dispatch、test_command_registry）、
     # UIRibbonManager（test_ribbon_registry、test_plugin_ui_adapter）与插件运行时

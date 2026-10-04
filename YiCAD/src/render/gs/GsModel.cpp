@@ -106,24 +106,22 @@ void rebasePrims(GsClass c, std::vector<GsTexel>& records, std::size_t first, st
     }
 }
 
-/// @brief 线型是否画成连续线：没有图案，或名字是 continuous（旧渲染器按名字判断，大小写敏感）
+/// @brief 线型是否画成连续线：没有图案（Continuous 与随层、随块的保留记录都没有图案）
 bool isContinuous(const DmLineType* lineType)
 {
-    if (!lineType)
-    {
-        return true;
-    }
-    auto* lt = const_cast<DmLineType*>(lineType);
-    const QString name = lt->getLineTypeName();
-    return name == QStringLiteral("continuous") || name == QStringLiteral("ByLayer") || name == QStringLiteral("ByBlock")
-        || lt->getNum() == 0;
+    return !lineType || const_cast<DmLineType*>(lineType)->getNum() == 0;
+}
+
+/// @brief 随层、随块的保留记录：图层不该以它们为线型（读入的图纸里可能有），图层表里当作连续线
+bool isByLayerOrByBlock(const DmLineType* lineType)
+{
+    return DmLineTypeTable::isByLayer(lineType) || DmLineTypeTable::isByBlock(lineType);
 }
 
 /// @brief 线型表的一项：图案（最多 12 个元素）、周期与第一段划线的起止
-GsLineTypeRecord lineTypeRecord(const DmLineType* lineType)
+GsLineTypeRecord lineTypeRecord(const std::vector<double>& data)
 {
     GsLineTypeRecord record;
-    const std::vector<double>& data = const_cast<DmLineType*>(lineType)->getLineTypeData();
     const std::size_t count = std::min<std::size_t>(data.size(), record.elements.size());
     double period = 0.0;
     bool haveDash = false;
@@ -306,6 +304,8 @@ struct GsModel::Cell
     GsRange prims;
     GsRange instances;                 ///< 第一条是顶层几何的恒等实例
     std::vector<GsInstanceGroup> groups;
+    std::vector<GsRunSummary> runs;    ///< 按线型画的线的长度摘要（LTSCALE、线型改了据此判断要不要重新分段）
+    bool hasPieces = false;            ///< 有按线型分了段的线
     struct Image
     {
         std::uint32_t record = 0;          ///< Image 数据区里的记录序号
@@ -326,6 +326,7 @@ struct GsModel::Cell
         GiTransform transform;
         GsAttributes byBlock;
         std::uint32_t slot = kGsNoSlot;
+        double lineTypeScale = 1.0;        ///< 块参照的线型比例
     };
     std::vector<InstanceSource> instanceSources;
 };
@@ -363,6 +364,13 @@ public:
     {
         Shared& shared = m_model.sharedFor(drawable);
         return m_model.flattenCheck(shared, transform, byBlock, nonUniform, 0);
+    }
+    std::uint16_t patternIndex(const std::vector<double>& dashes) override { return m_model.patternIndexOf(dashes); }
+    bool splitLongRuns() const override { return m_model.m_document != nullptr; }
+    double globalLineTypeScale() const override { return m_model.m_lineTypeScale; }
+    bool lineTypeMetrics(const GsLineTypeRef& lineType, double& period, double& firstDashCenter) override
+    {
+        return m_model.lineTypeMetrics(lineType, period, firstDashCenter);
     }
 
     void beginSweep() { m_nurbs.beginSweep(); }
@@ -537,12 +545,13 @@ void GsModel::PendingChanges::merge(const DmChangeSet& changes)
     }
     layersChanged = layersChanged || changes.layersChanged;
     lineTypesChanged = lineTypesChanged || changes.lineTypesChanged;
+    variablesChanged = variablesChanged || changes.variablesChanged;
 }
 
 bool GsModel::PendingChanges::isEmpty() const
 {
     return entities.empty() && destroyedEntities.empty() && blocks.empty() && destroyedBlocks.empty() &&
-           !layersChanged && !lineTypesChanged;
+           !layersChanged && !lineTypesChanged && !variablesChanged;
 }
 
 void GsModel::setContainer(const DmEntityContainer* container)
@@ -666,9 +675,12 @@ void GsModel::rebuildAll()
     m_layerIndex.clear();
     m_layers.clear();
     m_lineTypeIndex.clear();
+    m_patternIndex.clear();
     m_lineTypes.clear();
     m_lineTypeDashed.clear();
+    m_lineTypeMetrics.clear();
     readLayers();
+    readLineTypeScale();
 
     // 先建全部节点（记录 GI 流），再按内容的范围定四叉树的根，最后逐个放进分块
     std::vector<Node*> nodes;
@@ -1298,7 +1310,7 @@ bool GsModel::flattenCheck(Shared& shared, const GiTransform& transform, const G
     return false;
 }
 
-void GsModel::expand(Shared& shared, const GiTransform& transform, const GsAttributes& byBlock,
+void GsModel::expand(Shared& shared, const GiTransform& transform, const GsAttributes& byBlock, double lineTypeScale,
                      std::vector<Leaf>& leaves, int depth)
 {
     if (depth > kMaxExpandDepth)
@@ -1309,11 +1321,12 @@ void GsModel::expand(Shared& shared, const GiTransform& transform, const GsAttri
     {
         compileShared(shared);
     }
-    leaves.push_back({&shared, transform, byBlock});
+    leaves.push_back({&shared, transform, byBlock, lineTypeScale});
     for (const GsSharedUse& use : shared.children)
     {
         Shared& child = sharedFor(*use.drawable);
-        expand(child, transform * use.transform, resolveAgainst(use.byBlock, byBlock), leaves, depth + 1);
+        expand(child, transform * use.transform, resolveAgainst(use.byBlock, byBlock), lineTypeScale * use.lineTypeScale,
+               leaves, depth + 1);
     }
 }
 
@@ -1332,7 +1345,7 @@ GsInstanceRecord GsModel::instanceRecord(const Leaf& leaf, const DmVector& origi
         scale = 1.0;
     }
     r.translate = {static_cast<float>(anchor.x - origin.x), static_cast<float>(anchor.y - origin.y),
-                   static_cast<float>(scale), 0.0f};
+                   static_cast<float>(scale), static_cast<float>(leaf.lineTypeScale)};
     r.slot = slot;
     const GsAttributes& b = leaf.byBlock;
     r.byBlockColor = b.color.rgba;
@@ -1370,6 +1383,8 @@ void GsModel::compileCell(Cell& cell)
     releaseCell(cell);
     cell.dirty = false;
     cell.hasBounds = false;
+    cell.runs.clear();
+    cell.hasPieces = false;
 
     std::array<std::vector<GsTexel>, kGsClassCount> records;
     std::vector<GsPrimRecord> prims;
@@ -1402,6 +1417,22 @@ void GsModel::compileCell(Cell& cell)
                                static_cast<std::uint32_t>(src.size() / gsTexelsPerRecord(c))};
         }
         prims.insert(prims.end(), out.prims.begin(), out.prims.end());
+
+        // 按线型画的线的长度摘要：每种线型留最长的
+        cell.hasPieces = cell.hasPieces || out.hasPieces;
+        for (const GsRunSummary& run : out.runs)
+        {
+            auto it = std::find_if(cell.runs.begin(), cell.runs.end(),
+                                   [&run](const GsRunSummary& r) { return r.lineType == run.lineType; });
+            if (it == cell.runs.end())
+            {
+                cell.runs.push_back(run);
+            }
+            else
+            {
+                it->length = std::max(it->length, run.length);
+            }
+        }
 
         // 图片：每张一条
         node->images.clear();
@@ -1441,15 +1472,17 @@ void GsModel::compileCell(Cell& cell)
                 }
             }
             leaves.clear();
-            expand(shared, use.transform, use.byBlock, leaves, 0);
+            expand(shared, use.transform, use.byBlock, use.lineTypeScale, leaves, 0);
             for (const Leaf& leaf : leaves)
             {
-                leavesByShared[leaf.shared].push_back({node, {leaf.shared, leaf.transform, leaf.byBlock, node->slot}});
+                leavesByShared[leaf.shared].push_back(
+                    {node, {leaf.shared, leaf.transform, leaf.byBlock, node->slot, leaf.lineTypeScale}});
                 // 共享几何里的射线、构造线：按这个插入变换到世界坐标，图元记录复制一份并代入实例的属性
                 for (const GsInfiniteLine& local : leaf.shared->infinite)
                 {
                     GsPrimRecord p = leaf.shared->primRecords[local.prim];
                     p.slot = node->slot;
+                    p.lineTypeScale *= static_cast<float>(leaf.lineTypeScale);  // 无限线不经实例记录
                     GsInfiniteLine line;
                     line.base = leaf.transform.apply(local.base);
                     line.direction = leaf.transform.applyVector(local.direction);
@@ -1628,13 +1661,14 @@ std::vector<GsInstanceRecord> GsModel::instanceRecords(const Cell& cell) const
                 scale = 1.0;
             }
             identity.translate = {static_cast<float>(moved.x - cell.origin.x), static_cast<float>(moved.y - cell.origin.y),
-                                  static_cast<float>(scale), 0.0f};
+                                  static_cast<float>(scale), 1.0f};
             identity.cell = cell.index;
             instances.push_back(identity);
         }
         else
         {
-            instances.push_back(instanceRecord({s.shared, s.transform, s.byBlock}, cell.origin, s.slot, cell.index));
+            instances.push_back(
+                instanceRecord({s.shared, s.transform, s.byBlock, s.lineTypeScale}, cell.origin, s.slot, cell.index));
         }
     }
     return instances;
@@ -1662,7 +1696,7 @@ std::uint16_t GsModel::layerIndexOf(const DmLayer* layer)
     const DmColor& color = pen.getColor();
     record.color = gsPackColor(color.red(), color.green(), color.blue(), color.alpha());
     const DmLineType* lt = pen.getLineType();
-    const std::uint16_t lineType = (lt == DmLineTypeTable::ByLayer || lt == DmLineTypeTable::ByBlock) ? 0 : lineTypeIndexOf(lt);
+    const std::uint16_t lineType = isByLayerOrByBlock(lt) ? 0 : lineTypeIndexOf(lt);
     record.lineTypeAndWeight = gsPackLineTypeAndWeight(lineType, pen.getWidth());
     record.flags = layer->isFrozen() ? kGsLayerFrozen : 0;
     m_layers.push_back(record);
@@ -1676,6 +1710,7 @@ std::uint16_t GsModel::lineTypeIndexOf(const DmLineType* lineType)
     {
         m_lineTypes.push_back(GsLineTypeRecord{});  // 0：连续线
         m_lineTypeDashed.push_back(false);
+        m_lineTypeMetrics.emplace_back(0.0, 0.0);
     }
     if (isContinuous(lineType))
     {
@@ -1688,14 +1723,109 @@ std::uint16_t GsModel::lineTypeIndexOf(const DmLineType* lineType)
     }
     const std::uint16_t index = static_cast<std::uint16_t>(m_lineTypes.size());
     m_lineTypeIndex[lineType] = index;
-    m_lineTypes.push_back(lineTypeRecord(lineType));
-    m_lineTypeDashed.push_back(true);
-    m_tablesDirty = true;
+    setLineTypeEntry(index, const_cast<DmLineType*>(lineType)->getLineTypeData());
     return index;
 }
 
-void GsModel::readLayers()
+std::uint16_t GsModel::patternIndexOf(const std::vector<double>& dashes)
 {
+    if (m_lineTypes.empty())
+    {
+        lineTypeIndexOf(nullptr);
+    }
+    auto it = m_patternIndex.find(dashes);
+    if (it != m_patternIndex.end())
+    {
+        return it->second;
+    }
+    const std::uint16_t index = static_cast<std::uint16_t>(m_lineTypes.size());
+    m_patternIndex[dashes] = index;
+    setLineTypeEntry(index, dashes);
+    return index;
+}
+
+void GsModel::setLineTypeEntry(std::uint16_t index, const std::vector<double>& dashes)
+{
+    if (index >= m_lineTypes.size())
+    {
+        m_lineTypes.resize(index + 1);
+        m_lineTypeDashed.resize(index + 1, false);
+        m_lineTypeMetrics.resize(index + 1);
+    }
+    m_lineTypes[index] = lineTypeRecord(dashes);
+    m_lineTypeDashed[index] = true;
+    double period = 0.0;
+    double center = 0.0;
+    gsPatternMetrics(dashes, period, center);
+    m_lineTypeMetrics[index] = {period, center};
+    m_tablesDirty = true;
+}
+
+bool GsModel::lineTypeMetrics(const GsLineTypeRef& lineType, double& period, double& firstDashCenter) const
+{
+    std::uint32_t index = 0;
+    if (lineType.kind == GsKind::Value)
+    {
+        index = lineType.index;
+    }
+    else if (lineType.kind == GsKind::ByLayer && lineType.layer < m_layers.size())
+    {
+        index = m_layers[lineType.layer].lineTypeAndWeight & 0xFFFFu;
+    }
+    if (index == 0 || index >= m_lineTypeMetrics.size() || !(m_lineTypeMetrics[index].first > 0.0))
+    {
+        return false;
+    }
+    period = m_lineTypeMetrics[index].first;
+    firstDashCenter = m_lineTypeMetrics[index].second;
+    return true;
+}
+
+bool GsModel::readLineTypeScale()
+{
+    double scale = 1.0;
+    if (m_document)
+    {
+        scale = m_document->getVariableDouble(QStringLiteral("$LTSCALE"), 1.0);
+        if (!std::isfinite(scale) || scale <= 0.0)
+        {
+            scale = 1.0;
+        }
+    }
+    const bool changed = scale != m_lineTypeScale;
+    m_lineTypeScale = scale;
+    return changed;
+}
+
+void GsModel::resplitLongRuns()
+{
+    for (auto& cell : m_cells)
+    {
+        if (!cell || cell->dirty)
+        {
+            continue;
+        }
+        bool resplit = cell->hasPieces;
+        for (const GsRunSummary& run : cell->runs)
+        {
+            double period = 0.0;
+            double center = 0.0;
+            if (!resplit && lineTypeMetrics(run.lineType, period, center)
+                && run.length / (period * m_lineTypeScale) > kGsPieceLimitPeriods)
+            {
+                resplit = true;
+            }
+        }
+        if (resplit)
+        {
+            markCellDirty(*cell);
+        }
+    }
+}
+
+bool GsModel::readLayers()
+{
+    bool lineTypeChanged = false;
     // 已知的图层原地刷新（序号不变，编译过的几何仍然有效），文档里新的图层追加
     if (m_document && m_document->getLayerTable())
     {
@@ -1728,12 +1858,13 @@ void GsModel::readLayers()
         GsLayerRecord& record = m_layers[index];
         record.color = gsPackColor(color.red(), color.green(), color.blue(), color.alpha());
         const DmLineType* lt = pen.getLineType();
-        const std::uint16_t lineType =
-            (lt == DmLineTypeTable::ByLayer || lt == DmLineTypeTable::ByBlock) ? 0 : lineTypeIndexOf(lt);
+        const std::uint16_t lineType = isByLayerOrByBlock(lt) ? 0 : lineTypeIndexOf(lt);
+        lineTypeChanged = lineTypeChanged || (record.lineTypeAndWeight & 0xFFFFu) != lineType;
         record.lineTypeAndWeight = gsPackLineTypeAndWeight(lineType, pen.getWidth());
         record.flags = layer->isFrozen() ? kGsLayerFrozen : 0;
     }
     m_tablesDirty = true;
+    return lineTypeChanged;
 }
 
 void GsModel::readLineTypes()
@@ -1753,7 +1884,7 @@ void GsModel::readLineTypes()
         {
             continue;
         }
-        m_lineTypes[index] = lineTypeRecord(lt);
+        setLineTypeEntry(index, const_cast<DmLineType*>(lt)->getLineTypeData());
     }
     m_tablesDirty = true;
 }
@@ -1886,6 +2017,7 @@ void GsModel::update(GsDevice& device)
         m_pending = {};
         const bool layers = pending.layersChanged;
         const bool lineTypes = pending.lineTypesChanged;
+        const bool variables = pending.variablesChanged;
         for (const void* destroyed : pending.destroyedEntities)
         {
             auto it = m_nodes.find(destroyed);
@@ -1939,13 +2071,15 @@ void GsModel::update(GsDevice& device)
                 placeNode(node);
             }
         }
+        bool resplit = false;
         if (lineTypes)
         {
             readLineTypes();
+            resplit = true;
         }
         if (layers || lineTypes)
         {
-            readLayers();
+            resplit = readLayers() || resplit;
             // 图层、线型改了：非等比插入要不要展开可能变了
             for (auto& [key, node] : m_nodes)
             {
@@ -1955,6 +2089,16 @@ void GsModel::update(GsDevice& device)
                 }
             }
             ++m_version;
+        }
+        // LTSCALE 只改每帧常量；分了段的超长虚线（段的相位按它算）与该分段的才重新编译
+        if (variables && readLineTypeScale())
+        {
+            resplit = true;
+            ++m_version;
+        }
+        if (resplit)
+        {
+            resplitLongRuns();
         }
     }
 
@@ -2458,7 +2602,7 @@ void GsModel::collectBlock(const DmBlock* block, const GiTransform& transform, G
     Shared& root = sharedFor(*block);
     std::vector<Leaf> leaves;
     GsAttributes byBlock;
-    expand(root, transform, byBlock, leaves, 0);
+    expand(root, transform, byBlock, 1.0, leaves, 0);
     std::map<Shared*, std::vector<GsInstanceRecord>> grouped;
     for (const Leaf& leaf : leaves)
     {

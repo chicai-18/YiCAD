@@ -76,6 +76,15 @@ DM::EntityType DmLeader::getEntityType() const
 }
 
 // Implementation of update. Updates the arrow.
+void DmLeader::setDocument(DmDocument* pDoc)
+{
+	DmEntity::setDocument(pDoc);
+	if (pDoc)
+	{
+		data.lineDataRef().fillUnsetLineTypes(pDoc->getLineTypeTable()->getLineTypeByLayer());
+	}
+}
+
 void DmLeader::update()
 {
     bumpRevision();
@@ -163,6 +172,8 @@ void DmLeader::transferReferences(DmDocumentTransfer& transfer)
 {
 	data.pStyle = transfer.dimStyle(data.pStyle);
 	data.setTextStyle(transfer.textStyle(data.textStyle()));
+	data.setDimLineType(transfer.lineType(data.dimLineType()));
+	data.setBoundLineType(transfer.lineType(data.boundLineType()));
 }
 
 DmVectorSolutions DmLeader::getRefPoints() const

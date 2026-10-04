@@ -137,6 +137,18 @@ TEST_F(DocumentTransfer, 复制到剪贴板的实体与来源图纸无关)
     ASSERT_NE(leader, nullptr);
     EXPECT_EQ(leader->getData().pStyle, dimStyle);
 
+    // 随层线型是剪贴板文档线型表里的 ByLayer 保留记录（来源图纸已关闭，不能还指着它的记录）：
+    // 实体的画笔、标注与引线的尺寸线与尺寸界线（加入来源图纸时取了它的随层线型）、标注样式
+    DmLineType* byLayer = clip->getLineTypeTable()->getLineTypeByLayer();
+    auto* circle = first<DmCircle>(table, DM::EntityCircle);
+    ASSERT_NE(circle, nullptr);
+    EXPECT_EQ(circle->getPen(false).getLineType(), byLayer);
+    EXPECT_EQ(dim->getData().dimLineType(), byLayer);
+    EXPECT_EQ(dim->getData().boundLineType(), byLayer);
+    EXPECT_EQ(leader->getData().dimLineType(), byLayer);
+    EXPECT_EQ(dimStyle->getDataConstRef().dimLineType(), byLayer);
+    EXPECT_EQ(dimStyle->getDataConstRef().boundLineType(), byLayer);
+
     // 块定义复制进剪贴板，块内图元属于剪贴板文档
     DmBlock* block = clip->getBlockTable()->find(kBlockName);
     ASSERT_NE(block, nullptr);

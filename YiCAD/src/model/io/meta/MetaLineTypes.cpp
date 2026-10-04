@@ -86,10 +86,19 @@ void MetaLineTypesContainer::restoreXML(XMLReader& reader)
 		// saveXML 对每个线型都写 active（0 或 1），要看值而不是看有没有这个属性
 		bool active = reader.hasAttribute("active") && reader.getAttributeAsInteger("active") != 0;
 
+		DmLineTypeTable* table = m_pDocument->getLineTypeTable();
 		DmLineType* builtin = nullptr;
-		if (name == "ByLayer" || name == "ByBlock" || name == "Continuous")
+		if (LineType::isLinetypeByLayerName(name))
 		{
-			builtin = m_pDocument->getLineTypeTable()->find(name);
+			builtin = table->getLineTypeByLayer();
+		}
+		else if (LineType::isLinetypeByBlockName(name))
+		{
+			builtin = table->getLineTypeByBlock();
+		}
+		else if (LineType::isLinetypeContinuousName(name))
+		{
+			builtin = table->getLineTypeContinuous();
 		}
 		if (builtin)
 		{

@@ -22,8 +22,21 @@
 #include "LineTypeTableCmd.h"
 #include "DmDocument.h"
 
-DmLineType* DmLineTypeTable::ByLayer = new DmLineType(DmLineTypeData(LineType::ByLayer, "ByLayer __________", "__________", {}));
-DmLineType* DmLineTypeTable::ByBlock = new DmLineType(DmLineTypeData(LineType::ByBlock, "ByBlock __________", "__________", {}));
+bool LineType::isLinetypeByLayerName(const QString& name)
+{
+    return name.compare(ByLayer, Qt::CaseInsensitive) == 0;
+}
+
+bool LineType::isLinetypeByBlockName(const QString& name)
+{
+    return name.compare(ByBlock, Qt::CaseInsensitive) == 0;
+}
+
+bool LineType::isLinetypeContinuousName(const QString& name)
+{
+    return name.compare(Continuous, Qt::CaseInsensitive) == 0;
+}
+
 DmLineType* DmLineTypeTable::Continuous = new DmLineType(DmLineTypeData(LineType::Continuous, "Continuous __________", "__________", {}));
 DmLineType* DmLineTypeTable::DashLine = new DmLineType(DmLineTypeData(LineType::DashLine, "DashLine _ _ _ _ _ ", "_ _ _ _ _ ", { 5,-5 }));
 
@@ -42,18 +55,35 @@ DmLineTypeTable::~DmLineTypeTable()
     m_lineTypes.clear();
 }
 
-/// @brief 设置关联文档并初始化
+/// @brief 设置关联文档并创建保留记录
 void DmLineTypeTable::setDocument(DmDocument *pDoc)
 {
     ITable::setDocument(pDoc);
-    // 做一些初始化操作
-    DmLineType* pByLayer = new DmLineType(DmLineTypeTable::ByLayer);
-    add_direct(pByLayer);
-    DmLineType* pByBlock = new DmLineType(DmLineTypeTable::ByBlock);
-    add_direct(pByBlock);
-    DmLineType* pContinuous = new DmLineType(DmLineTypeTable::Continuous);
-    add_direct(pContinuous);
-    activate_direct(pByLayer); // 与初始（第一个）一致
+    // ByLayer、ByBlock 只有名字（同 AutoCAD/ODA），外观只给线型下拉框显示一条实线；Continuous 是没有图案的实线
+    m_byLayer = new DmLineType(DmLineTypeData(LineType::ByLayer, QString(), "__________", {}));
+    add_direct(m_byLayer);
+    m_byBlock = new DmLineType(DmLineTypeData(LineType::ByBlock, QString(), "__________", {}));
+    add_direct(m_byBlock);
+    m_continuous = new DmLineType(DmLineTypeTable::Continuous);
+    add_direct(m_continuous);
+    activate_direct(m_byLayer); // 与初始（第一个）一致
+}
+
+bool DmLineTypeTable::isByLayer(const DmLineType* lineType)
+{
+    DmDocument* doc = lineType ? lineType->getDocument() : nullptr;
+    return doc && lineType == doc->getLineTypeTable()->getLineTypeByLayer();
+}
+
+bool DmLineTypeTable::isByBlock(const DmLineType* lineType)
+{
+    DmDocument* doc = lineType ? lineType->getDocument() : nullptr;
+    return doc && lineType == doc->getLineTypeTable()->getLineTypeByBlock();
+}
+
+bool DmLineTypeTable::isReserved(const DmLineType* lineType) const
+{
+    return lineType && (lineType == m_byLayer || lineType == m_byBlock || lineType == m_continuous);
 }
 
 /// @brief 开始修改线型
@@ -85,7 +115,7 @@ void DmLineTypeTable::remove(DmId id)
     if (!m_pDoc)
         return;
     auto it = m_lineTypeMap.find(id);
-    if (it == m_lineTypeMap.end())
+    if (it == m_lineTypeMap.end() || isReserved(it->second))
         return;
     LineTypeTableRemoveCmd* cmd = new LineTypeTableRemoveCmd(this, it->second);
     m_pDoc->getCmdManager()->addAndExecuteCmd(cmd);
@@ -138,6 +168,7 @@ bool DmLineTypeTable::add_direct(DmLineType* e)
     auto it = m_lineTypeMap.find(id);
     if (it != m_lineTypeMap.end())
         return false;
+    e->setDocument(m_pDoc);  // 记录知道所属文档，isByLayer() 等由它找到文档的保留记录
     m_lineTypeMap[id] = e;
     m_lineTypes.emplace_back(e);
     m_pDoc->changeTracker().touchTable(DmSymbolTableKind::LineType);
@@ -207,16 +238,6 @@ DmLineType* DmLineTypeTable::getActive()
 /// @brief 删除所有静态线型实例
 void DmLineTypeTable::deleteStaticLineTypes()
 {
-    if (ByLayer)
-    {
-        delete ByLayer;
-        ByLayer = nullptr;
-    }
-    if (ByBlock)
-    {
-        delete ByBlock;
-        ByBlock = nullptr;
-    }
     if (Continuous)
     {
         delete Continuous;

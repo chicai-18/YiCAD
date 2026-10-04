@@ -2483,17 +2483,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
 
         auto* table = session->document->getLineTypeTable();
         DmLineType* existing = nullptr;
-        if (name.compare(LineType::ByLayer, Qt::CaseInsensitive) == 0)
+        if (LineType::isLinetypeByLayerName(name))
         {
-            existing = table->find(LineType::ByLayer);
+            existing = table->getLineTypeByLayer();
         }
-        else if (name.compare(LineType::ByBlock, Qt::CaseInsensitive) == 0)
+        else if (LineType::isLinetypeByBlockName(name))
         {
-            existing = table->find(LineType::ByBlock);
+            existing = table->getLineTypeByBlock();
         }
-        else if (name.compare(LineType::Continuous, Qt::CaseInsensitive) == 0)
+        else if (LineType::isLinetypeContinuousName(name))
         {
-            existing = table->find(LineType::Continuous);
+            existing = table->getLineTypeContinuous();
         }
         if (existing != nullptr)
         {
@@ -5501,8 +5501,9 @@ YiCadImportResult HostApi::applyImportEntityAttributes(
         ? session->document->getLayerTable()->getActive()
         : static_cast<DmLayer*>(resolveImportResource(
               session, attributes.layer, ImportResourceLayer));
+    // 没给线型即随层：本文档线型表里的 ByLayer 保留记录
     auto* lineType = attributes.lineType == nullptr
-        ? DmLineTypeTable::ByLayer
+        ? session->document->getLineTypeTable()->getLineTypeByLayer()
         : static_cast<DmLineType*>(resolveImportResource(
               session, attributes.lineType, ImportResourceLineType));
     if (layer == nullptr || lineType == nullptr)
@@ -5515,6 +5516,7 @@ YiCadImportResult HostApi::applyImportEntityAttributes(
     entity->setLayer(layer);
     entity->setPen(DmPen(color,
         static_cast<DM::LineWidth>(attributes.lineWidth), lineType));
+    entity->setLineTypeScale(attributes.lineTypeScale);
     entity->setVisible(attributes.visible != 0);
     return YICAD_IMPORT_SUCCESS;
 }

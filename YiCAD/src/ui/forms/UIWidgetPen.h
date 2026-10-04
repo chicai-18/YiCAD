@@ -48,6 +48,12 @@ public slots:
 	/// @return 画笔对象
 	virtual DmPen getPen();
 
+	/// @brief 显示"线型比例"一行并设为 scale（实体的属性对话框用；图层没有线型比例，不调用时这一行隐藏）
+	void setLineTypeScale(double scale);
+
+	/// @brief "线型比例"一行的值
+	double getLineTypeScale() const;
+
 protected slots:
 	virtual void languageChange();
 

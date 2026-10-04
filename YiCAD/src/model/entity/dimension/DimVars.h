@@ -38,13 +38,13 @@ class DmDimensionStyleLineData
 public:
 	DmColor dimLineColor{ DM::FlagByLayer };						//尺寸线颜色
 	DM::LineWidth dimLineWidth{ DM::WidthByLayer };			//尺寸线线宽
-	DmLineType* dimLineType{ DmLineTypeTable::ByLayer };				//尺寸线线型
+	DmLineType* dimLineType{ nullptr };				//尺寸线线型；空为未指定，加入文档时取文档的随层线型（fillUnsetLineTypes）
 	bool hideDimLine1{ false };								//隐藏尺寸线1
 	bool hideDimLine2{ false };								//隐藏尺寸线2
 
 	DmColor boundLineColor{ DM::FlagByLayer };					//尺寸界线颜色
 	DM::LineWidth boundLineWidth{ DM::WidthByLayer };	    //尺寸界线线宽
-	DmLineType* boundLineType{ DmLineTypeTable::ByLayer };			//尺寸界线线型
+	DmLineType* boundLineType{ nullptr };			//尺寸界线线型；空同上
 	bool hideBoundLine1{ false };							//隐藏尺寸界线1
 	bool hideBoundLine2{ false };							//隐藏尺寸界线2
 
@@ -52,6 +52,21 @@ public:
 	double startPtOffset{ 0.625 };							//起点偏移量
 	bool isFixedBoundLineLength{ false };			//尺寸界线是否固定长度
 	double fixedBoundLineLength{ 1.0 };			//尺寸界线固定长度值
+
+	/// @brief 没指定（为空）的尺寸线、尺寸界线线型取 byLayer
+	/// @details 线型是文档线型表里的记录，构造标注数据时还不知道文档；标注样式、标注加入文档时
+	///          （setDocument）以文档的 ByLayer 记录补上，与原先的缺省值"随层"相同
+	void fillUnsetLineTypes(DmLineType* byLayer)
+	{
+		if (!dimLineType)
+		{
+			dimLineType = byLayer;
+		}
+		if (!boundLineType)
+		{
+			boundLineType = byLayer;
+		}
+	}
 };
 
 //箭头

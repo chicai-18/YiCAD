@@ -50,6 +50,7 @@ void UIDlgEllipse::setEllipse(DmEllipse& e)
 {
     m_pEllipse = &e;
     wPen->setPen(m_pEllipse->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pEllipse->getLineTypeScale());
     DmDocument* document = m_pEllipse->getDocument();
     if (document)
     {
@@ -109,6 +110,7 @@ void UIDlgEllipse::updateEllipse()
     double normalZ = Math2d::eval(leNormalZ->text());
     m_pEllipse->setNormal(DmVector(normalX, normalY, normalZ));
     m_pEllipse->setPen(wPen->getPen());
+    m_pEllipse->setLineTypeScale(wPen->getLineTypeScale());
     m_pEllipse->setLayer(cbLayer->currentText());
     m_pEllipse->calculateBorders();
     m_pEllipse->update();

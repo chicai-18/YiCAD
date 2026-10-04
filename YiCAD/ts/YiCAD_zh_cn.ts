@@ -4,37 +4,37 @@
 <context>
     <name>GuiDocumentView</name>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1453"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="967"/>
         <source>Endpoint</source>
         <translation>端点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1454"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="968"/>
         <source>Center</source>
         <translation>中心</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1455"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="969"/>
         <source>Middle</source>
         <translation>中点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1456"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="970"/>
         <source>Intersection</source>
         <translation>交点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1457"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="971"/>
         <source>On Entity</source>
         <translation>最近点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1458"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="972"/>
         <source>Subsection</source>
         <translation>节点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="1459"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="973"/>
         <source>Grid</source>
         <translation>网格</translation>
     </message>
@@ -953,38 +953,38 @@ Please update the graphics driver.</source>
         <translation>黑体</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="88"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="119"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="88"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="119"/>
         <source>Please select a linetype!</source>
         <translation>请选择一种线型！</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="146"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="177"/>
         <source>Add Linetype</source>
         <translation>添加线型</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="146"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="177"/>
         <source>This linetype has already been inserted!</source>
         <translation>该种线型已经被添加！</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="184"/>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="191"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="215"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="222"/>
         <source>Delete LineType</source>
         <translation>删除线型</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="184"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="215"/>
         <source>Please select a linetype other than ByLayer,ByBlock,Continuous!</source>
         <translation>请选择一种除了ByLayer,ByBlock,Continuous之外的线型！</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="191"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="222"/>
         <source>Can&apos;t delete ByLayer,ByBlock,continus!</source>
         <translation>不能删除ByLayer,ByBlock,Continuous！</translation>
     </message>
@@ -1332,6 +1332,7 @@ Please update the graphics driver.</source>
     <name>UIDlgLineType</name>
     <message>
         <location filename="../src/ui/forms/UIDlgLineType.ui" line="14"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="93"/>
         <source>LineType Manager</source>
         <translation>线型管理</translation>
     </message>
@@ -1406,18 +1407,23 @@ Please update the graphics driver.</source>
         <translation>当前对象缩放比例:</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="155"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="93"/>
+        <source>The linetype scale must be a number greater than 0.</source>
+        <translation>线型比例必须是大于 0 的数。</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="186"/>
         <source>Add line type</source>
         <translation>添加线型</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="200"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="231"/>
         <source>Delete line type</source>
         <translation>删除线型</translation>
     </message>
     <message>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="215"/>
-        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="249"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="246"/>
+        <location filename="../src/ui/forms/UIDlgLineType.cpp" line="287"/>
         <source>Set current line type</source>
         <translation>设置当前线型</translation>
     </message>
@@ -1934,6 +1940,11 @@ Please update the graphics driver.</source>
         <location filename="../src/ui/forms/UIWidgetPen.ui" line="120"/>
         <source>Color:</source>
         <translation>颜色：</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/forms/UIWidgetPen.ui" line="139"/>
+        <source>Linetype scale:</source>
+        <translation>线型比例：</translation>
     </message>
 </context>
 <context>

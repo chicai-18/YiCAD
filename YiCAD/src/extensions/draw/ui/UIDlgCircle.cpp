@@ -51,6 +51,7 @@ void UIDlgCircle::setCircle(DmCircle& c)
 {
     m_pCircle = &c;
     wPen->setPen(m_pCircle->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pCircle->getLineTypeScale());
 
     DmDocument* document = m_pCircle->getDocument();
     if (document)
@@ -81,6 +82,7 @@ void UIDlgCircle::updateCircle()
     m_pCircle->setCenter(DmVector(Math2d::eval(leCenterX->text()), Math2d::eval(leCenterY->text())));
     m_pCircle->setRadius(Math2d::eval(leRadius->text()));
     m_pCircle->setPen(wPen->getPen());
+    m_pCircle->setLineTypeScale(wPen->getLineTypeScale());
     m_pCircle->setLayer(cbLayer->currentText());
     m_pCircle->calculateBorders();
     m_pCircle->update();

@@ -49,6 +49,7 @@ void UIDlgPolyline::setPolyline(DmPolyline& e)
 {
     m_pPolyline = &e;
     wPen->setPen(m_pPolyline->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pPolyline->getLineTypeScale());
     DmDocument* document = m_pPolyline->getDocument();
     if (document != nullptr)
     {
@@ -70,6 +71,7 @@ void UIDlgPolyline::updatePolyline()
     m_pPolyline->getDocument()->getEntityTable()->startModify(m_pPolyline);
     m_pPolyline->setClosed(cbClosed->isChecked());
     m_pPolyline->setPen(wPen->getPen());
+    m_pPolyline->setLineTypeScale(wPen->getLineTypeScale());
     m_pPolyline->setLayer(cbLayer->currentText());
     m_pPolyline->update();
     t.commit();

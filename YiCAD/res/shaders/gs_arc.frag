@@ -15,9 +15,10 @@ layout(location = 1) flat in vec4 vArc;
 layout(location = 2) flat in vec4 vColor;
 layout(location = 3) flat in float vHalfWidth;
 layout(location = 4) flat in float vLength;
-layout(location = 5) flat in uint vDashMode;
-layout(location = 6) flat in uint vLineType;
-layout(location = 7) flat in float vLengthScale;
+layout(location = 5) flat in uint vStroke;
+layout(location = 6) flat in float vDashScale;
+layout(location = 7) flat in vec3 vDashParams;
+layout(location = 8) flat in float vLengthScale;
 
 layout(location = 0) out vec4 outColor;
 
@@ -62,7 +63,7 @@ void main()
         vec2 local = interpolateAtSample(vLocal, i);
         float across = (length(local) - radius) * localToWorld;
         float along = alongAt(local, localToWorld);
-        if (insideStroke(along, across, vLength, vDashMode, vLineType, vHalfWidth))
+        if (insideStroke(along, across, vLength, vStroke, vDashScale, vDashParams, vHalfWidth))
         {
             mask |= 1 << i;
         }

@@ -84,6 +84,8 @@ public:
     void restoreXML(XMLReader& reader);
 
     // ======================== save ========================
+    /// @brief 文档变量（同 DXF 的 HEADER 段）：全部变量按名字排序写出
+    void saveVariables(Writer& writer);
     void saveLineTypes(Writer& writer);
     void saveLayers(Writer& writer);
     void saveTextStyles(Writer& writer);
@@ -92,6 +94,8 @@ public:
     void saveEntities(Writer& writer);
 
     // ====================== restore =======================
+    /// @brief 文档变量：文件里有的覆盖文档里的，文件里没有的保持新文档的缺省值
+    void restoreVariables(XMLReader& reader);
     void restoreLineTypes(XMLReader& reader);
     void restoreLayers(XMLReader& reader);
     void restoreTextStyles(XMLReader& reader);

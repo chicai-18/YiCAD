@@ -36,10 +36,10 @@
 namespace
 {
 /// @brief DmLineTypeTable 的静态线型：全局对象，不属于任何文档
+/// @details 随层、随块线型是各文档线型表里的保留记录，与其他线型一样按名字换成目标文档的记录
 bool isStaticLineType(const DmLineType* lineType)
 {
-    return lineType == DmLineTypeTable::ByLayer || lineType == DmLineTypeTable::ByBlock ||
-           lineType == DmLineTypeTable::Continuous || lineType == DmLineTypeTable::DashLine;
+    return lineType == DmLineTypeTable::Continuous || lineType == DmLineTypeTable::DashLine;
 }
 
 /// @brief 按约定把复制出的条目放进目标表：直接放入，或经命令放入
@@ -151,8 +151,10 @@ DmDimensionStyle* DmDocumentTransfer::dimStyle(DmDimensionStyle* source)
         return source;
     }
     auto* copy = new DmDimensionStyle(*source);  // 只复制样式数据，id 由目标表分配
-    copy->setDocument(&m_target);
     copy->getDataRef().setTextStyle(textStyle(source->getDataConstRef().textStyle()));
+    copy->getDataRef().setDimLineType(lineType(source->getDataConstRef().dimLineType()));
+    copy->getDataRef().setBoundLineType(lineType(source->getDataConstRef().boundLineType()));
+    copy->setDocument(&m_target);
     addTo(table, copy, m_missing);
     return copy;
 }

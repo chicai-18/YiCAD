@@ -16,6 +16,7 @@
 
 #include <QTemporaryDir>
 
+#include "CmdManager.h"
 #include "DmBlock.h"
 #include "DmBlockTable.h"
 #include "DmChangeSet.h"
@@ -24,6 +25,7 @@
 #include "DmLayer.h"
 #include "DmLayerTable.h"
 #include "DmLine.h"
+#include "DocumentCmd.h"
 #include "EntityTable.h"
 #include "FilterOcdIO.h"
 #include "Transaction.h"
@@ -276,4 +278,31 @@ TEST_F(ChangeSetFixture, 文档变量的修改登记)
     doc.flushChanges();
     ASSERT_EQ(recorder.changes.size(), 1u);
     EXPECT_TRUE(recorder.changes[0].variablesChanged);
+}
+
+TEST_F(ChangeSetFixture, 经命令修改文档变量时提交撤销重做都登记)
+{
+    // 线型管理器改 LTSCALE 走 ModifyDocVariablesCmd（可撤销）；它直接改变量字典，要自己登记
+    {
+        Transaction t("LTSCALE", &doc);
+        t.start();
+        QHash<QString, DmVariable> variables;
+        variables.insert(QStringLiteral("$LTSCALE"), DmVariable(2.0, 40));
+        doc.getCmdManager()->addAndExecuteCmd(new ModifyDocVariablesCmd(&doc, variables));
+        t.commit();
+    }
+    ASSERT_FALSE(recorder.changes.empty());
+    EXPECT_TRUE(recorder.changes.back().variablesChanged);
+    EXPECT_DOUBLE_EQ(doc.getVariableDouble(QStringLiteral("$LTSCALE"), 1.0), 2.0);
+
+    recorder.changes.clear();
+    doc.undo();
+    ASSERT_FALSE(recorder.changes.empty());
+    EXPECT_TRUE(recorder.changes.back().variablesChanged);
+    EXPECT_DOUBLE_EQ(doc.getVariableDouble(QStringLiteral("$LTSCALE"), 1.0), 1.0);
+
+    recorder.changes.clear();
+    doc.redo();
+    ASSERT_FALSE(recorder.changes.empty());
+    EXPECT_TRUE(recorder.changes.back().variablesChanged);
 }

@@ -72,6 +72,10 @@ public:
     /// @return 线型指针，若未找到则返回nullptr
     DmLineType* lineTypeAt(int i);
 
+private:
+    /// @brief 读线型比例输入框：须是大于 0 的数（可以是表达式），否则提示并返回 false
+    bool readScale(QLineEdit* edit, double& value);
+
 private slots:
     void on_LoadLine_clicked();
     void on_DeleteLine_clicked();

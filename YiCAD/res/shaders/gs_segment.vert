@@ -15,9 +15,10 @@ layout(location = 0) out float vAlong;          // 弧长参数（世界长度�
 layout(location = 1) out float vAcross;         // 到中心线的有向距离（世界长度）
 layout(location = 2) flat out vec4 vColor;
 layout(location = 3) flat out float vHalfWidth; // 半线宽（世界长度）
-layout(location = 4) flat out float vLength;    // 这一段线的总长（世界长度）
-layout(location = 5) flat out uint vDashMode;
-layout(location = 6) flat out uint vLineType;
+layout(location = 4) flat out float vLength;    // 这一段线的长度（世界长度）
+layout(location = 5) flat out uint vStroke;     // 线型的画法（Stroke::code）
+layout(location = 6) flat out float vDashScale; // 图案长度到弧长参数的比例
+layout(location = 7) flat out vec3 vDashParams; // 相位、头部划线终点、尾部划线起点
 
 void main()
 {
@@ -64,12 +65,14 @@ void main()
     float sLen = s1 - s0;
     float along = atEnd ? s1 + (len > 0.0 ? extent * sLen / len : extent) : s0 - (len > 0.0 ? extent * sLen / len : extent);
 
+    Stroke stroke = strokeOf(prim, lengthScale, iTranslate.w);
     vAlong = along;
     vAcross = side * extent;
     vColor = style.color;
     vHalfWidth = halfWidth;
-    vLength = prim.runLength * lengthScale;
-    vDashMode = prim.dashMode;
-    vLineType = resolveLineType(prim);
+    vLength = stroke.len;
+    vStroke = stroke.code;
+    vDashScale = stroke.scale;
+    vDashParams = stroke.params;
     gl_Position = eyeToClip(eye, style.depth);
 }

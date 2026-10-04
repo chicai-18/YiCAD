@@ -53,6 +53,7 @@ void UIDlgImage::setImage(DmImage& e)
     m_pImage = &e;
     val = new QDoubleValidator(leScale);
     wPen->setPen(m_pImage->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pImage->getLineTypeScale());
     DmDocument* document = m_pImage->getDocument();
     if (document != nullptr)
     {
@@ -134,6 +135,7 @@ void UIDlgImage::updateImage()
     t.start();
     m_pImage->getDocument()->getEntityTable()->startModify(m_pImage);
     m_pImage->setPen(wPen->getPen());
+    m_pImage->setLineTypeScale(wPen->getLineTypeScale());
     m_pImage->setLayer(cbLayer->currentText());
     m_pImage->setInsertionPoint(DmVector(leInsertX->text().toDouble(), leInsertY->text().toDouble()));
     double orgScale = m_pImage->getUVector().magnitude();

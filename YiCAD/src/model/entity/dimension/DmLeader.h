@@ -56,6 +56,8 @@ public:
 
 	DM::EntityType getEntityType() const override;
 	void update() override;
+	/// @brief 加入文档：没指定的线型取文档的随层线型
+	void setDocument(DmDocument* pDoc) override;
 	DmLeaderData getData() const;
 	DmLeaderData& getDataRef();
 	DmVectorSolutions getRefPoints() const override;

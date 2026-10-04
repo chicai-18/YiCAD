@@ -3,7 +3,7 @@
 //
 // 数据布局与 C++ 一侧（src/render/gs/GsTypes.h）一一对应：
 // - 第 0 组 Frame：每帧常量、各分块原点相对视点的偏移、每视图的状态位图（高亮、临时隐藏）；
-// - 第 1 组 Model：对象状态、图层表、线型表、图元记录（每条 2 个 RGBA32UI 纹素）；
+// - 第 1 组 Model：对象状态、图层表、线型表、图元记录（每条 3 个 RGBA32UI 纹素）；
 // - 第 2 组 Geometry：本管线类的几何（纹素缓冲），按顶点序号取，顶点序号在两个后端都含 firstVertex；
 // - 实例属性（位置 0..3，步进为 1 的实例属性，读取遵守 firstInstance）：块参照、字形与顶层几何的实例记录。
 // 着色器不用内建实例序号（第 4.7.3 节）。
@@ -20,8 +20,11 @@ layout(set = 0, binding = 0, std140) uniform Frame
     vec4 background;       // 背景色
     vec4 selectedColor;    // 选中色
     vec4 highlightColor;   // 高亮色
-    vec4 lineStyle;        // x: 每单位线宽代码的像素（显示线宽时 0.05，否则 0） y: 选中、高亮加宽的像素 z: 点的像素 w: 无限线外扩的世界长度
+    vec4 lineStyle;        // x: 每单位线宽代码的像素（显示线宽时 0.05 × 设备像素比，否则 0） y: 选中、高亮加宽的像素
+                           // z: 点的像素 w: 无限线外扩的世界长度
     uvec4 mode;            // x: 通道（0 场景、1 高亮叠加、2 无状态） y: 状态位图是否有效 z: 选中是否生效 w: 目标的采样数
+    vec4 strokeStyle;      // x: 全局线型比例 LTSCALE y: 线型周期在屏幕上短于它（设备像素）时画实线
+                           // z: 最细线宽（设备像素，即设备像素比） w: 保留
     vec4 grid;             // x: 网格间距 y: 粗网格间距 z: 是否画网格 w: 保留
     vec4 gridOffset;       // xy: 视点对网格间距取模 zw: 视点对粗网格间距取模
     vec4 gridColor;        // 细网格线的颜色
@@ -35,10 +38,20 @@ const uint kKindValue = 0u;
 const uint kKindByLayer = 1u;
 const uint kKindByBlock = 2u;
 
+// 图元记录里的对齐方式（GsDashMode）
 const uint kDashNone = 0u;     // 不按线型（填充、点、图片）
-const uint kDashOpen = 1u;     // 开放曲线：居中
+const uint kDashOpen = 1u;     // 开放曲线：居中（A 型对齐）
 const uint kDashClosed = 2u;   // 闭合曲线：整周期
 const uint kDashInfinite = 3u; // 射线、构造线：从基点起周期重复
+const uint kDashPattern = 4u;  // 填充图案线：相位给定，不做端点对齐
+
+// 片段着色器的虚线画法（顶点着色器按对齐方式算好，gs_dash.glsl）
+const uint kStrokeSolid = 0u;     // 实线（连续线、过密、短于一个周期的有划线图案）
+const uint kStrokeEndDots = 1u;   // 只在两端画点（短于一个周期的只有点的图案）
+const uint kStrokePeriodic = 2u;  // 周期重复：图案位置 = 弧长 + 相位
+const uint kStrokeCentered = 3u;  // 居中：头部划线、中间周期重复、尾部划线
+const uint kStrokeCapStart = 16u; // 起点是线的端点：起点之外按到端点的距离画圆头
+const uint kStrokeCapEnd = 32u;   // 终点是线的端点
 
 const uint kPrimFlagFill = 1u;   // 选中、高亮时半透明叠色，不加宽
 const uint kPrimFlagPoint = 2u;

@@ -11,14 +11,16 @@
 layout(location = 0) in float vAlong;
 layout(location = 1) flat in vec4 vColor;
 layout(location = 2) flat in float vLength;
-layout(location = 3) flat in uint vDashMode;
-layout(location = 4) flat in uint vLineType;
+layout(location = 3) flat in uint vStroke;
+layout(location = 4) flat in float vDashScale;
+layout(location = 5) flat in vec3 vDashParams;
 
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    if (vLineType != 0u && !insideStroke(vAlong, 0.0, vLength, vDashMode, vLineType, 0.5 * frame.viewport.z))
+    if ((vStroke & 15u) != kStrokeSolid
+        && !insideStroke(vAlong, 0.0, vLength, vStroke, vDashScale, vDashParams, 0.5 * frame.viewport.z))
     {
         terminateInvocation;
     }

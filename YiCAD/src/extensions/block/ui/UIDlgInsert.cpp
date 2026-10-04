@@ -48,6 +48,7 @@ void UIDlgInsert::setInsert(DmBlockReference& i)
 {
     m_pInsert = &i;
     wPen->setPen(m_pInsert->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pInsert->getLineTypeScale());
     DmDocument* document = m_pInsert->getDocument();
     if (document != nullptr)
     {
@@ -142,6 +143,7 @@ void UIDlgInsert::updateInsert()
     m_pInsert->setCols(Math2d::round(Math2d::eval(leCols->text())));
     m_pInsert->setSpacing(DmVector(Math2d::eval(leColSpacing->text()), Math2d::eval(leRowSpacing->text())));
     m_pInsert->setPen(wPen->getPen());
+    m_pInsert->setLineTypeScale(wPen->getLineTypeScale());
     m_pInsert->setLayer(cbLayer->currentText());
 
     // 属性文字

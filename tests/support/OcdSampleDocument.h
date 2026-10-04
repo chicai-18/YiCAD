@@ -95,15 +95,15 @@ inline const QString kAttributeValue = QStringLiteral("M12");
 inline const QString kTextValue = QStringLiteral("单行文字 Text 123");
 inline const QString kMTextValue = QStringLiteral("多行文字");
 
-/// @brief 按图层取画笔（新实体的默认画笔）
-inline DmPen byLayerPen()
+/// @brief 按图层取画笔（新实体的默认画笔）：线型为文档线型表里的 ByLayer 记录
+inline DmPen byLayerPen(DmDocument& doc)
 {
-    return DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, DmLineTypeTable::ByLayer);
+    return DmPen(DmColor(DM::FlagByLayer), DM::WidthByLayer, doc.getLineTypeTable()->getLineTypeByLayer());
 }
 
 /// @brief 设好文档、图层与画笔，更新后直接放进实体表（不经事务）
 template <typename T>
-T* addTo(EntityTable& table, DmDocument& doc, T* entity, DmLayer* layer, const DmPen& pen = byLayerPen())
+T* addTo(EntityTable& table, DmDocument& doc, T* entity, DmLayer* layer, const DmPen& pen)
 {
     entity->setDocument(&doc);
     entity->setLayer(layer);
@@ -112,6 +112,13 @@ T* addTo(EntityTable& table, DmDocument& doc, T* entity, DmLayer* layer, const D
     entity->calculateBorders();
     EXPECT_TRUE(table.add_direct(entity));
     return entity;
+}
+
+/// @brief 同上，画笔随层
+template <typename T>
+T* addTo(EntityTable& table, DmDocument& doc, T* entity, DmLayer* layer)
+{
+    return addTo(table, doc, entity, layer, byLayerPen(doc));
 }
 
 /// @brief 样本文档里各类实体的数量（模型空间）
@@ -299,7 +306,7 @@ inline void buildSample(DmDocument& doc)
                                       AttributeData(kAttributeTag));
     attribute->setDocument(&doc);
     attribute->setLayer(layer0);
-    attribute->setPen(byLayerPen());
+    attribute->setPen(byLayerPen(doc));
     attribute->update();
     insert->addAttributes({attribute});
     addTo(model, doc, insert, outline);

@@ -224,6 +224,15 @@ TEST(PersistenceRoundTrip, 直线按修订号读回读完全部字节)
     expectVectorEq(restored.getEndpoint(), original.getEndpoint());
 }
 
+TEST(PersistenceRoundTrip, 实体线型比例往返不变)
+{
+    DmLine original(DmVector(1.5, -2.25), DmVector(30.75, 41.125));
+    original.setLineTypeScale(0.375);
+    DmLine restored;
+    ASSERT_NO_FATAL_FAILURE(roundTripWithRevs(original, restored));
+    EXPECT_DOUBLE_EQ(restored.getLineTypeScale(), 0.375);
+}
+
 TEST(PersistenceRoundTrip, 点按修订号读回保持位置)
 {
     DmPoint original(nullptr, PointData(DmVector(-7.0, 9.0)));

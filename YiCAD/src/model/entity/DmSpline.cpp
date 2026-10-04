@@ -1454,7 +1454,7 @@ std::vector<DmLine*> DmSpline::test(DmSpline* spline)
         double t1, t2;
         spline->getDomainOfDefinition(t1, t2);
         DmColor c1(255,0,0), c2(0,255,0), c3(0,0,255);
-        std::vector<DmPen> pens{DmPen(c1, DM::Width00, DmLineTypeTable::ByLayer), DmPen(c2, DM::Width00, DmLineTypeTable::ByLayer), DmPen(c3, DM::Width00, DmLineTypeTable::ByLayer)};
+        std::vector<DmPen> pens{DmPen(c1, DM::Width00, DmLineTypeTable::Continuous), DmPen(c2, DM::Width00, DmLineTypeTable::Continuous), DmPen(c3, DM::Width00, DmLineTypeTable::Continuous)};
         int k = spline->getDegree();
         int c = k + 1;
         double step = (t2-t1)/sCount;
@@ -1491,7 +1491,7 @@ std::vector<DmLine*> DmSpline::test(DmSpline* spline)
         }
 
         double len2 = 5;
-        DmPen pen2(DmColor(255,255,0), DM::Width00, DmLineTypeTable::ByLayer);
+        DmPen pen2(DmColor(255,255,0), DM::Width00, DmLineTypeTable::Continuous);
         //auto sections=spline->getSections();
         auto sections=spline->getSectionsByCloseControlPoints();
         for(auto sec:sections)

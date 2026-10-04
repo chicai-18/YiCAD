@@ -49,6 +49,15 @@ DmDimensionStyleData::DmDimensionStyleData(const DmDimensionData* dimData)
 	setUnitData(dimData->unitDataConstRef());
 }
 
+void DmDimensionStyle::setDocument(DmDocument* pDoc)
+{
+	DmObject::setDocument(pDoc);
+	if (pDoc)
+	{
+		m_styleData.lineDataRef().fillUnsetLineTypes(pDoc->getLineTypeTable()->getLineTypeByLayer());
+	}
+}
+
 DmDimensionStyle::DmDimensionStyle(const QString& name, DmTextStyle* pTextStyle)
 {
 	m_styleData.name = name;

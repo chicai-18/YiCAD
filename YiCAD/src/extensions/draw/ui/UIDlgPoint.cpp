@@ -50,6 +50,7 @@ void UIDlgPoint::setPoint(DmPoint& p)
 {
     m_pPoint = &p;
     wPen->setPen(m_pPoint->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pPoint->getLineTypeScale());
     DmDocument* document = m_pPoint->getDocument();
     if (document != nullptr)
     {
@@ -75,6 +76,7 @@ void UIDlgPoint::updatePoint()
     m_pPoint->getDocument()->getEntityTable()->startModify(m_pPoint);
     m_pPoint->setPos(DmVector(Math2d::eval(lePosX->text()), Math2d::eval(lePosY->text())));
     m_pPoint->setPen(wPen->getPen());
+    m_pPoint->setLineTypeScale(wPen->getLineTypeScale());
     m_pPoint->setLayer(cbLayer->currentText());
     t.commit();
 }

@@ -49,6 +49,7 @@ void UIDlgArc::setArc(DmArc& a)
 {
     arc = &a;
     wPen->setPen(arc->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(arc->getLineTypeScale());
 
     DmDocument* document = arc->getDocument();
     if (document)
@@ -95,6 +96,7 @@ void UIDlgArc::updateArc()
     double normalZ = Math2d::eval(leNormalZ->text());
     arc->setNormal(DmVector(normalX, normalY, normalZ));
     arc->setPen(wPen->getPen());
+    arc->setLineTypeScale(wPen->getLineTypeScale());
     arc->setLayer(cbLayer->currentText());
     arc->update();
     arc->calculateBorders();

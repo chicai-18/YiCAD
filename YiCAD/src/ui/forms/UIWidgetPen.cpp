@@ -29,6 +29,8 @@ UIWidgetPen::UIWidgetPen(QWidget* parent, Qt::WindowFlags fl)
 	: QWidget(parent, fl)
 {
 	setupUi(this);
+	lLineTypeScale->hide();
+	sbLineTypeScale->hide();
 }
 
 UIWidgetPen::~UIWidgetPen()
@@ -61,6 +63,18 @@ DmPen UIWidgetPen::getPen()
 	pen.setLineType(cbLineType->getLineType());
 
 	return pen;
+}
+
+void UIWidgetPen::setLineTypeScale(double scale)
+{
+	lLineTypeScale->show();
+	sbLineTypeScale->show();
+	sbLineTypeScale->setValue(scale);
+}
+
+double UIWidgetPen::getLineTypeScale() const
+{
+	return sbLineTypeScale->value();
 }
 
 void UIWidgetPen::languageChange()

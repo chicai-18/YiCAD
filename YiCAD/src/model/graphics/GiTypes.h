@@ -110,7 +110,7 @@ struct GiLoop
 struct GiLinePattern
 {
     std::vector<double> dashes;
-    double phase = 0.0;     ///< 图案起点相对曲线起点的偏移
+    double phase = 0.0;     ///< 曲线起点在图案里的位置：曲线上弧长 s 处画的是图案的 (s + phase) 处
 
     bool operator==(const GiLinePattern& other) const = default;
 };

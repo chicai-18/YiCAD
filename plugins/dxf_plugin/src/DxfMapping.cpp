@@ -230,8 +230,9 @@ yicad::plugin::EntityAttributes toAttributes(
     {
         result.setLayer(*layer);
     }
-    const auto lineTypeKey = resourceKey(value.lineType);
-    if (lineTypeKey != "BYLAYER" && lineTypeKey != "BYBLOCK")
+    // BYLAYER（与没写线型相同）不传，宿主取随层；BYBLOCK 与其他线型一样传线型资源（导入开始时已建好，
+    // 宿主映射到文档线型表里的 ByBlock 保留记录）
+    if (resourceKey(value.lineType) != "BYLAYER")
     {
         if (const auto* lineType = findResource(lineTypes, value.lineType))
         {

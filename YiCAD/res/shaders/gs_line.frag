@@ -14,8 +14,9 @@ layout(location = 1) in float vAcross;
 layout(location = 2) flat in vec4 vColor;
 layout(location = 3) flat in float vHalfWidth;
 layout(location = 4) flat in float vLength;
-layout(location = 5) flat in uint vDashMode;
-layout(location = 6) flat in uint vLineType;
+layout(location = 5) flat in uint vStroke;
+layout(location = 6) flat in float vDashScale;
+layout(location = 7) flat in vec3 vDashParams;
 
 layout(location = 0) out vec4 outColor;
 
@@ -27,7 +28,7 @@ void main()
     {
         float along = interpolateAtSample(vAlong, i);
         float across = interpolateAtSample(vAcross, i);
-        if (insideStroke(along, across, vLength, vDashMode, vLineType, vHalfWidth))
+        if (insideStroke(along, across, vLength, vStroke, vDashScale, vDashParams, vHalfWidth))
         {
             mask |= 1 << i;
         }

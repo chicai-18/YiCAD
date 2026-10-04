@@ -46,13 +46,14 @@ public:
     /// @brief 图层；为空表示取外层的图层
     virtual void setLayer(const DmLayer* layer) = 0;
 
-    /// @brief 线型，含 DmLineTypeTable::ByLayer、ByBlock；为空视为 ByBlock
+    /// @brief 线型，可以是文档线型表里的 ByLayer、ByBlock 保留记录（DmLineTypeTable::isByLayer）；为空视为 ByBlock
     virtual void setLineType(const DmLineType* lineType) = 0;
 
-    /// @brief 实体线型比例
+    /// @brief 实体线型比例，初值为 1；嵌套绘制、drawShared 的对象里与外层的比例相乘
     virtual void setLineTypeScale(double scale) = 0;
 
-    /// @brief 内联图案与相位，填充图案线用，不做端点对齐；长度在实体自身坐标系里，随块缩放
+    /// @brief 内联图案与相位，填充图案线用，不做端点对齐；长度在实体自身坐标系里，随块缩放。
+    ///        设置后对之后的线（多段线、圆弧等，每条从它的起点按相位开始）生效，取代线型；图案为空时恢复按线型画
     virtual void setLinePattern(const GiLinePattern& pattern) = 0;
 
     /// @brief 线宽，含 ByLayer、ByBlock、默认

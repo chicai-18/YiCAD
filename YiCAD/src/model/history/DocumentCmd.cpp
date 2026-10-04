@@ -96,6 +96,7 @@ void ModifyDocVariablesCmd::applyVariables()
     {
         variables.insert(it.key(), it.value());
     }
+    m_document->changeTracker().touchVariables();
 }
 
 void ModifyDocVariablesCmd::execute()
@@ -125,6 +126,7 @@ void ModifyDocVariablesCmd::undo()
     {
         variables.remove(key);
     }
+    m_document->changeTracker().touchVariables();
     ICmd::undo();
 }
 

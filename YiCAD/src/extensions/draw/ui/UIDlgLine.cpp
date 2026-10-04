@@ -50,6 +50,7 @@ void UIDlgLine::setLine(DmLine& l)
 {
     m_pLine = &l;
     wPen->setPen(m_pLine->getPen(false), true, tr("Pen"));
+    wPen->setLineTypeScale(m_pLine->getLineTypeScale());
     DmDocument* document = m_pLine->getDocument();
     if (document != nullptr)
     {
@@ -79,6 +80,7 @@ void UIDlgLine::updateLine()
     m_pLine->setStartpoint(DmVector(Math2d::eval(leStartX->text()), Math2d::eval(leStartY->text())));
     m_pLine->setEndpoint(DmVector(Math2d::eval(leEndX->text()), Math2d::eval(leEndY->text())));
     m_pLine->setPen(wPen->getPen());
+    m_pLine->setLineTypeScale(wPen->getLineTypeScale());
     m_pLine->setLayer(cbLayer->currentText());
     t.commit();
 }
