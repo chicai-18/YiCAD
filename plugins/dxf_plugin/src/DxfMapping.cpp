@@ -239,8 +239,11 @@ yicad::plugin::EntityAttributes toAttributes(
             result.setLineType(*lineType);
         }
     }
+    // 实体线型比例（组码 48）；非法值按缺省 1
+    const double lineTypeScale = std::isfinite(value.ltypeScale) && value.ltypeScale > 0.0 ? value.ltypeScale : 1.0;
     result.setColor(color(value.color, value.color24))
         .setLineWidth(lineWidth(value.lWeight))
+        .setLineTypeScale(lineTypeScale)
         .setVisible(value.visible);
     return result;
 }

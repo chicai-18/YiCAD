@@ -34,6 +34,11 @@ libdxfrw 编译为静态库，只链接进 `YiCadDxfPlugin.dll`，不单独部�
   句柄到名称的映射；读取 DIMSTYLE 时，若文字样式（组码 340）是能在映射中找到的句柄，
   换成样式名再交给 `DRW_Interface`。
 
+2026-10-04，渲染方案阶段 5：
+
+- `src/libdxfrw.cpp`：`writeEntity` 在 R13 及以上版本写出实体线型比例（组码 48，
+  `DRW_Entity::ltypeScale`），为缺省值 1 时不写。上游读入时解析组码 48，写出时不写。
+
 ## 已撤销的修改
 
 2026-07-11 曾为构建 `YiCadLibdxfrw220` Windows DLL 新增 `src/yicad_libdxfrw_export.h`，

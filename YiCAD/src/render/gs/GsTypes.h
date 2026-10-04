@@ -152,7 +152,7 @@ struct GsInstanceRecord
 {
     std::array<float, 4> linear = {1.0f, 0.0f, 0.0f, 1.0f};  ///< a b c d：x' = a·x + c·y
     std::array<float, 4> translate = {0.0f, 0.0f, 1.0f, 1.0f}; ///< 平移（相对分块原点）、长度比例（等比插入的比例，
-                                                               ///< 弧长参数换成世界长度）、块参照的线型比例
+                                                               ///< 弧长参数换成世界长度）、外层的线型比例（drawShared 调用方的）
     std::uint32_t slot = kGsNoSlot;          ///< 顶层对象的槽位
     std::uint32_t byBlockColor = 0xFF000000u; ///< 随块颜色 RGBA
     std::uint32_t byBlockKinds = 0;          ///< 随块颜色、线型、线宽的种类各 2 位（值或随层）

@@ -39,6 +39,7 @@
 #include "Debug.h"
 #include "DmSettings.h"
 #include "IGiGeometry.h"
+#include "IGiSubEntityTraits.h"
 
 TYPESYSTEM_SOURCE(DmBlockReference, DmEntity, 0);
 
@@ -913,6 +914,14 @@ void DmBlockReference::restoreStreamWithRev(InputStream& rdr, int rev)
     {
         // 第一步：逐项读取旧版本数据
     }
+}
+
+void DmBlockReference::setAttributes(IGiSubEntityTraits& traits) const
+{
+    DmEntity::setAttributes(traits);
+    // AutoCAD 里块参照自身的线型比例对块里的内容不起作用：显式线型、随块线型的实体都只按各自的线型比例画，
+    // 属性也一样。块参照自己不画别的图元，所以这里恢复初值 1，GS 就不会把它乘进块的内容
+    traits.setLineTypeScale(1.0);
 }
 
 void DmBlockReference::worldDraw(IGiWorldDraw& wd) const

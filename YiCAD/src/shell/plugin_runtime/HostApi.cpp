@@ -379,6 +379,7 @@ void readAttributes(DmEntity* entity, YiCadEntityAttributes& output) noexcept
     output.lineType = pen.getLineType();
     output.color = readColor(pen.getColor());
     output.lineWidth = static_cast<int32_t>(pen.getWidth());
+    output.lineTypeScale = entity->getLineTypeScale();
 }
 
 } // namespace
@@ -5439,7 +5440,8 @@ YiCadImportResult HostApi::normalizeImportEntityAttributes(
     if (!validStructPrefix(
             input->structSize, YICAD_ENTITY_ATTRIBUTES_V3_MIN_SIZE) ||
         !validLineWidth(input->lineWidth) ||
-        !std::isfinite(input->lineTypeScale) || input->visible > 1 ||
+        !std::isfinite(input->lineTypeScale) ||
+        input->lineTypeScale <= 0.0 || input->visible > 1 ||
         !finitePoint(input->normal))
     {
         return setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -5482,12 +5484,11 @@ YiCadImportResult HostApi::applyImportEntityAttributes(
     }
 
     const auto normal = toDmVector(attributes.normal);
-    if (std::abs(attributes.lineTypeScale - 1.0) > DM_TOLERANCE ||
-        std::abs(normal.x) > DM_TOLERANCE ||
+    if (std::abs(normal.x) > DM_TOLERANCE ||
         std::abs(normal.y) > DM_TOLERANCE || normal.z <= DM_TOLERANCE)
     {
         return setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
-            "二维实体仅支持线型比例 1 和正 Z 轴法向量");
+            "二维实体仅支持正 Z 轴法向量");
     }
 
     DmColor color;

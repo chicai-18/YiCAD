@@ -108,6 +108,9 @@ public:
     /// @brief 经 GI 描述自身几何（RENDER_PLAN.md 第 4.2 节）
     void worldDraw(IGiWorldDraw& wd) const override;
 
+    /// @brief 画笔与图层同其他实体；自身的线型比例不交给块的内容（与 AutoCAD 相同，RENDER_PLAN.md 第 4.5.1 节）
+    void setAttributes(IGiSubEntityTraits& traits) const override;
+
     QList<DmEntity*>& getEntityList();
     const QList<DmEntity*>& getEntityList() const;
     virtual bool isContainer() const override { return false; }

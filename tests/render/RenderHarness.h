@@ -11,7 +11,6 @@
 #include <QImage>
 #include <QString>
 
-#include <functional>
 #include <initializer_list>
 #include <memory>
 #include <vector>
@@ -48,7 +47,6 @@ struct RenderRequest
     bool selectCircles = false;     ///< 圆与块参照按选中绘制（经 ISelectionSource）
     bool highlightArcs = false;     ///< 圆弧按高亮绘制（经 IHighlightSource）
     RenderRequirement requirement = RenderRequirement::None;
-    std::function<void(DmDocument&)> prepare;  ///< 读入后、建画布前改文档（例如补上 DXF 导入还不读的属性）
 };
 
 /// @brief 资源是否就位；不就位时 reason 给出跳过的理由

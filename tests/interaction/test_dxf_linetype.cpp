@@ -1,8 +1,9 @@
 /// @file test_dxf_linetype.cpp
-/// @brief DXF 导入的随层、随块线型（doc/RENDER_PLAN.md 第 10 节阶段 5）
+/// @brief DXF 导入的随层、随块线型与实体线型比例（doc/RENDER_PLAN.md 第 10 节阶段 5）
 ///
 /// 与 AutoCAD/ODA 一致，随层、随块线型是文档线型表里的 ByLayer、ByBlock 保留记录：导入后实体引用的
 /// 就是这两条记录（不是别的对象），块里线型为 BYBLOCK 的实体取块参照的线型。
+/// 实体线型比例经插件接口的 lineTypeScale 读写 DXF 的组码 48。
 /// 经构建出来的 DXF 插件导入（support/DxfTestRuntime.h），与 test_dxf_encoding 相同。
 
 #include <gtest/gtest.h>
@@ -180,4 +181,37 @@ TEST_F(DxfLinetypeImport, 块里随块线型的实体取块参照的线型)
     DmLineType* lineType = subs.front()->getPen(true).getLineType();
     ASSERT_NE(lineType, nullptr);
     EXPECT_EQ(lineType->getLineTypeName(), QStringLiteral("DASHED"));
+}
+
+TEST_F(DxfLinetypeImport, 实体线型比例经组码48导出后读回不变)
+{
+    // R12 的源图纸没有组码 48（R13 起才有），读入后为缺省值 1；导出为 AC1027，块参照、块里的实体都写出组码 48
+    auto* line = firstOf<DmLine>(*document.getEntityTable(), DM::EntityLine);
+    auto* insert = firstOf<DmBlockReference>(*document.getEntityTable(), DM::EntityBlockReference);
+    DmBlock* block = document.getBlockTable()->find(QStringLiteral("B"));
+    ASSERT_NE(line, nullptr);
+    ASSERT_NE(insert, nullptr);
+    ASSERT_NE(block, nullptr);
+    auto* inner = firstOf<DmLine>(block->getEntityTable(), DM::EntityLine);
+    ASSERT_NE(inner, nullptr);
+    EXPECT_DOUBLE_EQ(line->getLineTypeScale(), 1.0);
+    line->setLineTypeScale(0.5);
+    insert->setLineTypeScale(3.0);
+    inner->setLineTypeScale(0.25);
+
+    const QString exported = dir.filePath(QStringLiteral("linetype_scale.dxf"));
+    ASSERT_TRUE(runtime.exportFile(document, exported));
+    DmDocument reread;
+    ASSERT_TRUE(runtime.importFile(reread, exported));
+    auto* rereadLine = firstOf<DmLine>(*reread.getEntityTable(), DM::EntityLine);
+    auto* rereadInsert = firstOf<DmBlockReference>(*reread.getEntityTable(), DM::EntityBlockReference);
+    DmBlock* rereadBlock = reread.getBlockTable()->find(QStringLiteral("B"));
+    ASSERT_NE(rereadLine, nullptr);
+    ASSERT_NE(rereadInsert, nullptr);
+    ASSERT_NE(rereadBlock, nullptr);
+    auto* rereadInner = firstOf<DmLine>(rereadBlock->getEntityTable(), DM::EntityLine);
+    ASSERT_NE(rereadInner, nullptr);
+    EXPECT_DOUBLE_EQ(rereadLine->getLineTypeScale(), 0.5);
+    EXPECT_DOUBLE_EQ(rereadInsert->getLineTypeScale(), 3.0);
+    EXPECT_DOUBLE_EQ(rereadInner->getLineTypeScale(), 0.25);
 }

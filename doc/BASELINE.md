@@ -614,10 +614,10 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 |------------|------:|------:|------:|------:|------:|------:|------:|
 | `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） |
 | `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
-| `test_graphics` | — | — | — | 38（1 DISABLED） | 38（1 DISABLED） | 38（1 DISABLED） | 41（1 DISABLED） |
+| `test_graphics` | — | — | — | 38（1 DISABLED） | 38（1 DISABLED） | 38（1 DISABLED） | 42（1 DISABLED） |
 | `test_persistence` | 68 | 68 | 68 | 68 | 68 | 68 | 73 |
-| `test_interaction` | 335 | 336 | 336 | 336 | 336 | 349 | 353 |
-| `test_render` | — | 15 | 23 | 23 | 43 | 48 | 56 |
+| `test_interaction` | 335 | 336 | 336 | 336 | 336 | 349 | 354 |
+| `test_render` | — | 15 | 23 | 23 | 43 | 48 | 57 |
 
 阶段 0 新增：`test_math` 的数量计数器与新计数器 4 个；`test_interaction` 的基线采集 1 个（不设 `YICAD_BENCHMARK_DIR` 时跳过）；
 `test_render`（新）的环境检查 2 个与参考图纸出图比对 13 个（缺 SHX 字体时 `text_shx` 跳过，CI 上就是这样）。
@@ -635,8 +635,8 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 `test_render` 的增量更新改测图形系统（原 7 个与图片纹理缓存 1 个，换成 13 个：选择集、高亮集、临时隐藏、预览变换、修改实体、大高亮集、修订号抽查、网格线等），
 参考图纸 13 个改为只画图形系统，13 张基准图像全部重新生成（`RENDER_PLAN.md` 第 10 节阶段 4）。
 
-阶段 5 新增：`test_graphics` 的实体线型比例 1 个、填充图案线 3 个（实线、虚线的相位与移动缩放、圆环），原"图案填充的线段在以填充为父实体的容器里"按新做法改写为其中的实线一个，净增 3 个；
+阶段 5 新增：`test_graphics` 的实体线型比例 1 个、块参照不把线型比例交给块的内容 1 个、填充图案线 3 个（实线、虚线的相位与移动缩放、圆环），原"图案填充的线段在以填充为父实体的容器里"按新做法改写为其中的实线一个，净增 4 个；
 `test_persistence` 的线型表保留记录 1 个、随层随块往返 2 个、实体线型比例与文档变量往返 1 个、实体线型比例的流往返 1 个；
-`test_interaction` 的 DXF 随层随块 3 个、改文档变量的命令登记变更 1 个；
-`test_render` 的线型 7 个（`test_render_linetype.cpp`：随层随块记录 2 个、LTSCALE 只改每帧常量 1 个、超长线分段 1 个、编译器的分段参数 1 个、填充图案线与 Model 切好的划线一致 2 个）
-与参考图纸 `linetype_scale` 1 个，`linetypes`、`autocad_linetype` 两张基准图像更新（`RENDER_PLAN.md` 第 10 节阶段 5）。
+`test_interaction` 的 DXF 随层随块 3 个、实体线型比例经组码 48 导出读回 1 个、改文档变量的命令登记变更 1 个；
+`test_render` 的线型 8 个（`test_render_linetype.cpp`：随层随块记录 2 个、LTSCALE 只改每帧常量 1 个、超长线分段 1 个、编译器的分段参数 1 个、闭合曲线的整周期 1 个、填充图案线与 Model 切好的划线一致 2 个）
+与参考图纸 `linetype_scale` 1 个，`linetypes`、`autocad_linetype` 两张基准图像更新；用 AutoCAD 核对后改正闭合曲线与块参照线型比例，`linetype_scale` 的基准图像重新生成（`RENDER_PLAN.md` 第 10 节阶段 5）。

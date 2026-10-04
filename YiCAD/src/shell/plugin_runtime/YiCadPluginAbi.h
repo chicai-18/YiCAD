@@ -285,8 +285,9 @@ typedef struct YiCadDimensionStyleDataV3
 /**
  * @brief 实体公共属性。
  * @note 该结构只在调用期间借用。layer 为空时使用活动图层，lineType 为空时使用
- * ByLayer；visible 为 0 或 1；当前二维模型要求 lineTypeScale 为 1，normal 为
- * 正 Z 轴。
+ * ByLayer；visible 为 0 或 1；lineTypeScale 是实体线型比例（DXF 组码 48），
+ * 必须大于 0；当前二维模型要求 normal 为正 Z 轴。宿主导出时给出实体自身的
+ * 线型比例。
  * @note 所有实体输入中的 attributes 为空时统一使用活动图层、ByLayer 线型和颜色、
  * 标准线宽 -1、线型比例 1、可见以及法向量 (0,0,1)。
  */

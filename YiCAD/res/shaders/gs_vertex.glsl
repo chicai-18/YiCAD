@@ -24,7 +24,7 @@ layout(set = 1, binding = 3) uniform usamplerBuffer prims;
 // ---------------------------------------------------------------------------
 
 layout(location = 0) in vec4 iLinear;     // 线性部分 a b c d：x' = a·x + c·y
-layout(location = 1) in vec4 iTranslate;  // xy 平移（相对分块原点） z 长度比例（弧长参数换成世界长度） w 块参照的线型比例
+layout(location = 1) in vec4 iTranslate;  // xy 平移（相对分块原点） z 长度比例（弧长参数换成世界长度） w 外层的线型比例
 layout(location = 2) in uvec4 iInfo0;     // x 槽位 y ByBlock 颜色 z ByBlock 种类 w 实例图层 | ByBlock 图层 << 16
 layout(location = 3) in uvec4 iInfo1;     // x ByBlock 线型 | ByBlock 线宽 << 16 y 分块序号 z 保留 w 保留
 
@@ -204,7 +204,7 @@ struct Stroke
 
 /// @brief 按图元记录的对齐方式与比例链定线型的画法（第 4.5.1 节）
 /// @param lengthScale 弧长参数换成世界长度的比例（实例记录的长度比例）
-/// @param instanceLineTypeScale 块参照的线型比例（实例记录的 w；无限线已乘进图元记录，传 1）
+/// @param instanceLineTypeScale 外层的线型比例（实例记录的 w，drawShared 调用方的线型比例；无限线已乘进图元记录，传 1）
 Stroke strokeOf(Prim p, float lengthScale, float instanceLineTypeScale)
 {
     Stroke st;
@@ -234,15 +234,25 @@ Stroke strokeOf(Prim p, float lengthScale, float instanceLineTypeScale)
     st.code |= lineType << 16;
     vec4 dash = p.piece || p.dashMode == kDashPattern ? loadPrimDash(p.index) : vec4(0.0, 1.0, 0.0, 0.0);
 
-    // 比例链：线型为 图案 × 实体线型比例 × 块参照的线型比例 × LTSCALE（块的插入比例不在链上，D10）；
+    // 比例链：线型为 图案 × 实体线型比例 × 外层的线型比例 × LTSCALE（块的插入比例不在链上，D10）；
     // 填充图案线的图案在实体自身的坐标系里，随块缩放
     float scale = p.dashMode == kDashPattern ? dash.y * lengthScale
                                              : p.lineTypeScale * instanceLineTypeScale * frame.strokeStyle.x;
-    if (p.dashMode == kDashClosed)
+    if (p.dashMode == kDashClosed && p.piece)
     {
-        // 整周期：周期数取 round，至少 1，图案按 周长 / (周期数 × 周期) 伸缩；分段的拉伸比例编译时算好
-        float n = max(round(st.len / (header.y * scale)), 1.0);
-        scale = p.piece ? scale * dash.y : st.len / (n * header.y);
+        // 超长的闭合曲线分了段：拉伸比例编译时算好
+        scale *= dash.y;
+    }
+    else if (p.dashMode == kDashClosed)
+    {
+        // 整周期（与 AutoCAD 核对过，第 4.5.1 节）：周长不到一个周期画实线；否则周期数取 round、至少 2 个，
+        // 图案按 周长 / (周期数 × 周期) 伸缩
+        float periods = st.len / (header.y * scale);
+        if (periods < 1.0)
+        {
+            return st;
+        }
+        scale = st.len / (max(round(periods), 2.0) * header.y);
     }
     st.scale = scale;
     float period = header.y * scale;

@@ -80,7 +80,7 @@ void main()
     vec2 eye = base + dir * t + normal * (side * extent);
 
     // 从基点起周期重复；射线的基点是线端（画圆头），构造线没有端点。无限线不用实例记录（编译时已变换到世界坐标），
-    // 块参照的线型比例已乘进图元记录
+    // 外层的线型比例已乘进图元记录
     Stroke stroke = strokeOf(prim, 1.0, 1.0);
     uint caps = ray ? kStrokeCapStart : 0u;
     vAlong = t;

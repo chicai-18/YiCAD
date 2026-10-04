@@ -11,8 +11,7 @@
     lineweights.dxf     0、0.13、0.25、0.50、1.00、2.11 毫米与 ByLayer 线宽，直线、圆弧、圆
     linetype_scale.dxf  LTSCALE 为 2：实体线型比例 0.5、1、2 的直线；块参照自身线型比例 1 与 3（块里显式线型、
                         ByBlock 线型、自带线型比例的直线）；短于一个周期的小圆；DOT 线型按三种线宽画点
-                        （第 4.5 节，阶段 5 的 AutoCAD 对照图纸）。实体线型比例写在组码 48 里给 AutoCAD 读，
-                        同时用图层名表示（LTS-<比例>）：YiCAD 的 DXF 导入暂不读组码 48，test_render 按图层名补上
+                        （第 4.5 节，阶段 5 的 AutoCAD 对照图纸）。实体线型比例写在组码 48 里
     colors.dxf          ACI 1~7、真彩色、RGB 0,0,0、ByLayer（图层颜色）、ByBlock（块参照不同颜色）、0 层块内实体随插入图层
     blocks.dxf          嵌套块；等比、X≠Y 的非等比（两个方向）、镜像、旋转、阵列插入；块内虚线按两个比例插入（D10）
     far_coords.dxf      离原点 3.5e6 的坐标（测绘坐标量级），毫米级的小图形
@@ -25,6 +24,10 @@
 另有 autocad_linetype.dxf：用户用 AutoCAD 画的线型对照图纸（第 7 节 D10 说明），不由本脚本生成。
 
 输出为 DXF R2000（AC1015）ASCII，由 YiCadDxfPlugin 导入。生成是确定性的。
+AutoCAD 也要能打开，用来对照（第 8 节）：九张符号表都要有（视口、视图、UCS 可以是空表），图层的打印样式（组码 390）
+指向 OBJECTS 段里的 Normal 占位对象，实心填充不写像素尺寸（组码 47）。用 AutoCAD 2026 的命令行版 accoreconsole
+打开并 AUDIT 核对过：除 text_shx.dxf（标注没有匿名块，AutoCAD 报"无效的标注块名"）外都能打开、没有错误；
+image.dxf 里的图片 AutoCAD 不认（缺 IMAGE 的类定义），只读入压在上面的直线。
 
 用法:
     python tools/gen_render_references.py
@@ -67,6 +70,10 @@ class Drawing(object):
 
     MODEL = '1F'
     PAPER = '1E'
+    # OBJECTS 段的根字典、打印样式名字典与其中的 Normal（图层的组码 390 指向它，AutoCAD 读图时要求有）
+    ROOT_DICTIONARY = 'A'
+    PLOT_STYLE_DICTIONARY = 'B'
+    PLOT_STYLE_NORMAL = 'C'
 
     def __init__(self):
         self.handles = Handles()
@@ -104,6 +111,7 @@ class Drawing(object):
         with open(path, 'w', encoding='utf-8', newline='') as fp:
             w = Writer(fp, self.handles)
             w.header(self.ltscale)
+            w.classes()
             w.tables(self)
             w.begin('BLOCKS')
             w.block_begin(self.MODEL, '*Model_Space')
@@ -167,6 +175,20 @@ class Writer(object):
         self.tag(5, 'FFFFFF')
         self.end()
 
+    def classes(self):
+        """打印样式名字典与占位对象的类（OBJECTS 段要用）。"""
+        self.begin('CLASSES')
+        for dxf_name, cpp_name in (('ACDBDICTIONARYWDFLT', 'AcDbDictionaryWithDefault'),
+                                   ('ACDBPLACEHOLDER', 'AcDbPlaceHolder')):
+            self.tag(0, 'CLASS')
+            self.tag(1, dxf_name)
+            self.tag(2, cpp_name)
+            self.tag(3, 'ObjectDBX Classes')
+            self.tag(90, '0')
+            self.tag(280, '0')
+            self.tag(281, '0')
+        self.end()
+
     def _table_begin(self, name, count):
         self.tag(0, 'TABLE')
         self.tag(2, name)
@@ -184,6 +206,10 @@ class Writer(object):
 
     def tables(self, drawing):
         self.begin('TABLES')
+
+        # AutoCAD 要求九张符号表都在（缺一张就"DXF 输入无效或不完整"），视口、视图、UCS 可以是空表
+        self._table_begin('VPORT', 0)
+        self.tag(0, 'ENDTAB')
 
         self._table_begin('LTYPE', 3 + len(drawing.linetypes))
         for name, descr in (('ByBlock', ''), ('ByLayer', ''), ('CONTINUOUS', 'Solid line')):
@@ -209,7 +235,7 @@ class Writer(object):
             self.tag(62, str(color))
             self.tag(6, linetype)
             self.tag(370, str(lineweight))
-            self.tag(390, 'F')
+            self.tag(390, Drawing.PLOT_STYLE_NORMAL)
         self.tag(0, 'ENDTAB')
 
         self._table_begin('STYLE', len(drawing.styles))
@@ -222,6 +248,12 @@ class Writer(object):
             self.num(42, 2.5)
             self.tag(3, font)
             self.tag(4, '')
+        self.tag(0, 'ENDTAB')
+
+        self._table_begin('VIEW', 0)
+        self.tag(0, 'ENDTAB')
+
+        self._table_begin('UCS', 0)
         self.tag(0, 'ENDTAB')
 
         self._table_begin('APPID', 1)
@@ -285,9 +317,24 @@ class Writer(object):
     def objects(self, images):
         self.begin('OBJECTS')
         self.tag(0, 'DICTIONARY')
-        self.tag(5, self.handle())
+        self.tag(5, Drawing.ROOT_DICTIONARY)
+        self.tag(330, '0')
         self.tag(100, 'AcDbDictionary')
         self.tag(281, '1')
+        self.tag(3, 'ACAD_PLOTSTYLENAME')
+        self.tag(350, Drawing.PLOT_STYLE_DICTIONARY)
+        self.tag(0, 'ACDBDICTIONARYWDFLT')
+        self.tag(5, Drawing.PLOT_STYLE_DICTIONARY)
+        self.tag(330, Drawing.ROOT_DICTIONARY)
+        self.tag(100, 'AcDbDictionary')
+        self.tag(281, '1')
+        self.tag(3, 'Normal')
+        self.tag(350, Drawing.PLOT_STYLE_NORMAL)
+        self.tag(100, 'AcDbDictionaryWithDefault')
+        self.tag(340, Drawing.PLOT_STYLE_NORMAL)
+        self.tag(0, 'ACDBPLACEHOLDER')
+        self.tag(5, Drawing.PLOT_STYLE_NORMAL)
+        self.tag(330, Drawing.PLOT_STYLE_DICTIONARY)
         for handle, path, width, height in images:
             self.tag(0, 'IMAGEDEF')
             self.tag(5, handle)
@@ -481,8 +528,7 @@ def solid_hatch(points, **attrs):
         w.tag(97, '0')
         w.tag(75, '0')
         w.tag(76, '1')
-        w.num(47, 1.0)
-        w.tag(98, '0')
+        w.tag(98, '0')            # 实心填充不写像素尺寸（组码 47），否则 AutoCAD 报"需要组码 98"、拒绝读入
     return emit
 
 
@@ -510,8 +556,7 @@ def solid_hatch_edges(points, **attrs):
         w.tag(97, '0')
         w.tag(75, '0')
         w.tag(76, '1')
-        w.num(47, 1.0)
-        w.tag(98, '0')
+        w.tag(98, '0')            # 实心填充不写像素尺寸（组码 47），否则 AutoCAD 报"需要组码 98"、拒绝读入
     return emit
 
 
@@ -696,35 +741,30 @@ def gen_lineweights():
 
 
 def gen_linetype_scale():
-    """LTSCALE 为 2，DASHED 的周期 0.75 在世界里是 1.5（第 4.5.1 节的比例链）。
-
-    实体线型比例同时写在组码 48（AutoCAD 读）与图层名 LTS-<比例>（test_render 读）里，两者一致。
-    """
+    """LTSCALE 为 2，DASHED 的周期 0.75 在世界里是 1.5（第 4.5.1 节的比例链）；实体线型比例写在组码 48 里。"""
     d = Drawing()
     d.ltscale = 2.0
     for name, descr, elements in LINETYPES:
         d.linetype(name, descr, elements)
-    for scale in ('0.5', '2', '3'):
-        d.layer('LTS-' + scale)
     e = d.entities
 
     def scaled(scale, **attrs):
-        attrs['layer'] = 'LTS-' + scale
-        attrs['ltscale'] = float(scale)
+        attrs['ltscale'] = scale
         return attrs
 
     # 实体线型比例 0.5、1、2：长 9 的直线分别是 12、6、3 个周期
-    e.append(line(0.0, 0.0, 9.0, 0.0, **scaled('0.5', linetype='DASHED')))
+    e.append(line(0.0, 0.0, 9.0, 0.0, **scaled(0.5, linetype='DASHED')))
     e.append(line(0.0, -1.0, 9.0, -1.0, linetype='DASHED'))
-    e.append(line(0.0, -2.0, 9.0, -2.0, **scaled('2', linetype='DASHED')))
+    e.append(line(0.0, -2.0, 9.0, -2.0, **scaled(2.0, linetype='DASHED')))
     # 块参照自身的线型比例：块里显式 DASHED、ByBlock 线型、自带线型比例 0.5 的 DASHED 各一条
+    # （AutoCAD 里块参照的线型比例对块的内容不起作用，两个插入画出来相同）
     _, items = d.block('LTSBLK')
     items.append(line(0.0, 0.0, 9.0, 0.0, linetype='DASHED'))
     items.append(line(0.0, -0.6, 9.0, -0.6, linetype='BYBLOCK'))
-    items.append(line(0.0, -1.2, 9.0, -1.2, **scaled('0.5', linetype='DASHED')))
+    items.append(line(0.0, -1.2, 9.0, -1.2, **scaled(0.5, linetype='DASHED')))
     e.append(insert('LTSBLK', 0.0, -4.0, linetype='DASHED'))
-    e.append(insert('LTSBLK', 0.0, -6.5, **scaled('3', linetype='DASHED')))
-    # 闭合曲线的整周期规则（周期数取 round，至少 1）：周长 0.42、0.84、1.26、2.09 个周期
+    e.append(insert('LTSBLK', 0.0, -6.5, **scaled(3.0, linetype='DASHED')))
+    # 闭合曲线的整周期规则（不到一个周期画实线，否则周期数取 round、至少 2）：周长 0.42、0.84、1.26、2.09 个周期
     for x, r in ((0.5, 0.1), (2.0, 0.2), (4.0, 0.3), (6.5, 0.5)):
         e.append(circle(x, -10.0, r, linetype='DASHED'))
     # 点：直径等于线宽（0、0.50、1.00 毫米）

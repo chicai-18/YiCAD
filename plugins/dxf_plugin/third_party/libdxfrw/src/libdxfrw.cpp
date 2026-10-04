@@ -190,6 +190,11 @@ bool dxfRW::writeEntity(DRW_Entity *ent) {
     if (version > DRW::AC1014) {
         writer->writeInt16(370, DRW_LW_Conv::lineWidth2dxfInt(ent->lWeight));
     }
+    /// @brief YiCAD 本地修改（2026-10-04）：写出实体线型比例（组码 48，R13 起才有），为缺省值 1 时不写，
+    /// 同 AutoCAD；上游只读不写。
+    if (version > DRW::AC1009 && ent->ltypeScale != 1.0) {
+        writer->writeDouble(48, ent->ltypeScale);
+    }
     if (version >= DRW::AC1014) {
         writeAppData(ent->appData);
     }

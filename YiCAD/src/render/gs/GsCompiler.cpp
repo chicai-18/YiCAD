@@ -569,8 +569,8 @@ GsCompiler::RunPlan GsCompiler::planRun(GsDashMode mode, double length, double p
     const int pieces = static_cast<int>(std::floor(length / step));
     if (mode == GsDashMode::Closed)
     {
-        // 整周期：周期数取 round，图案拉伸到正好 n 个周期，各段起点的相位按拉伸后的周期算
-        const double n = std::max(std::round(length / period), 1.0);
+        // 整周期：周期数取 round（至少 2 个，同着色器的 strokeOf），图案拉伸到正好 n 个周期，各段起点的相位按拉伸后的周期算
+        const double n = std::max(std::round(length / period), 2.0);
         const double stretched = length / n;
         for (int k = 0; k < pieces; ++k)
         {

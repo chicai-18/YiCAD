@@ -326,7 +326,7 @@ struct GsModel::Cell
         GiTransform transform;
         GsAttributes byBlock;
         std::uint32_t slot = kGsNoSlot;
-        double lineTypeScale = 1.0;        ///< 块参照的线型比例
+        double lineTypeScale = 1.0;        ///< 外层的线型比例（drawShared 调用方的）
     };
     std::vector<InstanceSource> instanceSources;
 };

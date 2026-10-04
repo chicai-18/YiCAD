@@ -469,7 +469,7 @@ public:
         return *this;
     }
 
-    /// @brief 设置实体线型比例。
+    /// @brief 设置实体线型比例（DXF 组码 48），必须大于 0。
     EntityAttributes& setLineTypeScale(double scale) noexcept
     {
         m_data.lineTypeScale = scale;

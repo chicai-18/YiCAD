@@ -208,7 +208,7 @@ private:
         Shared* shared = nullptr;
         GiTransform transform;   ///< 定义坐标（不含共享几何的原点）-> 世界
         GsAttributes byBlock;    ///< 已解析：种类只有值与随层
-        double lineTypeScale = 1.0;  ///< 块参照的线型比例（嵌套逐层相乘）
+        double lineTypeScale = 1.0;  ///< 外层的线型比例（drawShared 调用方的，嵌套逐层相乘）
     };
     void expand(Shared& shared, const GiTransform& transform, const GsAttributes& byBlock, double lineTypeScale,
                 std::vector<Leaf>& leaves, int depth);

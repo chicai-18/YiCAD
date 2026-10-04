@@ -447,6 +447,26 @@ TEST(GiEntityTest, 块参照按阵列逐格引用块定义)
               std::string::npos);
 }
 
+TEST(GiEntityTest, 块参照自身的线型比例不交给块的内容)
+{
+    // AutoCAD 里块参照的线型比例对块里的实体不起作用，显式线型、随块线型的都一样（用 AutoCAD 2026 打印核对过，
+    // RENDER_PLAN.md 第 4.5.1 节）。块参照先按实体通用的规则给出自己的比例，再恢复为 1，后设置的生效
+    DmDocument doc;
+    auto* block = new DmBlock(&doc, DmBlockData(QStringLiteral("B"), DmVector(0.0, 0.0), false));
+    doc.getBlockTable()->add_direct(block);
+    block->getEntityTable().add_direct(new DmLine(DmVector(0.0, 0.0), DmVector(1.0, 0.0)));
+    DmBlockReference insert(nullptr, DmBlockReferenceData(QStringLiteral("B"), DmVector(0.0, 0.0), DmVector(1.0, 1.0),
+                                                          0.0, 1, 1, DmVector(0.0, 0.0), doc.getBlockTable(),
+                                                          DM::NoUpdate));
+    insert.setBlock(block);
+    insert.setPen(DmPen(DmColor(255, 0, 0), DM::Width11, doc.getLineTypeTable()->getLineTypeContinuous()));
+    insert.setLineTypeScale(3.0);
+    const std::string text = giDump(insert);
+    const std::string attributes = text.substr(0, text.find("---\n"));
+    ASSERT_NE(attributes.rfind("linetypescale"), std::string::npos) << text;
+    EXPECT_EQ(attributes.substr(attributes.rfind("linetypescale")), "linetypescale 1\n") << text;
+}
+
 TEST(GiEntityTest, 块参照的属性按各自的属性嵌套绘制)
 {
     DmDocument doc;

@@ -209,10 +209,6 @@ RenderScene::RenderScene(const RenderRequest& request)
         m_error = QStringLiteral("读入失败：%1\n插件消息：%2").arg(path, runtime->messages().join(QLatin1Char('\n')));
         return;
     }
-    if (request.prepare)
-    {
-        request.prepare(*m_document);
-    }
     m_document->setGridOn(request.grid);
     if (request.selectCircles)
     {
