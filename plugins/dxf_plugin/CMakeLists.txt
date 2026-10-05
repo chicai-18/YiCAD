@@ -11,13 +11,17 @@ add_subdirectory(third_party/libdxfrw)
 
 add_library(YiCadDxfPlugin MODULE
     src/DxfPlugin.cpp
+    src/DxfCustomEntity.cpp
+    src/DxfCustomEntity.h
     src/DxfExporter.cpp
     src/DxfExporter.h
     src/DxfImporter.cpp
     src/DxfImporter.h
     src/DxfInterfaceAdapter.h
     src/DxfMapping.cpp
-    src/DxfMapping.h)
+    src/DxfMapping.h
+    src/DxfProxyGraphics.cpp
+    src/DxfProxyGraphics.h)
 
 if(WIN32)
     target_sources(YiCadDxfPlugin PRIVATE

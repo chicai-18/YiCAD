@@ -20,13 +20,18 @@
 ///
 /// 用测试用的示例扩展 ext.sample（tests/support/SampleEntityExtension.h）与它的实体"管道"：扩展登记实体类与按类名的
 /// 属性编辑命令、扩展关闭时注销；命令创建、撤销重做；捕捉（端点、圆心、交点）、拾取与交叉选；夹点编辑；属性编辑分派；
-/// 炸开；修改的撤销；代理实体按代理权限放行命令；另存为 DXF 时写出炸开结果。
+/// 炸开；修改的撤销；代理实体按代理权限放行命令；DXF 里照 AutoCAD 写自定义实体、类不在时读成代理，
+/// AutoCAD 另存的 ACAD_PROXY_ENTITY 与别的程序的自定义实体读成代理、另存时原样写回（第 8.4 步）。
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
+#include <utility>
+#include <vector>
 
+#include <QFile>
 #include <QTemporaryDir>
 
 #include "DmCustomEntityRegistry.h"
@@ -371,7 +376,204 @@ TEST_F(CustomEntityFixture, 不允许删除的代理炸开后原对象留着)
     EXPECT_TRUE(hasProxyMessage());
 }
 
-TEST_F(CustomEntityFixture, 另存为DXF时写出炸开结果)
+namespace
+{
+/// @brief 文档模型空间里的实体按类型数
+std::map<DM::EntityType, int> countTypes(DmDocument& document)
+{
+    std::map<DM::EntityType, int> counts;
+    for (DmEntity* e : *document.getEntityTable())
+    {
+        ++counts[e->getEntityType()];
+    }
+    return counts;
+}
+
+/// @brief 文档模型空间里第一个自定义实体
+DmCustomEntity* firstCustom(DmDocument& document)
+{
+    for (DmEntity* e : *document.getEntityTable())
+    {
+        if (e->getEntityType() == DM::EntityCustom)
+        {
+            return static_cast<DmCustomEntity*>(e);
+        }
+    }
+    return nullptr;
+}
+
+QByteArray readAll(const QString& path)
+{
+    QFile file(path);
+    return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
+/// @brief ASCII DXF 的组码对：组码去掉空白，值去掉行尾
+using GroupPairs = std::vector<std::pair<int, QByteArray>>;
+
+GroupPairs readPairs(const QString& path)
+{
+    GroupPairs pairs;
+    const QList<QByteArray> lines = readAll(path).split('\n');
+    for (qsizetype i = 0; i + 1 < lines.size(); i += 2)
+    {
+        QByteArray value = lines[i + 1];
+        if (value.endsWith('\r'))
+        {
+            value.chop(1);
+        }
+        pairs.emplace_back(lines[i].trimmed().toInt(), value);
+    }
+    return pairs;
+}
+
+bool writePairs(const QString& path, const GroupPairs& pairs)
+{
+    QByteArray text;
+    for (const auto& [code, value] : pairs)
+    {
+        text += QByteArray::number(code).rightJustified(3, ' ') + "\r\n" + value + "\r\n";
+    }
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write(text) == text.size();
+}
+
+/// @brief 从 from 起第一个组码 0、值为 name 的记录：[开头, 下一个组码 0)；没有时两个都是 pairs.size()
+std::pair<std::size_t, std::size_t> findRecord(const GroupPairs& pairs, const QByteArray& name, std::size_t from = 0)
+{
+    for (std::size_t i = from; i < pairs.size(); ++i)
+    {
+        if (pairs[i].first == 0 && pairs[i].second == name)
+        {
+            std::size_t end = i + 1;
+            while (end < pairs.size() && pairs[end].first != 0)
+            {
+                ++end;
+            }
+            return {i, end};
+        }
+    }
+    return {pairs.size(), pairs.size()};
+}
+
+/// @brief 实体段里第一个记录名为 name 的记录
+std::pair<std::size_t, std::size_t> findEntity(const GroupPairs& pairs, const QByteArray& name)
+{
+    for (std::size_t i = 0; i + 1 < pairs.size(); ++i)
+    {
+        if (pairs[i].first == 2 && pairs[i].second == "ENTITIES")
+        {
+            return findRecord(pairs, name, i);
+        }
+    }
+    return {pairs.size(), pairs.size()};
+}
+
+/// @brief 记录 [begin, end) 里第一个组码 100、值为 marker 的位置；没有时为 end
+std::size_t findSubclass(const GroupPairs& pairs, std::size_t begin, std::size_t end, const QByteArray& marker)
+{
+    for (std::size_t i = begin; i < end; ++i)
+    {
+        if (pairs[i].first == 100 && pairs[i].second == marker)
+        {
+            return i;
+        }
+    }
+    return end;
+}
+
+/// @brief 记录 [begin, end) 里的代理图形：160 与跟着的 310
+GroupPairs graphicsPairs(const GroupPairs& pairs, std::size_t begin, std::size_t end)
+{
+    GroupPairs graphics;
+    for (std::size_t i = begin; i < end; ++i)
+    {
+        if (pairs[i].first == 160)
+        {
+            graphics.push_back(pairs[i]);
+            for (std::size_t k = i + 1; k < end && pairs[k].first == 310; ++k)
+            {
+                graphics.push_back(pairs[k]);
+            }
+            break;
+        }
+    }
+    return graphics;
+}
+
+/// @brief [begin, end) 里组码在 codes 中的组码对，值去掉两端空白
+GroupPairs pick(const GroupPairs& pairs, std::size_t begin, std::size_t end, std::initializer_list<int> codes)
+{
+    GroupPairs picked;
+    for (std::size_t i = begin; i < end; ++i)
+    {
+        if (std::find(codes.begin(), codes.end(), pairs[i].first) != codes.end())
+        {
+            picked.emplace_back(pairs[i].first, pairs[i].second.trimmed());
+        }
+    }
+    return picked;
+}
+
+/// @brief 在 CLASSES 段第一条之前加一条 AutoCAD 自己的类登记（之后各类的序号加一）
+void prependClass(GroupPairs& pairs)
+{
+    const std::size_t cls = findRecord(pairs, "CLASS").first;
+    const GroupPairs dictionary{{0, "CLASS"}, {1, "ACDBDICTIONARYWDFLT"}, {2, "AcDbDictionaryWithDefault"},
+                                {3, "ObjectDBX Classes"}, {90, "0"}, {91, "0"}, {280, "0"}, {281, "0"}};
+    pairs.insert(pairs.begin() + static_cast<std::ptrdiff_t>(cls), dictionary.begin(), dictionary.end());
+}
+
+/// @brief 把 CLASSES 段里的类换成别的程序的类 ACME_THING（类名 AcmeThing，应用 ACME，代理权限 flags）
+void renameClassToAcme(GroupPairs& pairs, int flags)
+{
+    const auto [cls, clsEnd] = findRecord(pairs, "CLASS");
+    for (std::size_t i = cls; i < clsEnd; ++i)
+    {
+        switch (pairs[i].first)
+        {
+        case 1: pairs[i].second = "ACME_THING"; break;
+        case 2: pairs[i].second = "AcmeThing"; break;
+        case 3: pairs[i].second = "ACME"; break;
+        case 90: pairs[i].second = QByteArray::number(flags); break;
+        default: break;
+        }
+    }
+}
+
+/// @brief 把记录 [begin, end) 里从 from 起的部分换成 replacement
+void replaceTail(GroupPairs& pairs, std::size_t from, std::size_t end, const GroupPairs& replacement)
+{
+    pairs.erase(pairs.begin() + static_cast<std::ptrdiff_t>(from), pairs.begin() + static_cast<std::ptrdiff_t>(end));
+    pairs.insert(pairs.begin() + static_cast<std::ptrdiff_t>(from), replacement.begin(), replacement.end());
+}
+}  // namespace
+
+// v4 起照 AutoCAD 写：自己的类型名、CLASSES 登记、代理图形与数据（RENDER_PLAN.md 第 8.4 步；第 7 阶段写的是炸开结果）
+TEST_F(CustomEntityFixture, 另存为DXF时照AutoCAD写出自定义实体)
+{
+    DxfRuntime runtime;
+    ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
+    addPipe();
+    QTemporaryDir dir;
+    const QString file = dir.filePath(QStringLiteral("pipe.dxf"));
+    ASSERT_TRUE(runtime.exportFile(doc, file));
+    const QByteArray text = readAll(file);
+    EXPECT_TRUE(text.contains("EXT_SAMPLE_PIPE")) << "类型名由类名转大写";
+    EXPECT_TRUE(text.contains("ext.sample.Pipe")) << "CLASSES 段登记类名";
+    EXPECT_TRUE(text.contains("YiCadCustomEntity")) << "数据写在自己的子类段";
+
+    DmDocument reread;
+    ASSERT_TRUE(runtime.importFile(reread, file));
+    const auto counts = countTypes(reread);
+    EXPECT_EQ(counts.size(), 1u) << "只有那一个自定义实体，没有炸开的线";
+    auto* pipe = dynamic_cast<SamplePipeEntity*>(firstCustom(reread));
+    ASSERT_NE(pipe, nullptr) << "类在：读回原实体";
+    EXPECT_EQ(pipe->vertices(), (std::vector<DmVector>{DmVector(0, 0), DmVector(100, 0)}));
+    EXPECT_DOUBLE_EQ(pipe->diameter(), 20.0);
+}
+
+TEST_F(CustomEntityFixture, 类不在时DXF里的自定义实体读成代理且数据不丢)
 {
     DxfRuntime runtime;
     ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
@@ -380,15 +582,255 @@ TEST_F(CustomEntityFixture, 另存为DXF时写出炸开结果)
     const QString file = dir.filePath(QStringLiteral("pipe.dxf"));
     ASSERT_TRUE(runtime.exportFile(doc, file));
 
+    // 扩展不在：读成代理，按 DXF 里的代理图形显示
+    ASSERT_TRUE(DmCustomEntityRegistry::instance().unregisterClass(QStringLiteral("ext.sample.Pipe")));
+    DmDocument proxyDocument;
+    ASSERT_TRUE(runtime.importFile(proxyDocument, file));
+    auto* proxy = dynamic_cast<DmProxyEntity*>(firstCustom(proxyDocument));
+    ASSERT_NE(proxy, nullptr);
+    EXPECT_EQ(proxy->className(), QStringLiteral("ext.sample.Pipe"));
+    EXPECT_EQ(proxy->proxyFlags(), DmProxyFlags::Erase | DmProxyFlags::Transform | DmProxyFlags::LayerChange |
+                                       DmProxyFlags::ColorChange)
+        << "代理权限取 CLASSES 段的组码 90";
+    EXPECT_NEAR(proxy->getMin().x, -10.0, 1e-6) << "图形含端头";
+    EXPECT_NEAR(proxy->getMax().x, 110.0, 1e-6);
+    std::map<DM::EntityType, int> parts;
+    for (DmEntity* part : proxy->explode())
+    {
+        ++parts[part->getEntityType()];
+        delete part;
+    }
+    EXPECT_EQ(parts[DM::EntityLine], 3) << "中心线与两条边线";
+    EXPECT_EQ(parts[DM::EntityArc], 2) << "两端的半圆";
+    EXPECT_EQ(parts[DM::EntitySolid], 2) << "箭头的两个三角形（DXF 里是填充多边形），与炸开原实体相同是 SOLID";
+    EXPECT_EQ(parts[DM::EntityHatch], 0);
+
+    // 代理再存 DXF，扩展回来后读出原实体
+    const QString again = dir.filePath(QStringLiteral("again.dxf"));
+    ASSERT_TRUE(runtime.exportFile(proxyDocument, again));
+    ASSERT_TRUE(DmCustomEntityRegistry::instance().registerClass(DmCustomEntityRegistry::describe<SamplePipeEntity>(
+        DmProxyFlags::Erase | DmProxyFlags::Transform | DmProxyFlags::LayerChange | DmProxyFlags::ColorChange,
+        QStringLiteral("ext.sample"))));
+    DmDocument restored;
+    ASSERT_TRUE(runtime.importFile(restored, again));
+    auto* pipe = dynamic_cast<SamplePipeEntity*>(firstCustom(restored));
+    ASSERT_NE(pipe, nullptr);
+    EXPECT_EQ(pipe->vertices(), (std::vector<DmVector>{DmVector(0, 0), DmVector(100, 0)}));
+    EXPECT_DOUBLE_EQ(pipe->diameter(), 20.0);
+}
+
+TEST_F(CustomEntityFixture, 移动过的代理存DXF后读回原实体补上变换)
+{
+    DxfRuntime runtime;
+    ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
+    DmProxyEntity* proxy = addProxy(DmProxyFlags::Transform);
+    // 代理的数据取一根真的管道，扩展回来时读得出
+    SamplePipeEntity source({DmVector(0, 0), DmVector(100, 0)}, 20.0);
+    ASSERT_TRUE(proxy->assignDataBytes(source.dataBytes(), SamplePipeEntity::kVersion));
+    proxy->move(DmVector(5.0, 7.0));
+    QTemporaryDir dir;
+    const QString file = dir.filePath(QStringLiteral("moved.dxf"));
+    ASSERT_TRUE(runtime.exportFile(doc, file));
+
     DmDocument reread;
     ASSERT_TRUE(runtime.importFile(reread, file));
-    std::map<DM::EntityType, int> counts;
-    for (DmEntity* e : *reread.getEntityTable())
+    auto* pipe = dynamic_cast<SamplePipeEntity*>(firstCustom(reread));
+    ASSERT_NE(pipe, nullptr);
+    EXPECT_EQ(pipe->vertices(), (std::vector<DmVector>{DmVector(5, 7), DmVector(105, 7)}));
+}
+
+// 本机 AutoCAD 2026 把 2013 版 DXF 里读成代理的实体另存成 2018 版 DXF 时写成 ACAD_PROXY_ENTITY（2026-10-05 核对）：
+// AcDbProxyEntity 的 91 是类的序号加 500，70 为 1，再写一份代理图形，之后是原来的组码。这里照它改写导出的文件
+TEST_F(CustomEntityFixture, AutoCAD另存成ACAD_PROXY_ENTITY后读回原实体)
+{
+    DxfRuntime runtime;
+    ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
+    addPipe();
+    QTemporaryDir dir;
+    const QString file = dir.filePath(QStringLiteral("pipe.dxf"));
+    ASSERT_TRUE(runtime.exportFile(doc, file));
+
+    GroupPairs pairs = readPairs(file);
+    prependClass(pairs);  // 管道的类排第二：序号 501
+    const auto [begin, end] = findEntity(pairs, "EXT_SAMPLE_PIPE");
+    ASSERT_LT(begin, pairs.size());
+    const std::size_t data = findSubclass(pairs, begin, end, "YiCadCustomEntity");
+    ASSERT_LT(data, end);
+    const GroupPairs graphics = graphicsPairs(pairs, begin, data);
+    ASSERT_FALSE(graphics.empty());
+    GroupPairs proxy{{100, "AcDbProxyEntity"}, {90, "498"}, {91, "501"}, {71, "31"}, {97, "40"}, {70, "1"}};
+    proxy.insert(proxy.end(), graphics.begin(), graphics.end());
+    proxy.insert(proxy.end(), pairs.begin() + static_cast<std::ptrdiff_t>(data),
+                 pairs.begin() + static_cast<std::ptrdiff_t>(end));
+    replaceTail(pairs, data, end, proxy);
+    pairs[begin].second = "ACAD_PROXY_ENTITY";
+    const QString resaved = dir.filePath(QStringLiteral("resaved.dxf"));
+    ASSERT_TRUE(writePairs(resaved, pairs));
+
+    DmDocument reread;
+    ASSERT_TRUE(runtime.importFile(reread, resaved));
+    auto* pipe = dynamic_cast<SamplePipeEntity*>(firstCustom(reread));
+    ASSERT_NE(pipe, nullptr) << "按组码 91 找到类，读回原实体";
+    EXPECT_EQ(pipe->vertices(), (std::vector<DmVector>{DmVector(0, 0), DmVector(100, 0)}));
+    EXPECT_DOUBLE_EQ(pipe->diameter(), 20.0);
+
+    // 类不在：读成代理，类名与数据保留，另存时写回自己的记录名
+    ASSERT_TRUE(DmCustomEntityRegistry::instance().unregisterClass(QStringLiteral("ext.sample.Pipe")));
+    DmDocument proxyDocument;
+    ASSERT_TRUE(runtime.importFile(proxyDocument, resaved));
+    auto* proxyEntity = dynamic_cast<DmProxyEntity*>(firstCustom(proxyDocument));
+    ASSERT_NE(proxyEntity, nullptr);
+    EXPECT_EQ(proxyEntity->className(), QStringLiteral("ext.sample.Pipe"));
+    EXPECT_EQ(proxyEntity->dataBytes(), SamplePipeEntity({DmVector(0, 0), DmVector(100, 0)}, 20.0).dataBytes());
+    EXPECT_NEAR(proxyEntity->getMax().x, 110.0, 1e-6) << "按代理图形显示";
+    const QString again = dir.filePath(QStringLiteral("again.dxf"));
+    ASSERT_TRUE(runtime.exportFile(proxyDocument, again));
+    const QByteArray text = readAll(again);
+    EXPECT_TRUE(text.contains("EXT_SAMPLE_PIPE"));
+    EXPECT_FALSE(text.contains("ACAD_PROXY_ENTITY"));
+    ASSERT_TRUE(DmCustomEntityRegistry::instance().registerClass(DmCustomEntityRegistry::describe<SamplePipeEntity>(
+        DmProxyFlags::Erase | DmProxyFlags::Transform | DmProxyFlags::LayerChange | DmProxyFlags::ColorChange,
+        QStringLiteral("ext.sample"))));
+}
+
+TEST_F(CustomEntityFixture, 别的程序的自定义实体读成代理另存时原样写回)
+{
+    DxfRuntime runtime;
+    ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
+    addPipe();
+    QTemporaryDir dir;
+    const QString file = dir.filePath(QStringLiteral("pipe.dxf"));
+    ASSERT_TRUE(runtime.exportFile(doc, file));
+
+    // 改成别的程序的类：自己的子类段、扩展数据，以及指向别的对象的反应器
+    GroupPairs pairs = readPairs(file);
+    renameClassToAcme(pairs, 3);  // 删除、变换
+    const auto [begin, end] = findEntity(pairs, "EXT_SAMPLE_PIPE");
+    ASSERT_LT(begin, pairs.size());
+    const std::size_t data = findSubclass(pairs, begin, end, "YiCadCustomEntity");
+    ASSERT_LT(data, end);
+    const GroupPairs acme{{100, "AcmeThingData"}, {10, "1.5"}, {20, "2.5"}, {1, "hello"},
+                          {1001, "ACME"}, {1000, "extended"}, {1070, "7"}};
+    replaceTail(pairs, data, end, acme);
+    const GroupPairs reactors{{102, "{ACAD_REACTORS"}, {330, "ABC"}, {102, "}"}};
+    pairs.insert(pairs.begin() + static_cast<std::ptrdiff_t>(begin) + 2, reactors.begin(), reactors.end());
+    pairs[begin].second = "ACME_THING";
+    const QString foreign = dir.filePath(QStringLiteral("acme.dxf"));
+    ASSERT_TRUE(writePairs(foreign, pairs));
+
+    DmDocument document;
+    ASSERT_TRUE(runtime.importFile(document, foreign));
+    auto* proxy = dynamic_cast<DmProxyEntity*>(firstCustom(document));
+    ASSERT_NE(proxy, nullptr) << "读成代理";
+    EXPECT_EQ(proxy->className(), QStringLiteral("AcmeThing"));
+    EXPECT_EQ(proxy->proxyFlags(), DmProxyFlags::Erase | DmProxyFlags::Transform);
+    EXPECT_NEAR(proxy->getMin().x, -10.0, 1e-6) << "按代理图形显示";
+    EXPECT_NEAR(proxy->getMax().x, 110.0, 1e-6);
+
+    // 常规编辑：允许变换的代理移动后另存，子类段与扩展数据原样写回，代理图形是移动后的
+    proxy->move(DmVector(0.0, 50.0));
+    const QString saved = dir.filePath(QStringLiteral("saved.dxf"));
+    ASSERT_TRUE(runtime.exportFile(document, saved));
+    const GroupPairs out = readPairs(saved);
+    const auto [outBegin, outEnd] = findEntity(out, "ACME_THING");
+    ASSERT_LT(outBegin, out.size()) << "记录名原样";
+    const std::size_t subclass = findSubclass(out, outBegin, outEnd, "AcmeThingData");
+    ASSERT_LT(subclass, outEnd);
+    EXPECT_EQ(GroupPairs(out.begin() + static_cast<std::ptrdiff_t>(subclass),
+                         out.begin() + static_cast<std::ptrdiff_t>(outEnd)),
+              acme)
+        << "子类段与扩展数据原样";
+    EXPECT_TRUE(pick(out, outBegin, outEnd, {102}).empty()) << "反应器指向没保留的对象，不写";
+    const auto appId = findRecord(out, "APPID");
+    bool acmeRegistered = false;
+    for (auto at = appId; at.first < out.size(); at = findRecord(out, "APPID", at.second))
     {
-        ++counts[e->getEntityType()];
+        acmeRegistered = acmeRegistered || pick(out, at.first, at.second, {2}) == GroupPairs{{2, "ACME"}};
     }
-    EXPECT_EQ(counts[DM::EntityCustom], 0);
-    EXPECT_EQ(counts[DM::EntityLine], 3);
-    EXPECT_EQ(counts[DM::EntityArc], 2);
-    EXPECT_EQ(counts[DM::EntitySolid], 2);
+    EXPECT_TRUE(acmeRegistered) << "扩展数据的应用名登记进 APPID 表";
+    const auto [cls, clsEnd] = findRecord(out, "CLASS");
+    EXPECT_EQ(pick(out, cls, clsEnd, {1, 2, 3, 90}),
+              (GroupPairs{{1, "ACME_THING"}, {2, "AcmeThing"}, {3, "ACME"}, {90, "3"}}));
+
+    DmDocument reread;
+    ASSERT_TRUE(runtime.importFile(reread, saved));
+    auto* again = dynamic_cast<DmProxyEntity*>(firstCustom(reread));
+    ASSERT_NE(again, nullptr);
+    EXPECT_EQ(again->className(), QStringLiteral("AcmeThing"));
+    EXPECT_NEAR(again->getMin().y, 40.0, 1e-6) << "代理图形是移动后的";
+    const QString twice = dir.filePath(QStringLiteral("twice.dxf"));
+    ASSERT_TRUE(runtime.exportFile(reread, twice));
+    const GroupPairs second = readPairs(twice);
+    const auto [secondBegin, secondEnd] = findEntity(second, "ACME_THING");
+    const std::size_t secondSubclass = findSubclass(second, secondBegin, secondEnd, "AcmeThingData");
+    EXPECT_EQ(GroupPairs(second.begin() + static_cast<std::ptrdiff_t>(secondSubclass),
+                         second.begin() + static_cast<std::ptrdiff_t>(secondEnd)),
+              acme)
+        << "再存一次仍原样";
+}
+
+// 别的程序的实体经 DWG 转来的 ACAD_PROXY_ENTITY：原数据是 DWG 二进制（70 为 0）。AcDbProxyEntity 照本机 AutoCAD 2026
+// 另存 2018 版 DXF 的写法（2026-10-05 核对：71、97、70、代理图形只写在这里、162、161、94）。
+// 写法随 DXF 版本变、没有真实样本核对 2013 版的写法，另存 DXF 时写成图形（DxfCustomEntity.h）
+TEST_F(CustomEntityFixture, 原数据是DWG格式的ACAD_PROXY_ENTITY读成代理另存DXF时写成图形)
+{
+    DxfRuntime runtime;
+    ASSERT_TRUE(runtime.loaded()) << runtime.diagnostics().toStdString();
+    addPipe();
+    QTemporaryDir dir;
+    const QString file = dir.filePath(QStringLiteral("pipe.dxf"));
+    ASSERT_TRUE(runtime.exportFile(doc, file));
+
+    GroupPairs pairs = readPairs(file);
+    renameClassToAcme(pairs, 1);
+    prependClass(pairs);  // ACME_THING 的序号 501
+    const auto [begin, end] = findEntity(pairs, "EXT_SAMPLE_PIPE");
+    ASSERT_LT(begin, pairs.size());
+    const std::size_t data = findSubclass(pairs, begin, end, "YiCadCustomEntity");
+    ASSERT_LT(data, end);
+    const GroupPairs graphics = graphicsPairs(pairs, begin, data);
+    ASSERT_FALSE(graphics.empty());
+    GroupPairs proxyData{{100, "AcDbProxyEntity"}, {90, "498"}, {91, "501"}, {71, "31"}, {97, "2147483646"}, {70, "0"}};
+    proxyData.insert(proxyData.end(), graphics.begin(), graphics.end());
+    const GroupPairs tail{{162, "0"}, {161, "0"}, {94, "0"}};
+    proxyData.insert(proxyData.end(), tail.begin(), tail.end());
+    replaceTail(pairs, data, end, proxyData);
+    // 公共属性里不再写代理图形
+    std::size_t graphicsBegin = begin;
+    while (pairs[graphicsBegin].first != 160)
+    {
+        ++graphicsBegin;
+    }
+    pairs.erase(pairs.begin() + static_cast<std::ptrdiff_t>(graphicsBegin),
+                pairs.begin() + static_cast<std::ptrdiff_t>(graphicsBegin + graphics.size()));
+    pairs[begin].second = "ACAD_PROXY_ENTITY";
+    const QString foreign = dir.filePath(QStringLiteral("proxy.dxf"));
+    ASSERT_TRUE(writePairs(foreign, pairs));
+
+    DmDocument document;
+    ASSERT_TRUE(runtime.importFile(document, foreign));
+    auto* proxy = dynamic_cast<DmProxyEntity*>(firstCustom(document));
+    ASSERT_NE(proxy, nullptr) << "按组码 91 找到类，读成代理";
+    EXPECT_EQ(proxy->className(), QStringLiteral("AcmeThing"));
+    EXPECT_EQ(proxy->proxyFlags(), DmProxyFlags::Erase);
+    EXPECT_NEAR(proxy->getMin().x, -10.0, 1e-6) << "按 AcDbProxyEntity 里的代理图形显示";
+    EXPECT_NEAR(proxy->getMax().x, 110.0, 1e-6);
+
+    const QString saved = dir.filePath(QStringLiteral("saved.dxf"));
+    ASSERT_TRUE(runtime.exportFile(document, saved));
+    const GroupPairs out = readPairs(saved);
+    EXPECT_EQ(findEntity(out, "ACAD_PROXY_ENTITY").first, out.size());
+    EXPECT_EQ(findRecord(out, "CLASS").first, out.size()) << "不登记类";
+    int arcs = 0;
+    for (auto at = findEntity(out, "ARC"); at.first < out.size(); at = findRecord(out, "ARC", at.second))
+    {
+        ++arcs;
+    }
+    EXPECT_EQ(arcs, 2) << "写成图形：两端的半圆";
+    bool told = false;
+    for (const QString& message : runtime.messages())
+    {
+        told = told || message.contains(QStringLiteral("写成了图形"));
+    }
+    EXPECT_TRUE(told) << "告诉用户";
 }

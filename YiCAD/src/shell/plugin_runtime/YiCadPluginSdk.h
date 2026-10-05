@@ -5,13 +5,16 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <array>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -163,6 +166,7 @@ initializeImportData<YiCadDocumentSettings>() noexcept
     YiCadDocumentSettings data{};
     data.structSize = static_cast<uint32_t>(sizeof(data));
     data.globalLineTypeScale = 1.0;
+    data.currentEntityLineTypeScale = 1.0;
     return data;
 }
 
@@ -312,7 +316,7 @@ inline YiCadHatchDataV3 initializeImportData<YiCadHatchDataV3>() noexcept
 } // namespace detail
 
 /**
- * @brief 创建已清零并带有完整 ABI 大小和协议默认值的 v3 输入 POD。
+ * @brief 创建已清零并带有完整 ABI 大小和协议默认值的输入 POD。
  * @tparam Data `YiCadPluginAbi.h` 中受 SDK 支持的可扩展输入类型。
  * @return 可继续填写业务字段并传给底层 POD 重载的输入结构。
  * @note 不支持固定布局值类型或任意自定义类型；这些类型会在编译期被拒绝。
@@ -364,7 +368,7 @@ inline bool hasImportField(
 {
     (void)offset;
     (void)size;
-    return api != nullptr && api->abiVersion == YICAD_PLUGIN_ABI_V3;
+    return api != nullptr && api->abiVersion == YICAD_PLUGIN_ABI_V4;
 }
 
 struct ImportState
@@ -542,7 +546,15 @@ public:
     int32_t insertionUnits() const noexcept { return m_insertionUnits; }
     int32_t measurement() const noexcept { return m_measurement; }
     double globalLineTypeScale() const noexcept { return m_globalLineTypeScale; }
+    /// @brief 新建实体的线型比例（CELTSCALE，v4）
+    double currentEntityLineTypeScale() const noexcept { return m_currentEntityLineTypeScale; }
     const std::string& sourceCodePage() const noexcept { return m_sourceCodePage; }
+    DocumentSettings& setCurrentEntityLineTypeScale(double value) noexcept
+    {
+        m_currentEntityLineTypeScale = value;
+        return *this;
+    }
+
     DocumentSettings& setInsertionUnits(int32_t value) noexcept
     {
         m_insertionUnits = value;
@@ -581,12 +593,14 @@ private:
         data.measurement = m_measurement;
         data.globalLineTypeScale = m_globalLineTypeScale;
         data.sourceCodePage = detail::stringView(m_sourceCodePage);
+        data.currentEntityLineTypeScale = m_currentEntityLineTypeScale;
         return YICAD_IMPORT_SUCCESS;
     }
 
     int32_t m_insertionUnits = 0;
     int32_t m_measurement = 0;
     double m_globalLineTypeScale = 1.0;
+    double m_currentEntityLineTypeScale = 1.0;
     std::string m_sourceCodePage;
 };
 
@@ -1917,11 +1931,285 @@ private:
     EntityAttributes m_attributes;
 };
 
+/* ==========================================================================
+ * v4：自定义实体（RENDER_PLAN.md 第 4.8.3 节、第 8.2 步）
+ * ========================================================================== */
+
+/** @brief 恒等变换。 */
+inline YiCadMatrix2d identityMatrix() noexcept
+{
+    return {1.0, 0.0, 0.0, 1.0, 0.0, 0.0};
+}
+
+/** @brief 变换一个点：x' = a·x + c·y + tx，y' = b·x + d·y + ty。 */
+inline YiCadPoint2d transformPoint(const YiCadMatrix2d& m, YiCadPoint2d p) noexcept
+{
+    return {m.a * p.x + m.c * p.y + m.tx, m.b * p.x + m.d * p.y + m.ty};
+}
+
+/** @brief 变换一个向量（不含平移）。 */
+inline YiCadVector2d transformVector(const YiCadMatrix2d& m, YiCadVector2d v) noexcept
+{
+    return {m.a * v.x + m.c * v.y, m.b * v.x + m.d * v.y};
+}
+
+/** @brief 线性部分的行列式；小于 0 表示含镜像。 */
+inline double matrixDeterminant(const YiCadMatrix2d& m) noexcept
+{
+    return m.a * m.d - m.b * m.c;
+}
+
+/** @brief 合成：先做 second，再做 first。 */
+inline YiCadMatrix2d composeMatrix(const YiCadMatrix2d& first, const YiCadMatrix2d& second) noexcept
+{
+    return {first.a * second.a + first.c * second.b,
+        first.b * second.a + first.d * second.b,
+        first.a * second.c + first.c * second.d,
+        first.b * second.c + first.d * second.d,
+        first.a * second.tx + first.c * second.ty + first.tx,
+        first.b * second.tx + first.d * second.ty + first.ty};
+}
+
+/**
+ * @brief 把数据写成字节：小端序，与平台无关；插件实体的数据编码可以用它。
+ * @note 字符串写成 4 字节长度加 UTF-8 字节。
+ */
+class ByteWriter
+{
+public:
+    ByteWriter& u8(uint8_t value) { m_bytes.push_back(value); return *this; }
+
+    ByteWriter& u32(uint32_t value)
+    {
+        for (int i = 0; i < 4; ++i)
+        {
+            m_bytes.push_back(static_cast<uint8_t>(value >> (8 * i)));
+        }
+        return *this;
+    }
+
+    ByteWriter& i32(int32_t value) { return u32(static_cast<uint32_t>(value)); }
+
+    ByteWriter& f64(double value)
+    {
+        uint64_t bits = 0;
+        static_assert(sizeof(bits) == sizeof(value));
+        std::memcpy(&bits, &value, sizeof(bits));
+        for (int i = 0; i < 8; ++i)
+        {
+            m_bytes.push_back(static_cast<uint8_t>(bits >> (8 * i)));
+        }
+        return *this;
+    }
+
+    ByteWriter& point(YiCadPoint2d value) { return f64(value.x).f64(value.y); }
+
+    ByteWriter& string(std::string_view value)
+    {
+        u32(static_cast<uint32_t>(value.size()));
+        m_bytes.insert(m_bytes.end(), value.begin(), value.end());
+        return *this;
+    }
+
+    const std::vector<uint8_t>& bytes() const noexcept { return m_bytes; }
+    std::vector<uint8_t> take() noexcept { return std::move(m_bytes); }
+
+private:
+    std::vector<uint8_t> m_bytes;
+};
+
+/**
+ * @brief 读 ByteWriter 写的字节；越界时抛 std::out_of_range。
+ * @note 实体类的函数里抛出的异常由 SDK 在 C ABI 边界转成失败。
+ */
+class ByteReader
+{
+public:
+    explicit ByteReader(std::span<const uint8_t> bytes) noexcept : m_bytes(bytes) {}
+
+    uint8_t u8()
+    {
+        need(1);
+        return m_bytes[m_offset++];
+    }
+
+    uint32_t u32()
+    {
+        need(4);
+        uint32_t value = 0;
+        for (int i = 0; i < 4; ++i)
+        {
+            value |= static_cast<uint32_t>(m_bytes[m_offset++]) << (8 * i);
+        }
+        return value;
+    }
+
+    int32_t i32() { return static_cast<int32_t>(u32()); }
+
+    double f64()
+    {
+        need(8);
+        uint64_t bits = 0;
+        for (int i = 0; i < 8; ++i)
+        {
+            bits |= static_cast<uint64_t>(m_bytes[m_offset++]) << (8 * i);
+        }
+        double value = 0.0;
+        std::memcpy(&value, &bits, sizeof(value));
+        return value;
+    }
+
+    YiCadPoint2d point()
+    {
+        const double x = f64();
+        return {x, f64()};
+    }
+
+    std::string string()
+    {
+        const uint32_t size = u32();
+        need(size);
+        std::string value(reinterpret_cast<const char*>(m_bytes.data() + m_offset), size);
+        m_offset += size;
+        return value;
+    }
+
+    bool atEnd() const noexcept { return m_offset >= m_bytes.size(); }
+    std::size_t remaining() const noexcept { return m_bytes.size() - m_offset; }
+
+private:
+    void need(std::size_t count) const
+    {
+        if (count > m_bytes.size() - m_offset)
+        {
+            throw std::out_of_range("YiCAD plugin data is truncated");
+        }
+    }
+
+    std::span<const uint8_t> m_bytes;
+    std::size_t m_offset = 0;
+};
+
+/** @brief 宿主持有的文档实体引用（非拥有）；所属文档打开且实体仍在文档里时有效。 */
+class EntityRef
+{
+public:
+    EntityRef() noexcept = default;
+    explicit EntityRef(YiCadEntityHandle handle) noexcept : m_handle(handle) {}
+
+    explicit operator bool() const noexcept { return m_handle != nullptr; }
+    YiCadEntityHandle nativeHandle() const noexcept { return m_handle; }
+
+private:
+    YiCadEntityHandle m_handle = nullptr;
+};
+
+/**
+ * @brief 自定义实体：类名、数据版本与数据字节，外加代理信息。
+ * @note 只读枚举交出它（YICAD_ENTITY_CUSTOM）；导入（ImportContainer::createCustomEntity）与
+ * 事务内新建（DocumentTransaction::createCustomEntity）用它作输入，isProxy 与 entity 只在输出里有意义。
+ */
+class CustomEntityData
+{
+public:
+    CustomEntityData() = default;
+    CustomEntityData(std::string className, uint32_t classVersion, std::vector<uint8_t> data)
+        : m_className(std::move(className)),
+          m_classVersion(classVersion),
+          m_data(std::move(data))
+    {
+    }
+
+    const std::string& className() const noexcept { return m_className; }
+    uint32_t classVersion() const noexcept { return m_classVersion; }
+    const std::vector<uint8_t>& data() const noexcept { return m_data; }
+    /// @brief 代理权限（YICAD_PROXY_*）：导入时类不在、读成代理用；输出为实体当前的
+    uint32_t proxyFlags() const noexcept { return m_proxyFlags; }
+    /// @brief 代理累计的变换；不是代理时为恒等
+    const YiCadMatrix2d& transform() const noexcept { return m_transform; }
+    /// @brief 输出：是否代理（类不在，或数据读不了）
+    bool isProxy() const noexcept { return m_isProxy; }
+    /// @brief 输出：实体引用，可交给 DocumentTransaction::setCustomEntityData
+    const EntityRef& entity() const noexcept { return m_entity; }
+    const EntityAttributes& attributes() const noexcept { return m_attributes; }
+
+    CustomEntityData& setClass(std::string className, uint32_t classVersion)
+    {
+        m_className = std::move(className);
+        m_classVersion = classVersion;
+        return *this;
+    }
+    CustomEntityData& setData(std::vector<uint8_t> value)
+    {
+        m_data = std::move(value);
+        return *this;
+    }
+    CustomEntityData& setProxyFlags(uint32_t value) noexcept
+    {
+        m_proxyFlags = value;
+        return *this;
+    }
+    CustomEntityData& setTransform(const YiCadMatrix2d& value) noexcept
+    {
+        m_transform = value;
+        return *this;
+    }
+    CustomEntityData& setAttributes(EntityAttributes value) noexcept
+    {
+        m_attributes = std::move(value);
+        return *this;
+    }
+
+    /// @brief 从只读枚举的 ABI 输出转成拥有型值
+    static CustomEntityData fromAbi(const YiCadCustomEntityDataV4& data, EntityAttributes attributes)
+    {
+        CustomEntityData result(detail::copyString(data.className), data.classVersion,
+            std::vector<uint8_t>(data.data.data, data.data.data + data.data.size));
+        result.m_proxyFlags = data.proxyFlags;
+        result.m_transform = data.transform;
+        result.m_isProxy = data.isProxy != 0;
+        result.m_entity = EntityRef(data.entity);
+        result.m_attributes = std::move(attributes);
+        return result;
+    }
+
+    /// @brief 生成 ABI 输入；只在本对象与 proxyGraphics 存活、未修改期间有效
+    YiCadImportResult makeAbi(
+        YiCadCustomEntityDataV4& data,
+        YiCadImportContainerHandle proxyGraphics) const noexcept
+    {
+        if (!detail::validString(m_className, true) || !detail::fitsAbiCount(m_data.size()))
+        {
+            return YICAD_IMPORT_ERROR_INVALID_ARGUMENT;
+        }
+        data = {};
+        data.structSize = static_cast<uint32_t>(sizeof(data));
+        data.attributes = &m_attributes.abiData();
+        data.className = detail::stringView(m_className);
+        data.classVersion = m_classVersion;
+        data.proxyFlags = m_proxyFlags;
+        data.data = {m_data.empty() ? nullptr : m_data.data(), static_cast<uint32_t>(m_data.size())};
+        data.transform = m_transform;
+        data.proxyGraphics = proxyGraphics;
+        return YICAD_IMPORT_SUCCESS;
+    }
+
+private:
+    std::string m_className;
+    uint32_t m_classVersion = 0;
+    std::vector<uint8_t> m_data;
+    uint32_t m_proxyFlags = 0;
+    YiCadMatrix2d m_transform = identityMatrix();
+    bool m_isProxy = false;
+    EntityRef m_entity;
+    EntityAttributes m_attributes;
+};
+
 using EntityData = std::variant<
     PointData, LineData, RayData, XLineData, ArcData, CircleData,
     EllipseData, PolylineData, SplineData, SolidData, TextData,
     MTextData, DimensionData, LeaderData, HatchData, InsertData,
-    AttributeDefinitionData, AttributeData, ImageData>;
+    AttributeDefinitionData, AttributeData, ImageData, CustomEntityData>;
 
 /**
  * @brief 导入会话内的非拥有模型空间或块定义容器包装。
@@ -2145,6 +2433,49 @@ public:
         YiCadImageDataV3 data{};
         const auto result = value.makeAbi(data);
         return result == YICAD_IMPORT_SUCCESS ? createImage(data) : result;
+    }
+
+    /**
+     * @brief v4：创建自定义实体；类登记了且读得了数据时建原实体，否则建代理实体。
+     * @param proxyGraphics ImportSession::beginProxyGraphics 收集的代理图形，可为空；用后失效。
+     */
+    YiCadImportResult createCustomEntity(
+        const CustomEntityData& value,
+        const ImportContainer* proxyGraphics = nullptr) const noexcept
+    {
+        if (!*this)
+        {
+            return YICAD_IMPORT_ERROR_INVALID_HANDLE;
+        }
+        const auto* api = m_state->api;
+        if (!YICAD_SDK_HAS_IMPORT_FUNCTION(api, createCustomEntity))
+        {
+            return YICAD_IMPORT_ERROR_UNSUPPORTED;
+        }
+        YiCadCustomEntityDataV4 data{};
+        const auto result = value.makeAbi(data,
+            proxyGraphics != nullptr ? proxyGraphics->m_handle : nullptr);
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        return detail::callImport([&]() {
+            return api->createCustomEntity(m_state->session, m_handle, &data);
+        });
+    }
+
+    /**
+     * @brief 包装宿主交来的导入会话与容器（实体类的炸开由 SDK 用它把宿主的临时会话交给插件）。
+     * @note 包装不拥有会话，析构时不回滚；只在宿主那次调用期间有效。
+     */
+    static ImportContainer wrapHostContainer(
+        const YiCadImportApi* api,
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container)
+    {
+        return ImportContainer(
+            std::make_shared<detail::ImportState>(detail::ImportState{api, session}),
+            container);
     }
 
     /// @brief 使用底层 ABI POD 向容器添加点实体。
@@ -2750,6 +3081,34 @@ public:
             ? beginBlock(data, block, container) : result;
     }
 
+    /**
+     * @brief v4：开始收集一个代理的图形：之后在 graphics 里建的实体不进文档，交给
+     * ImportContainer::createCustomEntity 后成为代理显示的图形。
+     * @note 属性为空、图层为空、线型为空、颜色与线宽随块，表示沿用自定义实体自己的属性。
+     */
+    YiCadImportResult beginProxyGraphics(ImportContainer& graphics) const noexcept
+    {
+        graphics = {};
+        if (!*this)
+        {
+            return YICAD_IMPORT_ERROR_INVALID_HANDLE;
+        }
+        const auto* api = m_state->api;
+        if (!YICAD_SDK_HAS_IMPORT_FUNCTION(api, beginProxyGraphics))
+        {
+            return YICAD_IMPORT_ERROR_UNSUPPORTED;
+        }
+        YiCadImportContainerHandle handle = nullptr;
+        const auto result = detail::callImport([&]() {
+            return api->beginProxyGraphics(m_state->session, &handle);
+        });
+        if (result == YICAD_IMPORT_SUCCESS && handle != nullptr)
+        {
+            graphics = ImportContainer(m_state, handle);
+        }
+        return result;
+    }
+
     /// @brief 使用底层 ABI POD 开始块定义。
     YiCadImportResult beginBlock(
         const YiCadBlockDataV3& data,
@@ -2896,8 +3255,70 @@ public:
         return true;
     }
 
+    /**
+     * @brief v4：在模型空间新建一个自定义实体（类必须已登记，数据为当前版本）。
+     * @param[out] entity 成功时为新实体的引用。
+     * @note 属性的图层、线型不能引用导入资源：取当前图层、随层。
+     */
+    YiCadImportResult createCustomEntity(
+        const CustomEntityData& value,
+        EntityRef& entity) const noexcept
+    {
+        entity = {};
+        const auto* api = entityApi();
+        if (m_handle == nullptr || api == nullptr || api->createCustomEntity == nullptr)
+        {
+            return YICAD_IMPORT_ERROR_UNSUPPORTED;
+        }
+        YiCadCustomEntityDataV4 data{};
+        const auto result = value.makeAbi(data, nullptr);
+        if (result != YICAD_IMPORT_SUCCESS)
+        {
+            return result;
+        }
+        YiCadEntityHandle handle = nullptr;
+        const auto created = detail::callImport([&]() {
+            return api->createCustomEntity(m_handle, &data, &handle);
+        });
+        if (created == YICAD_IMPORT_SUCCESS)
+        {
+            entity = EntityRef(handle);
+        }
+        return created;
+    }
+
+    /// @brief v4：换一个自定义实体的数据（当前数据版本），可撤销。
+    YiCadImportResult setCustomEntityData(
+        const EntityRef& entity,
+        std::span<const uint8_t> data) const noexcept
+    {
+        const auto* api = entityApi();
+        if (m_handle == nullptr || api == nullptr || api->setCustomEntityData == nullptr)
+        {
+            return YICAD_IMPORT_ERROR_UNSUPPORTED;
+        }
+        if (!detail::fitsAbiCount(data.size()))
+        {
+            return YICAD_IMPORT_ERROR_INVALID_ARGUMENT;
+        }
+        const YiCadByteView view{data.empty() ? nullptr : data.data(),
+            static_cast<uint32_t>(data.size())};
+        return detail::callImport([&]() {
+            return api->setCustomEntityData(m_handle, entity.nativeHandle(), view);
+        });
+    }
+
 private:
     friend class Document;
+
+    const YiCadEntityApiV4* entityApi() const noexcept
+    {
+        return m_api != nullptr && m_api->abiVersion == YICAD_PLUGIN_ABI_V4 &&
+                   m_api->entityApi != nullptr &&
+                   m_api->entityApi->abiVersion == YICAD_PLUGIN_ABI_V4
+            ? m_api->entityApi
+            : nullptr;
+    }
 
     DocumentTransaction(
         const YiCadHostApi* api,
@@ -3237,9 +3658,32 @@ public:
             value = std::move(result);
             return true;
         }
+        case YICAD_ENTITY_CUSTOM:
+        {
+            YiCadCustomEntityDataV4 data{};
+            if (!readCurrent(data)) return false;
+            value = CustomEntityData::fromAbi(data, attributes(data.attributes));
+            return true;
+        }
         default:
             return false;
         }
+    }
+
+    /**
+     * @brief v4：当前自定义实体的图形，做成基本实体逐个枚举（写进别的格式的代理图形用）。
+     * @return 当前项不是自定义实体时返回空迭代器。块展开成内容，实心填充为填充，
+     * 图案填充为线与点，文字为笔画，样条为多段线；属性是解析后的。
+     */
+    EntityIterator graphics() const noexcept
+    {
+        if (m_api == nullptr || m_api->readApi == nullptr || m_handle == nullptr ||
+            m_api->readApi->structSize < YICAD_READ_API_V4_SIZE ||
+            m_api->readApi->entityGraphics == nullptr)
+        {
+            return {};
+        }
+        return EntityIterator(m_api, m_api->readApi->entityGraphics(m_handle));
     }
 
     bool next(YiCadEntityType& type) noexcept
@@ -3324,7 +3768,7 @@ public:
     explicit operator bool() const noexcept
     {
         return m_api != nullptr && m_handle != nullptr &&
-               m_api->abiVersion == YICAD_PLUGIN_ABI_V3;
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V4;
     }
 
     bool addLine(
@@ -3424,6 +3868,7 @@ public:
             result.setInsertionUnits(data.insertionUnits)
                 .setMeasurement(data.measurement)
                 .setGlobalLineTypeScale(data.globalLineTypeScale)
+                .setCurrentEntityLineTypeScale(data.currentEntityLineTypeScale)
                 .setSourceCodePage(detail::copyString(data.sourceCodePage));
         }
         return result;
@@ -3533,7 +3978,7 @@ public:
         return result;
     }
 
-    /// @brief 开始一个 ABI v3 导入会话。
+    /// @brief 开始一个导入会话。
     ImportSession beginImport() const noexcept
     {
         const auto* importApi = importApiForSession();
@@ -3620,7 +4065,7 @@ private:
         (void)offset;
         (void)size;
         return m_api != nullptr && m_handle != nullptr &&
-               m_api->abiVersion == YICAD_PLUGIN_ABI_V3;
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V4;
     }
 
     bool hasV2Field(size_t offset, size_t size) const noexcept
@@ -3636,7 +4081,7 @@ private:
         }
 
         const auto* importApi = m_api->importApi;
-        return importApi->abiVersion == YICAD_PLUGIN_ABI_V3 &&
+        return importApi->abiVersion == YICAD_PLUGIN_ABI_V4 &&
                importApi->beginImport != nullptr &&
                importApi->commitImport != nullptr &&
                importApi->rollbackImport != nullptr
@@ -3648,12 +4093,590 @@ private:
     YiCadDocumentHandle m_handle = nullptr;
 };
 
+/** @brief GI 填充的一个闭合环：顶点与每段凸度（为空或与顶点等长）。 */
+struct GiLoop
+{
+    std::vector<YiCadPoint2d> points;
+    std::vector<double> bulges;
+};
+
+/** @brief 一行文字的位置：插入点、字高，其余取默认（左对齐、基线、不旋转、宽度系数 1）。 */
+inline YiCadTextPlacementV4 makeTextPlacement(YiCadPoint2d insertionPoint, double height) noexcept
+{
+    YiCadTextPlacementV4 placement{};
+    placement.structSize = static_cast<uint32_t>(sizeof(placement));
+    placement.insertionPoint = insertionPoint;
+    placement.alignmentPoint = insertionPoint;
+    placement.height = height;
+    placement.widthFactor = 1.0;
+    placement.horizontalAlignment = YICAD_TEXT_ALIGN_LEFT;
+    placement.verticalAlignment = YICAD_TEXT_ALIGN_BASELINE;
+    return placement;
+}
+
+/**
+ * @brief worldDraw 收到的 GI：宿主 GI 表（YiCadGiApiV4）的 C++ 包装，只在本次 worldDraw 期间有效。
+ * @note 各函数返回宿主是否接受（参数无效时宿主忽略该图元）；资源句柄由 lineType、layer、
+ * textStyle、block 按名字在实体所属文档里找，找不到为空。
+ */
+class Gi
+{
+public:
+    Gi(const YiCadGiApiV4* api, YiCadGiContextHandle ctx) noexcept
+        : m_api(api),
+          m_ctx(ctx)
+    {
+    }
+
+    explicit operator bool() const noexcept
+    {
+        return m_api != nullptr && m_ctx != nullptr &&
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V4;
+    }
+
+    bool setColor(const YiCadColorData& color) const noexcept
+    {
+        return *this && m_api->setColor(m_ctx, &color) == YICAD_SUCCESS;
+    }
+    bool setLayer(YiCadReadResourceHandle layer) const noexcept
+    {
+        return *this && m_api->setLayer(m_ctx, layer) == YICAD_SUCCESS;
+    }
+    /// @brief 线型；为空即随块
+    bool setLineType(YiCadReadResourceHandle lineType) const noexcept
+    {
+        return *this && m_api->setLineType(m_ctx, lineType) == YICAD_SUCCESS;
+    }
+    bool setLineTypeScale(double scale) const noexcept
+    {
+        return *this && m_api->setLineTypeScale(m_ctx, scale) == YICAD_SUCCESS;
+    }
+    bool setLineWeight(int32_t weight) const noexcept
+    {
+        return *this && m_api->setLineWeight(m_ctx, weight) == YICAD_SUCCESS;
+    }
+    bool setTransparency(uint32_t alpha) const noexcept
+    {
+        return *this && m_api->setTransparency(m_ctx, alpha) == YICAD_SUCCESS;
+    }
+    bool setSelectionMarker(int32_t marker) const noexcept
+    {
+        return *this && m_api->setSelectionMarker(m_ctx, marker) == YICAD_SUCCESS;
+    }
+    /// @brief 之后的 fill 按这些图案线填；为空时恢复实心
+    bool setFillPattern(std::span<const YiCadHatchPatternLineV4> lines) const noexcept
+    {
+        return *this && detail::fitsAbiCount(lines.size()) &&
+               m_api->setFillPattern(m_ctx, lines.empty() ? nullptr : lines.data(),
+                   static_cast<uint32_t>(lines.size())) == YICAD_SUCCESS;
+    }
+
+    /**
+     * @brief 多段线；bulges 为空或每段一个，widths 为空或每段两个（起止宽度）。
+     * @param flags YICAD_GI_POLYLINE_*。
+     */
+    bool polyline(std::span<const YiCadPoint2d> points,
+        std::span<const double> bulges = {},
+        std::span<const double> widths = {},
+        uint32_t flags = 0) const noexcept
+    {
+        if (!*this || !detail::fitsAbiCount(points.size()) ||
+            !detail::fitsAbiCount(bulges.size()) || !detail::fitsAbiCount(widths.size()))
+        {
+            return false;
+        }
+        const YiCadPoint2dArrayView pointView{points.data(), static_cast<uint32_t>(points.size())};
+        const YiCadDoubleArrayView bulgeView{bulges.data(), static_cast<uint32_t>(bulges.size())};
+        const YiCadDoubleArrayView widthView{widths.data(), static_cast<uint32_t>(widths.size())};
+        return m_api->polyline(m_ctx, &pointView, bulges.empty() ? nullptr : &bulgeView,
+                   widths.empty() ? nullptr : &widthView, flags) == YICAD_SUCCESS;
+    }
+    bool circle(YiCadPoint2d center, double radius) const noexcept
+    {
+        return *this && m_api->circle(m_ctx, center, radius) == YICAD_SUCCESS;
+    }
+    /// @brief 圆弧，从 startAngle 起转过 sweepAngle（弧度，正为逆时针）
+    bool arc(YiCadPoint2d center, double radius, double startAngle, double sweepAngle) const noexcept
+    {
+        return *this && m_api->arc(m_ctx, center, radius, startAngle, sweepAngle) == YICAD_SUCCESS;
+    }
+    bool ellipseArc(YiCadPoint2d center, YiCadVector2d majorAxis, double ratio,
+        double startParameter, double endParameter) const noexcept
+    {
+        return *this && m_api->ellipseArc(m_ctx, center, majorAxis, ratio,
+                   startParameter, endParameter) == YICAD_SUCCESS;
+    }
+    bool nurbs(uint32_t degree, std::span<const YiCadPoint2d> controlPoints,
+        std::span<const double> knots, bool closed = false) const noexcept
+    {
+        if (!*this || !detail::fitsAbiCount(controlPoints.size()) || !detail::fitsAbiCount(knots.size()))
+        {
+            return false;
+        }
+        const YiCadPoint2dArrayView pointView{controlPoints.data(),
+            static_cast<uint32_t>(controlPoints.size())};
+        const YiCadDoubleArrayView knotView{knots.data(), static_cast<uint32_t>(knots.size())};
+        return m_api->nurbs(m_ctx, degree, &pointView, &knotView, closed ? 1U : 0U) == YICAD_SUCCESS;
+    }
+    /// @brief 填充区域；fillRule 为 YICAD_GI_FILL_*
+    bool fill(std::span<const GiLoop> loops, uint32_t fillRule = YICAD_GI_FILL_EVEN_ODD) const
+    {
+        if (!*this || !detail::fitsAbiCount(loops.size()))
+        {
+            return false;
+        }
+        std::vector<YiCadGiLoopV4> views;
+        views.reserve(loops.size());
+        for (const auto& loop : loops)
+        {
+            if (!detail::fitsAbiCount(loop.points.size()) || !detail::fitsAbiCount(loop.bulges.size()))
+            {
+                return false;
+            }
+            views.push_back({{loop.points.data(), static_cast<uint32_t>(loop.points.size())},
+                {loop.bulges.data(), static_cast<uint32_t>(loop.bulges.size())}});
+        }
+        return m_api->fill(m_ctx, views.data(), static_cast<uint32_t>(views.size()), fillRule) ==
+               YICAD_SUCCESS;
+    }
+    bool triangles(std::span<const YiCadPoint2d> vertices, std::span<const uint32_t> indices) const noexcept
+    {
+        if (!*this || !detail::fitsAbiCount(vertices.size()) || !detail::fitsAbiCount(indices.size()))
+        {
+            return false;
+        }
+        const YiCadPoint2dArrayView view{vertices.data(), static_cast<uint32_t>(vertices.size())};
+        return m_api->triangles(m_ctx, &view, indices.data(),
+                   static_cast<uint32_t>(indices.size())) == YICAD_SUCCESS;
+    }
+    /// @brief 单行文字；textStyle 为空时用 Standard
+    bool text(std::string_view value, YiCadReadResourceHandle textStyle,
+        const YiCadTextPlacementV4& placement) const noexcept
+    {
+        if (!*this || !detail::fitsAbiCount(value.size()))
+        {
+            return false;
+        }
+        const YiCadStringView view{value.empty() ? nullptr : value.data(),
+            static_cast<uint32_t>(value.size())};
+        return m_api->text(m_ctx, view, textStyle, &placement) == YICAD_SUCCESS;
+    }
+    bool image(std::string_view path, YiCadPoint2d origin, YiCadVector2d u, YiCadVector2d v,
+        uint32_t widthPixels, uint32_t heightPixels) const noexcept
+    {
+        if (!*this || !detail::fitsAbiCount(path.size()))
+        {
+            return false;
+        }
+        const YiCadStringView view{path.data(), static_cast<uint32_t>(path.size())};
+        return m_api->image(m_ctx, view, origin, u, v, widthPixels, heightPixels) == YICAD_SUCCESS;
+    }
+    bool point(YiCadPoint2d position) const noexcept
+    {
+        return *this && m_api->point(m_ctx, position) == YICAD_SUCCESS;
+    }
+    bool ray(YiCadPoint2d base, YiCadVector2d direction) const noexcept
+    {
+        return *this && m_api->ray(m_ctx, base, direction) == YICAD_SUCCESS;
+    }
+    bool xline(YiCadPoint2d base, YiCadVector2d direction) const noexcept
+    {
+        return *this && m_api->xline(m_ctx, base, direction) == YICAD_SUCCESS;
+    }
+    /// @brief 画一个块定义；块里的随块属性取当前属性
+    bool drawBlock(YiCadReadResourceHandle block, const YiCadMatrix2d& transform) const noexcept
+    {
+        return *this && m_api->drawBlock(m_ctx, block, &transform) == YICAD_SUCCESS;
+    }
+    bool pushTransform(const YiCadMatrix2d& transform) const noexcept
+    {
+        return *this && m_api->pushTransform(m_ctx, &transform) == YICAD_SUCCESS;
+    }
+    bool popTransform() const noexcept
+    {
+        return *this && m_api->popTransform(m_ctx) == YICAD_SUCCESS;
+    }
+    /// @brief 非空：之后的图元以像素为单位、锚定在该点；为空：恢复世界单位
+    bool setScreenSpace(const YiCadPoint2d* anchor) const noexcept
+    {
+        return *this && m_api->setScreenSpace(m_ctx, anchor) == YICAD_SUCCESS;
+    }
+
+    YiCadReadResourceHandle lineType(std::string_view name) const noexcept
+    {
+        return find(YICAD_READ_LINE_TYPE, name);
+    }
+    YiCadReadResourceHandle layer(std::string_view name) const noexcept
+    {
+        return find(YICAD_READ_LAYER, name);
+    }
+    YiCadReadResourceHandle textStyle(std::string_view name) const noexcept
+    {
+        return find(YICAD_READ_TEXT_STYLE, name);
+    }
+    YiCadReadResourceHandle block(std::string_view name) const noexcept
+    {
+        return find(YICAD_READ_BLOCK, name);
+    }
+
+private:
+    YiCadReadResourceHandle find(YiCadReadResourceKind kind, std::string_view name) const noexcept
+    {
+        if (!*this || !detail::fitsAbiCount(name.size()))
+        {
+            return nullptr;
+        }
+        return m_api->findResource(m_ctx, kind,
+            {name.empty() ? nullptr : name.data(), static_cast<uint32_t>(name.size())});
+    }
+
+    const YiCadGiApiV4* m_api = nullptr;
+    YiCadGiContextHandle m_ctx = nullptr;
+};
+
+/** @brief 实体类的登记信息。 */
+struct EntityClassInfo
+{
+    /// @brief 类名，"pluginId.类名"
+    std::string className;
+    /// @brief 数据编码的版本；读回的版本低于它时调用 upgrade
+    uint32_t classVersion = 1;
+    /// @brief 代理权限（YICAD_PROXY_*）：插件不在时允许的操作
+    uint32_t proxyFlags = 0;
+    /// @brief worldDraw 线程安全：图形系统在工作线程上直接调用，不缓存图形
+    bool threadSafeDraw = false;
+    /// @brief 为每个实体缓存解码后的 Data（宿主随数据作废），省得每次调用都解码
+    bool cacheDecodedData = true;
+};
+
+namespace detail
+{
+template<typename Class>
+struct EntityClassTrampolines;
+} // namespace detail
+
+/**
+ * @brief 插件写实体类的基类（第 8.2 步）：Data 是插件解码后的数据。
+ * @details SDK 负责字节与 Data 的转换、实例缓存、函数表与异常隔离：派生类实现 decode、encode、
+ * worldDraw、extents、transform；夹点（grips 与 moveGrips 一起）、捕捉点、炸开、数据升级覆盖了才提供，
+ * 没覆盖的由宿主按 worldDraw 的图元推导（夹点则没有）。函数里抛出的异常（如 ByteReader 越界）
+ * 在 C ABI 边界转成失败，宿主不采用结果。
+ * @note 实例要在插件 shutdown 前一直存活（一般是插件的全局对象），经 Host::registerEntityClass 登记。
+ */
+template<typename Data>
+class EntityClass
+{
+public:
+    using DataType = Data;
+
+    virtual ~EntityClass() = default;
+
+    /// @brief 把当前版本的字节解码成 Data；读不了时抛异常
+    virtual Data decode(std::span<const uint8_t> bytes) const = 0;
+    /// @brief 把 Data 编码成当前版本的字节
+    virtual std::vector<uint8_t> encode(const Data& data) const = 0;
+    /// @brief 画实体
+    virtual void worldDraw(const Data& data, const Gi& gi) const = 0;
+    /// @brief 包围框
+    virtual YiCadExtents2d extents(const Data& data) const = 0;
+    /// @brief 按仿射变换改动（移动、旋转、缩放、镜像，可能非等比）
+    virtual void transform(Data& data, const YiCadMatrix2d& matrix) const = 0;
+
+    /// @brief 夹点位置（与 moveGrips 一起覆盖）
+    virtual std::vector<YiCadPoint2d> grips(const Data& data) const
+    {
+        (void)data;
+        return {};
+    }
+    /// @brief 拖动 indices 这几个夹点 offset
+    virtual void moveGrips(Data& data, std::span<const uint32_t> indices, YiCadVector2d offset) const
+    {
+        (void)data;
+        (void)indices;
+        (void)offset;
+    }
+    /// @brief 拾取点附近某种捕捉点（YICAD_SNAP_*）的候选
+    virtual std::vector<YiCadPoint2d> snapPoints(const Data& data, uint32_t snapMode, YiCadPoint2d pick) const
+    {
+        (void)data;
+        (void)snapMode;
+        (void)pick;
+        return {};
+    }
+    /// @brief 炸开：在 out 里用导入函数建基本实体（属性为空时取被炸开的实体的）；返回 false 表示失败
+    virtual bool explode(const Data& data, const ImportContainer& out) const
+    {
+        (void)data;
+        (void)out;
+        return false;
+    }
+    /// @brief 把 fromVersion 版的字节升级成当前版本的字节
+    virtual std::vector<uint8_t> upgrade(uint32_t fromVersion, std::span<const uint8_t> bytes) const
+    {
+        (void)fromVersion;
+        (void)bytes;
+        return {};
+    }
+
+protected:
+    /// @brief 宿主函数表（登记时由 Host 设置），炸开时包装宿主的导入会话用
+    const YiCadHostApi* hostApi() const noexcept { return m_hostApi; }
+
+private:
+    friend class Host;
+    template<typename Class>
+    friend struct detail::EntityClassTrampolines;
+
+    const YiCadHostApi* m_hostApi = nullptr;
+};
+
+namespace detail
+{
+
+/// @brief 为实体类 Class 生成 YiCadEntityClassV4 的各个函数，userData 是 Class 的实例
+template<typename Class>
+struct EntityClassTrampolines
+{
+    using Data = typename Class::DataType;
+    using Base = EntityClass<Data>;
+
+    static const Class& self(void* userData) noexcept
+    {
+        return *static_cast<const Class*>(userData);
+    }
+
+    static std::span<const uint8_t> bytesOf(YiCadByteView view) noexcept
+    {
+        return {view.data, view.size};
+    }
+
+    /// @brief 有实例缓存时直接用，否则现解码
+    template<typename Body>
+    static void withData(void* userData, YiCadByteView view, void* cache, Body&& body)
+    {
+        if (cache != nullptr)
+        {
+            body(*static_cast<const Data*>(cache));
+            return;
+        }
+        const Data data = self(userData).decode(bytesOf(view));
+        body(data);
+    }
+
+    static Data copyData(void* userData, YiCadByteView view, void* cache)
+    {
+        return cache != nullptr ? *static_cast<const Data*>(cache) : self(userData).decode(bytesOf(view));
+    }
+
+    static YiCadResult writeBytes(const YiCadByteSink* out, const std::vector<uint8_t>& bytes) noexcept
+    {
+        return out != nullptr && out->write != nullptr && fitsAbiCount(bytes.size()) && !bytes.empty() &&
+                       out->write(out->context, bytes.data(), static_cast<uint32_t>(bytes.size())) ==
+                           YICAD_SUCCESS
+            ? YICAD_SUCCESS
+            : YICAD_FAILURE;
+    }
+
+    static YiCadResult addPoints(const YiCadPointSink* out, const std::vector<YiCadPoint2d>& points) noexcept
+    {
+        if (out == nullptr || out->add == nullptr || !fitsAbiCount(points.size()))
+        {
+            return YICAD_FAILURE;
+        }
+        return points.empty() ? YICAD_SUCCESS
+            : out->add(out->context, points.data(), static_cast<uint32_t>(points.size()));
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL worldDraw(void* userData, YiCadByteView data, void* cache,
+        const YiCadGiApiV4* gi, YiCadGiContextHandle ctx) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            const Gi wrapper(gi, ctx);
+            withData(userData, data, cache, [&](const Data& value) { self(userData).worldDraw(value, wrapper); });
+            return YICAD_SUCCESS;
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL getExtents(void* userData, YiCadByteView data, void* cache,
+        YiCadExtents2d* extents) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            if (extents == nullptr)
+            {
+                return YICAD_FAILURE;
+            }
+            withData(userData, data, cache, [&](const Data& value) { *extents = self(userData).extents(value); });
+            return YICAD_SUCCESS;
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL transform(void* userData, YiCadByteView data, void* cache,
+        const YiCadMatrix2d* matrix, const YiCadByteSink* out) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            if (matrix == nullptr)
+            {
+                return YICAD_FAILURE;
+            }
+            Data value = copyData(userData, data, cache);
+            self(userData).transform(value, *matrix);
+            return writeBytes(out, self(userData).encode(value));
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL getGrips(void* userData, YiCadByteView data, void* cache,
+        const YiCadPointSink* out) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            std::vector<YiCadPoint2d> points;
+            withData(userData, data, cache, [&](const Data& value) { points = self(userData).grips(value); });
+            return addPoints(out, points);
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL moveGrips(void* userData, YiCadByteView data, void* cache,
+        const uint32_t* indices, uint32_t count, YiCadVector2d offset, const YiCadByteSink* out) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            if (indices == nullptr && count != 0)
+            {
+                return YICAD_FAILURE;
+            }
+            Data value = copyData(userData, data, cache);
+            self(userData).moveGrips(value, std::span<const uint32_t>(indices, count), offset);
+            return writeBytes(out, self(userData).encode(value));
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL getSnapPoints(void* userData, YiCadByteView data, void* cache,
+        uint32_t snapMode, YiCadPoint2d pick, const YiCadPointSink* out) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            std::vector<YiCadPoint2d> points;
+            withData(userData, data, cache,
+                [&](const Data& value) { points = self(userData).snapPoints(value, snapMode, pick); });
+            return addPoints(out, points);
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL explode(void* userData, YiCadByteView data, void* cache,
+        YiCadImportSessionHandle session, YiCadImportContainerHandle container) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            const YiCadHostApi* api = self(userData).m_hostApi;
+            if (api == nullptr || api->importApi == nullptr)
+            {
+                return YICAD_FAILURE;
+            }
+            const ImportContainer out = ImportContainer::wrapHostContainer(api->importApi, session, container);
+            bool exploded = false;
+            withData(userData, data, cache, [&](const Data& value) { exploded = self(userData).explode(value, out); });
+            return exploded ? YICAD_SUCCESS : YICAD_FAILURE;
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL upgrade(void* userData, uint32_t fromVersion, YiCadByteView data,
+        const YiCadByteSink* out) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            return writeBytes(out, self(userData).upgrade(fromVersion, bytesOf(data)));
+        }, YICAD_FAILURE);
+    }
+
+    static YiCadResult YICAD_PLUGIN_CALL createCache(void* userData, YiCadByteView data, void** cache) noexcept
+    {
+        return invokeNoexcept<YiCadResult>([&]() {
+            if (cache == nullptr)
+            {
+                return YICAD_FAILURE;
+            }
+            *cache = new Data(self(userData).decode(bytesOf(data)));
+            return YICAD_SUCCESS;
+        }, YICAD_FAILURE);
+    }
+
+    static void YICAD_PLUGIN_CALL destroyCache(void* userData, void* cache) noexcept
+    {
+        (void)userData;
+        delete static_cast<Data*>(cache);
+    }
+
+    /// @brief 生成函数表：可选函数只在派生类覆盖了时提供
+    static YiCadEntityClassV4 table(const Class& entityClass, const EntityClassInfo& info) noexcept
+    {
+        YiCadEntityClassV4 result{};
+        result.structSize = static_cast<uint32_t>(sizeof(result));
+        result.abiVersion = YICAD_PLUGIN_ABI_V4;
+        result.className = stringView(info.className);
+        result.classVersion = info.classVersion;
+        result.proxyFlags = info.proxyFlags;
+        result.flags = info.threadSafeDraw ? YICAD_ENTITY_CLASS_THREAD_SAFE_DRAW : 0U;
+        result.userData = const_cast<Class*>(&entityClass);
+        result.worldDraw = &worldDraw;
+        result.getExtents = &getExtents;
+        result.transform = &transform;
+        if constexpr (!std::is_same_v<decltype(&Class::grips), decltype(&Base::grips)> &&
+                      !std::is_same_v<decltype(&Class::moveGrips), decltype(&Base::moveGrips)>)
+        {
+            result.getGrips = &getGrips;
+            result.moveGrips = &moveGrips;
+        }
+        if constexpr (!std::is_same_v<decltype(&Class::snapPoints), decltype(&Base::snapPoints)>)
+        {
+            result.getSnapPoints = &getSnapPoints;
+        }
+        if constexpr (!std::is_same_v<decltype(&Class::explode), decltype(&Base::explode)>)
+        {
+            result.explode = &explode;
+        }
+        if constexpr (!std::is_same_v<decltype(&Class::upgrade), decltype(&Base::upgrade)>)
+        {
+            result.upgrade = &upgrade;
+        }
+        if (info.cacheDecodedData)
+        {
+            result.createCache = &createCache;
+            result.destroyCache = &destroyCache;
+        }
+        return result;
+    }
+};
+
+} // namespace detail
+
 class Host
 {
 public:
     explicit Host(const YiCadHostApi* api = nullptr) noexcept
         : m_api(api)
     {
+    }
+
+    /**
+     * @brief v4：在 init 里登记一个实体类。
+     * @param entityClass 派生自 EntityClass<Data> 的实例，要存活到 shutdown。
+     * @return 宿主接受时为真；提交（与插件的其他注册项一起）时还会检查类名是否重名。
+     */
+    template<typename Class>
+    bool registerEntityClass(
+        const char* pluginId,
+        Class& entityClass,
+        const EntityClassInfo& info) const noexcept
+    {
+        static_assert(std::is_base_of_v<EntityClass<typename Class::DataType>, Class>,
+            "实体类必须派生自 yicad::plugin::EntityClass<Data>");
+        if (pluginId == nullptr || !isCompatible() || m_api->entityApi == nullptr ||
+            m_api->entityApi->registerEntityClass == nullptr ||
+            !detail::validString(info.className, true))
+        {
+            return false;
+        }
+        entityClass.m_hostApi = m_api;
+        const YiCadEntityClassV4 table =
+            detail::EntityClassTrampolines<Class>::table(entityClass, info);
+        return invokeNoexcept<bool>([&]() {
+            return m_api->entityApi->registerEntityClass(pluginId, &table) == YICAD_SUCCESS;
+        }, false);
     }
 
     explicit operator bool() const noexcept
@@ -3788,7 +4811,7 @@ private:
     bool isCompatible() const noexcept
     {
         return m_api != nullptr &&
-               m_api->abiVersion == YICAD_PLUGIN_ABI_V3;
+               m_api->abiVersion == YICAD_PLUGIN_ABI_V4;
     }
 
     bool hasField(size_t offset, size_t size) const noexcept

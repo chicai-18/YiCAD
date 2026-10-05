@@ -1,5 +1,9 @@
 ﻿#include "PluginRegistry.h"
 
+#include "DmCustomEntityRegistry.h"
+#include "DmPluginEntity.h"
+#include "PluginEntityClass.h"
+
 #include <utility>
 
 namespace
@@ -60,6 +64,22 @@ bool isCanonicalComponent(const QString& value) noexcept
 bool PluginRegistryError::isError() const noexcept
 {
     return code != PluginRegistryErrorCode::None;
+}
+
+PluginRegistry::~PluginRegistry()
+{
+    QVector<QString> plugins;
+    for (const auto& record : std::as_const(m_entityClasses))
+    {
+        if (!plugins.contains(record.pluginId))
+        {
+            plugins.append(record.pluginId);
+        }
+    }
+    for (const auto& pluginId : plugins)
+    {
+        detachEntityClasses(pluginId);
+    }
 }
 
 bool PluginRegistry::beginRegistration()
@@ -229,6 +249,35 @@ bool PluginRegistry::stageExportFilter(
     return true;
 }
 
+bool PluginRegistry::stageEntityClass(
+    const QString& pluginId,
+    std::shared_ptr<PluginEntityClass> entityClass)
+{
+    if (!adoptTransactionPlugin(pluginId))
+    {
+        return false;
+    }
+    if (entityClass == nullptr || entityClass->pluginId() != pluginId ||
+        !entityClass->name().startsWith(pluginId + QLatin1Char('.')))
+    {
+        return fail(
+            PluginRegistryErrorCode::InvalidEntityClass,
+            QStringLiteral("实体类名必须以插件 ID 加点开头"));
+    }
+    const QString className = entityClass->name();
+    for (const auto& record : std::as_const(m_stagedEntityClasses))
+    {
+        if (record.className == className)
+        {
+            return fail(
+                PluginRegistryErrorCode::DuplicateEntityClass,
+                QStringLiteral("实体类重复：%1").arg(className));
+        }
+    }
+    m_stagedEntityClasses.append({pluginId, className, std::move(entityClass)});
+    return true;
+}
+
 bool PluginRegistry::commitRegistration(const PluginRecord& plugin)
 {
     if (!m_registrationActive)
@@ -284,28 +333,98 @@ bool PluginRegistry::commitRegistration(const PluginRecord& plugin)
         }
     }
 
+    // 实体类名在全进程的自定义实体注册表里不能重名（扩展的类、别的插件的类）
+    auto& customRegistry = DmCustomEntityRegistry::instance();
+    for (const auto& record : std::as_const(m_stagedEntityClasses))
+    {
+        if (customRegistry.find(record.className) != nullptr)
+        {
+            fail(
+                PluginRegistryErrorCode::DuplicateEntityClass,
+                QStringLiteral("实体类已由别的扩展或插件登记：%1")
+                    .arg(record.className));
+            clearTransaction();
+            return false;
+        }
+    }
+
     // 先构造完整候选状态，再统一交换，保证异常不会产生部分提交。
     auto plugins = m_plugins;
     auto commands = m_commands;
     auto ribbonButtons = m_ribbonButtons;
     auto importFilters = m_importFilters;
     auto exportFilters = m_exportFilters;
+    auto entityClasses = m_entityClasses;
 
     plugins.append(plugin);
     commands += m_stagedCommands;
     ribbonButtons += m_stagedRibbonButtons;
     importFilters += m_stagedImportFilters;
     exportFilters += m_stagedExportFilters;
+    entityClasses += m_stagedEntityClasses;
+
+    // 登记实体类：读盘按类名建插件实体，都由 DmPluginEntity 表示
+    QVector<QString> registered;
+    for (const auto& record : std::as_const(m_stagedEntityClasses))
+    {
+        DmCustomEntityClass entityClass;
+        entityClass.name = record.className;
+        std::shared_ptr<DmPluginEntityClass> pluginClass = record.entityClass;
+        entityClass.factory = [pluginClass]() -> DmCustomEntity* {
+            return new DmPluginEntity(pluginClass);
+        };
+        entityClass.version = record.entityClass->version();
+        entityClass.proxyFlags = record.entityClass->proxyFlags();
+        entityClass.owner = record.pluginId;
+        if (!customRegistry.registerClass(entityClass))
+        {
+            for (const auto& name : std::as_const(registered))
+            {
+                customRegistry.unregisterClass(name);
+            }
+            fail(
+                PluginRegistryErrorCode::InvalidEntityClass,
+                QStringLiteral("实体类登记失败：%1").arg(record.className));
+            clearTransaction();
+            return false;
+        }
+        registered.append(record.className);
+    }
 
     m_plugins.swap(plugins);
     m_commands.swap(commands);
     m_ribbonButtons.swap(ribbonButtons);
     m_importFilters.swap(importFilters);
     m_exportFilters.swap(exportFilters);
+    m_entityClasses.swap(entityClasses);
 
     clearTransaction();
     m_lastError = {};
     return true;
+}
+
+void PluginRegistry::detachEntityClasses(const QString& pluginId) noexcept
+{
+    try
+    {
+        auto& customRegistry = DmCustomEntityRegistry::instance();
+        for (const auto& record : std::as_const(m_entityClasses))
+        {
+            if (record.pluginId != pluginId)
+            {
+                continue;
+            }
+            const auto* entry = customRegistry.find(record.className);
+            if (entry != nullptr && entry->owner == pluginId)
+            {
+                customRegistry.unregisterClass(record.className);
+            }
+            record.entityClass->detach();
+        }
+    }
+    catch (...)
+    {
+    }
 }
 
 void PluginRegistry::rollbackRegistration() noexcept
@@ -349,6 +468,12 @@ const QVector<PluginExportFilterRecord>&
 PluginRegistry::exportFilters() const noexcept
 {
     return m_exportFilters;
+}
+
+const QVector<PluginEntityClassRecord>&
+PluginRegistry::entityClasses() const noexcept
+{
+    return m_entityClasses;
 }
 
 const PluginRecord* PluginRegistry::findPlugin(
@@ -515,4 +640,5 @@ void PluginRegistry::clearTransaction() noexcept
     m_stagedRibbonButtons.clear();
     m_stagedImportFilters.clear();
     m_stagedExportFilters.clear();
+    m_stagedEntityClasses.clear();
 }

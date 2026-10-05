@@ -3,12 +3,15 @@
 
 #include "YiCadPluginAbi.h"
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+class DmBlock;
 class DmDocument;
 class DmEntity;
+class EntityTable;
 class GuiDocumentView;
 class PluginRegistry;
 class QString;
@@ -67,11 +70,22 @@ public:
     /// @brief 在插件卸载或宿主退出前回滚并失效全部活动导入会话。
     void rollbackAllImports() noexcept;
 
+    /// @brief 插件实体的炸开（YiCadEntityClassV4::explode）：开一个只收集、不进文档的临时导入会话交给 explode
+    /// @param entity 被炸开的实体：实体属性为空时取它的图层与画笔，建出的实体归它的文档
+    /// @param explode 收到会话与容器，用导入函数在里面建基本实体
+    /// @param out explode 成功时为建出的实体，调用方持有
+    /// @return explode 返回成功时为真；失败时 out 为空
+    bool runExplodeSession(
+        const DmEntity& entity,
+        const std::function<YiCadResult(YiCadImportSessionHandle, YiCadImportContainerHandle)>& explode,
+        std::vector<DmEntity*>& out) noexcept;
+
 private:
     struct DocumentHandleRecord;
     struct TransactionRecord;
     struct EntityIteratorRecord;
     struct ImportSessionRecord;
+    struct EntityHandleRecord;
 
     static HostApi* activeInstance() noexcept;
 
@@ -283,6 +297,26 @@ private:
         YiCadImportSessionHandle session,
         YiCadImportContainerHandle container,
         const YiCadImageDataV3* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL createCustomEntity(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle container,
+        const YiCadCustomEntityDataV4* data) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL beginProxyGraphics(
+        YiCadImportSessionHandle session,
+        YiCadImportContainerHandle* graphics) noexcept;
+    static YiCadEntityIteratorHandle YICAD_PLUGIN_CALL readEntityGraphics(
+        YiCadEntityIteratorHandle iterator) noexcept;
+    static YiCadResult YICAD_PLUGIN_CALL registerEntityClass(
+        const char* pluginId,
+        const YiCadEntityClassV4* entityClass) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL transactionCreateCustomEntity(
+        YiCadTransactionHandle transaction,
+        const YiCadCustomEntityDataV4* data,
+        YiCadEntityHandle* entity) noexcept;
+    static YiCadImportResult YICAD_PLUGIN_CALL transactionSetCustomEntityData(
+        YiCadTransactionHandle transaction,
+        YiCadEntityHandle entity,
+        YiCadByteView data) noexcept;
 
     YiCadDocumentHandle handleForDocument(DmDocument* document);
     DmDocument* resolveDocument(
@@ -323,8 +357,11 @@ private:
         ImportSessionRecord* session,
         const YiCadEntityAttributes* input,
         YiCadEntityAttributes& output) noexcept;
+    /// @brief 按实体公共属性设置实体
+    /// @param container 实体要放进的容器：收集代理图形的容器与炸开会话里，属性为空的部分另有含义（见 ABI）
     YiCadImportResult applyImportEntityAttributes(
         ImportSessionRecord* session,
+        const void* container,
         const YiCadEntityAttributes* attributes,
         DmEntity* entity) noexcept;
     YiCadImportResult validateImportBlocks(
@@ -334,6 +371,21 @@ private:
         YiCadImportContainerHandle container,
         const YiCadEntityAttributes* attributes,
         DmEntity* entity) noexcept;
+    /// @brief 把建好的实体放进容器：收集的容器留着，否则加进模型空间或块（导入事务记下撤销）
+    void insertImportEntity(
+        ImportSessionRecord* session,
+        void* container,
+        std::unique_ptr<DmEntity> entity);
+    /// @brief 实体句柄：同一文档、同一容器里同一实体交出同一个句柄
+    YiCadEntityHandle entityHandleFor(
+        DmDocument* document,
+        const DmBlock* owner,
+        DmEntity* entity);
+    /// @brief 解析实体句柄；文档已关闭、实体已不在时返回空
+    DmEntity* resolveEntityHandle(
+        YiCadEntityHandle handle,
+        DmDocument** document,
+        EntityTable** table) const noexcept;
     YiCadImportResult setImportError(
         YiCadImportResult result,
         const char* message) noexcept;
@@ -343,11 +395,13 @@ private:
     PluginRegistry& m_registry;
     YiCadImportApi m_importApi;
     YiCadReadApi m_readApi;
+    YiCadEntityApiV4 m_entityApi;
     YiCadHostApi m_api;
     std::vector<std::unique_ptr<DocumentHandleRecord>> m_documentHandles;
     std::vector<std::unique_ptr<TransactionRecord>> m_transactions;
     std::vector<std::unique_ptr<EntityIteratorRecord>> m_entityIterators;
     std::vector<std::unique_ptr<ImportSessionRecord>> m_importSessions;
+    std::vector<std::unique_ptr<EntityHandleRecord>> m_entityHandles;
     std::string m_importLastError;
     std::vector<std::string> m_readStringsScratch;
     std::vector<double> m_readDoublesScratch;

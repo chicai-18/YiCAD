@@ -1,5 +1,5 @@
 /// @file DxfTestRuntime.h
-/// @brief 只装 DXF 插件的插件运行时，供测试读写 DXF
+/// @brief 装 DXF 插件（可另装别的插件，如 demo 插件）的插件运行时，供测试读写 DXF、用插件实体
 ///
 /// 加载构建目录里真实的 YiCadDxfPlugin.dll，走与程序相同的插件运行时
 /// （PluginManager、HostApi、PluginFileIOAdapter），导入导出与程序一样经格式注册表
@@ -7,7 +7,8 @@
 ///
 /// 使用者要链接 YiCadShell（插件运行时在 src/shell/plugin_runtime/），定义
 /// YICAD_DXF_PLUGIN_DLL 为插件 DLL 的绝对路径，并让测试目标依赖 YiCadDxfPlugin。
-/// 原先写在 test_dxf_encoding.cpp 里，渲染方案阶段 0 起基线用例与 test_render 也用它。
+/// 原先写在 test_dxf_encoding.cpp 里，渲染方案阶段 0 起基线用例与 test_render 也用它；阶段 8 起可另装插件
+/// （插件实体的用例装 demo 插件；同一线程只能有一个插件运行时，所以装在同一个运行时里）。
 
 #ifndef DXFTESTRUNTIME_H
 #define DXFTESTRUNTIME_H
@@ -64,21 +65,19 @@ public:
     QSet<const DmDocument*> open;
 };
 
-/// @brief 只装 DXF 插件的插件运行时
+/// @brief 装 DXF 插件（与 extraPlugins）的插件运行时
 class DxfRuntime
 {
 public:
-    DxfRuntime()
+    /// @param extraPlugins 另装的插件 DLL 的绝对路径
+    explicit DxfRuntime(const QStringList& extraPlugins = {})
         : m_host(m_context, m_registry)
     {
         // 清单放在临时目录，dll 写绝对路径，指向构建目录里的插件
-        QFile manifest(m_manifestDir.filePath(QStringLiteral("dxf.xml")));
-        if (manifest.open(QIODevice::WriteOnly))
+        writeManifest(QStringLiteral("dxf.xml"), QStringLiteral(YICAD_DXF_PLUGIN_DLL));
+        for (int i = 0; i < extraPlugins.size(); ++i)
         {
-            manifest.write(QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plugin dll=\"%1\"/>\n")
-                               .arg(QStringLiteral(YICAD_DXF_PLUGIN_DLL))
-                               .toUtf8());
-            manifest.close();
+            writeManifest(QStringLiteral("extra%1.xml").arg(i), extraPlugins[i]);
         }
         m_manager = std::make_unique<PluginManager>(m_host, m_registry, m_manifestDir.path());
         m_manager->loadAll();
@@ -91,6 +90,22 @@ public:
         return m_manager->isPluginActive(QStringLiteral("com.yicad.dxf")) && !m_registry.importFilters().isEmpty()
                && !m_registry.exportFilters().isEmpty();
     }
+
+    /// @brief 插件已加载
+    bool pluginActive(const QString& pluginId) const { return m_manager->isPluginActive(pluginId); }
+
+    /// @brief 执行插件命令（文档作为当前文档）
+    bool runCommand(DmDocument& document, const QString& pluginId, const QString& commandId)
+    {
+        open(document);
+        return m_registry.executeCommand(pluginId, commandId);
+    }
+
+    /// @brief 让插件运行时认得这份文档（打开、设为当前）
+    void openDocument(DmDocument& document) { open(document); }
+
+    HostApi& host() { return m_host; }
+    PluginRegistry& registry() { return m_registry; }
 
     /// @brief 加载失败时的诊断信息
     QString diagnostics() const
@@ -139,6 +154,18 @@ public:
     const QStringList& messages() const { return m_context.messages; }
 
 private:
+    void writeManifest(const QString& name, const QString& dll)
+    {
+        QFile manifest(m_manifestDir.filePath(name));
+        if (manifest.open(QIODevice::WriteOnly))
+        {
+            manifest.write(QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plugin dll=\"%1\"/>\n")
+                               .arg(dll)
+                               .toUtf8());
+            manifest.close();
+        }
+    }
+
     void open(DmDocument& document)
     {
         m_context.open.insert(&document);

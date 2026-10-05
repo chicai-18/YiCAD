@@ -1,12 +1,16 @@
 # YiCAD Demo 插件
 
-该插件只依赖 `YiCAD::PluginSdk` 公开接口目标，不链接 Qt 或 YiCAD 内部库。它注册命令 `com.yicad.demo/demo.add-line`、Ribbon 中的 **Demo > Draw > Add demo line** 按钮，以及 `.demo` 导入和 `com.yicad.demo/demo` 导出格式。
+该插件只依赖 `YiCAD::PluginSdk` 公开接口目标，不链接 Qt 或 YiCAD 内部库。它注册三条命令（Ribbon 的 **Demo > Draw** 下各有一个按钮）、一个实体类"管道"（`com.yicad.demo.Pipe`），以及 `.demo` 导入和 `com.yicad.demo/demo` 导出格式。
 
-执行命令会重新获取当前文档，添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。`.demo` 导入通过 v3 `ImportSession` 批量添加直线和圆：全部解析成功后一次提交，任意记录失败则整体回滚。选择 **YiCAD Demo Drawing (*.demo)** 导出时，插件通过 v3 拥有型实体变体枚举输出当前文档中的真实直线和圆数据。
+- **Add demo line**（`com.yicad.demo/demo.add-line`）：在当前文档里添加一条从 `(0, 0)` 到 `(100, 100)` 的直线，然后重生成并自动缩放视图。
+- **Add demo pipe**（`demo.add-pipe`）：在文档事务里新建一根管道，折点 `(0, 0)`、`(100, 0)`、`(100, 60)`，管径 10。管道画成两侧边线、两端半圆端头、中心线（文档里有 CENTER 线型时用它）、第一段中点一个红色实心箭头和 `DN管径` 的标注；能选中、拖夹点（每个折点一个，起点旁边一个改管径）、捕捉端点、中点与最近点、移动旋转缩放镜像、炸开，撤销一步恢复。
+- **Double demo pipe diameters**（`demo.pipe-grow`）：把模型空间里所有管道的管径加倍，一次撤销全部恢复。
 
-demo 固定声明 ABI v3，并只通过常规 C++ SDK 的 `ImportSession`、`LayerData`、`EntityAttributes` 和
-`ImportContainer` 语义接口创建导入图层、直线和圆，不直接构造 ABI POD 或填写 ABI
-元数据。示例文件解析不依赖具体库。
+`.demo` 导入通过 `ImportSession` 批量添加直线、圆和管道：全部解析成功后一次提交，任意记录失败则整体回滚。选择 **YiCAD Demo Drawing (*.demo)** 导出时，插件通过拥有型实体变体枚举输出当前文档中的真实直线、圆和管道数据。
+
+demo 固定声明 ABI v4，只通过常规 C++ SDK 的语义接口（`ImportSession`、`LayerData`、`EntityAttributes`、`ImportContainer`、`DocumentTransaction`、`EntityClass`）工作，不直接构造 ABI POD 或填写 ABI 元数据。管道的写法见 `DemoPipe.h`、`DemoPipe.cpp`：数据编码、`worldDraw`、包围框、变换、夹点、捕捉与炸开；插件不在时（例如图纸带到没装这个插件的电脑上），管道读成代理，按存盘时记下的图形显示，可以删除、变换、复制、改图层与颜色，数据原样保存。
+
+示例文件解析不依赖具体库。
 真实格式插件应自行链接 `libdxfrw` 等解析库，PluginSDK 不包含或传播这些依赖。
 仓库中的 `plugins/dxf_plugin` 展示了如何内置此类解析库的源码、静态链接进插件 DLL，
 并随插件提供许可证；第三方插件应按其依赖许可证履行对应义务。
@@ -19,12 +23,14 @@ demo 固定声明 ABI v3，并只通过常规 C++ SDK 的 `ImportSession`、`Lay
 YICAD_DEMO_V2
 LINE 0 0 100 100
 CIRCLE 50 50 25
+PIPE 10 3 0 0 100 0 100 60
 ```
 
 - `LINE` 后依次为起点 `x y` 和终点 `x y`。
 - `CIRCLE` 后依次为圆心 `x y` 和半径。
+- `PIPE` 后依次为管径、折点数（至少 2）和各折点的 `x y`。
 - 空行会被忽略；未知类型、缺少参数、多余参数或无效几何会使整个导入失败并回滚。
-- demo 只选择完整只读实体变体中的直线和圆，其他实体不会写入 `.demo` 文件。
+- demo 只选择完整只读实体变体中的直线、圆和管道，其他实体不会写入 `.demo` 文件。
 
 ## 独立构建
 

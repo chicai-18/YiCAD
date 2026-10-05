@@ -7,7 +7,9 @@ if(NOT TARGET YiCAD::PluginSdk)
 endif()
 
 add_library(YiCadDemoPlugin MODULE
-    DemoPlugin.cpp)
+    DemoPlugin.cpp
+    DemoPipe.cpp
+    DemoPipe.h)
 
 if(WIN32)
     target_sources(YiCadDemoPlugin PRIVATE

@@ -44,10 +44,11 @@ target_compile_definitions(test_render PRIVATE
     YICAD_RENDER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     YICAD_RENDER_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/output"
     YICAD_RHI_TEST_SHADER_DIR="${CMAKE_CURRENT_BINARY_DIR}/shaders"
-    YICAD_DXF_PLUGIN_DLL="$<TARGET_FILE:YiCadDxfPlugin>")
+    YICAD_DXF_PLUGIN_DLL="$<TARGET_FILE:YiCadDxfPlugin>"
+    YICAD_DEMO_PLUGIN_DLL="$<TARGET_FILE:YiCadDemoPlugin>")
 
-# 参考图纸经构建出来的 DXF 插件读入，插件先于测试构建
-add_dependencies(test_render YiCadDxfPlugin)
+# 参考图纸经构建出来的 DXF 插件读入，插件实体的用例用 demo 插件，插件先于测试构建
+add_dependencies(test_render YiCadDxfPlugin YiCadDemoPlugin)
 
 # 进程启动时不装入系统的 opengl32.dll，留给 MesaLoader.cpp 先装入 Mesa
 if(MSVC)

@@ -14,10 +14,24 @@
 #define DRW_INTERFACE_H
 
 #include <cstring>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "drw_classes.h"
 #include "drw_entities.h"
 #include "drw_objects.h"
 #include "drw_header.h"
+
+/**
+ * YiCAD 本地修改（2026-10-05，渲染方案阶段 8：自定义实体照 AutoCAD 写进 DXF）：
+ * libdxfrw 不认识类型的实体（自定义实体），交出记录名与全部组码的原文。
+ */
+class DRW_UnknownEntity {
+public:
+    std::string recordName;                             /*!< entity type name, code 0 */
+    std::vector<std::pair<int, std::string>> records;   /*!< all group codes with their UTF-8 text (binary chunks as hex) */
+};
 
 /**
  * Abstract class (interface) for communicate dxfReader with the application.
@@ -201,6 +215,15 @@ public:
     virtual void writeDimstyles() = 0;
     virtual void writeObjects() = 0;
     virtual void writeAppId() = 0;
+
+    /* YiCAD 本地修改（2026-10-05）：CLASSES 段与不认识类型的实体，默认忽略、不写，上游的实现不受影响。 */
+
+    /** Called for every class entry of the CLASSES section. */
+    virtual void addClass(const DRW_Class& data) { (void)data; }
+    /** Called for every entity whose type libdxfrw does not know (custom entities). */
+    virtual void addUnknownEntity(const DRW_UnknownEntity& data) { (void)data; }
+    /** Called while writing the CLASSES section: write entries with dxfRW::writeClass. */
+    virtual void writeClasses() {}
 };
 
 #endif

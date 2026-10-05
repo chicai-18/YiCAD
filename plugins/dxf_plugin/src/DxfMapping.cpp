@@ -662,6 +662,7 @@ void writeHeader(
     header.addInt("$INSUNITS", settings.insertionUnits(), 70);
     header.addInt("$MEASUREMENT", settings.measurement(), 70);
     header.addDouble("$LTSCALE", settings.globalLineTypeScale(), 40);
+    header.addDouble("$CELTSCALE", settings.currentEntityLineTypeScale(), 40);
     if (!settings.sourceCodePage().empty())
     {
         header.addStr("$DWGCODEPAGE", settings.sourceCodePage(), 3);
@@ -757,6 +758,11 @@ DRW_Block toDxf(const yicad::plugin::BlockData& value)
     result.basePoint = coord(value.basePoint());
     result.flags = static_cast<int>(value.flags());
     return result;
+}
+
+void applyAttributes(DRW_Entity& target, const yicad::plugin::EntityAttributes& attributes)
+{
+    setAttributes(target, attributes);
 }
 
 bool writeEntity(dxfRW& writer, const yicad::plugin::PointData& value)

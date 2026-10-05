@@ -35,6 +35,9 @@ public:
     bool readRec(int *code);
 
     std::string getString() {return strData;}
+    /// @brief YiCAD 本地修改（2026-10-05）：当前记录的原文（UTF-8）：ASCII 为文件里的那一行，
+    /// 二进制按类型格式化，二进制块为十六进制。不认识类型的实体原样保留时用。
+    std::string getRawString();
     int getHandleString();//Convert hex string to int
     std::string toUtf8String(std::string t) {return decoder.toUtf8(t);}
     std::string getUtf8String() {return decoder.toUtf8(strData);}
@@ -66,6 +69,8 @@ protected:
     signed int intData; //32 bits integer
     unsigned long long int int64; //64 bits integer
     bool skip; //set to true for ascii dxf, false for binary
+    /// @brief YiCAD 本地修改（2026-10-05）：ASCII 读到的最后一行原文，见 getRawString()。
+    std::string rawData;
 private:
     DRW_TextCodec decoder;
     bool m_bIgnoreComments {false};

@@ -97,6 +97,30 @@ bool dxfReader::readRec(int *codeData) {
 
     return (filestr->good());
 }
+/// @brief YiCAD 本地修改（2026-10-05）：当前记录的原文，见头文件。
+std::string dxfReader::getRawString() {
+    if (skip) {
+        // ASCII：文件里的原行，按文件的代码页转成 UTF-8（数字不受影响）
+        return decoder.toUtf8(rawData);
+    }
+    std::ostringstream text;
+    switch (type) {
+    case STRING:
+        return decoder.toUtf8(strData);
+    case INT64:
+        text << int64;
+        break;
+    case DOUBLE:
+        text.precision(17);
+        text << doubleData;
+        break;
+    default:
+        text << intData;
+        break;
+    }
+    return text.str();
+}
+
 int dxfReader::getHandleString(){
     int res;
 #if defined(__APPLE__)
@@ -143,12 +167,21 @@ bool dxfReaderBinary::readString(std::string *text) {
     return (filestr->good());
 }
 
+/// @brief YiCAD 本地修改（2026-10-05）：二进制块读成十六进制文字（与 ASCII DXF 相同），上游跳过。
 bool dxfReaderBinary::readBinary() {
     unsigned char chunklen {0};
 
     filestr->read( reinterpret_cast<char *>(&chunklen), 1);
-    filestr->seekg( chunklen, std::ios_base::cur);
-    DRW_DBG( chunklen); DRW_DBG( " byte(s) binary data bypassed\n");
+    std::string bytes(chunklen, '\0');
+    filestr->read(&bytes[0], chunklen);
+    static const char digits[] = "0123456789ABCDEF";
+    strData.clear();
+    for (unsigned char byte : bytes) {
+        strData.push_back(digits[byte >> 4]);
+        strData.push_back(digits[byte & 0x0F]);
+    }
+    type = STRING;
+    DRW_DBG( chunklen); DRW_DBG( " byte(s) binary data\n");
 
     return (filestr->good());
 }
@@ -216,6 +249,8 @@ bool dxfReaderAscii::readString(std::string *text) {
     std::getline(*filestr, *text);
     if (!text->empty() && text->at(text->size()-1) == '\r')
         text->erase(text->size()-1);
+    /// @brief YiCAD 本地修改（2026-10-05）：记下原文，见 getRawString()。
+    rawData = *text;
     return (filestr->good());
 }
 
@@ -224,6 +259,8 @@ bool dxfReaderAscii::readString() {
     std::getline(*filestr, strData);
     if (!strData.empty() && strData.at(strData.size()-1) == '\r')
         strData.erase(strData.size()-1);
+    /// @brief YiCAD 本地修改（2026-10-05）：记下原文，见 getRawString()。
+    rawData = strData;
     DRW_DBG(strData); DRW_DBG("\n");
     return (filestr->good());
 }

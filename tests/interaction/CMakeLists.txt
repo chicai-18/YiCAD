@@ -4,7 +4,7 @@
 # DmDocumentListener 通知画布（分层重组 S3），文档的存盘策略 DocumentFileService（S4c），
 # 持有文档与存盘策略的每文档对象 AppDocument（选择集方案第 2 步），文档的选择集
 # SelectionSet（第 3 步），视图的高亮集 HighlightSet（高亮方案第 1 步），以及文档的变更集
-# DmChangeSet（渲染方案 4.1 步，图形系统据此增量更新）。
+# DmChangeSet（渲染方案 4.1 步，图形系统据此增量更新），以及插件自定义实体（第 8 阶段，加载 demo 插件）。
 # test_baseline_runtime 是基准图纸的运行期数据采集（渲染方案 0.1 步），设了 YICAD_BENCHMARK_DIR 才运行。
 # 业务工具化第四步之前这些机制在 kernel/actions/。
 
@@ -43,6 +43,7 @@ yicad_add_test(interaction
         test_dxf_linetype.cpp
         test_baseline_runtime.cpp
         test_custom_entity.cpp
+        test_plugin_entity.cpp
         ../support/SamplePipeEntity.cpp
         ../support/SampleEntityExtension.cpp
     # 用例用到壳层：UIActionHandler（test_command_dispatch、test_command_registry）、
@@ -60,7 +61,9 @@ target_link_libraries(test_interaction PRIVATE ${_yicad_extension_targets})
 target_compile_definitions(test_interaction PRIVATE
     YICAD_DEFAULT_KEYCONFIG="${CMAKE_CURRENT_SOURCE_DIR}/../../YiCAD/support/config/keyconfig.xml")
 
-# test_dxf_encoding 加载构建出来的 DXF 插件，走与程序相同的插件运行时；插件先于测试构建
-add_dependencies(test_interaction YiCadDxfPlugin)
+# test_dxf_encoding 加载构建出来的 DXF 插件，走与程序相同的插件运行时；插件先于测试构建。
+# test_plugin_entity 另加载 demo 插件（插件自定义实体，渲染方案第 8 阶段）
+add_dependencies(test_interaction YiCadDxfPlugin YiCadDemoPlugin)
 target_compile_definitions(test_interaction PRIVATE
-    YICAD_DXF_PLUGIN_DLL="$<TARGET_FILE:YiCadDxfPlugin>")
+    YICAD_DXF_PLUGIN_DLL="$<TARGET_FILE:YiCadDxfPlugin>"
+    YICAD_DEMO_PLUGIN_DLL="$<TARGET_FILE:YiCadDemoPlugin>")

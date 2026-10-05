@@ -9,6 +9,10 @@
 #include "DmCircle.h"
 #include "DmColor.h"
 #include "DmCustomEntity.h"
+#include "DmCustomEntityRegistry.h"
+#include "DmGiExplode.h"
+#include "DmPluginEntity.h"
+#include "DmProxyEntity.h"
 #include "DmDimensionStyle.h"
 #include "DmDimAligned.h"
 #include "DmDimAngular.h"
@@ -44,7 +48,11 @@
 #include "CmdManager.h"
 #include "DocumentCmd.h"
 #include "EntityTable.h"
+#include "GiStream.h"
 #include "GuiDocumentView.h"
+#include "IGiGeometry.h"
+#include "PluginAbiConvert.h"
+#include "PluginEntityClass.h"
 #include "PluginRegistry.h"
 #include "Transaction.h"
 
@@ -66,6 +74,8 @@
 
 namespace
 {
+
+using namespace plugin_abi;
 
 YiCadResult toResult(bool success) noexcept
 {
@@ -125,31 +135,6 @@ bool validExtensibleArrayView(
 }
 
 template<typename Element, typename View>
-bool validFixedArrayView(
-    const View& view,
-    uint32_t maximumCount = 1000000) noexcept
-{
-    if (view.count == 0)
-    {
-        return true;
-    }
-    if (view.data == nullptr || view.count > maximumCount)
-    {
-        return false;
-    }
-    const auto address = reinterpret_cast<std::uintptr_t>(view.data);
-    if (address % alignof(Element) != 0 ||
-        view.count > std::numeric_limits<std::size_t>::max() /
-            sizeof(Element))
-    {
-        return false;
-    }
-    const auto byteCount = static_cast<std::size_t>(view.count) *
-        sizeof(Element);
-    return byteCount <= std::numeric_limits<std::uintptr_t>::max() - address;
-}
-
-template<typename Element, typename View>
 const Element* extensibleArrayElement(
     const View& view,
     uint32_t index) noexcept
@@ -172,41 +157,6 @@ const Element* extensibleArrayElement(
     return reinterpret_cast<const Element*>(bytes + byteOffset);
 }
 
-bool copyStringView(const YiCadStringView& source, QString& target) noexcept
-{
-    try
-    {
-        if ((source.data == nullptr && source.size != 0) ||
-            source.size > static_cast<uint32_t>(std::numeric_limits<int>::max()))
-        {
-            return false;
-        }
-        if (source.size == 0)
-        {
-            target.clear();
-            return true;
-        }
-        const auto address = reinterpret_cast<std::uintptr_t>(source.data);
-        if (source.size >
-            std::numeric_limits<std::uintptr_t>::max() - address)
-        {
-            return false;
-        }
-        if (std::memchr(source.data, '\0', source.size) != nullptr)
-        {
-            return false;
-        }
-        const QByteArray bytes(source.data, static_cast<int>(source.size));
-        target = QString::fromUtf8(bytes.constData(), bytes.size());
-        return target.toUtf8() == bytes;
-    }
-    catch (...)
-    {
-        target.clear();
-        return false;
-    }
-}
-
 bool validConflictPolicy(YiCadResourceConflictPolicy policy) noexcept
 {
     return policy == YICAD_RESOURCE_CONFLICT_FAIL ||
@@ -227,139 +177,65 @@ QString uniqueResourceName(const QString& base, const auto& find)
     return {};
 }
 
-bool validLineWidth(int32_t width) noexcept
-{
-    switch (width)
-    {
-    case -3: case -2: case -1: case 0: case 5: case 9: case 13:
-    case 15: case 18: case 20: case 25: case 30: case 35: case 40:
-    case 50: case 53: case 60: case 70: case 80: case 90: case 100:
-    case 106: case 120: case 140: case 158: case 200: case 211:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool toDmColor(const YiCadColorData& source, DmColor& color)
-{
-    if (source.reserved != 0)
-    {
-        return false;
-    }
-    switch (source.method)
-    {
-    case YICAD_COLOR_BY_LAYER:
-        color = DmColor(DM::FlagByLayer);
-        return true;
-    case YICAD_COLOR_BY_BLOCK:
-        color = DmColor(DM::FlagByBlock);
-        return true;
-    case YICAD_COLOR_ACI:
-        if (source.aci < 1 || source.aci > 255)
-        {
-            return false;
-        }
-        color = DM::indexColors[source.aci];
-        return true;
-    case YICAD_COLOR_RGB:
-        color = DmColor(source.red, source.green, source.blue);
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool finitePoint(const YiCadPoint3d& point) noexcept
-{
-    constexpr double limit = 1.0e150;
-    return std::isfinite(point.x) && std::abs(point.x) <= limit &&
-           std::isfinite(point.y) && std::abs(point.y) <= limit &&
-           std::isfinite(point.z) && std::abs(point.z) <= limit;
-}
-
-bool finitePoint(const YiCadPoint2d& point) noexcept
-{
-    constexpr double limit = 1.0e150;
-    return std::isfinite(point.x) && std::abs(point.x) <= limit &&
-           std::isfinite(point.y) && std::abs(point.y) <= limit;
-}
-
-DmVector toDmVector(const YiCadPoint3d& point)
-{
-    return DmVector(point.x, point.y, point.z);
-}
-
-DmVector toDmVector(const YiCadPoint2d& point)
-{
-    return DmVector(point.x, point.y);
-}
-
-bool validPointArray(const YiCadPoint2dArrayView& points) noexcept
-{
-    if (!validFixedArrayView<YiCadPoint2d>(points))
-    {
-        return false;
-    }
-    for (uint32_t index = 0; index < points.count; ++index)
-    {
-        if (!finitePoint(points.data[index]))
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool validDoubleArray(const YiCadDoubleArrayView& values) noexcept
-{
-    if (!validFixedArrayView<double>(values))
-    {
-        return false;
-    }
-    for (uint32_t index = 0; index < values.count; ++index)
-    {
-        if (!std::isfinite(values.data[index]) ||
-            std::abs(values.data[index]) > 1.0e150)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool validVertexArray(const YiCadVertex2dArrayView& vertices) noexcept
 {
     return validFixedArrayView<YiCadVertex2d>(vertices);
 }
 
-YiCadPoint2d readPoint(const DmVector& value) noexcept
+/// @brief 只读枚举交给插件的一等实体（自定义实体另算）
+/// @param allowImage 图片只在模型空间里交出（块里的图片 v3 起就不导出）
+bool exportableEntity(DmEntity* entity, bool allowImage)
 {
-    return {value.x, value.y};
+    return dynamic_cast<DmPoint*>(entity) ||
+           dynamic_cast<DmLine*>(entity) ||
+           dynamic_cast<DmRay*>(entity) ||
+           dynamic_cast<DmXline*>(entity) ||
+           dynamic_cast<DmArc*>(entity) ||
+           dynamic_cast<DmCircle*>(entity) ||
+           dynamic_cast<DmEllipse*>(entity) ||
+           dynamic_cast<DmPolyline*>(entity) ||
+           dynamic_cast<DmSpline*>(entity) ||
+           dynamic_cast<DmSolid*>(entity) ||
+           dynamic_cast<DmText*>(entity) ||
+           dynamic_cast<DmMText*>(entity) ||
+           dynamic_cast<DmDimLinear*>(entity) ||
+           dynamic_cast<DmDimAligned*>(entity) ||
+           dynamic_cast<DmDimAngular*>(entity) ||
+           dynamic_cast<DmDimRadial*>(entity) ||
+           dynamic_cast<DmDimDiametric*>(entity) ||
+           dynamic_cast<DmLeader*>(entity) ||
+           dynamic_cast<DmHatch*>(entity) ||
+           dynamic_cast<DmBlockReference*>(entity) ||
+           dynamic_cast<DmAttributeDefinition*>(entity) ||
+           dynamic_cast<DmAttribute*>(entity) ||
+           (allowImage && dynamic_cast<DmImage*>(entity));
 }
 
-YiCadStringView readString(const QString& value, std::string& scratch)
+/// @brief 一组实体当作一个可绘制对象：逐个嵌套绘制，各按自己的属性（代理图形容器收集的实体记成 GI 流用）
+class EntityListDrawable final : public IGiDrawable
 {
-    const auto bytes = value.toUtf8();
-    scratch.assign(bytes.constData(), static_cast<std::size_t>(bytes.size()));
-    return {scratch.empty() ? nullptr : scratch.data(),
-        static_cast<uint32_t>(scratch.size())};
-}
+public:
+    explicit EntityListDrawable(const std::vector<std::unique_ptr<DmEntity>>& entities)
+        : m_entities(entities)
+    {
+    }
 
-YiCadColorData readColor(const DmColor& value) noexcept
+    void worldDraw(IGiWorldDraw& wd) const override
+    {
+        for (const auto& entity : m_entities)
+        {
+            wd.geometry().draw(*entity);
+        }
+    }
+
+private:
+    const std::vector<std::unique_ptr<DmEntity>>& m_entities;
+};
+
+bool validByteView(const YiCadByteView& view) noexcept
 {
-    if (value.isByLayer())
-    {
-        return {YICAD_COLOR_BY_LAYER, 0, 0, 0, 0, 0};
-    }
-    if (value.isByBlock())
-    {
-        return {YICAD_COLOR_BY_BLOCK, 0, 0, 0, 0, 0};
-    }
-    return {YICAD_COLOR_RGB, 0,
-        static_cast<uint8_t>(value.red()),
-        static_cast<uint8_t>(value.green()),
-        static_cast<uint8_t>(value.blue()), 0};
+    return (view.data != nullptr || view.size == 0) &&
+           view.size <= PluginEntityClass::kMaxDataSize;
 }
 
 void readAttributes(DmEntity* entity, YiCadEntityAttributes& output) noexcept
@@ -407,7 +283,10 @@ struct HostApi::EntityIteratorRecord
 
     std::vector<EntitySnapshot> entities;
     std::vector<DmEntity*> readEntities;
-    std::vector<std::unique_ptr<DmEntity>> ownedEntities;   ///< 自定义实体炸开得到的实体，readEntities 里指向它们
+    std::vector<std::unique_ptr<DmEntity>> ownedEntities;   ///< entityGraphics 做成的基本实体，readEntities 里指向它们
+    DmDocument* document = nullptr;                         ///< 所属文档
+    const DmBlock* ownerBlock = nullptr;                    ///< 枚举的块；为空是模型空间
+    std::string customData;                                 ///< 当前自定义实体的数据字节
     std::vector<std::string> strings;
     std::vector<YiCadPoint2d> points;
     std::vector<YiCadPoint2d> secondaryPoints;
@@ -433,6 +312,11 @@ struct HostApi::ImportSessionRecord
         DmBlock* block = nullptr;
         bool modelSpace = false;
         bool active = false;
+        /// @brief 收集的容器：建的实体不进文档，留在 collected 里（炸开会话的模型空间、代理图形容器）
+        bool collecting = false;
+        /// @brief 收集代理图形：属性为空的部分沿用自定义实体自己的
+        bool proxyGraphics = false;
+        std::vector<std::unique_ptr<DmEntity>> collected;
     };
 
     struct ResourceRecord
@@ -449,9 +333,20 @@ struct HostApi::ImportSessionRecord
     MacroCmd* command = nullptr;
     std::size_t initialUndoCount = 0;
     bool active = false;
+    /// @brief 炸开会话（runExplodeSession）：没有事务，不能建资源与块，宿主开、宿主关
+    bool explodeOnly = false;
+    /// @brief 炸开会话里被炸开的实体：属性为空时取它的
+    const DmEntity* explodeSource = nullptr;
     ContainerRecord modelSpace;
     std::vector<std::unique_ptr<ContainerRecord>> containers;
     std::vector<std::unique_ptr<ResourceRecord>> resources;
+};
+
+struct HostApi::EntityHandleRecord
+{
+    DmDocument* document = nullptr;
+    const DmBlock* owner = nullptr;     ///< 所在的块定义；为空是模型空间
+    DmId id;
 };
 
 thread_local HostApi* HostApi::s_activeInstance = nullptr;
@@ -462,8 +357,8 @@ HostApi::HostApi(
     : m_context(context)
     , m_registry(registry)
     , m_importApi{
-          YICAD_IMPORT_API_V3_SIZE,
-          YICAD_PLUGIN_ABI_V3,
+          YICAD_IMPORT_API_V4_SIZE,
+          YICAD_PLUGIN_ABI_V4,
           &HostApi::beginImport,
           &HostApi::commitImport,
           &HostApi::rollbackImport,
@@ -494,10 +389,12 @@ HostApi::HostApi(
           &HostApi::createDimension,
           &HostApi::createLeader,
           &HostApi::createHatch,
-          &HostApi::createImage}
+          &HostApi::createImage,
+          &HostApi::createCustomEntity,
+          &HostApi::beginProxyGraphics}
     , m_readApi{
-          static_cast<uint32_t>(sizeof(YiCadReadApi)),
-          YICAD_PLUGIN_ABI_V3,
+          YICAD_READ_API_V4_SIZE,
+          YICAD_PLUGIN_ABI_V4,
           &HostApi::readDocumentSettings,
           &HostApi::readResourceCount,
           &HostApi::readResourceAt,
@@ -509,10 +406,17 @@ HostApi::HostApi(
           &HostApi::readEntities,
           &HostApi::readEntityNext,
           &HostApi::readEntityData,
-          &HostApi::entityIteratorDestroy}
+          &HostApi::entityIteratorDestroy,
+          &HostApi::readEntityGraphics}
+    , m_entityApi{
+          static_cast<uint32_t>(sizeof(YiCadEntityApiV4)),
+          YICAD_PLUGIN_ABI_V4,
+          &HostApi::registerEntityClass,
+          &HostApi::transactionCreateCustomEntity,
+          &HostApi::transactionSetCustomEntityData}
     , m_api{
-          static_cast<uint32_t>(sizeof(YiCadHostApi)),
-          YICAD_PLUGIN_ABI_V3,
+          YICAD_HOST_API_V4_SIZE,
+          YICAD_PLUGIN_ABI_V4,
           &HostApi::message,
           &HostApi::registerCommand,
           &HostApi::registerRibbonButton,
@@ -532,7 +436,8 @@ HostApi::HostApi(
           &HostApi::entityIteratorGetCircle,
           &HostApi::entityIteratorDestroy,
           &m_importApi,
-          &m_readApi
+          &m_readApi,
+          &m_entityApi
       }
 {
     if (s_activeInstance == nullptr)
@@ -758,13 +663,10 @@ YiCadDocumentHandle YICAD_PLUGIN_CALL HostApi::currentDocument() noexcept
             return nullptr;
         }
 
+        // 不要求文档有视图：插件命令改文档用不着画布；regen、zoomAuto 自己找视图，没有就失败
         auto* document = instance->m_context.currentDocument();
-        auto* view = document == nullptr
-            ? nullptr
-            : instance->m_context.documentView(document);
         if (document == nullptr ||
-            !instance->m_context.isDocumentOpen(document) ||
-            view == nullptr || view->getDocument() != document)
+            !instance->m_context.isDocumentOpen(document))
         {
             return nullptr;
         }
@@ -1251,6 +1153,8 @@ YiCadResult YICAD_PLUGIN_CALL HostApi::readDocumentSettings(
         output->sourceCodePage = readString(
             document->getVariableString("$DWGCODEPAGE", {}),
             instance->m_readStringsScratch[0]);
+        output->currentEntityLineTypeScale =
+            document->getVariableDouble("$CELTSCALE", 1.0);
         return YICAD_SUCCESS;
     }
     catch (...)
@@ -1584,47 +1488,15 @@ YiCadEntityIteratorHandle YICAD_PLUGIN_CALL HostApi::readEntities(
         }
         auto record = std::make_unique<EntityIteratorRecord>();
         auto exportable = [&](DmEntity* entity) {
-            return dynamic_cast<DmPoint*>(entity) ||
-                    dynamic_cast<DmLine*>(entity) ||
-                    dynamic_cast<DmRay*>(entity) ||
-                    dynamic_cast<DmXline*>(entity) ||
-                    dynamic_cast<DmArc*>(entity) ||
-                    dynamic_cast<DmCircle*>(entity) ||
-                    dynamic_cast<DmEllipse*>(entity) ||
-                    dynamic_cast<DmPolyline*>(entity) ||
-                    dynamic_cast<DmSpline*>(entity) ||
-                    dynamic_cast<DmSolid*>(entity) ||
-                    dynamic_cast<DmText*>(entity) ||
-                    dynamic_cast<DmMText*>(entity) ||
-                    dynamic_cast<DmDimLinear*>(entity) ||
-                    dynamic_cast<DmDimAligned*>(entity) ||
-                    dynamic_cast<DmDimAngular*>(entity) ||
-                    dynamic_cast<DmDimRadial*>(entity) ||
-                    dynamic_cast<DmDimDiametric*>(entity) ||
-                    dynamic_cast<DmLeader*>(entity) ||
-                    dynamic_cast<DmHatch*>(entity) ||
-                    dynamic_cast<DmBlockReference*>(entity) ||
-                    dynamic_cast<DmAttributeDefinition*>(entity) ||
-                    dynamic_cast<DmAttribute*>(entity) ||
-                    (blockHandle == nullptr && dynamic_cast<DmImage*>(entity));
+            return exportableEntity(entity, blockHandle == nullptr);
         };
+        record->document = document;
         auto append = [&](auto& table) {
             for (auto* entity : table)
             {
-                if (entity->getEntityType() == DM::EntityCustom)
-                {
-                    // 插件接口没有自定义实体：交出炸开得到的基本实体（RENDER_PLAN.md 第 4.8.3 节，D6），
-                    // 代理按代理图形炸开。照 AutoCAD 写出类名与数据留给插件接口 v4
-                    for (DmEntity* part : static_cast<DmCustomEntity*>(entity)->explode())
-                    {
-                        record->ownedEntities.emplace_back(part);
-                        if (exportable(part))
-                        {
-                            record->readEntities.push_back(part);
-                        }
-                    }
-                }
-                else if (exportable(entity))
+                // v4：自定义实体（插件的、扩展的与代理）原样交出，插件按类名、数据与代理图形写出
+                // （RENDER_PLAN.md 第 4.8.3 节，第 8.4 步）
+                if (entity->getEntityType() == DM::EntityCustom || exportable(entity))
                 {
                     record->readEntities.push_back(entity);
                 }
@@ -1647,6 +1519,7 @@ YiCadEntityIteratorHandle YICAD_PLUGIN_CALL HostApi::readEntities(
             {
                 return nullptr;
             }
+            record->ownerBlock = block;
             append(block->getEntityTable());
         }
         auto* handle = record.get();
@@ -1678,7 +1551,8 @@ YiCadResult YICAD_PLUGIN_CALL HostApi::readEntityNext(
     iterator->currentIndex = iterator->nextIndex++;
     iterator->hasCurrent = true;
     auto* entity = iterator->readEntities[iterator->currentIndex];
-    if (dynamic_cast<DmAttributeDefinition*>(entity)) *type = YICAD_ENTITY_ATTRIBUTE_DEFINITION;
+    if (entity->getEntityType() == DM::EntityCustom) *type = YICAD_ENTITY_CUSTOM;
+    else if (dynamic_cast<DmAttributeDefinition*>(entity)) *type = YICAD_ENTITY_ATTRIBUTE_DEFINITION;
     else if (dynamic_cast<DmAttribute*>(entity)) *type = YICAD_ENTITY_ATTRIBUTE;
     else if (dynamic_cast<DmPoint*>(entity)) *type = YICAD_ENTITY_POINT;
     else if (dynamic_cast<DmLine*>(entity)) *type = YICAD_ENTITY_LINE;
@@ -1743,6 +1617,25 @@ YiCadResult YICAD_PLUGIN_CALL HostApi::readEntityData(
             data.textStyle = source->getStyle();
         };
 
+        if (entity->getEntityType() == DM::EntityCustom)
+        {
+            const auto* custom = static_cast<const DmCustomEntity*>(entity);
+            auto* data = static_cast<YiCadCustomEntityDataV4*>(output);
+            iterator->customData = custom->dataBytes();
+            *data = {};
+            data->structSize = static_cast<uint32_t>(sizeof(*data));
+            data->attributes = &iterator->attributes;
+            data->className = readString(custom->className(), iterator->strings[0]);
+            data->classVersion = custom->classVersion();
+            data->proxyFlags = static_cast<uint32_t>(custom->proxyFlags());
+            data->data = {reinterpret_cast<const uint8_t*>(iterator->customData.data()),
+                static_cast<uint32_t>(iterator->customData.size())};
+            data->transform = toAbiMatrix(custom->accumulatedTransform());
+            data->isProxy = custom->isProxy() ? 1U : 0U;
+            data->entity = iterator->document == nullptr ? nullptr
+                : instance->entityHandleFor(iterator->document, iterator->ownerBlock, entity);
+            return YICAD_SUCCESS;
+        }
         if (auto* value = dynamic_cast<DmAttributeDefinition*>(entity))
         {
             auto* data = static_cast<YiCadAttributeDefinitionDataV3*>(output);
@@ -1833,14 +1726,16 @@ YiCadResult YICAD_PLUGIN_CALL HostApi::readEntityData(
             auto* data = static_cast<YiCadPolylineDataV3*>(output);
             const auto source = value->getData();
             const auto points = source.getVertexs();
+            const auto bulges = source.getBulges();
+            const auto widths = source.getLineWeights();
             iterator->vertices.reserve(points.size());
-            for (int index = 0; index < static_cast<int>(points.size()); ++index)
+            for (std::size_t index = 0; index < points.size(); ++index)
             {
-                double startWidth = 0.0;
-                double endWidth = 0.0;
-                source.getLineWeightsAt(index, startWidth, endWidth);
-                iterator->vertices.push_back({readPoint(points[index]),
-                    startWidth, endWidth, source.getBulgeAt(index)});
+                // 凸度与宽度按段存：开放多段线比顶点少一段，末顶点没有，交 0
+                const double startWidth = 2 * index + 1 < widths.size() ? widths[2 * index] : 0.0;
+                const double endWidth = 2 * index + 1 < widths.size() ? widths[2 * index + 1] : 0.0;
+                const double bulge = index < bulges.size() ? bulges[index] : 0.0;
+                iterator->vertices.push_back({readPoint(points[index]), startWidth, endWidth, bulge});
             }
             *data = {};
             data->structSize = static_cast<uint32_t>(sizeof(*data));
@@ -2248,6 +2143,12 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::commitImport(
                   YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
+    if (record->explodeOnly)
+    {
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "炸开会话由宿主结束，插件不能提交");
+    }
     if (!instance->m_context.isDocumentOpen(record->document))
     {
         instance->releaseImportSession(record);
@@ -2324,6 +2225,12 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::rollbackImport(
                   YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
+    if (record->explodeOnly)
+    {
+        return instance->setImportError(
+            YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "炸开会话由宿主结束，插件不能回滚");
+    }
     if (!instance->m_context.isDocumentOpen(record->document))
     {
         instance->releaseImportSession(record);
@@ -2390,7 +2297,17 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::setDocumentSettings(
             : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
                   "导入会话句柄无效或已过期");
     }
+    if (session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话不能修改文档设置");
+    }
     QString codePage;
+    // v4 追加的 CELTSCALE：结构没覆盖它时按 1
+    const bool hasCurrentScale = hasStructField(settings == nullptr ? 0 : settings->structSize,
+        offsetof(YiCadDocumentSettings, currentEntityLineTypeScale),
+        sizeof(double));
+    const double currentScale = hasCurrentScale ? settings->currentEntityLineTypeScale : 1.0;
     if (settings == nullptr ||
         !validStructPrefix(
             settings->structSize, YICAD_DOCUMENT_SETTINGS_V3_MIN_SIZE) ||
@@ -2398,6 +2315,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::setDocumentSettings(
         (settings->measurement != 0 && settings->measurement != 1) ||
         !std::isfinite(settings->globalLineTypeScale) ||
         settings->globalLineTypeScale <= 0.0 ||
+        !std::isfinite(currentScale) || currentScale <= 0.0 ||
         !copyStringView(settings->sourceCodePage, codePage))
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
@@ -2410,6 +2328,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::setDocumentSettings(
         variables.insert("$INSUNITS", DmVariable(settings->insertionUnits, 70));
         variables.insert("$MEASUREMENT", DmVariable(settings->measurement, 70));
         variables.insert("$LTSCALE", DmVariable(settings->globalLineTypeScale, 40));
+        variables.insert("$CELTSCALE", DmVariable(currentScale, 40));
         variables.insert("$DWGCODEPAGE", DmVariable(codePage, 3));
         auto* command = new ModifyDocVariablesCmd(session->document, variables);
         session->document->getCmdManager()->addAndExecuteCmd(command);
@@ -2442,6 +2361,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
+    if (session != nullptr && session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话不能建资源与块");
+    }
     QString name;
     QString description;
     if (session == nullptr || input == nullptr || resource == nullptr ||
@@ -2458,7 +2382,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLineType(
     if (input->complex != 0)
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
-            "ABI v3 不支持含文字或形文件的复杂线型");
+            "插件接口不支持含文字或形文件的复杂线型");
     }
     if ((input->elements.data == nullptr && input->elements.count != 0) ||
         !validDoubleArray(input->elements))
@@ -2588,6 +2512,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLayer(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
+    if (session != nullptr && session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话不能建资源与块");
+    }
     QString name;
     DmColor color;
     if (session == nullptr || input == nullptr || resource == nullptr ||
@@ -2700,6 +2629,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createTextStyle(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
+    if (session != nullptr && session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话不能建资源与块");
+    }
     QString name;
     QString fontFile;
     QString bigFontFile;
@@ -2893,6 +2827,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createDimensionStyle(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
+    if (session != nullptr && session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话不能建资源与块");
+    }
     QString name;
     QString prefix;
     QString suffix;
@@ -3951,6 +3890,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginBlock(
     auto* session = instance == nullptr
         ? nullptr
         : instance->resolveImportSession(sessionHandle);
+    if (session != nullptr && session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话不能建资源与块");
+    }
     QString name;
     QString description;
     QString path;
@@ -4129,6 +4073,11 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createInsert(
             finalized = resource->finalized;
             break;
         }
+    }
+    if (targetContainer != nullptr && targetContainer->collecting)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "代理图形与炸开结果里不能建块引用");
     }
     if (targetContainer == nullptr || block == nullptr || !finalized)
     {
@@ -4373,7 +4322,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createAttribute(
         auto attribute = std::make_unique<DmAttribute>(nullptr, textData,
             AttributeData(tag));
         result = instance->applyImportEntityAttributes(
-            session, input->text->attributes, attribute.get());
+            session, container, input->text->attributes, attribute.get());
         if (result != YICAD_IMPORT_SUCCESS)
         {
             return result;
@@ -4619,7 +4568,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
         }
         auto leader = std::make_unique<DmLeader>(nullptr, leaderData);
         auto result = instance->applyImportEntityAttributes(
-            session, input->attributes, leader.get());
+            session, container, input->attributes, leader.get());
         if (result != YICAD_IMPORT_SUCCESS)
         {
             return result;
@@ -4646,7 +4595,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
             }
             textEntity = std::make_unique<DmText>(nullptr, textData);
             result = instance->applyImportEntityAttributes(
-                session, input->text->attributes, textEntity.get());
+                session, container, input->text->attributes, textEntity.get());
             if (result != YICAD_IMPORT_SUCCESS)
             {
                 return result;
@@ -4658,15 +4607,10 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createLeader(
         {
             textEntity->update();
         }
-        auto* table = container->modelSpace
-            ? session->document->getEntityTable()
-            : &container->block->getEntityTable();
-        table->add(leader.get());
-        leader.release();
+        instance->insertImportEntity(session, container, std::move(leader));
         if (textEntity != nullptr)
         {
-            table->add(textEntity.get());
-            textEntity.release();
+            instance->insertImportEntity(session, container, std::move(textEntity));
         }
         instance->clearImportError();
         return YICAD_IMPORT_SUCCESS;
@@ -5110,7 +5054,7 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
             hatchData.setBoundary(region);
             auto hatch = std::make_unique<DmHatch>(nullptr, hatchData);
             auto result = instance->applyImportEntityAttributes(
-                session, input->attributes, hatch.get());
+                session, targetContainer, input->attributes, hatch.get());
             if (result != YICAD_IMPORT_SUCCESS)
             {
                 return result;
@@ -5119,13 +5063,9 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createHatch(
             hatches.push_back(std::move(hatch));
         }
 
-        auto* table = targetContainer->modelSpace
-            ? session->document->getEntityTable()
-            : &targetContainer->block->getEntityTable();
         for (auto& hatch : hatches)
         {
-            table->add(hatch.get());
-            hatch.release();
+            instance->insertImportEntity(session, targetContainer, std::move(hatch));
         }
         instance->clearImportError();
         return YICAD_IMPORT_SUCCESS;
@@ -5208,6 +5148,540 @@ YiCadImportResult YICAD_PLUGIN_CALL HostApi::createImage(
     {
         return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
             "创建图像实体失败");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// v4：自定义实体（RENDER_PLAN.md 第 4.8.3 节）
+// ---------------------------------------------------------------------------
+
+YiCadResult YICAD_PLUGIN_CALL HostApi::registerEntityClass(
+    const char* pluginId,
+    const YiCadEntityClassV4* table) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        QString plugin;
+        QString name;
+        if (instance == nullptr || !copyUtf8(pluginId, plugin) || plugin.isEmpty() ||
+            table == nullptr ||
+            !validStructPrefix(table->structSize, YICAD_ENTITY_CLASS_V4_MIN_SIZE) ||
+            table->abiVersion != YICAD_PLUGIN_ABI_V4 ||
+            !copyStringView(table->className, name) ||
+            !name.startsWith(plugin + QLatin1Char('.')) ||
+            name.size() <= plugin.size() + 1 ||
+            (table->proxyFlags & ~YICAD_PROXY_ALL) != 0 ||
+            (table->flags & ~YICAD_ENTITY_CLASS_THREAD_SAFE_DRAW) != 0 ||
+            table->worldDraw == nullptr || table->getExtents == nullptr ||
+            table->transform == nullptr ||
+            (table->createCache == nullptr) != (table->destroyCache == nullptr) ||
+            (table->getGrips == nullptr) != (table->moveGrips == nullptr))
+        {
+            return YICAD_FAILURE;
+        }
+        auto entityClass = std::make_shared<PluginEntityClass>(plugin, *table, *instance);
+        return toResult(instance->m_registry.stageEntityClass(plugin, std::move(entityClass)));
+    }
+    catch (...)
+    {
+        return YICAD_FAILURE;
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::transactionCreateCustomEntity(
+    YiCadTransactionHandle transactionHandle,
+    const YiCadCustomEntityDataV4* input,
+    YiCadEntityHandle* entityHandle) noexcept
+{
+    if (entityHandle != nullptr)
+    {
+        *entityHandle = nullptr;
+    }
+    auto* instance = activeInstance();
+    auto* record = instance == nullptr ? nullptr : instance->resolveTransaction(transactionHandle);
+    if (record == nullptr || !instance->m_context.isDocumentOpen(record->document))
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "事务句柄无效或所属文档已关闭");
+    }
+    QString className;
+    if (input == nullptr ||
+        !validStructPrefix(input->structSize, YICAD_CUSTOM_ENTITY_DATA_V4_MIN_SIZE) ||
+        !copyStringView(input->className, className) || className.isEmpty() ||
+        !validByteView(input->data) || input->data.size == 0 ||
+        !finiteMatrix(input->transform) || input->proxyGraphics != nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "自定义实体参数无效");
+    }
+    const YiCadEntityAttributes* attributes = input->attributes;
+    DmColor color(DM::FlagByLayer);
+    if (attributes != nullptr &&
+        (!validStructPrefix(attributes->structSize, YICAD_ENTITY_ATTRIBUTES_V3_MIN_SIZE) ||
+         attributes->layer != nullptr || attributes->lineType != nullptr ||
+         !validLineWidth(attributes->lineWidth) || !std::isfinite(attributes->lineTypeScale) ||
+         attributes->lineTypeScale <= 0.0 || attributes->visible > 1 ||
+         !toDmColor(attributes->color, color)))
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "事务里的实体属性无效（不能引用导入资源）");
+    }
+    try
+    {
+        DmDocument* document = record->document;
+        std::unique_ptr<DmCustomEntity> entity(
+            DmCustomEntityRegistry::instance().create(className));
+        if (entity == nullptr)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+                "实体类没有登记");
+        }
+        if (input->classVersion != entity->classVersion())
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_RANGE,
+                "数据版本与实体类的当前版本不同");
+        }
+        // 同 v3 的约定：属性为空时取当前图层、随层、标准线宽 -1、线型比例 1
+        entity->setDocument(document);
+        entity->setLayer(document->getLayerTable()->getActive());
+        entity->setPen(DmPen(color,
+            static_cast<DM::LineWidth>(attributes != nullptr ? attributes->lineWidth : -1),
+            document->getLineTypeTable()->getLineTypeByLayer()));
+        entity->setLineTypeScale(attributes != nullptr ? attributes->lineTypeScale : 1.0);
+        entity->setVisible(attributes == nullptr || attributes->visible != 0);
+        const std::string bytes(reinterpret_cast<const char*>(input->data.data), input->data.size);
+        if (!entity->assignDataBytes(bytes, input->classVersion, toGiTransform(input->transform)))
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                "实体类读不了这段数据");
+        }
+        EntityTable* table = document->getEntityTable();
+        DmEntity* raw = entity.get();
+        table->add(raw);
+        entity.release();
+        if (entityHandle != nullptr)
+        {
+            *entityHandle = instance->entityHandleFor(document, table->ownerBlock(), raw);
+        }
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建自定义实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建自定义实体失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::transactionSetCustomEntityData(
+    YiCadTransactionHandle transactionHandle,
+    YiCadEntityHandle entityHandle,
+    YiCadByteView data) noexcept
+{
+    auto* instance = activeInstance();
+    auto* record = instance == nullptr ? nullptr : instance->resolveTransaction(transactionHandle);
+    if (record == nullptr || !instance->m_context.isDocumentOpen(record->document))
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "事务句柄无效或所属文档已关闭");
+    }
+    if (!validByteView(data) || data.size == 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "自定义实体的数据无效");
+    }
+    DmDocument* document = nullptr;
+    EntityTable* table = nullptr;
+    DmEntity* entity = instance->resolveEntityHandle(entityHandle, &document, &table);
+    if (entity == nullptr || document != record->document ||
+        entity->getEntityType() != DM::EntityCustom)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "实体句柄无效、已不在文档里或不属于事务所在的文档");
+    }
+    auto* custom = static_cast<DmCustomEntity*>(entity);
+    if (custom->isProxy())
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "代理实体的数据不能改");
+    }
+    try
+    {
+        // 先记下改动前的数据（撤销用），再换数据
+        table->startModify(custom);
+        const std::string bytes(reinterpret_cast<const char*>(data.data), data.size);
+        if (!custom->assignDataBytes(bytes, custom->classVersion()))
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+                "实体类读不了这段数据");
+        }
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "修改自定义实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "修改自定义实体失败");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::beginProxyGraphics(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle* graphics) noexcept
+{
+    if (graphics != nullptr)
+    {
+        *graphics = nullptr;
+    }
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr ? nullptr : instance->resolveImportSession(sessionHandle);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    if (graphics == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "代理图形容器输出参数为空");
+    }
+    if (session->explodeOnly)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "炸开会话里不能收集代理图形");
+    }
+    try
+    {
+        auto container = std::make_unique<ImportSessionRecord::ContainerRecord>();
+        container->document = session->document;
+        container->active = true;
+        container->collecting = true;
+        container->proxyGraphics = true;
+        *graphics = static_cast<void*>(container.get());
+        session->containers.push_back(std::move(container));
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (...)
+    {
+        *graphics = nullptr;
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "建代理图形容器时内存不足");
+    }
+}
+
+YiCadImportResult YICAD_PLUGIN_CALL HostApi::createCustomEntity(
+    YiCadImportSessionHandle sessionHandle,
+    YiCadImportContainerHandle containerHandle,
+    const YiCadCustomEntityDataV4* input) noexcept
+{
+    auto* instance = activeInstance();
+    auto* session = instance == nullptr ? nullptr : instance->resolveImportSession(sessionHandle);
+    if (session == nullptr)
+    {
+        return instance == nullptr ? YICAD_IMPORT_ERROR_INVALID_HANDLE
+            : instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                  "导入会话句柄无效或已过期");
+    }
+    QString className;
+    if (input == nullptr ||
+        !validStructPrefix(input->structSize, YICAD_CUSTOM_ENTITY_DATA_V4_MIN_SIZE) ||
+        !copyStringView(input->className, className) || className.isEmpty() ||
+        !validByteView(input->data) || !finiteMatrix(input->transform) ||
+        (input->proxyFlags & ~YICAD_PROXY_ALL) != 0)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
+            "自定义实体参数无效");
+    }
+    auto* container = static_cast<ImportSessionRecord::ContainerRecord*>(
+        instance->resolveImportContainer(session, containerHandle));
+    if (container == nullptr)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+            "导入容器句柄无效或已过期");
+    }
+    if (container->proxyGraphics)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_UNSUPPORTED,
+            "代理图形里不能建自定义实体");
+    }
+    ImportSessionRecord::ContainerRecord* graphics = nullptr;
+    if (input->proxyGraphics != nullptr)
+    {
+        graphics = static_cast<ImportSessionRecord::ContainerRecord*>(
+            instance->resolveImportContainer(session, input->proxyGraphics));
+        if (graphics == nullptr || !graphics->proxyGraphics)
+        {
+            return instance->setImportError(YICAD_IMPORT_ERROR_INVALID_HANDLE,
+                "代理图形容器句柄无效或已用过");
+        }
+    }
+    try
+    {
+        const std::string bytes(reinterpret_cast<const char*>(input->data.data), input->data.size);
+        const GiTransform transform = toGiTransform(input->transform);
+        // 类登记了且读得了数据：原实体
+        std::unique_ptr<DmCustomEntity> entity(
+            DmCustomEntityRegistry::instance().create(className));
+        if (entity != nullptr)
+        {
+            const auto result = instance->applyImportEntityAttributes(
+                session, container, input->attributes, entity.get());
+            if (result != YICAD_IMPORT_SUCCESS)
+            {
+                return result;
+            }
+            if (!entity->assignDataBytes(bytes, input->classVersion, transform))
+            {
+                entity.reset();
+            }
+        }
+        // 否则代理：类名、版本、字节与累计变换原样保管，按收集的代理图形显示
+        if (entity == nullptr)
+        {
+            auto proxy = std::make_unique<DmProxyEntity>(
+                className, static_cast<DmProxyFlags>(input->proxyFlags));
+            const auto result = instance->applyImportEntityAttributes(
+                session, container, input->attributes, proxy.get());
+            if (result != YICAD_IMPORT_SUCCESS)
+            {
+                return result;
+            }
+            if (graphics != nullptr)
+            {
+                proxy->setProxyGraphics(GiStreamRecorder::record(
+                    EntityListDrawable(graphics->collected), GiRegenType::ProxyGraphics));
+            }
+            proxy->assignDataBytes(bytes, input->classVersion, transform);
+            entity = std::move(proxy);
+        }
+        if (graphics != nullptr)
+        {
+            // 容器用过即失效
+            graphics->collected.clear();
+            graphics->active = false;
+        }
+        instance->insertImportEntity(session, container, std::move(entity));
+        instance->clearImportError();
+        return YICAD_IMPORT_SUCCESS;
+    }
+    catch (const std::bad_alloc&)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_OUT_OF_MEMORY,
+            "创建自定义实体时内存不足");
+    }
+    catch (...)
+    {
+        return instance->setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "创建自定义实体失败");
+    }
+}
+
+YiCadEntityIteratorHandle YICAD_PLUGIN_CALL HostApi::readEntityGraphics(
+    YiCadEntityIteratorHandle iteratorHandle) noexcept
+{
+    try
+    {
+        auto* instance = activeInstance();
+        auto* iterator = instance == nullptr
+            ? nullptr : instance->resolveEntityIterator(iteratorHandle);
+        if (iterator == nullptr || !iterator->hasCurrent ||
+            iterator->currentIndex >= iterator->readEntities.size())
+        {
+            return nullptr;
+        }
+        DmEntity* entity = iterator->readEntities[iterator->currentIndex];
+        if (entity->getEntityType() != DM::EntityCustom)
+        {
+            return nullptr;
+        }
+        auto record = std::make_unique<EntityIteratorRecord>();
+        record->document = iterator->document;
+        // 写进别的格式的代理图形：块展开、填充保留、文字为笔画、样条为多段线
+        for (DmGiExplode::Item& item : DmGiExplode::run(
+                 *entity, entity->getDocument(), DmGiExplode::Purpose::Graphics))
+        {
+            DmEntity* part = item.entity.get();
+            record->ownedEntities.push_back(std::move(item.entity));
+            if (exportableEntity(part, true))
+            {
+                record->readEntities.push_back(part);
+            }
+        }
+        auto* handle = record.get();
+        instance->m_entityIterators.push_back(std::move(record));
+        return handle;
+    }
+    catch (...)
+    {
+        return nullptr;
+    }
+}
+
+bool HostApi::runExplodeSession(
+    const DmEntity& entity,
+    const std::function<YiCadResult(YiCadImportSessionHandle, YiCadImportContainerHandle)>& explode,
+    std::vector<DmEntity*>& out) noexcept
+{
+    out.clear();
+    DmDocument* document = entity.getDocument();
+    if (!m_active || document == nullptr || !explode)
+    {
+        return false;
+    }
+    ImportSessionRecord* raw = nullptr;
+    try
+    {
+        auto record = std::make_unique<ImportSessionRecord>();
+        record->document = document;
+        record->explodeOnly = true;
+        record->explodeSource = &entity;
+        record->modelSpace.document = document;
+        record->modelSpace.modelSpace = true;
+        record->modelSpace.active = true;
+        record->modelSpace.collecting = true;
+        record->active = true;
+        raw = record.get();
+        m_importSessions.push_back(std::move(record));
+
+        const YiCadResult result = explode(raw, &raw->modelSpace);
+        std::vector<std::unique_ptr<DmEntity>> collected = std::move(raw->modelSpace.collected);
+        releaseImportSession(raw);
+        m_importSessions.erase(std::remove_if(m_importSessions.begin(), m_importSessions.end(),
+            [raw](const auto& item) { return item.get() == raw; }), m_importSessions.end());
+        if (result != YICAD_SUCCESS)
+        {
+            return false;
+        }
+        out.reserve(collected.size());
+        for (auto& part : collected)
+        {
+            part->setParent(nullptr);
+            out.push_back(part.release());
+        }
+        return true;
+    }
+    catch (...)
+    {
+        for (DmEntity* part : out)
+        {
+            delete part;
+        }
+        out.clear();
+        if (raw != nullptr)
+        {
+            releaseImportSession(raw);
+        }
+        return false;
+    }
+}
+
+void HostApi::insertImportEntity(
+    ImportSessionRecord* session,
+    void* containerHandle,
+    std::unique_ptr<DmEntity> entity)
+{
+    auto* container = static_cast<ImportSessionRecord::ContainerRecord*>(containerHandle);
+    if (container->collecting)
+    {
+        container->collected.push_back(std::move(entity));
+        return;
+    }
+    auto* table = container->modelSpace
+        ? session->document->getEntityTable()
+        : &container->block->getEntityTable();
+    table->add(entity.get());
+    entity.release();
+}
+
+YiCadEntityHandle HostApi::entityHandleFor(
+    DmDocument* document,
+    const DmBlock* owner,
+    DmEntity* entity)
+{
+    const DmId id = entity->getId();
+    for (const auto& record : m_entityHandles)
+    {
+        if (record->document == document && record->owner == owner && record->id == id)
+        {
+            return static_cast<void*>(record.get());
+        }
+    }
+    auto record = std::make_unique<EntityHandleRecord>();
+    record->document = document;
+    record->owner = owner;
+    record->id = id;
+    auto* handle = record.get();
+    m_entityHandles.push_back(std::move(record));
+    return static_cast<void*>(handle);
+}
+
+DmEntity* HostApi::resolveEntityHandle(
+    YiCadEntityHandle handle,
+    DmDocument** document,
+    EntityTable** table) const noexcept
+{
+    try
+    {
+        for (const auto& record : m_entityHandles)
+        {
+            if (static_cast<const void*>(record.get()) != handle)
+            {
+                continue;
+            }
+            if (!m_context.isDocumentOpen(record->document))
+            {
+                return nullptr;
+            }
+            EntityTable* owner = nullptr;
+            if (record->owner == nullptr)
+            {
+                owner = record->document->getDocumentEntityTable();
+            }
+            else
+            {
+                for (auto* block : *record->document->getBlockTable())
+                {
+                    if (block == record->owner)
+                    {
+                        owner = &block->getEntityTable();
+                        break;
+                    }
+                }
+            }
+            DmEntity* entity = owner == nullptr ? nullptr : owner->find(record->id);
+            if (entity != nullptr)
+            {
+                if (document != nullptr)
+                {
+                    *document = record->document;
+                }
+                if (table != nullptr)
+                {
+                    *table = owner;
+                }
+            }
+            return entity;
+        }
+        return nullptr;
+    }
+    catch (...)
+    {
+        return nullptr;
     }
 }
 
@@ -5370,11 +5844,13 @@ void HostApi::releaseImportSession(ImportSessionRecord* record) noexcept
     record->active = false;
     record->modelSpace.active = false;
     record->modelSpace.document = nullptr;
+    record->modelSpace.collected.clear();
     for (auto& container : record->containers)
     {
         container->active = false;
         container->document = nullptr;
         container->block = nullptr;
+        container->collected.clear();
     }
     for (auto& resource : record->resources)
     {
@@ -5424,7 +5900,7 @@ void* HostApi::resolveImportContainer(
     {
         if (container->active && !container->modelSpace &&
             container->document == session->document &&
-            container->block != nullptr &&
+            (container->block != nullptr || container->collecting) &&
             static_cast<const void*>(container.get()) == handle)
         {
             return container.get();
@@ -5485,13 +5961,47 @@ YiCadImportResult HostApi::normalizeImportEntityAttributes(
 
 YiCadImportResult HostApi::applyImportEntityAttributes(
     ImportSessionRecord* session,
+    const void* containerHandle,
     const YiCadEntityAttributes* input,
     DmEntity* entity) noexcept
 {
-    if (entity == nullptr)
+    if (entity == nullptr || session == nullptr)
     {
         return setImportError(YICAD_IMPORT_ERROR_INVALID_ARGUMENT,
             "实体公共属性的目标实体为空");
+    }
+    const auto* container =
+        static_cast<const ImportSessionRecord::ContainerRecord*>(containerHandle);
+    // 收集代理图形：属性为空的部分沿用自定义实体自己的（嵌套绘制里随块、图层为空即取外层）
+    const bool proxyGraphics = container != nullptr && container->proxyGraphics;
+    // 炸开会话：属性为空的部分取被炸开的实体的
+    const DmEntity* source = session->explodeOnly ? session->explodeSource : nullptr;
+    try
+    {
+        if (input == nullptr && source != nullptr)
+        {
+            entity->setDocument(session->document);
+            entity->setLayer(source->getLayer(false));
+            entity->setPen(source->getPen(false));
+            entity->setLineTypeScale(source->getLineTypeScale());
+            entity->setVisible(source->isVisible());
+            return YICAD_IMPORT_SUCCESS;
+        }
+        if (input == nullptr && proxyGraphics)
+        {
+            entity->setDocument(session->document);
+            entity->setLayer(nullptr);
+            entity->setPen(DmPen(DmColor(DM::FlagByBlock), DM::WidthByBlock,
+                session->document->getLineTypeTable()->getLineTypeByBlock()));
+            entity->setLineTypeScale(1.0);
+            entity->setVisible(true);
+            return YICAD_IMPORT_SUCCESS;
+        }
+    }
+    catch (...)
+    {
+        return setImportError(YICAD_IMPORT_ERROR_TRANSACTION_FAILED,
+            "设置实体公共属性失败");
     }
     YiCadEntityAttributes attributes{};
     const auto normalized = normalizeImportEntityAttributes(
@@ -5516,16 +6026,34 @@ YiCadImportResult HostApi::applyImportEntityAttributes(
             "实体颜色字段无效");
     }
 
-    auto* layer = attributes.layer == nullptr
-        ? session->document->getLayerTable()->getActive()
-        : static_cast<DmLayer*>(resolveImportResource(
-              session, attributes.layer, ImportResourceLayer));
-    // 没给线型即随层：本文档线型表里的 ByLayer 保留记录
-    auto* lineType = attributes.lineType == nullptr
-        ? session->document->getLineTypeTable()->getLineTypeByLayer()
-        : static_cast<DmLineType*>(resolveImportResource(
-              session, attributes.lineType, ImportResourceLineType));
-    if (layer == nullptr || lineType == nullptr)
+    // 没给图层：一般取当前图层；炸开取被炸开的实体的图层；代理图形取外层（为空）
+    DmLayer* layer = nullptr;
+    if (attributes.layer != nullptr)
+    {
+        layer = static_cast<DmLayer*>(resolveImportResource(
+            session, attributes.layer, ImportResourceLayer));
+        if (layer == nullptr)
+        {
+            return setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
+                "实体引用的图层句柄无效");
+        }
+    }
+    else if (source != nullptr)
+    {
+        layer = source->getLayer(false);
+    }
+    else if (!proxyGraphics)
+    {
+        layer = session->document->getLayerTable()->getActive();
+    }
+    // 没给线型即随层（本文档线型表里的 ByLayer 保留记录）；代理图形里即随块
+    auto* lineType = attributes.lineType != nullptr
+        ? static_cast<DmLineType*>(resolveImportResource(
+              session, attributes.lineType, ImportResourceLineType))
+        : proxyGraphics
+            ? session->document->getLineTypeTable()->getLineTypeByBlock()
+            : session->document->getLineTypeTable()->getLineTypeByLayer();
+    if ((layer == nullptr && !proxyGraphics && source == nullptr) || lineType == nullptr)
     {
         return setImportError(YICAD_IMPORT_ERROR_RESOURCE_NOT_FOUND,
             "实体引用的图层或线型句柄无效");
@@ -5557,17 +6085,13 @@ YiCadImportResult HostApi::addImportEntity(
     try
     {
         const auto attributeResult = applyImportEntityAttributes(
-            session, attributes, entity.get());
+            session, containerRecord, attributes, entity.get());
         if (attributeResult != YICAD_IMPORT_SUCCESS)
         {
             return attributeResult;
         }
         entity->update();
-        auto* table = containerRecord->modelSpace
-            ? session->document->getEntityTable()
-            : &containerRecord->block->getEntityTable();
-        table->add(entity.get());
-        entity.release();
+        insertImportEntity(session, containerRecord, std::move(entity));
         clearImportError();
         return YICAD_IMPORT_SUCCESS;
     }

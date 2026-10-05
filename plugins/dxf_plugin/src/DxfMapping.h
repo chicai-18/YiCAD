@@ -100,6 +100,9 @@ bool writeEntity(
 bool writeEntity(dxfRW& writer, const yicad::plugin::AttributeData& value);
 bool writeEntity(dxfRW& writer, const yicad::plugin::ImageData& value);
 
+/// @brief 把实体公共属性写进 libdxfrw 实体（图层、线型、颜色、线宽、线型比例、可见性）
+void applyAttributes(DRW_Entity& target, const yicad::plugin::EntityAttributes& attributes);
+
 } // namespace dxf
 
 #endif

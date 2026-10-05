@@ -13,14 +13,16 @@
 #define YICAD_PLUGIN_ABI_V1 UINT32_C(1)
 /** @brief 历史版本号，仅用于说明既有字段来源。 */
 #define YICAD_PLUGIN_ABI_V2 UINT32_C(2)
-/** @brief 当前且唯一受支持的插件 ABI 版本号。 */
+/** @brief 历史版本号，仅用于说明既有字段来源（名字带 V3 的结构是这一版引入的，布局在 v4 不变）。 */
 #define YICAD_PLUGIN_ABI_V3 UINT32_C(3)
+/** @brief 当前且唯一受支持的插件 ABI 版本号：v3 加自定义实体（各函数表尾部追加）。 */
+#define YICAD_PLUGIN_ABI_V4 UINT32_C(4)
 /** @brief 当前 SDK 支持的最低 C ABI 版本。 */
-#define YICAD_PLUGIN_ABI_MIN_VERSION YICAD_PLUGIN_ABI_V3
+#define YICAD_PLUGIN_ABI_MIN_VERSION YICAD_PLUGIN_ABI_V4
 /** @brief 当前 SDK 支持的最高 C ABI 版本。 */
-#define YICAD_PLUGIN_ABI_MAX_VERSION YICAD_PLUGIN_ABI_V3
+#define YICAD_PLUGIN_ABI_MAX_VERSION YICAD_PLUGIN_ABI_V4
 /** @brief 当前 C ABI 版本。 */
-#define YICAD_PLUGIN_ABI_VERSION YICAD_PLUGIN_ABI_V3
+#define YICAD_PLUGIN_ABI_VERSION YICAD_PLUGIN_ABI_V4
 
 #if defined(_WIN32)
 #define YICAD_PLUGIN_CALL __cdecl
@@ -165,7 +167,9 @@ typedef int32_t YiCadResourceConflictPolicy;
 /**
  * @brief 文档设置；代码页仅作为源文件元数据保存。
  * @note insertionUnits 范围为 0..20；measurement 为 0 或 1；
- * globalLineTypeScale 必须大于 0；sourceCodePage 可为空。
+ * globalLineTypeScale（LTSCALE）必须大于 0；sourceCodePage 可为空。
+ * @note v4 追加 currentEntityLineTypeScale（CELTSCALE，新建实体的线型比例），
+ * 必须大于 0；structSize 不覆盖它时按 1 处理。
  */
 typedef struct YiCadDocumentSettings
 {
@@ -174,6 +178,7 @@ typedef struct YiCadDocumentSettings
     int32_t measurement;
     double globalLineTypeScale;
     YiCadStringView sourceCodePage;
+    double currentEntityLineTypeScale;
 } YiCadDocumentSettings;
 
 /**
@@ -820,12 +825,326 @@ typedef int32_t YiCadEntityType;
 #define YICAD_ENTITY_ATTRIBUTE_DEFINITION ((YiCadEntityType)17)
 #define YICAD_ENTITY_ATTRIBUTE ((YiCadEntityType)18)
 #define YICAD_ENTITY_IMAGE ((YiCadEntityType)19)
+/** @brief v4：自定义实体（插件的、进程内扩展的与代理），数据为 YiCadCustomEntityDataV4。 */
+#define YICAD_ENTITY_CUSTOM ((YiCadEntityType)20)
 
 typedef int32_t YiCadReadResourceKind;
 #define YICAD_READ_LINE_TYPE ((YiCadReadResourceKind)1)
 #define YICAD_READ_LAYER ((YiCadReadResourceKind)2)
 #define YICAD_READ_TEXT_STYLE ((YiCadReadResourceKind)3)
 #define YICAD_READ_DIMENSION_STYLE ((YiCadReadResourceKind)4)
+/** @brief v4：块定义；只用于 GI 的 findResource（只读枚举的块另有 blockCount、blockAt）。 */
+#define YICAD_READ_BLOCK ((YiCadReadResourceKind)5)
+
+/* ==========================================================================
+ * ABI v4：插件自定义实体（RENDER_PLAN.md 第 4.8.3 节）
+ *
+ * 实体的数据是宿主保管的一段字节，编码由插件自己定义；插件提供的是一组纯函数，输入都是这段字节
+ * （YiCadEntityClassV4）。撤销、存盘、读盘、插件缺失时的代理显示都由宿主处理，插件不参与。
+ * 插件画实体时经宿主的 GI 表（YiCadGiApiV4）输出图元。
+ * ========================================================================== */
+
+/** @brief 宿主持有的文档实体引用；所属文档打开且实体仍在文档里时有效，插件不得释放。 */
+typedef void* YiCadEntityHandle;
+/** @brief 宿主持有的 GI 上下文，只在一次 worldDraw 调用期间有效。 */
+typedef void* YiCadGiContextHandle;
+
+/** @brief 只读字节视图；在调用期间借用。 */
+typedef struct YiCadByteView
+{
+    const uint8_t* data;
+    uint32_t size;
+} YiCadByteView;
+
+/**
+ * @brief 宿主提供的字节输出：插件经 write 追加字节，可以调用多次，结果是各次的拼接。
+ * @note 只在交出它的那次调用期间有效。
+ */
+typedef struct YiCadByteSink
+{
+    uint32_t structSize;
+    void* context;
+    YiCadResult (YICAD_PLUGIN_CALL* write)(
+        void* context, const uint8_t* data, uint32_t size);
+} YiCadByteSink;
+
+/**
+ * @brief 宿主提供的点输出：插件经 add 追加点，可以调用多次。
+ * @note 只在交出它的那次调用期间有效。
+ */
+typedef struct YiCadPointSink
+{
+    uint32_t structSize;
+    void* context;
+    YiCadResult (YICAD_PLUGIN_CALL* add)(
+        void* context, const YiCadPoint2d* points, uint32_t count);
+} YiCadPointSink;
+
+/** @brief 二维仿射变换：x' = a·x + c·y + tx，y' = b·x + d·y + ty。 */
+typedef struct YiCadMatrix2d
+{
+    double a;
+    double b;
+    double c;
+    double d;
+    double tx;
+    double ty;
+} YiCadMatrix2d;
+
+/** @brief 包围框。 */
+typedef struct YiCadExtents2d
+{
+    YiCadPoint2d minPoint;
+    YiCadPoint2d maxPoint;
+} YiCadExtents2d;
+
+/** @brief GI 多段线的标志：闭合。 */
+#define YICAD_GI_POLYLINE_CLOSED UINT32_C(1)
+/** @brief GI 多段线的标志：线型生成（整条连续计算线型，顶点处不重新对齐）。 */
+#define YICAD_GI_POLYLINE_CONTINUOUS_LINETYPE UINT32_C(2)
+/** @brief GI 填充规则：奇偶。 */
+#define YICAD_GI_FILL_EVEN_ODD UINT32_C(0)
+/** @brief GI 填充规则：非零环绕数。 */
+#define YICAD_GI_FILL_NON_ZERO UINT32_C(1)
+
+/** @brief GI 填充的一个闭合环：顶点与每段的凸度，最后一点连回第一点；bulges 为空或与 points 等长。 */
+typedef struct YiCadGiLoopV4
+{
+    YiCadPoint2dArrayView points;
+    YiCadDoubleArrayView bulges;
+} YiCadGiLoopV4;
+
+/**
+ * @brief 填充图案的一族平行线（同 AutoCAD HATCH 的组码 53/43/44/45/46/49）。
+ * @note basePoint 是一条线经过的点；direction 是线的方向，非零；offset 是到下一条线的位移，
+ * 不平行于 direction；dashes 正数划线、负数空白、0 是点，为空是实线。都在当前坐标里。
+ */
+typedef struct YiCadHatchPatternLineV4
+{
+    YiCadPoint2d basePoint;
+    YiCadVector2d direction;
+    YiCadVector2d offset;
+    YiCadDoubleArrayView dashes;
+} YiCadHatchPatternLineV4;
+
+/**
+ * @brief GI 文字的位置与外观；含义同 YiCadTextDataV3 的对应字段，角度为弧度。
+ * @note widthFactor 为 0 时取文字样式的宽度系数，不得小于 0。
+ */
+typedef struct YiCadTextPlacementV4
+{
+    uint32_t structSize;
+    YiCadPoint2d insertionPoint;
+    YiCadPoint2d alignmentPoint;
+    double height;
+    double rotation;
+    double widthFactor;
+    double obliqueAngle;
+    YiCadTextHorizontalAlignment horizontalAlignment;
+    YiCadTextVerticalAlignment verticalAlignment;
+} YiCadTextPlacementV4;
+
+/**
+ * @brief 宿主提供的 GI 表：worldDraw 经它输出图元，与 IGiGeometry、IGiSubEntityTraits 一一对应。
+ * @note 坐标一律 double，在当前模型变换下；数组只在调用期间借用。属性设置后对之后的图元生效，
+ * 初值为实体自己的属性。参数无效的调用返回 YICAD_FAILURE 并被忽略；单次 worldDraw 输出的点与图元
+ * 超过宿主的上限（100 万）时，之后的图元被丢弃并记日志。
+ * @note 资源句柄（线型、图层、文字样式、块）由 findResource 按名字在实体所属文档里找，
+ * 只在本次 worldDraw 期间使用；线型为空表示随块，"ByLayer"、"ByBlock" 是两条保留记录。
+ */
+typedef struct YiCadGiApiV4
+{
+    uint32_t structSize;
+    uint32_t abiVersion;
+    YiCadResult (YICAD_PLUGIN_CALL* setColor)(
+        YiCadGiContextHandle ctx, const YiCadColorData* color);
+    YiCadResult (YICAD_PLUGIN_CALL* setLayer)(
+        YiCadGiContextHandle ctx, YiCadReadResourceHandle layer);
+    YiCadResult (YICAD_PLUGIN_CALL* setLineType)(
+        YiCadGiContextHandle ctx, YiCadReadResourceHandle lineType);
+    YiCadResult (YICAD_PLUGIN_CALL* setLineTypeScale)(
+        YiCadGiContextHandle ctx, double scale);
+    YiCadResult (YICAD_PLUGIN_CALL* setLineWeight)(
+        YiCadGiContextHandle ctx, int32_t weight);
+    /** @brief 透明度 0..255，255 为不透明。 */
+    YiCadResult (YICAD_PLUGIN_CALL* setTransparency)(
+        YiCadGiContextHandle ctx, uint32_t alpha);
+    YiCadResult (YICAD_PLUGIN_CALL* setSelectionMarker)(
+        YiCadGiContextHandle ctx, int32_t marker);
+    /** @brief 之后的 fill 按这些图案线填；count 为 0 时恢复实心。 */
+    YiCadResult (YICAD_PLUGIN_CALL* setFillPattern)(
+        YiCadGiContextHandle ctx, const YiCadHatchPatternLineV4* lines,
+        uint32_t count);
+    /**
+     * @brief 多段线；bulges 可为空，否则每段一个（闭合时与点数相等，否则少一个）；
+     * widths 可为空，否则每段两个（起止宽度）。
+     */
+    YiCadResult (YICAD_PLUGIN_CALL* polyline)(
+        YiCadGiContextHandle ctx, const YiCadPoint2dArrayView* points,
+        const YiCadDoubleArrayView* bulges, const YiCadDoubleArrayView* widths,
+        uint32_t flags);
+    YiCadResult (YICAD_PLUGIN_CALL* circle)(
+        YiCadGiContextHandle ctx, YiCadPoint2d center, double radius);
+    /** @brief 圆弧，从 startAngle 起转过 sweepAngle（正为逆时针）。 */
+    YiCadResult (YICAD_PLUGIN_CALL* arc)(
+        YiCadGiContextHandle ctx, YiCadPoint2d center, double radius,
+        double startAngle, double sweepAngle);
+    YiCadResult (YICAD_PLUGIN_CALL* ellipseArc)(
+        YiCadGiContextHandle ctx, YiCadPoint2d center, YiCadVector2d majorAxis,
+        double ratio, double startParameter, double endParameter);
+    /** @brief 非有理 B 样条：节点数等于控制点数加 degree 加一。 */
+    YiCadResult (YICAD_PLUGIN_CALL* nurbs)(
+        YiCadGiContextHandle ctx, uint32_t degree,
+        const YiCadPoint2dArrayView* controlPoints,
+        const YiCadDoubleArrayView* knots, uint32_t closed);
+    YiCadResult (YICAD_PLUGIN_CALL* fill)(
+        YiCadGiContextHandle ctx, const YiCadGiLoopV4* loops, uint32_t loopCount,
+        uint32_t fillRule);
+    /** @brief 三角形；indices 每 3 个一组。 */
+    YiCadResult (YICAD_PLUGIN_CALL* triangles)(
+        YiCadGiContextHandle ctx, const YiCadPoint2dArrayView* vertices,
+        const uint32_t* indices, uint32_t indexCount);
+    /** @brief 单行文字，由宿主按文字样式排版；textStyle 为空时用 Standard。 */
+    YiCadResult (YICAD_PLUGIN_CALL* text)(
+        YiCadGiContextHandle ctx, YiCadStringView text,
+        YiCadReadResourceHandle textStyle, const YiCadTextPlacementV4* placement);
+    /** @brief 来自文件的光栅图像：origin 是左下角，u、v 是整条宽度边与高度边。 */
+    YiCadResult (YICAD_PLUGIN_CALL* image)(
+        YiCadGiContextHandle ctx, YiCadStringView path, YiCadPoint2d origin,
+        YiCadVector2d u, YiCadVector2d v, uint32_t widthPixels,
+        uint32_t heightPixels);
+    YiCadResult (YICAD_PLUGIN_CALL* point)(
+        YiCadGiContextHandle ctx, YiCadPoint2d position);
+    YiCadResult (YICAD_PLUGIN_CALL* ray)(
+        YiCadGiContextHandle ctx, YiCadPoint2d base, YiCadVector2d direction);
+    YiCadResult (YICAD_PLUGIN_CALL* xline)(
+        YiCadGiContextHandle ctx, YiCadPoint2d base, YiCadVector2d direction);
+    /** @brief 画一个块定义（共享几何）；块里的随块属性取当前属性。 */
+    YiCadResult (YICAD_PLUGIN_CALL* drawBlock)(
+        YiCadGiContextHandle ctx, YiCadReadResourceHandle block,
+        const YiCadMatrix2d* transform);
+    YiCadResult (YICAD_PLUGIN_CALL* pushTransform)(
+        YiCadGiContextHandle ctx, const YiCadMatrix2d* transform);
+    YiCadResult (YICAD_PLUGIN_CALL* popTransform)(YiCadGiContextHandle ctx);
+    /** @brief 非空：之后的图元以像素为单位、锚定在该点；为空：恢复世界单位。 */
+    YiCadResult (YICAD_PLUGIN_CALL* setScreenSpace)(
+        YiCadGiContextHandle ctx, const YiCadPoint2d* anchor);
+    /**
+     * @brief 按名字在实体所属文档里找资源；kind 为线型、图层、文字样式或 YICAD_READ_BLOCK。
+     * @return 找不到时返回空。
+     */
+    YiCadReadResourceHandle (YICAD_PLUGIN_CALL* findResource)(
+        YiCadGiContextHandle ctx, YiCadReadResourceKind kind,
+        YiCadStringView name);
+} YiCadGiApiV4;
+
+/* 代理权限位：插件不在、实体读成代理时允许的操作；与 DXF CLASSES 段组码 90、
+ * ODA 的 OdDbProxyEntity::ProxyFlags 相同。 */
+#define YICAD_PROXY_ERASE UINT32_C(0x001)
+#define YICAD_PROXY_TRANSFORM UINT32_C(0x002)
+#define YICAD_PROXY_COLOR_CHANGE UINT32_C(0x004)
+#define YICAD_PROXY_LAYER_CHANGE UINT32_C(0x008)
+#define YICAD_PROXY_LINETYPE_CHANGE UINT32_C(0x010)
+#define YICAD_PROXY_LINETYPE_SCALE_CHANGE UINT32_C(0x020)
+#define YICAD_PROXY_VISIBILITY_CHANGE UINT32_C(0x040)
+#define YICAD_PROXY_CLONING UINT32_C(0x080)
+#define YICAD_PROXY_LINEWEIGHT_CHANGE UINT32_C(0x100)
+#define YICAD_PROXY_ALL UINT32_C(0x1FF)
+
+/** @brief 实体类标志：worldDraw 线程安全，可以在图形系统的工作线程上与别的调用并行。 */
+#define YICAD_ENTITY_CLASS_THREAD_SAFE_DRAW UINT32_C(1)
+
+/* getSnapPoints 的捕捉种类。 */
+#define YICAD_SNAP_ENDPOINT UINT32_C(1)
+#define YICAD_SNAP_MIDPOINT UINT32_C(2)
+#define YICAD_SNAP_CENTER UINT32_C(3)
+#define YICAD_SNAP_NEAREST UINT32_C(4)
+
+/**
+ * @brief 插件提供的一个实体类。
+ * @note className 为 "pluginId.类名"；classVersion 是数据编码的版本，读回的数据版本低于它时调用
+ * upgrade，没提供 upgrade 或数据比它新时实体读成代理；proxyFlags 只能组合 YICAD_PROXY_*；
+ * flags 只能组合 YICAD_ENTITY_CLASS_*。
+ * @note worldDraw、getExtents、transform 必须提供，其余可为空：没有夹点只能整体移动，捕捉与炸开
+ * 由宿主按 worldDraw 的图元推导；createCache 与 destroyCache 同时提供或同时为空。
+ * @note 函数都是纯函数：输入是一段数据字节与实例缓存（createCache 为这段字节建的，没有时为空），
+ * 改动的结果写进宿主给的输出，不得保存输入的指针。返回 YICAD_FAILURE 表示失败，宿主不采用输出。
+ * 除声明 YICAD_ENTITY_CLASS_THREAD_SAFE_DRAW 的类的 worldDraw 外，都只在 UI 线程调用；
+ * 宿主在插件 shutdown 前收回全部实例缓存。
+ * @note explode 在宿主开的临时导入会话里用导入函数建基本实体（容器为 container）；这个会话不能
+ * 建资源与块，实体属性为空时取被炸开的实体的图层与画笔，图层为空时取它的图层。
+ */
+typedef struct YiCadEntityClassV4
+{
+    uint32_t structSize;
+    uint32_t abiVersion;
+    YiCadStringView className;
+    uint32_t classVersion;
+    uint32_t proxyFlags;
+    uint32_t flags;
+    void* userData;
+    YiCadResult (YICAD_PLUGIN_CALL* worldDraw)(
+        void* userData, YiCadByteView data, void* cache,
+        const YiCadGiApiV4* gi, YiCadGiContextHandle ctx);
+    YiCadResult (YICAD_PLUGIN_CALL* getExtents)(
+        void* userData, YiCadByteView data, void* cache,
+        YiCadExtents2d* extents);
+    YiCadResult (YICAD_PLUGIN_CALL* transform)(
+        void* userData, YiCadByteView data, void* cache,
+        const YiCadMatrix2d* matrix, const YiCadByteSink* out);
+    YiCadResult (YICAD_PLUGIN_CALL* getGrips)(
+        void* userData, YiCadByteView data, void* cache,
+        const YiCadPointSink* out);
+    YiCadResult (YICAD_PLUGIN_CALL* moveGrips)(
+        void* userData, YiCadByteView data, void* cache,
+        const uint32_t* indices, uint32_t count, YiCadVector2d offset,
+        const YiCadByteSink* out);
+    YiCadResult (YICAD_PLUGIN_CALL* getSnapPoints)(
+        void* userData, YiCadByteView data, void* cache, uint32_t snapMode,
+        YiCadPoint2d pick, const YiCadPointSink* out);
+    YiCadResult (YICAD_PLUGIN_CALL* explode)(
+        void* userData, YiCadByteView data, void* cache,
+        YiCadImportSessionHandle session, YiCadImportContainerHandle container);
+    YiCadResult (YICAD_PLUGIN_CALL* upgrade)(
+        void* userData, uint32_t fromVersion, YiCadByteView data,
+        const YiCadByteSink* out);
+    YiCadResult (YICAD_PLUGIN_CALL* createCache)(
+        void* userData, YiCadByteView data, void** cache);
+    void (YICAD_PLUGIN_CALL* destroyCache)(void* userData, void* cache);
+} YiCadEntityClassV4;
+
+/**
+ * @brief 自定义实体：导入（importApi->createCustomEntity）、事务内新建（entityApi）与只读枚举共用。
+ * @note 输入：attributes 同其他实体；className 为类名；classVersion 是 data 的编码版本；类登记了且
+ * 读得了 data 时建原实体，否则建代理实体，保留类名、版本与字节，按 proxyFlags 放行操作、按
+ * proxyGraphics（beginProxyGraphics 的收集容器，可为空）里的实体显示。transform 是代理累计的变换
+ * （原实体读回后按它改动），一般为恒等。isProxy、entity 只用于输出，输入时置零。
+ * @note 输出（只读枚举）：全部字段由宿主填写，字节与字符串保持到同一子表的下一次调用；
+ * entity 是可交给 setCustomEntityData 的实体句柄。
+ */
+typedef struct YiCadCustomEntityDataV4
+{
+    uint32_t structSize;
+    const YiCadEntityAttributes* attributes;
+    YiCadStringView className;
+    uint32_t classVersion;
+    uint32_t proxyFlags;
+    YiCadByteView data;
+    YiCadMatrix2d transform;
+    YiCadImportContainerHandle proxyGraphics;
+    uint32_t isProxy;
+    YiCadEntityHandle entity;
+} YiCadCustomEntityDataV4;
+
+/** @brief v4 输入结构的最小必需前缀，约定同 v3（见 YICAD_ABI_STRUCT_FIELD_END）。 */
+#define YICAD_TEXT_PLACEMENT_V4_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadTextPlacementV4, verticalAlignment))
+#define YICAD_ENTITY_CLASS_V4_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadEntityClassV4, destroyCache))
+#define YICAD_CUSTOM_ENTITY_DATA_V4_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadCustomEntityDataV4, proxyGraphics))
+#define YICAD_DOCUMENT_SETTINGS_V4_MIN_SIZE ((uint32_t) \
+    YICAD_ABI_STRUCT_FIELD_END(YiCadDocumentSettings, currentEntityLineTypeScale))
 
 typedef struct YiCadLineData
 {
@@ -1121,12 +1440,29 @@ typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateImageFn)(
     YiCadImportSessionHandle session,
     YiCadImportContainerHandle container,
     const YiCadImageDataV3* data);
+/**
+ * @brief v4：创建自定义实体；类登记了且读得了数据时建原实体，否则建代理实体。
+ * @note data->proxyGraphics 非空时必须是本会话 beginProxyGraphics 返回的容器，用后失效。
+ */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportCreateCustomEntityFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle container,
+    const YiCadCustomEntityDataV4* data);
+/**
+ * @brief v4：开始收集一个代理的图形：之后在返回的容器里建的实体不进文档，
+ * 交给 createCustomEntity 的 proxyGraphics 后成为代理显示的图形。
+ * @note 容器里只能建基本实体（不能建块、块引用、属性）；实体属性为空、图层为空、线型为空、
+ * 颜色与线宽随块，表示沿用自定义实体自己的属性。没交给 createCustomEntity 的容器随会话丢弃。
+ */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadImportBeginProxyGraphicsFn)(
+    YiCadImportSessionHandle session,
+    YiCadImportContainerHandle* graphics);
 
 /**
- * @brief ABI v3 导入子函数表。
+ * @brief 导入子函数表（v3 引入，v4 在尾部追加自定义实体）。
  * @note 宿主持有本表，其生命周期与 YiCadHostApi 相同。插件读取任何函数指针前
  * 必须同时检查 abiVersion、structSize 和指针；缺失尾字段表示该能力不支持。
- * 字段顺序是 ABI v3 冻结顺序；后续 ABI 只能在尾部追加。
+ * 字段顺序是冻结顺序；后续 ABI 只能在尾部追加。
  */
 struct YiCadImportApi
 {
@@ -1163,6 +1499,9 @@ struct YiCadImportApi
     YiCadImportCreateLeaderFn createLeader;
     YiCadImportCreateHatchFn createHatch;
     YiCadImportCreateImageFn createImage;
+    /* v4 */
+    YiCadImportCreateCustomEntityFn createCustomEntity;
+    YiCadImportBeginProxyGraphicsFn beginProxyGraphics;
 };
 
 typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadDocumentSettingsFn)(
@@ -1189,8 +1528,19 @@ typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadReadEntityDataFn)(
     YiCadEntityIteratorHandle iterator, void* output);
 typedef void (YICAD_PLUGIN_CALL *YiCadReadEntityDestroyFn)(
     YiCadEntityIteratorHandle iterator);
+/**
+ * @brief v4：当前自定义实体的图形，做成基本实体逐个枚举（写进别的格式的代理图形用）。
+ * @return 新的迭代器，插件用 entityDestroy 销毁；当前项不是自定义实体时返回空。
+ * @note 块展开成内容，实心填充为填充，图案填充为切好的线与点，文字为笔画，样条离散成多段线；
+ * 各实体的属性是解析后的（与自定义实体相同的属性原样给出）。
+ */
+typedef YiCadEntityIteratorHandle (YICAD_PLUGIN_CALL *YiCadReadEntityGraphicsFn)(
+    YiCadEntityIteratorHandle iterator);
 
-/** @brief v3 文档只读枚举子表；返回的视图保持到同一子表的下一次调用。 */
+/**
+ * @brief 文档只读枚举子表（v3 引入，v4 在尾部追加 entityGraphics）；返回的视图保持到同一子表的
+ * 下一次调用。v4 起自定义实体以 YICAD_ENTITY_CUSTOM 交出，不再炸开。
+ */
 typedef struct YiCadReadApi
 {
     uint32_t structSize;
@@ -1207,7 +1557,46 @@ typedef struct YiCadReadApi
     YiCadReadEntityNextFn entityNext;
     YiCadReadEntityDataFn entityData;
     YiCadReadEntityDestroyFn entityDestroy;
+    /* v4 */
+    YiCadReadEntityGraphicsFn entityGraphics;
 } YiCadReadApi;
+
+/**
+ * @brief v4：在 init 里登记一个实体类。
+ * @note 宿主在返回前复制结构与类名；函数指针与 userData 由插件保持到 shutdown。类名必须以
+ * pluginId 加点开头；登记与插件的其他注册项一起原子提交。
+ */
+typedef YiCadResult (YICAD_PLUGIN_CALL *YiCadRegisterEntityClassFn)(
+    const char* pluginId,
+    const YiCadEntityClassV4* entityClass);
+/**
+ * @brief v4：在文档事务里于模型空间新建一个自定义实体（类必须已登记）。
+ * @param[out] entity 成功时接收实体句柄，可为空。
+ * @note data->classVersion 必须等于类的当前版本；proxyGraphics 必须为空；attributes 的图层、
+ * 线型句柄必须为空（取当前图层、随层）。错误文本经 importApi->getLastError 读取。
+ */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadEntityCreateCustomFn)(
+    YiCadTransactionHandle transaction,
+    const YiCadCustomEntityDataV4* data,
+    YiCadEntityHandle* entity);
+/**
+ * @brief v4：在文档事务里换一个自定义实体的数据（当前数据版本），可撤销。
+ * @note 实体必须是登记了的类的原实体（不是代理），属于事务所在的文档。
+ */
+typedef YiCadImportResult (YICAD_PLUGIN_CALL *YiCadEntitySetCustomDataFn)(
+    YiCadTransactionHandle transaction,
+    YiCadEntityHandle entity,
+    YiCadByteView data);
+
+/** @brief v4 自定义实体子表；其生命周期与宿主表相同。 */
+typedef struct YiCadEntityApiV4
+{
+    uint32_t structSize;
+    uint32_t abiVersion;
+    YiCadRegisterEntityClassFn registerEntityClass;
+    YiCadEntityCreateCustomFn createCustomEntity;
+    YiCadEntitySetCustomDataFn setCustomEntityData;
+} YiCadEntityApiV4;
 
 typedef struct YiCadHostApi
 {
@@ -1235,6 +1624,8 @@ typedef struct YiCadHostApi
     const YiCadImportApi* importApi;
     /** @brief ABI v3 文档只读枚举子表；其生命周期与宿主表相同。 */
     const YiCadReadApi* readApi;
+    /** @brief ABI v4 自定义实体子表；其生命周期与宿主表相同。 */
+    const YiCadEntityApiV4* entityApi;
 } YiCadHostApi;
 
 typedef struct YiCadPluginApi
@@ -1266,6 +1657,18 @@ typedef struct YiCadPluginApi
 #define YICAD_IMPORT_API_V3_SIZE                                          \
     ((uint32_t)(offsetof(YiCadImportApi, createImage) +                    \
                 sizeof(((YiCadImportApi*)0)->createImage)))
+/** @brief ABI v4 宿主表的冻结字节数。 */
+#define YICAD_HOST_API_V4_SIZE                                            \
+    ((uint32_t)(offsetof(YiCadHostApi, entityApi) +                        \
+                sizeof(((YiCadHostApi*)0)->entityApi)))
+/** @brief ABI v4 导入子表的冻结字节数。 */
+#define YICAD_IMPORT_API_V4_SIZE                                          \
+    ((uint32_t)(offsetof(YiCadImportApi, beginProxyGraphics) +             \
+                sizeof(((YiCadImportApi*)0)->beginProxyGraphics)))
+/** @brief ABI v4 只读枚举子表的冻结字节数。 */
+#define YICAD_READ_API_V4_SIZE                                            \
+    ((uint32_t)(offsetof(YiCadReadApi, entityGraphics) +                   \
+                sizeof(((YiCadReadApi*)0)->entityGraphics)))
 
 /** @brief 插件入口类型；返回插件实现的最高 ABI 版本且不得抛出异常。 */
 typedef uint32_t (YICAD_PLUGIN_CALL *YiCadPluginGetAbiVersionFn)(void);
@@ -1279,7 +1682,7 @@ typedef void (YICAD_PLUGIN_CALL *YiCadPluginShutdownFn)(void);
 /** @brief 返回插件实现的最高 C ABI 版本。 */
 YICAD_PLUGIN_API uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void);
-/** @brief 使用 ABI v3 初始化插件并填写输出表。 */
+/** @brief 使用 ABI v4 初始化插件并填写输出表。 */
 YICAD_PLUGIN_API YiCadResult YICAD_PLUGIN_CALL
 yicad_plugin_init(const YiCadHostApi* host, YiCadPluginApi* plugin);
 /** @brief 关闭插件；宿主保证成功调用 init 后至多调用一次。 */
@@ -1571,6 +1974,43 @@ YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createDimension, createAttribute);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createLeader, createDimension);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createHatch, createLeader);
 YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createImage, createHatch);
+YICAD_ABI_FIELD_FOLLOWS(YiCadImportApi, createCustomEntity, createImage);
+YICAD_ABI_FIELD_FOLLOWS(
+    YiCadImportApi,
+    beginProxyGraphics,
+    createCustomEntity);
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadImportApi, createCustomEntity) == YICAD_IMPORT_API_V3_SIZE,
+    "ABI v4 must append to the frozen v3 import table");
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_IMPORT_API_V4_SIZE ==
+    YICAD_IMPORT_API_V3_SIZE + 2 * sizeof(void*),
+    "unexpected ABI v4 import-table growth");
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadReadApi, structSize) == 0,
+    "YiCadReadApi.structSize must be first");
+YICAD_ABI_FIELD_FOLLOWS(YiCadReadApi, entityGraphics, entityDestroy);
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadReadApi) == YICAD_READ_API_V4_SIZE,
+    "ABI v4 read table has unexpected tail padding");
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadEntityApiV4, structSize) == 0,
+    "YiCadEntityApiV4.structSize must be first");
+YICAD_ABI_FIELD_FOLLOWS(YiCadEntityApiV4, registerEntityClass, abiVersion);
+YICAD_ABI_FIELD_FOLLOWS(YiCadEntityApiV4, createCustomEntity, registerEntityClass);
+YICAD_ABI_FIELD_FOLLOWS(YiCadEntityApiV4, setCustomEntityData, createCustomEntity);
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadGiApiV4, structSize) == 0,
+    "YiCadGiApiV4.structSize must be first");
+YICAD_ABI_FIELD_FOLLOWS(YiCadGiApiV4, findResource, setScreenSpace);
+YICAD_ABI_STATIC_ASSERT(
+    offsetof(YiCadEntityClassV4, structSize) == 0,
+    "YiCadEntityClassV4.structSize must be first");
+YICAD_ABI_FIELD_FOLLOWS(YiCadEntityClassV4, destroyCache, createCache);
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadMatrix2d) == 48,
+    "unexpected YiCadMatrix2d size");
+YICAD_ABI_STATIC_ASSERT(sizeof(YiCadExtents2d) == 32,
+    "unexpected YiCadExtents2d size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_PLUGIN_ABI_MIN_VERSION <= YICAD_PLUGIN_ABI_MAX_VERSION,
     "invalid supported ABI version range");
@@ -1628,6 +2068,7 @@ YICAD_ABI_FIELD_FOLLOWS(
     entityIteratorGetCircle);
 YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, importApi, entityIteratorDestroy);
 YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, readApi, importApi);
+YICAD_ABI_FIELD_FOLLOWS(YiCadHostApi, entityApi, readApi);
 YICAD_ABI_STATIC_ASSERT(
     offsetof(YiCadHostApi, importApi) == YICAD_HOST_API_V2_SIZE,
     "ABI v3 must append only one aligned host-table pointer");
@@ -1636,11 +2077,15 @@ YICAD_ABI_STATIC_ASSERT(
     YICAD_HOST_API_V2_SIZE + 2 * sizeof(void*),
     "unexpected ABI v3 host-table growth");
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadImportApi) == YICAD_IMPORT_API_V3_SIZE,
-    "ABI v3 import table has unexpected tail padding");
+    YICAD_HOST_API_V4_SIZE ==
+    YICAD_HOST_API_V3_SIZE + sizeof(void*),
+    "unexpected ABI v4 host-table growth");
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadHostApi) == YICAD_HOST_API_V3_SIZE,
-    "YiCadHostApi must match the ABI v3 snapshot");
+    sizeof(YiCadImportApi) == YICAD_IMPORT_API_V4_SIZE,
+    "ABI v4 import table has unexpected tail padding");
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadHostApi) == YICAD_HOST_API_V4_SIZE,
+    "YiCadHostApi must match the ABI v4 snapshot");
 
 YICAD_ABI_STATIC_ASSERT(
     offsetof(YiCadPluginApi, structSize) == 0,
@@ -1694,8 +2139,15 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 152);
 YICAD_ABI_FIELD_AT(YiCadHostApi, readApi, 160);
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadImportApi) == 256,
+    YICAD_HOST_API_V4_SIZE == 176,
+    "unexpected Win64 host ABI v4 size");
+YICAD_ABI_FIELD_AT(YiCadHostApi, entityApi, 168);
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_IMPORT_API_V3_SIZE == 256,
     "unexpected Win64 import ABI v3 size");
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadImportApi) == 272,
+    "unexpected Win64 import ABI v4 size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_ABI_ALIGNOF(YiCadImportApi) == 8,
     "unexpected Win64 import ABI v3 alignment");
@@ -1748,8 +2200,15 @@ YICAD_ABI_STATIC_ASSERT(
 YICAD_ABI_FIELD_AT(YiCadHostApi, importApi, 80);
 YICAD_ABI_FIELD_AT(YiCadHostApi, readApi, 84);
 YICAD_ABI_STATIC_ASSERT(
-    sizeof(YiCadImportApi) == 132,
+    YICAD_HOST_API_V4_SIZE == 92,
+    "unexpected Win32 host ABI v4 size");
+YICAD_ABI_FIELD_AT(YiCadHostApi, entityApi, 88);
+YICAD_ABI_STATIC_ASSERT(
+    YICAD_IMPORT_API_V3_SIZE == 132,
     "unexpected Win32 import ABI v3 size");
+YICAD_ABI_STATIC_ASSERT(
+    sizeof(YiCadImportApi) == 140,
+    "unexpected Win32 import ABI v4 size");
 YICAD_ABI_STATIC_ASSERT(
     YICAD_ABI_ALIGNOF(YiCadImportApi) == 4,
     "unexpected Win32 import ABI v3 alignment");
@@ -1899,6 +2358,18 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createHatch, YiCadImportCreateHatchFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createImage, YiCadImportCreateImageFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createCustomEntity, YiCadImportCreateCustomEntityFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, beginProxyGraphics, YiCadImportBeginProxyGraphicsFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadReadApi, entityGraphics, YiCadReadEntityGraphicsFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadEntityApiV4, registerEntityClass, YiCadRegisterEntityClassFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadEntityApiV4, createCustomEntity, YiCadEntityCreateCustomFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadEntityApiV4, setCustomEntityData, YiCadEntitySetCustomDataFn);
 YICAD_ABI_STATIC_ASSERT(
     (yicad_plugin_abi_detail::IsSame<
         decltype(&yicad_plugin_get_abi_version),
@@ -2013,6 +2484,18 @@ YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createHatch, YiCadImportCreateHatchFn);
 YICAD_ABI_FUNCTION_FIELD_TYPE(
     YiCadImportApi, createImage, YiCadImportCreateImageFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, createCustomEntity, YiCadImportCreateCustomEntityFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadImportApi, beginProxyGraphics, YiCadImportBeginProxyGraphicsFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadReadApi, entityGraphics, YiCadReadEntityGraphicsFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadEntityApiV4, registerEntityClass, YiCadRegisterEntityClassFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadEntityApiV4, createCustomEntity, YiCadEntityCreateCustomFn);
+YICAD_ABI_FUNCTION_FIELD_TYPE(
+    YiCadEntityApiV4, setCustomEntityData, YiCadEntitySetCustomDataFn);
 YICAD_ABI_STATIC_ASSERT(
     _Generic(
         &yicad_plugin_get_abi_version,

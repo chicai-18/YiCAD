@@ -2187,3 +2187,80 @@ Mesa 的 Windows 版本从固定版本的发布包下载，工作流里写死版
 **验证**：`cmake --build`、`ctest`（7 项全部通过；`test_render` 69 个用例，约 104 秒）、`cmake --install`、启动安装后的程序（窗口出现、10 秒内响应正常后结束进程）、`python tools/check_layering.py` 通过。
 `update_translations` 后新增 1 条译文已补进 `YiCAD_zh_cn.ts`；各扩展的 `.ts` 只有行号漂移，照阶段 3 的先例没有提交。
 用例数：`test_graphics` 57（+14，1 个 `DISABLED_`）、`test_persistence` 80（+7）、`test_interaction` 367（+13）、`test_render` 69（+2），明细见 `BASELINE.md` 第 8.2 节。
+
+### 阶段 8（2026-10-05 完成）
+
+**开工前的决定**
+
+- 照阶段 7 用户的决定，DXF 照 AutoCAD 写自定义实体（自己的类型名、`CLASSES` 登记、数据与代理图形），不再写炸开结果；第 4.8.3 节最后一条"默认写入炸开结果"作废。
+- 用户的决定：别的程序的自定义实体（DXF 里类不是 YiCAD 的）只读二维的，读成代理、按代理图形显示，可以做代理权限允许的常规编辑；与 AutoCAD 一致，另存 DXF 时数据原样保留。三维的跳过。
+
+**8.1 ABI v4 与宿主**
+
+- `YICAD_PLUGIN_ABI_V4`，宿主只接受 v4（ABI 严格单版本）。v3 定义、v4 没改的结构保留 `V3` 后缀，v4 新增的带 `V4` 后缀。
+- 宿主表尾部追加自定义实体子表 `YiCadEntityApiV4`：`registerEntityClass`（在 init 里登记，与插件的其他注册项一起原子提交，类名必须以 pluginId 加点开头，与进程内扩展的类重名时整个插件加载失败）、事务里的 `createCustomEntity`（在模型空间新建，返回实体句柄）与 `setCustomEntityData`（换数据，可撤销）。
+- 导入子表追加 `createCustomEntity`（类登记了且读得了数据时建原实体，否则建代理）与 `beginProxyGraphics`（收集代理图形的容器：在里面建的实体不进文档，属性为空、图层为空、线型为空、颜色与线宽随块的沿用自定义实体自己的）。
+- 只读子表：自定义实体以 `YICAD_ENTITY_CUSTOM` 交出（`YiCadCustomEntityDataV4`：类名、数据版本、字节、代理权限、代理累计的变换、是否代理、实体句柄），不再炸开；尾部追加 `entityGraphics`，把它的图形做成基本实体逐个枚举（`DmGiExplode::Purpose::Graphics`：块展开成内容，实心填充为填充，图案填充为切好的线与点，文字为笔画，样条按控制点包围框的 2×10⁻⁴ 离散成多段线），写别的格式的代理图形用。
+- `YiCadGiApiV4` 与 `IGiGeometry`、`IGiSubEntityTraits` 一一对应：属性（颜色、图层、线型、线型比例、线宽、透明度、选择标记、填充图案）、多段线（凸度、宽度、闭合、线型生成）、圆、圆弧、椭圆弧、非有理 B 样条、填充（带凸度的环、奇偶或非零）、三角形、文字（宿主按文字样式排版）、图片、点、射线、构造线、块、变换栈、屏幕空间，资源经 `findResource` 按名字在实体所属文档里找（只读子表的资源种类加了 `YICAD_READ_BLOCK`）。参数无效的调用返回失败并被忽略；单次 worldDraw 输出超过 100 万个点与图元后丢弃并记日志（`PluginGiContext`）。
+- `YiCadEntityClassV4`：类名、数据版本、代理权限、标志（`YICAD_ENTITY_CLASS_THREAD_SAFE_DRAW`）与纯函数 worldDraw、getExtents、transform（必须提供），getGrips 与 moveGrips、getSnapPoints（端点、中点、圆心、最近点）、explode、upgrade、createCache 与 destroyCache（可选）。每个函数的输入是数据字节与实例缓存。
+- 文档设置尾部追加 `currentEntityLineTypeScale`（阶段 5 留下的 `$CELTSCALE`，DXF 读写）；`$PLINEGEN` 在模型里没有对应的量，没有加。
+- 宿主：`DmPluginEntity`（`model/entity/`，派生自 `DmCustomEntity`）保管类的引用、数据字节、实例缓存与记下的 GI 流，经抽象类 `DmPluginEntityClass` 调用插件；它的实现 `PluginEntityClass`（`shell/plugin_runtime/`）复制插件的函数表并检查输出。`DmCustomEntityRegistry` 的类可以带工厂函数，插件的类按它建 `DmPluginEntity`。
+  - 没声明线程安全的类：宿主在 `update()`（UI 线程）里调一次 worldDraw 记成 GI 流，worldDraw 只回放这条流（图形系统的工作线程上安全）；声明了的直接调用。
+  - 炸开：插件的 explode 在宿主开的临时导入会话里建基本实体（只收集、不进文档，不能建资源与块）；没提供或失败时按 worldDraw 的图元炸开。
+  - 读盘：数据版本低于类的版本调 upgrade，高于类的版本或没有 upgrade 时读成代理。
+  - `DmCustomEntity` 加了按字节读写数据的 `dataBytes()`、`assignDataBytes()`（插件接口交出、换数据用）。
+- 插件只在程序退出时卸载：`PluginManager` 在调插件 shutdown 之前让 `PluginRegistry` 注销该插件的实体类、收回全部实例缓存（`PluginEntityClass::detach`）；之后留在文档里的实体只画记下的图形，存盘仍写原来的数据。
+- `HostApi` 的"当前文档"不再要求文档有视图：插件命令改文档用不着画布；`regen`、`zoomAuto` 自己找视图，没有就失败。
+
+**8.2 SDK**
+
+- `EntityClass<Data>`：插件写 decode、encode、worldDraw、extents、transform，可选覆盖 grips 与 moveGrips、snapPoints、explode、upgrade；SDK 在编译期看哪些覆盖了，没覆盖的不进函数表；按实体缓存解码后的 Data（`EntityClassInfo::cacheDecodedData`）；函数里抛出的异常在 C ABI 边界转成失败。
+- `Host::registerEntityClass`、`Gi`（GI 表的封装）、`ByteWriter`/`ByteReader`（小端序编码，越界抛异常）、`CustomEntityData`、`DocumentTransaction::createCustomEntity`/`setCustomEntityData`、`ImportContainer::createCustomEntity`、`ImportSession::beginProxyGraphics`、`EntityIterator::graphics()`。
+
+**8.3 代理**：插件实体接上阶段 7 的代理：插件不在时读成 `DmProxyEntity`，按存下的代理图形显示、按代理权限放行命令。
+
+**8.4 示例、DXF 与文档**
+
+- `demo_plugin`（1.1.0）：示例实体"管道"（`com.yicad.demo.Pipe`，`DemoPipe.h/.cpp`：中心线（有 CENTER 线型时用它）、两侧边线、两端半圆端头、红色实心箭头与"DN管径"标注；夹点、捕捉、炸开都由插件提供），命令"Add demo pipe"、"Double demo pipe diameters"，`.demo` 文件的 `PIPE` 记录。
+- `dxf_plugin`（1.1.0）：
+  - 写：`CLASSES` 段登记类（记录名为类名转大写、非字母数字换成下划线，应用名为类名最后一个点之前的部分，组码 90 为代理权限，280 为"曾是代理"），实体记录写公共属性、代理图形（组码 160、310）和子类段 `YiCadCustomEntity`（组码 90 数据版本、91 字节数、310 数据，代理累计了变换时另有 40～45）。代理图形由宿主交来的基本实体编码成 AutoCAD 的格式（`DxfProxyGraphics`），图层、线型按写出的表里的序号引用。
+  - 读：类登记了就按数据建原实体，类不在时建代理（数据保留，按 DXF 里的代理图形显示，代理图形解成基本实体建进收集容器）；别的程序的二维实体读成代理，子类段与扩展数据原样保留在代理的数据里（`ForeignEntityData`），`102` 应用组（反应器、扩展字典，指向没保留的对象）不要，另存时原样写回、扩展数据的应用名登记进 APPID 表，没变换过时代理图形也用原来的；三维的跳过。
+  - AutoCAD 的 `ACAD_PROXY_ENTITY` 按组码 91（类在 `CLASSES` 段里的序号加 500）找类：原数据是 DXF 组码的（70 为 1）同普通记录，写回时用类的记录名；原数据是 DWG 二进制的（70 为 0）读成代理、数据保留，另存 DXF 时写成它的图形并提示用户（见下面"AutoCAD 核对"与"与方案的偏差"）。
+  - 代理图形读回时带填充的三角形与凸四边形（写出时 SOLID 就写成它）还原成 SOLID，其余填充还原成实心填充。
+  - libdxfrw 的本地修改：读 `CLASSES` 段、不认识类型的实体交出全部组码的原文、写类登记与自定义实体、二进制 DXF 的二进制块读成十六进制（`third_party/libdxfrw/UPSTREAM.md`）。
+- 文档：`PLUGIN_SDK.md`、`PLUGIN_ABI_V3_REFERENCE.md` 改名为 `PLUGIN_ABI_V4_REFERENCE.md`（安装规则随之改）、`PLUGIN_SYSTEM_ARCHITECTURE.md`（新增"自定义实体原理"一节）、两个插件的 README、`AGENTS.md`。
+
+**AutoCAD 核对**（2026-10-05，本机 AutoCAD 2026 的 `accoreconsole`；手工构造的代理图形与 YiCAD 导出的文件）
+
+- 代理图形的格式：开头是总字节数与命令数；每条命令是"字节数（含这 8 字节）、类型、数据"，按 4 字节对齐，小端序。图层、线型属性给的是表里按文件顺序的序号；真彩色是 `0xC2RRGGBB`，ACI 0 为随块、256 为随层；PUSH_MATRIX（29）是行主序的 4×4 矩阵，平移在第 4 列。SHELL（9）在面表之后要有边、面、顶点三组标志（各一个 0），少写 AutoCAD 读时崩溃；面的点数为负表示孔洞；填充打开（20）时 POLYGON、SHELL 画成实心；UNICODE_TEXT（36）可用。
+- YiCAD 导出的带 demo 管道的 DXF：AutoCAD 读成代理（`ACAD_PROXY_ENTITY`），按代理图形出图；炸开得到 LWPOLYLINE、ARC，带填充的 SHELL、POLYGON 炸成轮廓线。
+- 另存：同版本（2013）另存保留原记录名与子类段，另加扩展数据 `ACAD`/`AcRTProxyMaintVer`；另存成 2018 版时写成 `ACAD_PROXY_ENTITY`（`AcDbProxyEntity`：90 498、91 类的序号加 500、71 数据的版本、97 维护版本、70 1，再写一份代理图形，之后是原来的组码），存成 DWG 再另存 DXF 也一样（70 仍为 1）。这三种另存（直接、移动后、炸开再撤销后）的文件读回 YiCAD 都还原成插件实体。
+- 移动允许变换的代理：AutoCAD 在扩展字典里记 `ACDB_PROXY_ENTITY_DATA`（矩阵），出图时图形仍在原位、只有范围变了（与阶段 7 的手工数据相同）。YiCAD 读的时候不看它，读回在原位，与 AutoCAD 显示的一致。
+- `ACAD_PROXY_ENTITY` 的写法随 DXF 版本变：2018 版是 71、97、70、160 代理图形、162、161、94；2013 版是 95（数据版本与维护版本）、70、160、162、161、94，维护版本另记在扩展数据里。版本不对的写法（包括把 AutoCAD 自己写的 2018 版文件改成 2013 版）与 DXF 参考里的旧写法（93 数据位数、310 数据）都会让 AutoCAD 放弃整张图纸（"DXF 输入无效或不完整"）。70 为 0 时带数据的样本造不出来（本机没有写 DWG 对象的程序；手工编的数据在 AutoCAD 自己的写法里也被拒绝）。
+- YiCAD 写回的别的程序的普通自定义实体记录：AutoCAD 读成代理，另存时子类段与扩展数据原样保留。
+- 与自定义实体无关、另开任务的：YiCAD 导出的 DXF 在 AUDIT 时报两个 `PlotstyleName Id Invalid`（没有自定义实体的文件也有）；图层 0 写成真彩色白（组码 420），AutoCAD 出图时随层的线是白色，在白纸上看不见。
+
+**行为变化**
+
+- 对插件开发者：可以用 C ABI v4 定义实体类型（SDK 的 `EntityClass<Data>`），显示、拾取、捕捉、夹点、变换、炸开、撤销、存盘、插件不在时的代理显示都由宿主处理；v3 插件不再加载。
+- 用户：装了 demo 插件后，Ribbon 的 Demo 页签多两个按钮，建管道、把管径加倍。
+- 另存为 DXF：自定义实体照 AutoCAD 写（阶段 7 写炸开结果），AutoCAD 打开时显示为代理，再读回 YiCAD 还原成原实体（包括 AutoCAD 另存过的）。
+- 打开 DXF：别的程序的二维自定义实体显示为代理（原先跳过），能删除、移动等（按它的代理权限），另存 DXF 时原样写回；原数据是 DWG 格式的 `ACAD_PROXY_ENTITY` 另存 DXF 时写成图形，命令行提示个数。
+- 缺陷修复：插件只读枚举读开放多段线时按顶点数取每段的凸度与宽度，最后一个顶点越界，枚举在它这里中断。DXF 导出因此丢掉开放多段线与同一容器里它后面的全部实体（例如从 DXF 读进来的开放 LWPOLYLINE）。现在末顶点交 0。
+
+**与方案的偏差**
+
+- ABI 的细节与第 4.8.3 节的草图不同：字节视图的长度是 `uint32_t`（同其他视图）；代理权限与标志分开两个字段；每个函数另有实例缓存参数；夹点与捕捉点的输出共用 `YiCadPointSink`；moveGrips 的位移是向量；explode 收到导入会话与容器（才能用导入函数建实体）；多段线带宽度；填充的环带凸度（`YiCadGiLoopV4`）；另加了 setLayer、setTransparency、setFillPattern、findResource；登记与事务里的新建、修改放在新的子表 `YiCadEntityApiV4` 里，新建用 `YiCadCustomEntityDataV4`（带公共属性）并交回实体句柄。
+- 代理图形里的文字是笔画（GI 里只有字形，没有文字的语义；AutoCAD 自己写的是 TEXT 命令）：TrueType 字形是三角形，每个写成一条带填充的 POLYGON，文件大一些，AutoCAD 炸开时每个三角形一条 LWPOLYLINE。
+- 原数据是 DWG 二进制的 `ACAD_PROXY_ENTITY` 另存 DXF 时写成图形，没有原样写回（用户的决定是原样保留）：这种记录的写法随 DXF 版本变，写错了 AutoCAD 放弃整张图纸，又没有真实样本核对 2013 版的写法；原数据仍保留在 YiCAD 的代理里（原生格式存得下）。
+- 插件实体没有属性编辑，插件没有选择集的接口（ABI 没有界面）；自定义实体只写进 ASCII DXF（libdxfrw 的二进制写出没有改）。
+
+**遗留问题**
+
+- 原数据是 DWG 二进制的 `ACAD_PROXY_ENTITY` 原样写回：要有真实样本（别的程序写进 DWG 的对象）核对 2013 版的写法。
+- AutoCAD 移动代理时记的 `ACDB_PROXY_ENTITY_DATA` 读的时候不看；YiCAD 里移动过的别的程序的代理另存时只重写代理图形，不写这个矩阵。
+- 别的程序的实体子类段里指向别的对象的组码（330、340、350、360）原样写回，它们指向的对象 YiCAD 没有保留，写出的句柄可能悬空（没有真实样本核对 AutoCAD 怎么处理）。
+- DXF 的 `$PLINEGEN` 不读写（模型里没有对应的量）。
+
+**验证**：`cmake --build`、`ctest`（7 项全部通过；`test_render` 71 个用例，约 109 秒）、`cmake --install`、启动安装后的程序（窗口出现、10 秒内响应正常后结束进程，DXF 插件按 v4 加载）、`python tools/check_layering.py` 通过；本阶段没有新增界面上要翻译的字符串（插件的提示不经 Qt 翻译）。
+AutoCAD 核对见上。用例数：`test_interaction` 388（+21）、`test_render` 71（+2），其余不变，明细见 `BASELINE.md` 第 8.2 节。

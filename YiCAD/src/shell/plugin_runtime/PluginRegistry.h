@@ -6,6 +6,10 @@
 #include <QString>
 #include <QVector>
 
+#include <memory>
+
+class PluginEntityClass;
+
 enum class PluginRegistryErrorCode
 {
     None,
@@ -22,7 +26,9 @@ enum class PluginRegistryErrorCode
     DuplicateImportFormat,
     DuplicateImportExtension,
     InvalidExportFilter,
-    DuplicateExportFormat
+    DuplicateExportFormat,
+    InvalidEntityClass,
+    DuplicateEntityClass
 };
 
 struct PluginRegistryError
@@ -81,12 +87,27 @@ struct PluginExportFilterRecord
     void* userData = nullptr;
 };
 
+/// @brief v4：插件登记的实体类（RENDER_PLAN.md 第 4.8.3 节）
+struct PluginEntityClassRecord
+{
+    QString pluginId;
+    QString className;
+    /// @brief 函数表与 userData 归插件所有，shutdown 前由 detachEntityClasses 断开
+    std::shared_ptr<PluginEntityClass> entityClass;
+};
+
 /// @brief 原子保存插件在初始化期间声明的宿主注册项。
 /// @note 注册和回调仅允许由 UI 主线程调用；该类型不提供线程同步。
 /// @note 所有已提交回调均绑定 pluginId，其地址由插件保证在 shutdown 前有效。
 class PluginRegistry
 {
 public:
+    PluginRegistry() = default;
+    /// @brief 注销仍登记着的实体类（正常情况下插件关闭时已注销）
+    ~PluginRegistry();
+    PluginRegistry(const PluginRegistry&) = delete;
+    PluginRegistry& operator=(const PluginRegistry&) = delete;
+
     /// @brief 开始一个插件注册事务。
     /// @return 没有其他活动事务时返回 true。
     bool beginRegistration();
@@ -125,10 +146,20 @@ public:
         YiCadExportCallback callback,
         void* userData);
 
+    /// @brief v4：暂存一个实体类，类名在提交时与自定义实体注册表统一校验。
+    bool stageEntityClass(
+        const QString& pluginId,
+        std::shared_ptr<PluginEntityClass> entityClass);
+
     /// @brief 校验并原子提交当前事务。
     /// @param plugin 已初始化插件的宿主侧元数据副本。
     /// @return 全部记录提交成功时返回 true；失败时自动回滚。
+    /// @note 实体类同时登记进自定义实体注册表（DmCustomEntityRegistry），读盘按类名建插件实体。
     bool commitRegistration(const PluginRecord& plugin);
+
+    /// @brief 在插件 shutdown 之前调用：从自定义实体注册表注销它的实体类，收回实例缓存、
+    /// 之后不再调用插件（留在内存里的插件实体只画记下的图形）。可重复调用。
+    void detachEntityClasses(const QString& pluginId) noexcept;
 
     /// @brief 丢弃当前事务中的全部暂存记录；可重复调用。
     void rollbackRegistration() noexcept;
@@ -141,6 +172,7 @@ public:
     const QVector<PluginRibbonButtonRecord>& ribbonButtons() const noexcept;
     const QVector<PluginImportFilterRecord>& importFilters() const noexcept;
     const QVector<PluginExportFilterRecord>& exportFilters() const noexcept;
+    const QVector<PluginEntityClassRecord>& entityClasses() const noexcept;
 
     const PluginRecord* findPlugin(const QString& pluginId) const noexcept;
     const PluginCommandRecord* findCommand(
@@ -183,12 +215,14 @@ private:
     QVector<PluginRibbonButtonRecord> m_stagedRibbonButtons;
     QVector<PluginImportFilterRecord> m_stagedImportFilters;
     QVector<PluginExportFilterRecord> m_stagedExportFilters;
+    QVector<PluginEntityClassRecord> m_stagedEntityClasses;
 
     QVector<PluginRecord> m_plugins;
     QVector<PluginCommandRecord> m_commands;
     QVector<PluginRibbonButtonRecord> m_ribbonButtons;
     QVector<PluginImportFilterRecord> m_importFilters;
     QVector<PluginExportFilterRecord> m_exportFilters;
+    QVector<PluginEntityClassRecord> m_entityClasses;
 };
 
 #endif // PLUGIN_REGISTRY_H

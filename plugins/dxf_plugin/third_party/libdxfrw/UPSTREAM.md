@@ -39,6 +39,20 @@ libdxfrw 编译为静态库，只链接进 `YiCadDxfPlugin.dll`，不单独部�
 - `src/libdxfrw.cpp`：`writeEntity` 在 R13 及以上版本写出实体线型比例（组码 48，
   `DRW_Entity::ltypeScale`），为缺省值 1 时不写。上游读入时解析组码 48，写出时不写。
 
+2026-10-05，渲染方案阶段 8（自定义实体照 AutoCAD 写进 DXF、读回）：
+
+- `src/drw_interface.h`：新增 `DRW_UnknownEntity`（记录名与全部组码的原文），
+  `DRW_Interface` 新增三个带默认空实现的虚函数 `addClass`、`addUnknownEntity`、
+  `writeClasses`，上游的接口实现不受影响。
+- `src/libdxfrw.h`、`src/libdxfrw.cpp`：读 CLASSES 段（`processClasses`，上游为 TODO、
+  整段跳过），逐条交给 `addClass`；不认识类型的实体收集全部组码的原文交给
+  `addUnknownEntity`（上游逐条跳过）；写文件时在 CLASSES 段里调 `writeClasses`，
+  新增 `writeClass`（写一条类登记）与 `writeCustomEntity`（记录名、公共属性，之后原样写
+  给出的组码；只支持 R13 起的 ASCII DXF）。
+- `src/intern/dxfreader.h`、`src/intern/dxfreader.cpp`：新增 `getRawString()`，给出当前
+  记录的原文（ASCII 为文件里的那一行，二进制按类型格式化）；二进制 DXF 的二进制块读成
+  十六进制文字（与 ASCII DXF 相同），上游跳过。
+
 ## 已撤销的修改
 
 2026-07-11 曾为构建 `YiCadLibdxfrw220` Windows DLL 新增 `src/yicad_libdxfrw_export.h`，

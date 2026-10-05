@@ -31,6 +31,9 @@
 #ifndef YICAD_RENDER_OUTPUT_DIR
 #error "test_render 需要 YICAD_RENDER_OUTPUT_DIR（比对失败时写实际图像的目录）"
 #endif
+#ifndef YICAD_DEMO_PLUGIN_DLL
+#error "test_render 需要 YICAD_DEMO_PLUGIN_DLL（demo 插件 DLL 的绝对路径，插件实体的用例用）"
+#endif
 #ifndef YICAD_SUPPORT_DIR
 #error "test_render 需要 YICAD_SUPPORT_DIR（YiCAD/support，本机的 SHX 字体放在它的 fonts/）"
 #endif
@@ -55,7 +58,7 @@ QString baselineDir()
     return QStringLiteral(YICAD_RENDER_SOURCE_DIR "/baseline");
 }
 
-/// @brief 整个测试进程共用一个 DXF 插件运行时；另把本机的 SHX 字体目录交给字体列表，
+/// @brief 整个测试进程共用一个插件运行时（DXF 插件与 demo 插件，后者给插件实体的用例）；另把本机的 SHX 字体目录交给字体列表，
 ///        把当前目录设到参考图纸目录（图像实体按当前目录解析相对路径，见 HostApi::createImage）
 class RenderEnvironment : public ::testing::Environment
 {
@@ -70,7 +73,7 @@ public:
         m_previousDir = QDir::currentPath();
         QDir::setCurrent(drawingsDir());
 
-        s_runtime = std::make_unique<DxfRuntime>();
+        s_runtime = std::make_unique<DxfRuntime>(QStringList{QStringLiteral(YICAD_DEMO_PLUGIN_DLL)});
     }
 
     void TearDown() override
@@ -192,6 +195,11 @@ std::vector<DmEntity*> visibleEntitiesOfType(DmDocument& document, std::initiali
         }
     }
     return found;
+}
+
+DxfRuntime* pluginRuntime()
+{
+    return RenderEnvironment::runtime();
 }
 
 RenderScene::RenderScene(const RenderRequest& request)

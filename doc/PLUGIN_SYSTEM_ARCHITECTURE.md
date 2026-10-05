@@ -10,7 +10,7 @@ YiCAD 当前的插件系统是一个面向 Windows 原生 DLL 的扩展框架。
 2. C ABI 与 C++ SDK 负责定义稳定的跨 DLL 协议；
 3. UI 和文件系统适配器把插件注册的能力接入 YiCAD 现有功能。
 
-当前只支持 `YICAD_PLUGIN_ABI_V3`，仅允许在 UI 主线程调用插件 API，不支持热加载和运行中卸载。
+当前只支持 `YICAD_PLUGIN_ABI_V4`，仅允许在 UI 主线程调用插件 API（唯一的例外是声明了线程安全的实体类的 `worldDraw`，见第 7 节），不支持热加载和运行中卸载。
 
 ## 2. 总体框架图
 
@@ -111,7 +111,9 @@ flowchart TB
 | 文件或结构 | 作用 |
 | --- | --- |
 | `YiCadPluginAbi.h` | 真正的二进制契约。定义 ABI 版本、调用约定、导出宏、结果码、不透明句柄、POD 数据结构、回调类型以及宿主/插件函数表。该头文件可从 C11 或 C++ 使用。 |
-| `YiCadHostApi` | 宿主交给插件的函数表，包含注册命令和文件过滤器、访问文档、事务、只读遍历以及导入建模等能力。 |
+| `YiCadHostApi` | 宿主交给插件的函数表，包含注册命令和文件过滤器、访问文档、事务、只读遍历以及导入建模等能力；v4 起另有自定义实体子表 `YiCadEntityApiV4`（登记实体类，在事务里新建自定义实体、换它的数据）。 |
+| `YiCadEntityClassV4` | 插件登记的实体类：类名、数据版本、代理权限与一组纯函数（画、包围框、变换、夹点、捕捉、炸开、升级），输入都是宿主保管的数据字节。 |
+| `YiCadGiApiV4` | 宿主交给 `worldDraw` 的 GI 表，与宿主的 `IGiGeometry`、`IGiSubEntityTraits` 一一对应。 |
 | `YiCadPluginApi` | 插件在初始化时填写的输出表，确认结构大小、ABI 版本并提供插件 ID、名称和版本。 |
 | `YiCadPluginSdk.h` | 面向 C++23 插件作者的高层封装，提供拥有型数据、RAII 会话和异常隔离工具，减少直接操作 C 函数表和裸句柄的错误。 |
 
@@ -136,6 +138,7 @@ void yicad_plugin_shutdown();
 | `PluginRibbonButtonRecord` | 描述按钮所在的 Ribbon 页、分组、关联命令和图标路径。 |
 | `PluginImportFilterRecord` | 描述导入格式、扩展名、回调和上下文。 |
 | `PluginExportFilterRecord` | 描述导出格式、扩展名、回调和上下文。 |
+| `PluginEntityClassRecord` | 暂存插件登记的实体类（`PluginEntityClass`）；提交时登记进 `DmCustomEntityRegistry`，插件关闭前注销。 |
 | `PluginUiAdapter` | 把已提交的注册记录接入宿主的注册表：命令以 `pluginId/commandId` 为 ID 注册成 `CommandRegistry` 的即时命令，同一字符串兼作命令行别名；Ribbon 按钮登记进 `UIRibbonRegistry`，与内置类目、扩展一起由 `UIRibbonManager` 装配。析构时注销命令。 |
 | `PluginFileIOAdapter` | 继承现有 `FilterInterface`，把 YiCAD 的导入/导出调用转换成插件 C 回调；调用前验证插件仍为活动状态、路径可安全转为 UTF-8、文档句柄有效。 |
 
@@ -149,7 +152,8 @@ void yicad_plugin_shutdown();
 - 注册命令、Ribbon 按钮、导入和导出过滤器；
 - 创建和校验文档、事务、实体迭代器、导入会话等不透明句柄；
 - 读取文档设置、资源、块和实体快照；
-- 以事务方式创建图层、线型、文字样式、标注样式、块和各种 CAD 实体；
+- 以事务方式创建图层、线型、文字样式、标注样式、块和各种 CAD 实体，包括自定义实体与收集代理图形的容器；
+- 在文档事务里新建自定义实体、换它的数据；为插件实体的炸开开临时导入会话；
 - 文档关闭或插件卸载时回滚未完成的导入会话。
 
 `HostApi` 使用 `thread_local` 活动实例把无对象指针的 C 回调路由到当前宿主对象。因此同一线程只能有一个活动 `HostApi`，所有 ABI 调用都限定在创建它的 UI 线程。
@@ -172,10 +176,10 @@ sequenceDiagram
         Manager->>Loader: load(dllPath)
         Loader-->>Manager: 三个固定入口
         Manager->>Plugin: get_abi_version()
-        Plugin-->>Manager: ABI v3
+        Plugin-->>Manager: ABI v4
         Manager->>Registry: beginRegistration()
         Manager->>Plugin: init(hostApi, pluginApi)
-        Plugin->>Registry: 经 HostApi 暂存命令、按钮、过滤器
+        Plugin->>Registry: 经 HostApi 暂存命令、按钮、过滤器、实体类
         Plugin-->>Manager: 元数据与初始化结果
         Manager->>Manager: 校验结构大小、版本和元数据
         Manager->>Registry: commitRegistration(pluginRecord)
@@ -190,11 +194,11 @@ sequenceDiagram
 1. `ApplicationWindow` 在命令窗口和首个文档可用、扩展注册完成后创建插件运行时；此时 Ribbon 注册表尚未冻结，插件按钮稍后与内置类目、扩展一起装配。
 2. `PluginManifestReader` 扫描生产目录中的 XML 清单并逐个严格校验。
 3. `NativePluginLoader` 加载 DLL，要求三个入口全部存在。
-4. `PluginManager` 调用版本入口，当前必须精确等于 ABI v3。
+4. `PluginManager` 调用版本入口，当前必须精确等于 ABI v4。
 5. 注册中心开启事务，随后调用插件 `init`。
-6. 插件通过宿主函数表注册命令、Ribbon 按钮以及文件过滤器；此时记录只被暂存。
+6. 插件通过宿主函数表注册命令、Ribbon 按钮、文件过滤器以及实体类；此时记录只被暂存。
 7. 插件填写 `YiCadPluginApi`。宿主检查结构容量、ABI 确认和非空元数据。
-8. `PluginRegistry` 统一检查插件 ID、重复项、命令引用和格式冲突，然后原子提交。
+8. `PluginRegistry` 统一检查插件 ID、重复项、命令引用、格式冲突和实体类重名（包括与进程内扩展的类重名），然后原子提交；实体类登记进 `DmCustomEntityRegistry`，按它建的实体是 `DmPluginEntity`。
 9. 只有全部成功，插件状态才变为 `Active`，DLL 也才会被持续持有。
 10. 任一步骤失败都会记录明确错误，回滚未提交注册项，必要时调用 `shutdown`，然后卸载该 DLL；其他清单仍可继续加载。
 
@@ -250,14 +254,34 @@ Ribbon 按钮按插件声明的页签、分组的**显示名**匹配已注册的
 
 只读 API 将数据复制到插件侧拥有的 C++ 值对象，避免插件长期引用宿主临时缓冲区。
 
-## 7. 关闭与异常安全
+## 7. 自定义实体原理
+
+设计见 `RENDER_PLAN.md` 第 4.8.3 节与第 8 阶段。插件实体在宿主里是 `DmPluginEntity`（`model/entity/`，派生自 `DmCustomEntity`），它只保管一段数据字节和类的引用；类在宿主里是 `PluginEntityClass`（`shell/plugin_runtime/`），它复制插件的函数表，把字节交给插件的纯函数：
+
+```text
+图形系统编译实体 / 拾取 / 夹点 / 捕捉 / 变换 / 炸开
+    → DmPluginEntity
+    → PluginEntityClass（实例缓存、调用插件、检查输出）
+    → YiCadEntityClassV4 的函数（输入：数据字节、实例缓存）
+    → worldDraw 经 YiCadGiApiV4 输出图元（PluginGiContext 校验参数、限制数量）
+```
+
+- **撤销与存盘**：实体的状态就是数据字节，撤销是换回旧字节；原生格式写类名、数据版本、字节和代理图形（`DmCustomEntity` 的记录），插件不参与。读回时数据版本低于类的版本调用插件的 `upgrade`，高于类的版本或插件不在时读成 `DmProxyEntity`，按存下的代理图形显示、按代理权限放行操作。
+- **线程**：没有声明线程安全的类，宿主在实体更新时（UI 线程）调一次 `worldDraw` 记成 GI 流，图形系统的工作线程只回放这条流；声明了线程安全的类由工作线程直接调用。
+- **炸开**：插件的 `explode` 在宿主开的临时导入会话里用导入函数建基本实体（只建不进文档，属性为空时取被炸开的实体的）；插件没有提供或失败时按 `worldDraw` 的图元炸开。
+- **命令**：插件在 `DocumentTransaction` 里新建自定义实体、换它的数据，一个事务是一步撤销；实体引用来自只读枚举。
+- **文件格式**：只读枚举把自定义实体原样交出（类名、版本、字节、代理权限、累计变换），另可经 `entityGraphics` 把它的图形做成基本实体，写进别的格式的代理图形（DXF 插件照 AutoCAD 写出 CLASSES 登记、代理图形与数据）。导入经 `createCustomEntity` 建：类在时建原实体，不在时建代理，代理图形在 `beginProxyGraphics` 的收集容器里建。
+- **卸载**：只在程序退出时。`PluginManager` 在调插件 `shutdown` 之前让 `PluginRegistry` 注销该插件的实体类、收回全部实例缓存（`PluginEntityClass::detach`）；之后留在文档里的实体只画记下的图形，存盘仍写原来的数据。
+
+## 8. 关闭与异常安全
 
 应用退出时的顺序与加载相反：
 
 ```mermaid
 flowchart LR
     Z[UI 适配器注销插件命令] --> A[FileIO 断开插件运行时]
-    A --> B[PluginManager 逆序 shutdown]
+    A --> E[注销插件的实体类、收回实例缓存]
+    E --> B[PluginManager 逆序 shutdown]
     B --> C[HostApi 回滚遗留导入会话]
     C --> D[NativePluginLoader 卸载 DLL]
     D --> F[销毁 HostApi / Registry / Context]
@@ -275,20 +299,20 @@ flowchart LR
 - 不透明句柄由宿主验证，插件不得自行释放或跨规定生命周期缓存；
 - 注册使用事务，避免“命令注册成功但按钮或过滤器失败”的部分可见状态。
 
-## 8. 插件开发视角
+## 9. 插件开发视角
 
 第三方插件只需依赖安装后的 `YiCAD::PluginSdk` 接口目标，不需要链接 YiCAD 可执行文件或其内部 Qt 库。典型开发步骤是：
 
 1. 实现三个固定导出入口；
 2. 在 `init` 中验证宿主 API，并填写插件元数据；
-3. 注册命令、Ribbon 按钮或导入/导出过滤器；
+3. 注册命令、Ribbon 按钮、导入/导出过滤器或实体类；
 4. 在回调中使用 C++ SDK 封装访问当前文档；
 5. 在 `shutdown` 中释放插件拥有的状态；
 6. 把 DLL 和对应 XML 清单部署到生产插件目录。
 
-仓库中的 `plugins/demo_plugin` 展示基础命令、UI 和文件回调，`plugins/dxf_plugin` 展示完整的 DXF 导入与导出实现。
+仓库中的 `plugins/demo_plugin` 展示基础命令、UI、文件回调和一个示例实体类（管道），`plugins/dxf_plugin` 展示完整的 DXF 导入与导出实现（包括照 AutoCAD 读写自定义实体）。
 
-## 9. 当前边界与设计特点
+## 10. 当前边界与设计特点
 
 当前实现的主要特点是：
 
@@ -297,7 +321,7 @@ flowchart LR
 - **原子注册**：一个插件的所有声明要么全部生效，要么全部回滚；
 - **明确生命周期**：发现、校验、加载、初始化、活动、关闭都有状态与诊断；
 - **事务化建模**：复杂导入失败时可以整体撤销；
-- **版本严格**：当前仅接受 ABI v3，没有兼容旧 ABI 的降级路径；
-- **运行限制**：Windows 优先、UI 主线程、启动时一次性加载，不支持热插拔；
+- **版本严格**：当前仅接受 ABI v4，没有兼容旧 ABI 的降级路径；
+- **运行限制**：Windows 优先、UI 主线程（线程安全的实体类的 `worldDraw` 除外）、启动时一次性加载，不支持热插拔；
 - **依赖隔离**：插件业务通过公开 SDK 构建，宿主内部实现可以在不破坏 ABI 的情况下演进。
 

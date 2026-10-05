@@ -61,7 +61,7 @@ public:
     const GiTransform& transform() const { return m_transform; }
 
     /// @brief 原实体的数据字节（不含版本）
-    const std::string& dataBytes() const { return m_data; }
+    std::string dataBytes() const override { return m_data; }
 
     /// @brief 公共属性照常画；图元按累计变换重放代理图形
     void worldDraw(IGiWorldDraw& wd) const override;

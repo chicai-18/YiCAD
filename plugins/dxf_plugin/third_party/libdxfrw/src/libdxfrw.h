@@ -75,6 +75,12 @@ public:
     bool writeDimension(DRW_Dimension *ent);
     void setEllipseParts(int parts){elParts = parts;} /*!< set parts number when convert ellipse to polyline */
     bool writePlotSettings(DRW_PlotSettings *ent);
+    /// @brief YiCAD 本地修改（2026-10-05）：写 CLASSES 段的一条类登记（在 DRW_Interface::writeClasses 里调用）。
+    bool writeClass(DRW_Class *ent);
+    /// @brief YiCAD 本地修改（2026-10-05）：写一个自定义实体：记录名、公共属性（同其他实体），
+    /// 之后原样写 records（代理图形、子类数据、扩展数据）。只支持 R13 起的 ASCII DXF。
+    bool writeCustomEntity(const std::string& recordName, DRW_Entity *common,
+                           const std::vector<std::pair<int, std::string>> &records);
 
     DRW::Version getVersion() const;
     DRW::error getError() const;
@@ -83,6 +89,8 @@ private:
     /// used by read() to parse the content of the file
     bool processDxf();
     bool processHeader();
+    /// @brief YiCAD 本地修改（2026-10-05）：读 CLASSES 段，逐条交给 DRW_Interface::addClass。
+    bool processClasses();
     bool processTables();
     bool processBlocks();
     bool processBlock();

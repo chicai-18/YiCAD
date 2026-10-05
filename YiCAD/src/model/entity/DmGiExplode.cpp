@@ -20,6 +20,7 @@
 
 #include "DmGiExplode.h"
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 
@@ -53,6 +54,8 @@ namespace
 {
 constexpr double kBulgeTolerance = 1.0e-12;            ///< 凸度小于它按直线段
 constexpr double kFullSweep = 2.0 * M_PI - 1.0e-12;    ///< 扫角不小于它按整圆、整椭圆
+/// @brief 嵌套绘制、块的层数上限：插件实体可以画块，块里又有这个插件实体时不至于无限递归
+constexpr std::size_t kMaxNesting = 64;
 
 double dot(const DmVector& a, const DmVector& b)
 {
@@ -421,6 +424,32 @@ void ExplodeDraw::nurbs(const GiNurbs& curve)
     }
     // B 样条对仿射变换不变：变换控制点即可（YiCAD 的样条都是非有理的，不带权重）
     const GiTransform& m = frame().transform;
+    if (m_purpose == DmGiExplode::Purpose::Graphics)
+    {
+        // 代理图形（AutoCAD 的代理图形没有样条）：按控制点包围框的 2×10⁻⁴ 离散，与图形系统的默认容差相同
+        DmVector lo(DM_MAXDOUBLE, DM_MAXDOUBLE);
+        DmVector hi(-DM_MAXDOUBLE, -DM_MAXDOUBLE);
+        for (const DmVector& p : curve.controlPoints)
+        {
+            lo = DmVector::minimum(lo, p);
+            hi = DmVector::maximum(hi, p);
+        }
+        const double size = std::max(hi.x - lo.x, hi.y - lo.y);
+        std::vector<DmVector> points;
+        curve.sample(points, size > 0.0 ? size * 2.0e-4 : 1.0e-6);
+        for (DmVector& p : points)
+        {
+            p = m.apply(p);
+        }
+        if (points.size() >= 2)
+        {
+            const std::size_t segments = points.size() - 1;
+            std::vector<double> lineWeights(2 * segments, 0.0);
+            addEntity(new DmPolyline(nullptr, PolylineData(points, std::vector<double>(segments, 0.0), lineWeights,
+                                                           false)));
+        }
+        return;
+    }
     std::vector<DmVector> controlPoints;
     controlPoints.reserve(curve.controlPoints.size());
     for (const DmVector& p : curve.controlPoints)
@@ -571,6 +600,10 @@ void ExplodeDraw::xline(const DmVector& base, const DmVector& direction)
 
 void ExplodeDraw::draw(const IGiDrawable& drawable)
 {
+    if (m_frames.size() >= kMaxNesting)
+    {
+        return;
+    }
     const Attributes parent = resolve(frame());
     pushFrame(frame().transform, &parent, frame().glyph);
     drawInFrame(drawable);
@@ -580,6 +613,10 @@ void ExplodeDraw::draw(const IGiDrawable& drawable)
 void ExplodeDraw::drawShared(const IGiDrawable& drawable, const GiTransform& transform,
                              const GiByBlockTraits& byBlock)
 {
+    if (m_frames.size() >= kMaxNesting)
+    {
+        return;
+    }
     // GiByBlockTraits 按调用方的上下文解析：ByLayer 取调用方的图层，ByBlock 取调用方的外层
     Frame caller;
     caller.set.color = byBlock.color;

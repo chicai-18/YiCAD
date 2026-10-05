@@ -36,7 +36,7 @@ public:
         m_host = host;
         plugin->pluginId = PluginId;
         plugin->pluginName = "YiCAD DXF Plugin";
-        plugin->pluginVersion = "1.0.0";
+        plugin->pluginVersion = "1.1.0";
         return m_host.registerImportFilter(
                    PluginId,
                    FormatId,
@@ -89,9 +89,18 @@ private:
                 return YICAD_FAILURE;
             }
             const auto document = self->m_host.document(handle);
-            return DxfExporter(document).write(path)
-                ? YICAD_SUCCESS
-                : YICAD_FAILURE;
+            DxfExporter exporter(document);
+            if (!exporter.write(path))
+            {
+                return YICAD_FAILURE;
+            }
+            if (const int count = exporter.proxiesWrittenAsGraphics(); count > 0)
+            {
+                const std::string text = std::to_string(count) +
+                    " 个别的程序的代理对象（原数据为 DWG 格式）写成了图形，原数据只保留在 YiCAD 图纸里。";
+                self->m_host.message(text.c_str());
+            }
+            return YICAD_SUCCESS;
         }, YICAD_FAILURE);
     }
 
@@ -105,7 +114,7 @@ DxfPlugin g_plugin;
 YICAD_PLUGIN_EXPORT uint32_t YICAD_PLUGIN_CALL
 yicad_plugin_get_abi_version(void)
 {
-    return YICAD_PLUGIN_ABI_V3;
+    return YICAD_PLUGIN_ABI_V4;
 }
 
 YICAD_PLUGIN_EXPORT YiCadResult YICAD_PLUGIN_CALL

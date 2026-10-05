@@ -21,10 +21,12 @@
 /// 读盘按类名在这里找类：找到就建原实体，找不到就建代理实体（DmProxyEntity）。扩展经
 /// IExtensionContext::registerEntityClass 登记，扩展关闭时注销；注销后已经在内存里的实体照常可用，
 /// 之后读进来的才是代理。类型系统（MetaType）里的类型注册是全进程的、不注销，按类名建实例经它。
+/// 插件的实体类（第 4.8.3 节）都由 DmPluginEntity 表示，按登记的工厂建实例，插件运行时登记、插件关闭时注销。
 
 #ifndef DMCUSTOMENTITYREGISTRY_H
 #define DMCUSTOMENTITYREGISTRY_H
 
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -35,11 +37,12 @@
 /// @brief 一个登记的自定义实体类
 struct DmCustomEntityClass
 {
-    QString name;                               ///< 类名（MetaType 的类型名），如 "ext.sample.Pipe"
-    Type type;                                  ///< 类型，建实例用
-    std::uint32_t version = 0;                  ///< 数据版本（TYPESYSTEM_SOURCE_NAMED 的版本号）
+    QString name;                               ///< 类名，如 "ext.sample.Pipe"；进程内扩展的类即 MetaType 的类型名
+    Type type;                                  ///< 类型，建实例用（factory 为空时）
+    std::function<DmCustomEntity*()> factory;   ///< 非空时按它建实例：插件的类都是 DmPluginEntity，靠它带上类
+    std::uint32_t version = 0;                  ///< 数据版本（TYPESYSTEM_SOURCE_NAMED 的版本号，或插件登记的版本）
     DmProxyFlags proxyFlags = DmProxyFlags::None; ///< 代理权限
-    QString owner;                              ///< 登记它的扩展 ID
+    QString owner;                              ///< 登记它的扩展或插件的 ID
 };
 
 /// @brief 自定义实体类的注册表，见文件说明
@@ -49,7 +52,7 @@ public:
     static DmCustomEntityRegistry& instance();
 
     /// @brief 登记一个类
-    /// @return 类型无效、不派生自 DmCustomEntity、不能建实例或同名的类已登记时返回 false
+    /// @return 类名为空、同名的类已登记，或没有工厂而类型无效、不派生自 DmCustomEntity、不能建实例时返回 false
     bool registerClass(const DmCustomEntityClass& entityClass);
 
     /// @brief 注销一个类

@@ -28,16 +28,22 @@ DmCustomEntityRegistry& DmCustomEntityRegistry::instance()
 
 bool DmCustomEntityRegistry::registerClass(const DmCustomEntityClass& entityClass)
 {
-    if (entityClass.type.isBad() || !entityClass.type.isDerivedFrom(DmCustomEntity::getClassTypeId()) ||
-        entityClass.name.isEmpty() || m_classes.count(entityClass.name) != 0)
+    if (entityClass.name.isEmpty() || m_classes.count(entityClass.name) != 0)
     {
         return false;
     }
-    // 抽象类建不出实例（TYPESYSTEM_SOURCE_ABSTRACT 的 create 返回空），登记了读盘也用不上
-    std::unique_ptr<DmCustomEntity> probe(static_cast<DmCustomEntity*>(Type(entityClass.type).createInstance()));
-    if (!probe)
+    if (!entityClass.factory)
     {
-        return false;
+        if (entityClass.type.isBad() || !entityClass.type.isDerivedFrom(DmCustomEntity::getClassTypeId()))
+        {
+            return false;
+        }
+        // 抽象类建不出实例（TYPESYSTEM_SOURCE_ABSTRACT 的 create 返回空），登记了读盘也用不上
+        std::unique_ptr<DmCustomEntity> probe(static_cast<DmCustomEntity*>(Type(entityClass.type).createInstance()));
+        if (!probe)
+        {
+            return false;
+        }
     }
     m_classes.emplace(entityClass.name, entityClass);
     return true;
@@ -60,6 +66,10 @@ DmCustomEntity* DmCustomEntityRegistry::create(const QString& name) const
     if (!entityClass)
     {
         return nullptr;
+    }
+    if (entityClass->factory)
+    {
+        return entityClass->factory();
     }
     return static_cast<DmCustomEntity*>(Type(entityClass->type).createInstance());
 }

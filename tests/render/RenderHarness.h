@@ -27,6 +27,11 @@ class GuiDocumentView;
 namespace yicad_test
 {
 
+class DxfRuntime;
+
+/// @brief 测试进程共用的插件运行时（装了 DXF 插件与 demo 插件），全局环境建立之前为空
+DxfRuntime* pluginRuntime();
+
 /// @brief 参考图纸依赖的外部资源；缺少时用例跳过（用户的决定：缺字体就跳过）
 enum class RenderRequirement
 {

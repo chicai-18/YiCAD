@@ -22,6 +22,7 @@
 #define DMCUSTOMENTITY_H
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "DmEntity.h"
@@ -106,6 +107,18 @@ public:
     /// @param version 写出时的数据版本
     /// @return false：读不了（例如版本比程序新），宿主改建代理实体、数据原样保留（对应 ODA 的 eMakeMeProxy）
     virtual bool restoreData(InputStream& in, std::uint32_t version) = 0;
+
+    /// @brief 数据字节（不含版本，版本见 classVersion()）：插件接口按它把自定义实体交给 DXF 等外部格式
+    /// @details 默认是 saveData 写出的字节；代理与插件实体是它们保管的那段字节
+    virtual std::string dataBytes() const;
+
+    /// @brief 换成 version 版的一段数据字节，再按 accumulated（代理累计的变换）改动并 update()
+    /// @details 与读盘（readRecord）走同一条路：DXF 导入等从外部格式建自定义实体时用
+    /// @return false：读不了，实体不变（调用方改建代理）
+    bool assignDataBytes(const std::string& bytes, std::uint32_t version, const GiTransform& accumulated = GiTransform());
+
+    /// @brief 代理累计的变换；原实体恒为恒等
+    GiTransform accumulatedTransform() const { return storedTransform(); }
 
     /// @brief 代理图形：存盘时随实体存下，类不在时代理实体按它显示。默认记录 worldDraw 的输出（GiRegenType::ProxyGraphics）
     virtual GiStream proxyGraphics() const;

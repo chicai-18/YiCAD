@@ -12,6 +12,7 @@
 
 #include "DxfInterfaceAdapter.h"
 #include "DxfMapping.h"
+#include "DxfProxyGraphics.h"
 #include "YiCadPluginSdk.h"
 
 #include <string>
@@ -58,8 +59,25 @@ public:
     void addHatch(const DRW_Hatch* source) override;
     void addImage(const DRW_Image* source) override;
     void linkImage(const DRW_ImageDef* source) override;
+    /// @brief CLASSES 段的类登记：自定义实体按记录名找它
+    void addClass(const DRW_Class& source) override;
+    /// @brief 自定义实体（RENDER_PLAN.md 第 8.4 步）：YiCAD 的类按数据建（类不在时为代理），
+    /// 别的程序的二维实体读成代理、数据原样保留；三维的、没登记类的跳过。
+    /// ACAD_PROXY_ENTITY 按组码 91 的序号找 CLASSES 段登记的类，见 DxfCustomEntity.h
+    void addUnknownEntity(const DRW_UnknownEntity& source) override;
 
 private:
+    /// @brief CLASSES 段登记的一个类
+    struct ClassInfo
+    {
+        std::string className;
+        std::string appName;
+        uint32_t proxyFlags = 0;
+        bool entity = false;
+    };
+
+    /// @brief 把代理图形解出的一个图元建进收集代理图形的容器
+    void createProxyShape(const dxf::ProxyShape& shape, const yicad::plugin::ImportContainer& graphics);
     struct PendingInsert
     {
         std::string blockName;
@@ -110,6 +128,12 @@ private:
     dxf::ResourceMap m_blocks;
     std::unordered_set<std::string> m_finalizedBlocks;
     std::unordered_map<uint32_t, std::string> m_imageDefinitions;
+    std::unordered_map<std::string, ClassInfo> m_classes;   ///< 按记录名（大写）
+    std::vector<std::string> m_classOrder;                  ///< CLASSES 段的记录名（大写），按顺序：ACAD_PROXY_ENTITY 按序号找类
+    std::vector<std::string> m_layerOrder;                  ///< LAYER 表的记录顺序（代理图形按序号引用）
+    std::vector<std::string> m_lineTypeOrder;               ///< LTYPE 表的记录顺序
+    dxf::ResourceMap m_textStylesByFont;                    ///< 字体文件名（大写）到文字样式
+    dxfRW* m_reader = nullptr;                              ///< 读文件期间的 libdxfrw，查版本用
     std::vector<PendingInsert> m_pendingInserts;
     std::vector<PendingImage> m_pendingImages;
     std::string m_currentBlock;

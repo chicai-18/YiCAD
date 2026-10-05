@@ -16,10 +16,11 @@
  */
 
 /// @file test_render_custom.cpp
-/// @brief 自定义实体与代理实体的出图（RENDER_PLAN.md 第 7 阶段）
+/// @brief 自定义实体与代理实体的出图（RENDER_PLAN.md 第 7、8 阶段）
 ///
 /// 渲染层不按实体类型分支：自定义实体只要实现 worldDraw 就能画；扩展不在时读成的代理实体按存下的代理图形画，
 /// 与原实体逐像素相同；允许变换的代理移动后与同样移动的原实体相同。
+/// 插件实体（第 8 阶段，demo 插件的管道）同样：按插件的 worldDraw 画，与它的代理逐像素相同，插件改数据后画面跟着变。
 
 #include <gtest/gtest.h>
 
@@ -30,11 +31,13 @@
 
 #include "DmDocument.h"
 #include "DmLayerTable.h"
+#include "DmPluginEntity.h"
 #include "DmProxyEntity.h"
 #include "EntityTable.h"
 #include "GuiDocumentView.h"
 #include "RenderHarness.h"
 #include "Transaction.h"
+#include "support/DxfTestRuntime.h"
 #include "support/SamplePipeEntity.h"
 
 namespace
@@ -97,7 +100,7 @@ struct EmptyScene
     }
 
     /// @brief 与 pipe 显示相同的代理：同样的公共属性与代理图形
-    DmProxyEntity* makeProxy(const SamplePipeEntity& pipe, DmProxyFlags flags)
+    DmProxyEntity* makeProxy(const DmCustomEntity& pipe, DmProxyFlags flags)
     {
         auto* proxy = new DmProxyEntity(pipe.className(), flags);
         proxy->setDocument(&scene.document());
@@ -108,6 +111,26 @@ struct EmptyScene
         return proxy;
     }
 };
+
+/// @brief 执行 demo 插件的命令（文档作为当前文档）
+bool runDemoCommand(DmDocument& document, const char* command)
+{
+    yicad_test::DxfRuntime* runtime = yicad_test::pluginRuntime();
+    return runtime != nullptr && runtime->runCommand(document, QStringLiteral("com.yicad.demo"), QString::fromLatin1(command));
+}
+
+/// @brief 文档里的插件实体
+DmPluginEntity* firstPluginEntity(DmDocument& document)
+{
+    for (DmEntity* e : *document.getEntityTable())
+    {
+        if (auto* pipe = dynamic_cast<DmPluginEntity*>(e))
+        {
+            return pipe;
+        }
+    }
+    return nullptr;
+}
 
 /// @brief 图里不是背景色的像素数
 int drawnPixels(const QImage& image)
@@ -172,4 +195,43 @@ TEST(RenderCustomTest, 允许变换的代理移动后与同样移动的原实体
         proxy->move(DmVector(0, 20));
     });
     yicad_test::expectIdenticalImage(QStringLiteral("custom_proxy_moved"), moved, s.scene.grab());
+}
+
+TEST(RenderCustomTest, 插件实体按插件的图形画代理与它逐像素相同)
+{
+    EmptyScene s;
+    ASSERT_TRUE(s.scene.error().isEmpty()) << s.scene.error().toStdString();
+    const QImage empty = s.scene.grab();
+
+    ASSERT_TRUE(runDemoCommand(s.scene.document(), "demo.add-pipe")) << "demo 插件建管道";
+    DmPluginEntity* pipe = firstPluginEntity(s.scene.document());
+    ASSERT_NE(pipe, nullptr);
+    const QImage drawn = s.scene.grab();
+    EXPECT_GT(drawnPixels(drawn), drawnPixels(empty) + 1000) << "管道画出来了";
+
+    DmProxyEntity* proxy = s.makeProxy(*pipe, DmProxyFlags::None);
+    s.remove(pipe);
+    s.add(proxy);
+    yicad_test::expectIdenticalImage(QStringLiteral("plugin_proxy"), drawn, s.scene.grab());
+}
+
+TEST(RenderCustomTest, 插件命令改数据后画面跟着变)
+{
+    EmptyScene s;
+    ASSERT_TRUE(s.scene.error().isEmpty()) << s.scene.error().toStdString();
+    ASSERT_TRUE(runDemoCommand(s.scene.document(), "demo.add-pipe"));
+    DmPluginEntity* pipe = firstPluginEntity(s.scene.document());
+    ASSERT_NE(pipe, nullptr);
+    const QImage before = s.scene.grab();
+
+    // 管径加倍：插件在事务里换数据，图形系统按变更集重新编这个实体
+    ASSERT_TRUE(runDemoCommand(s.scene.document(), "demo.pipe-grow"));
+    const QImage after = s.scene.grab();
+    EXPECT_GT(drawnPixels(after), drawnPixels(before) + 500) << "管子变粗了";
+
+    // 按新数据另记一份代理图形：画面与之相同，说明画的不是旧的图形
+    DmProxyEntity* proxy = s.makeProxy(*pipe, DmProxyFlags::None);
+    s.remove(pipe);
+    s.add(proxy);
+    yicad_test::expectIdenticalImage(QStringLiteral("plugin_grown"), after, s.scene.grab());
 }

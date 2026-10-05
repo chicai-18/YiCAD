@@ -22,7 +22,7 @@ Current version: **v0.20.0**
 - **Undo / Redo**: Full undo/redo framework based on a command stack
 - **Office Ribbon UI**: Modern ribbon interface powered by SARibbonBar
 - **Command Line Input**: Quick command-line operations
-- **Plugin System**: ABI v3 SDK for commands, Ribbon actions, and file import/export filters
+- **Plugin System**: ABI v4 SDK for commands, Ribbon actions, file import/export filters, and custom entity types
 - **DXF Import / Export**: Built-in runtime plugin powered by the bundled libdxfrw 2.2.0 source
 
 ## Build

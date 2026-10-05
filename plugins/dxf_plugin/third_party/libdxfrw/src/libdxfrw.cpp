@@ -137,6 +137,8 @@ bool dxfRW::write(DRW_Interface *interface_, DRW::Version ver, bool bin){
     if (ver > DRW::AC1009) {
         writer->writeString(0, "SECTION");
         writer->writeString(2, "CLASSES");
+        /// @brief YiCAD 本地修改（2026-10-05）：由接口写类登记（自定义实体），上游这里是空段。
+        iface->writeClasses();
         writer->writeString(0, "ENDSEC");
     }
     writer->writeString(0, "SECTION");
@@ -1937,9 +1939,11 @@ bool dxfRW::processDxf() {
                 else if ("OBJECTS" == sectionname) {
                     processed = processObjects();
                 }
+                /// @brief YiCAD 本地修改（2026-10-05）：读 CLASSES 段（上游为 TODO，跳过）。
+                else if ("CLASSES" == sectionname) {
+                    processed = processClasses();
+                }
                 else {
-                    //TODO handle CLASSES
-
                     DRW_DBG("section unknown or not supported\n");
                     continue;
                 }
@@ -2355,18 +2359,109 @@ bool dxfRW::processEntities(bool isblock) {
         } else if (nextentity == "XLINE") {
             processed = processXline();
         } else {
-            if (!reader->readRec(&code)) {
-                return setError(DRW::BAD_READ_ENTITIES); //end of file without ENDSEC
+            /// @brief YiCAD 本地修改（2026-10-05）：不认识类型的实体（自定义实体）收集全部组码的原文
+            /// 交给接口；上游逐条跳过。
+            DRW_UnknownEntity unknown;
+            unknown.recordName = nextentity;
+            for (;;) {
+                if (!reader->readRec(&code)) {
+                    return setError(DRW::BAD_READ_ENTITIES); //end of file without ENDSEC
+                }
+                if (code == 0) {
+                    nextentity = reader->getString();
+                    break;
+                }
+                unknown.records.emplace_back(code, reader->getRawString());
             }
-
-            if (code == 0) {
-                nextentity = reader->getString();
-            }
+            iface->addUnknownEntity(unknown);
             processed = true;
         }
     } while (processed);
 
     return setError(DRW::BAD_READ_ENTITIES);
+}
+
+/// @brief YiCAD 本地修改（2026-10-05）：读 CLASSES 段，逐条交给 DRW_Interface::addClass。
+bool dxfRW::processClasses() {
+    DRW_DBG("dxfRW::processClasses\n");
+    int code;
+    DRW_Class current;
+    bool reading = false;
+    auto reset = [&current]() {
+        current = DRW_Class();
+        current.proxyFlag = 0;
+        current.instanceCount = 0;
+        current.wasaProxyFlag = 0;
+        current.entityFlag = 0;
+        current.classNum = 0;
+        current.dwgType = 0;
+    };
+    while (reader->readRec(&code)) {
+        if (code == 0) {
+            if (reading) {
+                iface->addClass(current);
+            }
+            const std::string name = reader->getString();
+            if (name == "ENDSEC") {
+                return true;
+            }
+            reading = name == "CLASS";
+            reset();
+            continue;
+        }
+        if (!reading) {
+            continue;
+        }
+        switch (code) {
+        case 1:
+            current.recName = reader->getUtf8String();
+            break;
+        case 2:
+            current.className = reader->getUtf8String();
+            break;
+        case 3:
+            current.appName = reader->getUtf8String();
+            break;
+        case 90:
+            current.proxyFlag = reader->getInt32();
+            break;
+        case 91:
+            current.instanceCount = reader->getInt32();
+            break;
+        case 280:
+            current.wasaProxyFlag = reader->getInt32();
+            break;
+        case 281:
+            current.entityFlag = reader->getInt32();
+            break;
+        default:
+            break;
+        }
+    }
+    return setError(DRW::BAD_READ_SECTION);
+}
+
+/// @brief YiCAD 本地修改（2026-10-05）：写 CLASSES 段的一条类登记。
+bool dxfRW::writeClass(DRW_Class *ent) {
+    if (version <= DRW::AC1009) {
+        return false;
+    }
+    ent->write(writer, version);
+    return true;
+}
+
+/// @brief YiCAD 本地修改（2026-10-05）：写一个自定义实体：记录名、公共属性，之后原样写 records。
+bool dxfRW::writeCustomEntity(const std::string& recordName, DRW_Entity *common,
+                              const std::vector<std::pair<int, std::string>> &records) {
+    if (version <= DRW::AC1009 || binFile) {
+        return false;
+    }
+    writer->writeString(0, recordName);
+    writeEntity(common);
+    for (const auto& record : records) {
+        writer->writeUtf8String(record.first, record.second);
+    }
+    return true;
 }
 
 bool dxfRW::processEllipse() {

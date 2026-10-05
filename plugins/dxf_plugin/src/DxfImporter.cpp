@@ -9,6 +9,8 @@
 
 #include "DxfImporter.h"
 
+#include "DxfCustomEntity.h"
+
 #include <libdxfrw.h>
 
 #include <algorithm>
@@ -189,7 +191,10 @@ bool DxfImporter::read(const char* path)
     // 随块线型的资源先建好：R12 等图纸的线型表里没有 ByBlock 记录，实体却可以写 BYBLOCK
     ensureLineType("ByBlock");
     dxfRW file(path);
-    if (!file.read(this, true) || m_failed ||
+    m_reader = &file;
+    const bool readOk = file.read(this, true);
+    m_reader = nullptr;
+    if (!readOk || m_failed ||
         !resolvePendingInserts() || !resolvePendingImages())
     {
         return false;
@@ -206,10 +211,12 @@ void DxfImporter::addHeader(const DRW_Header* source)
     int32_t insertionUnits = 0;
     int32_t measurement = 0;
     double lineTypeScale = 1.0;
+    double currentLineTypeScale = 1.0;
     std::string codePage;
     dxf::headerInt(*source, "$INSUNITS", insertionUnits);
     dxf::headerInt(*source, "$MEASUREMENT", measurement);
     dxf::headerDouble(*source, "$LTSCALE", lineTypeScale);
+    dxf::headerDouble(*source, "$CELTSCALE", currentLineTypeScale);
     dxf::headerString(*source, "$DWGCODEPAGE", codePage);
     if (insertionUnits < 0 || insertionUnits > 20)
     {
@@ -223,16 +230,23 @@ void DxfImporter::addHeader(const DRW_Header* source)
     {
         lineTypeScale = 1.0;
     }
+    if (!std::isfinite(currentLineTypeScale) || currentLineTypeScale <= 0.0)
+    {
+        currentLineTypeScale = 1.0;
+    }
     const auto settings = yicad::plugin::DocumentSettings{}
         .setInsertionUnits(insertionUnits)
         .setMeasurement(measurement)
         .setGlobalLineTypeScale(lineTypeScale)
+        .setCurrentEntityLineTypeScale(currentLineTypeScale)
         .setSourceCodePage(std::move(codePage));
     setFailed(m_session.setDocumentSettings(settings));
 }
 
 void DxfImporter::addLType(const DRW_LType& source)
 {
+    // 代理图形按记录序号引用线型：每条记录都记下顺序
+    m_lineTypeOrder.push_back(source.name);
     if (source.name.empty())
     {
         return;
@@ -252,6 +266,8 @@ void DxfImporter::addLType(const DRW_LType& source)
 
 void DxfImporter::addLayer(const DRW_Layer& source)
 {
+    // 代理图形按记录序号引用图层：每条记录都记下顺序
+    m_layerOrder.push_back(source.name);
     if (source.name.empty())
     {
         return;
@@ -285,6 +301,10 @@ void DxfImporter::addTextStyle(const DRW_Textstyle& source)
     {
         m_textStyles.insert_or_assign(
             dxf::resourceKey(source.name), resource);
+        if (!source.font.empty())
+        {
+            m_textStylesByFont.try_emplace(dxf::resourceKey(source.font), resource);
+        }
     }
 }
 
@@ -1046,4 +1066,231 @@ bool DxfImporter::resolvePendingImages()
         }
     }
     return true;
+}
+
+void DxfImporter::addClass(const DRW_Class& source)
+{
+    // 序号按段里的全部登记算（ACAD_PROXY_ENTITY 的组码 91 是序号加 500）
+    m_classOrder.push_back(dxf::resourceKey(source.recName));
+    if (source.recName.empty())
+    {
+        return;
+    }
+    ClassInfo info;
+    info.className = source.className;
+    info.appName = source.appName;
+    info.proxyFlags = static_cast<uint32_t>(source.proxyFlag) & YICAD_PROXY_ALL;
+    info.entity = source.entityFlag == 1;
+    m_classes.insert_or_assign(dxf::resourceKey(source.recName), std::move(info));
+}
+
+void DxfImporter::addUnknownEntity(const DRW_UnknownEntity& source)
+{
+    if (m_failed || m_skipBlock || !m_currentContainer)
+    {
+        return;
+    }
+    dxf::ParsedCustomEntity parsed;
+    if (!dxf::parseCustomEntity(source, parsed) || (parsed.paperSpace && !m_inBlock))
+    {
+        return;
+    }
+    // 类：ACAD_PROXY_ENTITY 按组码 91 的序号找，别的按记录名找
+    std::string recordName = dxf::resourceKey(source.recordName);
+    if (parsed.acadProxy)
+    {
+        const int index = parsed.proxyClassId - dxf::AcadProxyClassIdBase;
+        if (recordName != dxf::AcadProxyRecordName || index < 0 || index >= static_cast<int>(m_classOrder.size()))
+        {
+            return;
+        }
+        recordName = m_classOrder[static_cast<std::size_t>(index)];
+    }
+    // 没在 CLASSES 段登记成实体的类型（libdxfrw 不认识的 AutoCAD 实体等）照旧跳过
+    const auto found = m_classes.find(recordName);
+    if (found == m_classes.end() || !found->second.entity || found->second.className.empty())
+    {
+        return;
+    }
+    const ClassInfo& info = found->second;
+    const bool r2010 = m_reader != nullptr && m_reader->getVersion() >= DRW::AC1024;
+    std::vector<dxf::ProxyShape> shapes;
+    const bool planar = parsed.planar &&
+        (parsed.graphics.empty() ||
+         dxf::readProxyGraphics(parsed.graphics, m_layerOrder, m_lineTypeOrder, r2010, shapes));
+    if (!parsed.yicad && !planar)
+    {
+        // 别的程序的三维实体：只读二维的（用户的决定），跳过
+        return;
+    }
+
+    std::vector<uint8_t> data;
+    uint32_t version = 0;
+    if (parsed.yicad)
+    {
+        data = std::move(parsed.data);
+        version = parsed.version;
+    }
+    else
+    {
+        dxf::ForeignEntityData foreign;
+        foreign.recordName = recordName;
+        foreign.appName = info.appName;
+        // 原数据是 DWG 二进制的 ACAD_PROXY_ENTITY 整段保留；原数据是 DXF 组码的同普通记录
+        foreign.acadProxy = parsed.acadProxy && !parsed.proxyDxfData;
+        foreign.records = foreign.acadProxy ? std::move(parsed.proxyRecords) : std::move(parsed.subclassRecords);
+        foreign.graphics = parsed.graphics;
+        data = dxf::encodeForeign(foreign);
+    }
+
+    // 代理图形：类不在（插件没装、别的程序的类）时代理按它显示；类在时宿主丢掉它
+    yicad::plugin::ImportContainer graphics;
+    const bool hasGraphics = !shapes.empty() &&
+        m_session.beginProxyGraphics(graphics) == YICAD_IMPORT_SUCCESS;
+    if (hasGraphics)
+    {
+        for (const auto& shape : shapes)
+        {
+            createProxyShape(shape, graphics);
+        }
+    }
+
+    DRW_Point common;
+    common.layer = parsed.layer;
+    common.lineType = parsed.lineType;
+    common.color = parsed.color;
+    common.color24 = parsed.color24;
+    common.lWeight = DRW_LW_Conv::dxfInt2lineWidth(parsed.lineWeight);
+    common.ltypeScale = parsed.lineTypeScale;
+    common.visible = parsed.visible;
+    if (dxf::resourceKey(parsed.lineType) != "BYLAYER")
+    {
+        ensureLineType(parsed.lineType);
+    }
+    yicad::plugin::CustomEntityData entity(info.className, version, std::move(data));
+    entity.setProxyFlags(info.proxyFlags)
+        .setTransform(parsed.transform)
+        .setAttributes(dxf::toAttributes(common, m_layers, m_lineTypes));
+    setFailed(m_currentContainer.createCustomEntity(entity, hasGraphics ? &graphics : nullptr));
+}
+
+void DxfImporter::createProxyShape(const dxf::ProxyShape& shape, const yicad::plugin::ImportContainer& graphics)
+{
+    // 代理图形里没给的属性沿用自定义实体自己的：颜色、线宽随块，图层、线型为空
+    yicad::plugin::EntityAttributes attributes;
+    const auto& given = shape.attributes;
+    attributes.setColor(given.hasColor ? given.color : YiCadColorData{YICAD_COLOR_BY_BLOCK, 0, 0, 0, 0, 0});
+    attributes.setLineWidth(given.hasLineWeight ? given.lineWeight : -2);
+    attributes.setLineTypeScale(given.lineTypeScale);
+    if (given.hasLayer)
+    {
+        if (const auto layer = m_layers.find(dxf::resourceKey(given.layer)); layer != m_layers.end())
+        {
+            attributes.setLayer(layer->second);
+        }
+    }
+    if (given.hasLineType)
+    {
+        attributes.setLineType(ensureLineType(given.lineType));
+    }
+    YiCadImportResult result = YICAD_IMPORT_SUCCESS;
+    switch (shape.kind)
+    {
+    case dxf::ProxyShape::Kind::Circle:
+        result = graphics.createCircle(shape.center, shape.radius, attributes);
+        break;
+    case dxf::ProxyShape::Kind::Arc:
+        result = graphics.createArc(shape.center, shape.radius, shape.startAngle, shape.endAngle, attributes);
+        break;
+    case dxf::ProxyShape::Kind::Polyline:
+        if (shape.points.size() == 1)
+        {
+            result = graphics.createPoint(shape.points.front(), attributes);
+        }
+        else if (shape.points.size() == 2 && !shape.closed && shape.bulges.empty())
+        {
+            result = graphics.createLine(shape.points[0], shape.points[1], attributes);
+        }
+        else if (shape.points.size() >= 2)
+        {
+            std::vector<YiCadVertex2d> vertices;
+            for (std::size_t i = 0; i < shape.points.size(); ++i)
+            {
+                vertices.push_back({shape.points[i], 0.0, 0.0, i < shape.bulges.size() ? shape.bulges[i] : 0.0});
+            }
+            result = graphics.createPolyline(
+                yicad::plugin::PolylineData(std::move(vertices)).setClosed(shape.closed).setAttributes(attributes));
+        }
+        break;
+    case dxf::ProxyShape::Kind::Fill:
+    {
+        yicad::plugin::HatchData hatch;
+        hatch.setSolid();
+        for (std::size_t i = 0; i < shape.loops.size(); ++i)
+        {
+            std::vector<YiCadVertex2d> loop;
+            for (const auto& p : shape.loops[i])
+            {
+                loop.push_back({p, 0.0, 0.0, 0.0});
+            }
+            if (shape.holes[i])
+            {
+                hatch.addPolylineLoop(std::move(loop), YICAD_HATCH_LOOP_HOLE, 0);
+            }
+            else
+            {
+                hatch.addPolylineLoop(std::move(loop));
+            }
+        }
+        hatch.setAttributes(attributes);
+        result = graphics.createHatch(hatch);
+        break;
+    }
+    case dxf::ProxyShape::Kind::Solid:
+    {
+        // 边界顺序换成 SOLID 的"Z"字顺序：1、2、4、3
+        const auto& p = shape.points;
+        yicad::plugin::SolidData solid(p.size() == 4 ? std::vector<YiCadPoint2d>{p[0], p[1], p[3], p[2]} : p);
+        solid.setAttributes(attributes);
+        result = graphics.createSolid(solid);
+        break;
+    }
+    case dxf::ProxyShape::Kind::Text:
+    {
+        if (shape.text.empty() || !(shape.height > 0.0))
+        {
+            break;
+        }
+        yicad::plugin::TextData text(shape.text);
+        text.setPlacement(shape.center, shape.center)
+            .setMetrics(shape.height, shape.rotation, shape.widthFactor, shape.obliqueAngle)
+            .setAttributes(attributes);
+        if (!shape.font.empty())
+        {
+            if (const auto style = m_textStylesByFont.find(dxf::resourceKey(shape.font));
+                style != m_textStylesByFont.end())
+            {
+                text.setStyle(style->second);
+            }
+        }
+        result = graphics.createText(text);
+        break;
+    }
+    case dxf::ProxyShape::Kind::Ray:
+        result = graphics.createRay(shape.center, shape.majorAxis, attributes);
+        break;
+    case dxf::ProxyShape::Kind::XLine:
+        result = graphics.createXLine(shape.center, shape.majorAxis, attributes);
+        break;
+    case dxf::ProxyShape::Kind::Ellipse:
+    {
+        const bool closed = std::fabs(shape.endAngle - shape.startAngle - 2.0 * Pi) < 1.0e-9 ||
+                            std::fabs(shape.endAngle - shape.startAngle) < 1.0e-12;
+        result = graphics.createEllipse(shape.center, shape.majorAxis, shape.ratio,
+            closed ? 0.0 : shape.startAngle, closed ? 2.0 * Pi : shape.endAngle, closed, attributes);
+        break;
+    }
+    }
+    // 代理图形里个别图元建不成（退化的圆、空文字等）不影响导入：代理照样建，只是少画它
+    (void)result;
 }

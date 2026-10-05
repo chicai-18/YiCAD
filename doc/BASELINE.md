@@ -666,14 +666,14 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 | 阶段 2 | 阶段 3 | 阶段 4 | 阶段 5 | 阶段 6 | 阶段 7 |
-|------------|------:|------:|------:|------:|------:|------:|------:|------:|------:|
-| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） |
-| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
-| `test_graphics` | — | — | — | 38（1 DISABLED） | 38（1 DISABLED） | 38（1 DISABLED） | 42（1 DISABLED） | 43 | 57（1 DISABLED） |
-| `test_persistence` | 68 | 68 | 68 | 68 | 68 | 68 | 73 | 73 | 80 |
-| `test_interaction` | 335 | 336 | 336 | 336 | 336 | 349 | 354 | 354 | 367 |
-| `test_render` | — | 15 | 23 | 23 | 43 | 48 | 57 | 67 | 69 |
+| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 | 阶段 2 | 阶段 3 | 阶段 4 | 阶段 5 | 阶段 6 | 阶段 7 | 阶段 8 |
+|------------|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|
+| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） |
+| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
+| `test_graphics` | — | — | — | 38（1 DISABLED） | 38（1 DISABLED） | 38（1 DISABLED） | 42（1 DISABLED） | 43 | 57（1 DISABLED） | 57（1 DISABLED） |
+| `test_persistence` | 68 | 68 | 68 | 68 | 68 | 68 | 73 | 73 | 80 | 80 |
+| `test_interaction` | 335 | 336 | 336 | 336 | 336 | 349 | 354 | 354 | 367 | 388 |
+| `test_render` | — | 15 | 23 | 23 | 43 | 48 | 57 | 67 | 69 | 71 |
 
 阶段 0 新增：`test_math` 的数量计数器与新计数器 4 个；`test_interaction` 的基线采集 1 个（不设 `YICAD_BENCHMARK_DIR` 时跳过）；
 `test_render`（新）的环境检查 2 个与参考图纸出图比对 13 个（缺 SHX 字体时 `text_shx` 跳过，CI 上就是这样）。
@@ -703,3 +703,11 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 `test_persistence` 的自定义实体往返 7 个（`test_persistence_custom.cpp`：读回原实体、类缺失时读成代理再存回、代理的变换补到原实体上、不允许变换的代理、数据版本比程序新、块定义里的自定义实体、块里有不写出的类型时不错位）；
 `test_interaction` 的示例扩展 13 个（`test_custom_entity.cpp`：登记与注销、命名空间、命令创建与撤销、捕捉、点选与交叉选、夹点、属性编辑分派、修改的撤销、炸开、代理按代理权限放行命令 3 个、另存为 DXF 写出炸开结果），原有两个用例的压缩包条目数随 `CustomEntities.bin` 加 1；
 `test_render` 的自定义实体出图 2 个（`test_render_custom.cpp`：代理与原实体逐像素相同、允许变换的代理移动后与同样移动的原实体相同）（`RENDER_PLAN.md` 第 10 节阶段 7）。
+
+阶段 8 新增：`test_interaction` 的插件实体 16 个（`test_plugin_entity.cpp`，装 demo 插件：实体类进注册表与插件关闭前注销、命令在事务里建管道并可撤销、
+没声明线程安全的类的图形记成 GI 流、炸开、夹点、捕捉、变换交给插件、命令在事务里改数据并可撤销、只读枚举交出自定义实体与实体句柄、
+只读枚举交出开放多段线且不中断（顺带修的缺陷）、原生格式存读、
+插件不在时读成代理、插件卸载后只画记下的图形、数据版本比插件新时读成代理、DXF 往返，以及 GI 单次输出的上限 1 个）；
+`test_custom_entity.cpp` 的"另存为 DXF 写出炸开结果"改为照 AutoCAD 写出自定义实体，另加类不在时 DXF 里的读成代理、移动过的代理存 DXF 后补上变换、
+AutoCAD 另存的 `ACAD_PROXY_ENTITY` 读回原实体、别的程序的自定义实体读成代理并原样写回、原数据是 DWG 格式的 `ACAD_PROXY_ENTITY` 另存时写成图形 5 个；
+`test_render` 的插件实体出图 2 个（`test_render_custom.cpp`：按插件的图形画且与它的代理逐像素相同、插件命令改数据后画面跟着变）（`RENDER_PLAN.md` 第 10 节阶段 8）。

@@ -128,6 +128,8 @@ void PluginManager::shutdownAll() noexcept
     {
         auto& plugin = **iterator;
         auto& record = m_records[static_cast<int>(plugin.recordIndex)];
+        /// @brief 插件 shutdown 之前断开它的实体类：注销、收回实例缓存，之后不再调用插件。
+        m_registry.detachEntityClasses(record.pluginId);
         const bool shutdownSucceeded = invokeShutdown(plugin, record);
         /// @brief DLL 卸载前使插件遗留的宿主会话失效，避免悬挂事务。
         m_hostApi.rollbackAllImports();
@@ -202,7 +204,7 @@ void PluginManager::loadManifest(
                 QStringLiteral("宿主 API 当前不可用"));
             return;
         }
-        if (host->abiVersion != YICAD_PLUGIN_ABI_V3)
+        if (host->abiVersion != YICAD_PLUGIN_ABI_V4)
         {
             setError(
                 record,
@@ -238,12 +240,12 @@ void PluginManager::loadManifest(
             return;
         }
 
-        if (record.pluginAbiVersion != YICAD_PLUGIN_ABI_V3)
+        if (record.pluginAbiVersion != YICAD_PLUGIN_ABI_V4)
         {
             setError(
                 record,
                 PluginManagerErrorCode::AbiVersionMismatch,
-                QStringLiteral("插件 ABI 版本 %1 与宿主要求的 v3 不一致")
+                QStringLiteral("插件 ABI 版本 %1 与宿主要求的 v4 不一致")
                     .arg(record.pluginAbiVersion));
             return;
         }
@@ -265,7 +267,7 @@ void PluginManager::loadManifest(
 
         YiCadPluginApi pluginApi{};
         pluginApi.structSize = PluginApiCapacity;
-        pluginApi.abiVersion = YICAD_PLUGIN_ABI_V3;
+        pluginApi.abiVersion = YICAD_PLUGIN_ABI_V4;
 
         YiCadResult initResult = YICAD_FAILURE;
         plugin->initInvoked = true;
@@ -301,7 +303,7 @@ void PluginManager::loadManifest(
             setError(
                 record,
                 PluginManagerErrorCode::PluginApiLayoutMismatch,
-                QStringLiteral("插件输出结构未覆盖 v3 元数据"));
+                QStringLiteral("插件输出结构未覆盖 v4 元数据"));
             cleanupFailedPlugin(*plugin, record);
             return;
         }
@@ -314,12 +316,12 @@ void PluginManager::loadManifest(
             cleanupFailedPlugin(*plugin, record);
             return;
         }
-        if (pluginApi.abiVersion != YICAD_PLUGIN_ABI_V3)
+        if (pluginApi.abiVersion != YICAD_PLUGIN_ABI_V4)
         {
             setError(
                 record,
                 PluginManagerErrorCode::PluginApiVersionMismatch,
-                QStringLiteral("插件未确认宿主 ABI v3"));
+                QStringLiteral("插件未确认宿主 ABI v4"));
             cleanupFailedPlugin(*plugin, record);
             return;
         }

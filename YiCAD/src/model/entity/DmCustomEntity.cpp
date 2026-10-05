@@ -394,6 +394,27 @@ bool DmCustomEntity::restoreDataBytes(const std::string& bytes, std::uint32_t ve
     return restoreData(data, version);
 }
 
+std::string DmCustomEntity::dataBytes() const
+{
+    std::ostringstream oss;
+    {
+        OutputStream data(oss);
+        saveData(data);
+    }
+    return oss.str();
+}
+
+bool DmCustomEntity::assignDataBytes(const std::string& bytes, std::uint32_t version, const GiTransform& accumulated)
+{
+    if (!restoreDataBytes(bytes, version))
+    {
+        return false;
+    }
+    applyStoredTransform(accumulated);
+    update();
+    return true;
+}
+
 void DmCustomEntity::applyStoredTransform(const GiTransform& transform)
 {
     // 代理被变换过：按累计的变换改动读回的原实体
