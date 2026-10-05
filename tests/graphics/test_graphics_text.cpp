@@ -83,6 +83,7 @@ public:
     void setLineType(const DmLineType*) override {}
     void setLineTypeScale(double) override {}
     void setLinePattern(const GiLinePattern&) override {}
+    void setFill(const GiHatchPattern*) override {}
     void setLineWeight(DM::LineWidth) override {}
     void setTransparency(std::uint8_t) override {}
     void setSelectionMarker(std::int32_t) override {}

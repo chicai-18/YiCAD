@@ -235,6 +235,14 @@ public:
     /// @return true 表示显示线宽（旧称草稿模式）
     bool isDraftMode() const;
     void setDraftMode(bool dm);
+    /// @brief 按屏幕尺寸简化显示（RENDER_PLAN.md 第 4.3.10 节：小字画细条、密填充画实心、亚像素对象画点、小圆弧少画分段），
+    ///        默认开；关掉时一律按完整几何画（对照与测试用）
+    void setLevelOfDetail(bool on);
+    /// @brief 每帧场景最多画多少个顶点（RENDER_PLAN.md 第 4.3.10 节的渐进绘制）；0 为按实测的 GPU 耗时定（默认）。
+    ///        测试用固定的顶点数，结果与机器快慢无关
+    void setSceneBudget(std::size_t vertices);
+    /// @brief 场景底图画完了；没画完（超出这一帧的预算）时画布会接着画下一帧
+    bool isSceneComplete() const;
     bool isCleanUp(void) const override;
 
     DmEntityContainer* getPreviewContainer() override;
@@ -314,6 +322,8 @@ protected:
 
 private:
     bool                                draftMode;              ///< 是否显示线宽
+    bool                                m_levelOfDetail = true;  ///< 按屏幕尺寸简化显示
+    std::size_t                         m_sceneBudget = 0;       ///< 每帧场景的顶点预算；0 为按实测
     double                              m_dMinScale;            ///< 视图放大至最大时单位像素允许的世界坐标尺寸
 
     DmVector                            relativeZero;           ///< 鼠标上一次捕捉的坐标

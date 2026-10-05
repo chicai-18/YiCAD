@@ -113,6 +113,14 @@ enum class GsDashMode : std::uint8_t
 
 constexpr std::uint8_t kGsPrimFlagFill = 1;    ///< 选中、高亮时半透明叠色，不加宽
 constexpr std::uint8_t kGsPrimFlagPoint = 2;
+/// @brief 填充图案线（GI 的 setFill 切出的）：dash[2] 是相邻两条线的距离（局部长度），线距在屏幕上太密时不画（第 4.3.10 节）
+constexpr std::uint8_t kGsPrimFlagHatchLine = 4;
+/// @brief 填充图案过密时的替身（三角形）：只在线距太密时画，按平均覆盖率抖动写采样掩码；
+///        dash 为 [0] 线距（局部长度）、[1] 划线占周期的比例（实线为 1）、[2] 每局部长度的划线与点数（每个两端加圆头）、[3] 图案的周期（局部长度，
+///        实线为 0；周期在屏幕上过密时图案线画成实线，替身同样按实线算）
+constexpr std::uint8_t kGsPrimFlagHatchCover = 8;
+/// @brief 小字的细条（线段，沿基线、跨整个字形串）：只在字高小于阈值时画，线宽取字高；dash[2] 是字高（局部长度）
+constexpr std::uint8_t kGsPrimFlagTextBar = 16;
 
 /// @brief kinds 里的位
 constexpr std::uint32_t kGsKindsDashShift = 6;      ///< 对齐方式，3 位
@@ -159,8 +167,8 @@ struct GsInstanceRecord
     std::uint32_t layers = 0;                ///< 实例图层（块里图层为空的图元取它） | 随块属性随层用的图层 << 16
     std::uint32_t byBlockLineTypeAndWeight = 0; ///< 随块线型序号 | 随块线宽代码（int16）<< 16
     std::uint32_t cell = 0;                  ///< 分块序号：着色器取分块原点相对视点的偏移
-    std::uint32_t reserved0 = 0;
-    std::uint32_t reserved1 = 0;
+    float textHeight = 0.0f;                 ///< 字形实例的字高（世界长度）：小于阈值时整个字形不画，由细条代替；不是字形为 0
+    float rootScale = 1.0f;                  ///< 模型整体变换（预览拖动）的长度比例：对象状态里的尺寸乘它
 };
 static_assert(sizeof(GsInstanceRecord) == 64);
 
@@ -177,7 +185,7 @@ struct GsObjectState
     std::uint32_t order = 0;                 ///< 绘图次序（越大越靠上），写进深度
     std::uint32_t flags = 0;                 ///< kGsStateSelected、kGsStateHidden
     std::uint32_t layer = kGsLayerNone;      ///< 顶层对象所在的图层（块参照所在层冻结时整个块不画）
-    std::uint32_t reserved = 0;
+    float size = 0.0f;                       ///< 包围框较长的一边（世界长度）：屏幕上小于阈值时画成一个点（第 4.3.10 节）
 };
 static_assert(sizeof(GsObjectState) == 16);
 
@@ -223,8 +231,10 @@ struct GsFrameConstants
     std::array<float, 4> gridOffset{};     ///< 视点对细、粗间距取模
     std::array<float, 4> gridColor{};
     std::array<float, 4> metaGridColor{};
+    std::array<float, 4> lod{};            ///< LOD 的阈值（设备像素，第 4.3.10 节；为 0 时不起作用）：字高、填充图案线距、
+                                           ///< 对象尺寸、圆弧画成一个四边形的半径
 };
-static_assert(sizeof(GsFrameConstants) == 256);
+static_assert(sizeof(GsFrameConstants) == 272);
 
 constexpr std::uint32_t kGsPassScene = 0;      ///< 场景通道：选中按对象状态
 constexpr std::uint32_t kGsPassHighlight = 1;  ///< 高亮叠加：全部按高亮画

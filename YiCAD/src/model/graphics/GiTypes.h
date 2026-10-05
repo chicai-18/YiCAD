@@ -115,6 +115,31 @@ struct GiLinePattern
     bool operator==(const GiLinePattern& other) const = default;
 };
 
+/// @brief 填充图案的一族平行线（对应 ODA 的 OdHatchPatternLine、AutoCAD HATCH 的组码 53/43/44/45/46/49）
+/// @details 都在当前坐标系里：base 是这一族里一条线经过的点，图案从这里起算；direction 是线的方向（单位向量）；
+///          offset 是从一条线到下一条线的位移（不平行于 direction），第 k 条线经过 base + k·offset，它的图案从那一点起算；
+///          dashes 与 .pat 相同（正数划线、负数空白、0 是点），长度沿 direction 量，为空是实线。
+///          与 .pat 用角度、线自身坐标系里的位移不同，这里方向与位移都是向量，任意仿射变换后仍是合法的定义：
+///          base、offset 照常变换，direction 变换后取单位向量，dashes 乘方向上的伸缩
+struct GiHatchPatternLine
+{
+    DmVector base;
+    DmVector direction;
+    DmVector offset;
+    std::vector<double> dashes;
+
+    bool operator==(const GiHatchPatternLine& other) const = default;
+};
+
+/// @brief 填充图案（对应 ODA 的 OdGiHatchPattern）：fill 的区域按这些线族画，而不是涂实
+/// @details 图案线由接收方在边界里切出（HatchPatternClipper），图形系统据此在线太密时改画实心（RENDER_PLAN.md 第 4.3.10 节）
+struct GiHatchPattern
+{
+    std::vector<GiHatchPatternLine> lines;
+
+    bool operator==(const GiHatchPattern& other) const = default;
+};
+
 /// @brief drawShared 时共享对象里 ByBlock 属性取的值
 /// @details 每一项本身可以是 ByLayer（按调用方的图层解析）或 ByBlock（取调用方所在的外层块），
 ///          块参照传它自己的属性即可

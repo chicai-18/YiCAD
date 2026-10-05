@@ -9,6 +9,7 @@
 /// - 经 DmDocument::readFile() 打开（document.open），显示后首帧的整图重建（render.regen）；
 /// - 缩放到全图，连续重绘，取稳态帧（render.paintGL、每帧绘制调用与上传字节，以及 GPU 耗时）；
 /// - 每帧平移 1 像素，取场景整幅重画的帧（渲染方案阶段 4 加：平移、缩放时每帧都这样，CPU 与 GPU 耗时）；
+///   渲染方案阶段 6 起另量按预算渐进绘制的平移（一帧只画预算内的部分）与停下后画完整幅的帧数；
 /// - 要求整图重建（REGEN：DmDocument::requestFullRebuild 加 notifyDocumentModified），
 ///   重绘一帧，取整图重建的耗时（render.regen；渲染方案阶段 2 加：实体里不再缓存顶点，每次整图重建都要重新生成）；
 /// - 在事务里移动 20 条直线，每次一条，提交后重绘一帧（渲染方案阶段 4 加：旧渲染器整图重建，
@@ -34,6 +35,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -163,6 +165,9 @@ struct Result
     double steadyUploadBytes = 0.0;
     double panFrameMs = 0.0;               ///< 平移 1 像素后的帧（场景整幅重画）
     double panGpuMs = 0.0;
+    double panBudgetGpuMs = 0.0;           ///< 同上，按预算渐进绘制（渲染方案阶段 6）：一帧只画预算内的部分
+    double panBudgetCpuMs = 0.0;
+    double panBudgetFramesToComplete = 0.0; ///< 停下后画完整幅用的帧数
     double modifiedRegenMs = 0.0;          ///< 要求整图重建（REGEN）后的整图重建
     double videoMemoryMb = 0.0;            ///< 打开图纸、画过稳态帧后少了的可用显存
     double frameAfterModifyMs = 0.0;       ///< 移动一条直线后首帧
@@ -260,6 +265,8 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
 
     const long long memoryBefore = availableVideoMemoryKb();
     GpuTimedView view(nullptr, Qt::WindowFlags(), &appDocument);
+    // 每帧画完整幅场景（与以前各阶段可比）；按预算渐进绘制另量一行，见下面的平移
+    view.setSceneBudget(std::numeric_limits<std::size_t>::max());
     view.resize(kViewWidth, kViewHeight);
     view.show();
     waitExposed(view);
@@ -297,6 +304,32 @@ Result measure(yicad_test::DxfRuntime& runtime, const QString& path)
     }
     result.panFrameMs = yicad::counters::paintGL().averageMs();
     result.panGpuMs = gpuMs / kSteadyFrames;
+    // 按预算渐进绘制（渲染方案阶段 6，第 4.3.10 节）：预算按实测的 GPU 耗时定（每帧约 10 毫秒），
+    // 超出时一帧只画先粗后细的前一部分；停下后接着画完。上面一行每帧都画完整幅，与以前各阶段可比
+    view.setSceneBudget(0);
+    for (int i = 0; i < kWarmupFrames; ++i)
+    {
+        view.zoomPan(i % 2 == 0 ? 1 : -1, 0);
+        renderFrame(view);
+    }
+    yicad::Profiler::resetAll();
+    gpuMs = 0.0;
+    for (int i = 0; i < kSteadyFrames; ++i)
+    {
+        view.zoomPan(i % 2 == 0 ? 1 : -1, 0);
+        renderFrame(view);
+        gpuMs += view.lastFrameGpuMs();
+    }
+    result.panBudgetCpuMs = yicad::counters::paintGL().averageMs();
+    result.panBudgetGpuMs = gpuMs / kSteadyFrames;
+    int framesToComplete = 0;
+    while (!view.isSceneComplete() && framesToComplete < 1000)
+    {
+        renderFrame(view);
+        ++framesToComplete;
+    }
+    result.panBudgetFramesToComplete = framesToComplete + 1;
+    view.setSceneBudget(std::numeric_limits<std::size_t>::max());
     const long long memoryAfter = availableVideoMemoryKb();
     result.videoMemoryMb = memoryBefore > 0 && memoryAfter > 0 ? (memoryBefore - memoryAfter) / 1024.0 : 0.0;
 
@@ -445,6 +478,9 @@ void print(const std::vector<Result>& results)
     row("稳态帧上传（字节/帧）", [](const Result& r) { return fixed(r.steadyUploadBytes, 0); });
     row("平移一帧 `render.paintGL`（场景整幅重画）", [](const Result& r) { return fixed(r.panFrameMs, 2); });
     row("平移一帧 GPU 耗时（`GL_TIME_ELAPSED`）", [](const Result& r) { return fixed(r.panGpuMs, 2); });
+    row("按预算平移一帧 `render.paintGL`", [](const Result& r) { return fixed(r.panBudgetCpuMs, 2); });
+    row("按预算平移一帧 GPU 耗时", [](const Result& r) { return fixed(r.panBudgetGpuMs, 2); });
+    row("按预算停下后画完整幅的帧数", [](const Result& r) { return fixed(r.panBudgetFramesToComplete, 0); });
     row("显存占用（MB，`GL_NVX_gpu_memory_info`）", [](const Result& r) { return fixed(r.videoMemoryMb, 1); });
     row("要求整图重建后的整图重建 `render.regen`", [](const Result& r) { return fixed(r.modifiedRegenMs, 2); });
     row("移动一条直线后首帧 `render.paintGL`", [](const Result& r) { return fixed(r.frameAfterModifyMs, 2); });

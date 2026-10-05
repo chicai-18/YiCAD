@@ -51,10 +51,18 @@ struct GLRhiContextState
     QOpenGLContext* context = nullptr;
     std::unordered_map<std::uint64_t, GLuint> vertexArrays;  ///< 管线 id -> VAO
     std::unordered_map<std::uint64_t, GLuint> framebuffers;  ///< 渲染目标 id -> FBO
+    /// @brief 一组时间戳查询在这个上下文里的查询对象（GL 的查询对象不在上下文之间共享），第一次写时建
+    struct Queries
+    {
+        std::vector<GLuint> names;
+        std::vector<bool> written;
+    };
+    std::unordered_map<std::uint64_t, Queries> querySets;     ///< 查询组 id -> 查询对象
     GLuint scratchReadFramebuffer = 0;   ///< 读回、解析时临时挂纹理用
     GLuint scratchDrawFramebuffer = 0;
     std::vector<GLuint> pendingVertexArrayDeletes;  ///< 管线销毁时本上下文不是当前的，等它下次成为当前再删
     std::vector<GLuint> pendingFramebufferDeletes;
+    std::vector<GLuint> pendingQueryDeletes;
     QMetaObject::Connection destroyConnection;
 };
 
@@ -116,6 +124,7 @@ public:
     RhiBindGroupPtr createBindGroup(const RhiBindGroupDesc& desc) override;
     RhiPipelinePtr createPipeline(const RhiPipelineDesc& desc) override;
     RhiRenderTargetPtr createRenderTarget(const RhiRenderTargetDesc& desc) override;
+    RhiQuerySetPtr createQuerySet(const RhiQuerySetDesc& desc) override;
     void upload(RhiBuffer& dst, std::size_t offset, std::span<const std::byte> data) override;
     void upload(RhiTexture& dst, const RhiTextureRegion& region, std::span<const std::byte> data) override;
     RhiCommandList& beginFrame(RhiSurface& surface) override;
@@ -123,6 +132,7 @@ public:
     void endFrame() override;
     void waitIdle() override;
     bool readBuffer(const RhiBuffer& buffer, std::size_t offset, std::span<std::byte> out) override;
+    bool readTimestamps(const RhiQuerySet& set, std::uint32_t first, std::span<std::uint64_t> out) override;
     const glm::mat4& clipSpaceCorrection() const override;
 
     // ---- 诊断（测试用） ----
@@ -152,6 +162,8 @@ public:
     void forgetPipeline(std::uint64_t id);
     /// @brief 渲染目标销毁：各上下文里的 FBO 同上
     void forgetRenderTarget(std::uint64_t id);
+    /// @brief 查询组销毁：各上下文里的查询对象同上
+    void forgetQuerySet(std::uint64_t id);
     /// @brief 当前上下文的状态；当前上下文必须属于本设备的共享组
     GLRhiContextState& currentContextState();
     /// @brief 新资源的序号（VAO、FBO 缓存的键，不会因地址复用而撞上）

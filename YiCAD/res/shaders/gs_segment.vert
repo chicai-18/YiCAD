@@ -22,6 +22,11 @@ layout(location = 7) flat out vec3 vDashParams; // 相位、头部划线终点�
 
 void main()
 {
+    if (smallGlyph())
+    {
+        gl_Position = collapsed();
+        return;
+    }
     int k = gl_VertexIndex / 6;
     int corner = gl_VertexIndex % 6;
     vec4 p0 = texelFetch(points, k);
@@ -33,6 +38,21 @@ void main()
         return;
     }
     Prim prim = loadPrim(code & 0x7FFFFFFFu);
+    // 填充图案线太密时不画（替身三角形按覆盖率画）；小字的细条只在字高小于阈值时画，线宽取字高
+    float barWidthPx = -1.0;
+    if ((prim.flags & (kPrimFlagHatchLine | kPrimFlagTextBar)) != 0u)
+    {
+        vec4 lodParams = loadPrimDash(prim.index);
+        if ((prim.flags & kPrimFlagHatchLine) != 0u ? denseHatch(lodParams.z) : !textBarVisible(lodParams.z))
+        {
+            gl_Position = collapsed();
+            return;
+        }
+        if ((prim.flags & kPrimFlagTextBar) != 0u)
+        {
+            barWidthPx = max(lodParams.z * instanceScale() / frame.viewport.z, frame.strokeStyle.z);
+        }
+    }
     Style style = resolveStyle(prim);
     if (!style.visible)
     {
@@ -41,7 +61,8 @@ void main()
     }
 
     float wpp = frame.viewport.z;
-    float widthPx = lineWidthPixels(resolveLineWeight(prim)) + (style.emphasized ? frame.lineStyle.y : 0.0);
+    float widthPx = (barWidthPx > 0.0 ? barWidthPx : lineWidthPixels(resolveLineWeight(prim)))
+                    + (style.emphasized ? frame.lineStyle.y : 0.0);
     float halfWidth = widthPx * 0.5 * wpp;
     float extent = halfWidth + frame.viewport.w * wpp;
     float lengthScale = iTranslate.z;

@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <numeric>
 
 #include "DmBlock.h"
 #include "GsDevice.h"
@@ -45,6 +46,17 @@ constexpr float kPointPixels = 2.0f;        ///< 点的像素，与旧渲染器�
 /// @brief 显示线宽时每单位线宽代码（毫米 × 100）的像素：线宽按 5 像素/毫米显示，不随缩放变（第 4.6 节，用户定的固定换算）
 constexpr float kLineWidthPerCode = 0.05f;
 constexpr float kMinDashPeriodPixels = 2.0f;  ///< 线型的周期在屏幕上短于它时画实线（第 4.5.4 节）
+// LOD 的阈值（像素，第 4.3.10 节）
+constexpr float kLodTextPixels = 2.0f;        ///< 字高小于它时字形不画，画沿基线的细条
+constexpr float kLodHatchPixels = 2.0f;       ///< 填充图案的线距小于它时不画图案线，画按覆盖率的实心
+constexpr float kLodObjectPixels = 1.0f;      ///< 对象包围框小于它时画成一个点
+constexpr float kLodArcPixels = 4.0f;         ///< 圆弧（含线宽外扩前）的半径不超过它时只画一个四边形，不画 8 段环带
+// 渐进绘制（第 4.3.10 节）
+constexpr double kSceneBudgetMs = 10.0;          ///< 每帧场景通道的 GPU 时间预算（60 帧的一帧 16.7 毫秒，留出贴图与叠加层）
+constexpr double kDefaultVertexRate = 4.0e6;     ///< 还没测出时假定的每毫秒顶点数（本机独显约 4×10⁶，阶段 6 的测量）
+constexpr double kMinBudgetVertices = 2.0e5;     ///< 每帧至少画这么多顶点：再慢的机器也要往前走
+constexpr double kMinTimedVertices = 2.0e5;      ///< 一帧画的顶点少于它时不拿来估速度（固定开销占大头）
+constexpr std::uint32_t kTimestampSlots = 8;     ///< 时间戳环：同时在等结果的帧最多这么多
 
 std::uint32_t packColor(const QColor& c)
 {
@@ -160,7 +172,9 @@ void GsView::release()
     m_sceneDepth.reset();
     m_sceneResolve.reset();
     m_targetWidth = m_targetHeight = m_targetSamples = 0;
-    m_sceneValid = false;
+    invalidateScene();
+    m_timestamps.reset();
+    m_pendingTimings.clear();
     m_model.reset();
     m_device.reset();
 }
@@ -170,7 +184,7 @@ void GsView::setModel(std::shared_ptr<GsModel> model, bool selection)
     m_model = std::move(model);
     m_selection = selection;
     m_block = nullptr;
-    m_sceneValid = false;
+    invalidateScene();
     m_viewBitsDirty = true;
     m_highlightDirty = true;
 }
@@ -185,7 +199,7 @@ void GsView::setBlock(std::shared_ptr<GsModel> model, const DmBlock* block)
     m_model = std::move(model);
     m_block = block;
     m_selection = false;
-    m_sceneValid = false;
+    invalidateScene();
 }
 
 void GsView::setCamera(const DmVector& center, double worldPerPixel)
@@ -208,7 +222,7 @@ void GsView::setHighlighted(std::vector<DmEntity*> entities)
     if (m_useBitmapHighlight || wasBitmap)
     {
         m_viewBitsDirty = true;
-        m_sceneValid = false;
+        invalidateScene();
     }
 }
 
@@ -220,7 +234,7 @@ void GsView::setHidden(std::vector<DmEntity*> entities)
     }
     m_hidden = std::move(entities);
     m_viewBitsDirty = true;
-    m_sceneValid = false;
+    invalidateScene();
 }
 
 void GsView::setGrips(std::vector<DmVector> grips)
@@ -306,7 +320,7 @@ bool GsView::ensureTargets(std::uint32_t width, std::uint32_t height, std::uint3
     m_targetWidth = width;
     m_targetHeight = height;
     m_targetSamples = samples;
-    m_sceneValid = false;
+    invalidateScene();
     return m_sceneTarget && m_blitGroup;
 }
 
@@ -388,12 +402,41 @@ RhiBindGroupPtr GsView::frameGroup(std::uint32_t slot, const RhiBufferPtr& cells
     return m_device->rhi().createBindGroup(desc);
 }
 
-void GsView::drawList(RhiCommandList& commands, const GsDrawList& list, const RhiBuffer& indirect,
+GsView::DrawRange GsView::wholeRange(const GsDrawList& list)
+{
+    DrawRange r;
+    for (std::size_t i = 0; i < kGsClassCount; ++i)
+    {
+        r.end[i] = static_cast<std::uint32_t>(list.commands[i].size());
+    }
+    r.smallArcsEnd = static_cast<std::uint32_t>(list.smallArcs.size());
+    r.imagesEnd = static_cast<std::uint32_t>(list.images.size());
+    return r;
+}
+
+GsView::DrawRange GsView::chunkRange(const GsDrawList& list, std::size_t first, std::size_t last)
+{
+    DrawRange r;
+    if (first > 0)
+    {
+        const GsDrawList::Chunk& before = list.chunks[first - 1];
+        r.begin = before.end;
+        r.smallArcsBegin = before.smallArcsEnd;
+        r.imagesBegin = before.imagesEnd;
+    }
+    const GsDrawList::Chunk& through = list.chunks[last - 1];
+    r.end = through.end;
+    r.smallArcsEnd = through.smallArcsEnd;
+    r.imagesEnd = through.imagesEnd;
+    return r;
+}
+
+void GsView::drawList(RhiCommandList& commands, const GsDrawList& list, const DrawRange& range, const RhiBuffer& indirect,
                       std::size_t indirectBase, const GsModel& model, const RhiBindGroup& frame,
                       const RhiBuffer& instances, std::uint32_t samples, bool scene, bool hairlines)
 {
     const GsPipelineVariant variant = scene ? GsPipelineVariant::Scene : GsPipelineVariant::Overlay;
-    // 间接参数在缓冲里按管线类依次排列（与 render() 填写的顺序相同）
+    // 间接参数在缓冲里按管线类依次排列，最后是小圆弧（与 render() 填写的顺序相同）
     std::array<std::size_t, kGsClassCount> starts{};
     std::size_t cursor = indirectBase;
     for (std::size_t i = 0; i < kGsClassCount; ++i)
@@ -401,10 +444,11 @@ void GsView::drawList(RhiCommandList& commands, const GsDrawList& list, const Rh
         starts[i] = cursor;
         cursor += list.commands[i].size();
     }
+    const std::size_t smallArcStart = cursor;
     const RhiVertexBufferBinding binding{&instances, 0};
 
     // 图片先画（与填充同为面，线画在它们之上）
-    if (!list.images.empty() && model.geometryGroup(GsClass::Image))
+    if (range.imagesEnd > range.imagesBegin && model.geometryGroup(GsClass::Image))
     {
         const RhiPipelinePtr& pipeline = m_device->pipeline(GsProgram::Image, variant, samples);
         if (pipeline)
@@ -414,18 +458,20 @@ void GsView::drawList(RhiCommandList& commands, const GsDrawList& list, const Rh
             commands.setBindGroup(1, *model.modelGroup());
             commands.setBindGroup(2, *model.geometryGroup(GsClass::Image));
             commands.setVertexBuffers(0, std::span<const RhiVertexBufferBinding>(&binding, 1));
-            for (const GsDrawList::ImageDraw& image : list.images)
+            for (std::uint32_t k = range.imagesBegin; k < range.imagesEnd; ++k)
             {
+                const GsDrawList::ImageDraw& image = list.images[k];
                 commands.setBindGroup(3, *image.textureGroup);
                 commands.draw(image.args.vertexCount, image.args.instanceCount, image.args.firstVertex,
                               image.args.firstInstance);
             }
         }
     }
+    bool smallArcsDrawn = false;
     for (GsClass c : kDrawOrder)
     {
         const std::size_t i = static_cast<std::size_t>(c);
-        const std::size_t count = list.commands[i].size();
+        const std::size_t count = range.end[i] - range.begin[i];
         if (count == 0 || !model.geometryGroup(c))
         {
             continue;
@@ -441,8 +487,73 @@ void GsView::drawList(RhiCommandList& commands, const GsDrawList& list, const Rh
         commands.setBindGroup(1, *model.modelGroup());
         commands.setBindGroup(2, *model.geometryGroup(c));
         commands.setVertexBuffers(0, std::span<const RhiVertexBufferBinding>(&binding, 1));
-        commands.drawIndirect(indirect, starts[i] * sizeof(RhiDrawIndirectArgs), static_cast<std::uint32_t>(count));
+        commands.drawIndirect(indirect, (starts[i] + range.begin[i]) * sizeof(RhiDrawIndirectArgs),
+                              static_cast<std::uint32_t>(count));
+        if (c == GsClass::Arc)
+        {
+            drawSmallArcs(commands, range, indirect, smallArcStart, model, frame, binding, samples, scene);
+            smallArcsDrawn = true;
+        }
     }
+    if (!smallArcsDrawn)
+    {
+        drawSmallArcs(commands, range, indirect, smallArcStart, model, frame, binding, samples, scene);
+    }
+}
+
+void GsView::drawSmallArcs(RhiCommandList& commands, const DrawRange& range, const RhiBuffer& indirect, std::size_t start,
+                           const GsModel& model, const RhiBindGroup& frame, const RhiVertexBufferBinding& binding,
+                           std::uint32_t samples, bool scene)
+{
+    const std::uint32_t count = range.smallArcsEnd - range.smallArcsBegin;
+    if (count == 0 || !model.geometryGroup(GsClass::Arc))
+    {
+        return;
+    }
+    const RhiPipelinePtr& pipeline =
+        m_device->pipeline(GsProgram::ArcSmall, scene ? GsPipelineVariant::Scene : GsPipelineVariant::Overlay, samples);
+    if (!pipeline)
+    {
+        return;
+    }
+    commands.setPipeline(*pipeline);
+    commands.setBindGroup(0, frame);
+    commands.setBindGroup(1, *model.modelGroup());
+    commands.setBindGroup(2, *model.geometryGroup(GsClass::Arc));
+    commands.setVertexBuffers(0, std::span<const RhiVertexBufferBinding>(&binding, 1));
+    commands.drawIndirect(indirect, (start + range.smallArcsBegin) * sizeof(RhiDrawIndirectArgs), count);
+}
+
+void GsView::readSceneTimings()
+{
+    // 时间戳要几帧之后才可读：按写的先后读，读不出就等下一帧（不等待 GPU）
+    std::size_t done = 0;
+    for (const PendingTiming& t : m_pendingTimings)
+    {
+        std::array<std::uint64_t, 2> times{};
+        if (!m_timestamps || !m_device->rhi().readTimestamps(*m_timestamps, t.slot * 2, times))
+        {
+            break;
+        }
+        ++done;
+        const double ms = static_cast<double>(times[1] - times[0]) / 1.0e6;
+        if (t.vertices >= kMinTimedVertices && ms > 0.0)
+        {
+            const double rate = t.vertices / ms;
+            m_vertexRate = m_vertexRate > 0.0 ? m_vertexRate * 0.7 + rate * 0.3 : rate;
+        }
+    }
+    m_pendingTimings.erase(m_pendingTimings.begin(), m_pendingTimings.begin() + static_cast<std::ptrdiff_t>(done));
+}
+
+double GsView::sceneBudget() const
+{
+    if (m_fixedBudget > 0)
+    {
+        return static_cast<double>(m_fixedBudget);
+    }
+    const double rate = m_vertexRate > 0.0 ? m_vertexRate : kDefaultVertexRate;
+    return std::max(rate * kSceneBudgetMs, kMinBudgetVertices);
 }
 
 bool GsView::render(RhiSurface& surface, double dpr)
@@ -458,6 +569,13 @@ bool GsView::render(RhiSurface& surface, double dpr)
     const double wpp = m_worldPerPixel / std::max(dpr, 1.0e-6);  // 每设备像素的世界长度
     const double eyeX = m_center.x;
     const double eyeY = m_center.y;
+    // 收集命令时整组判断的 LOD 阈值，与每帧常量里着色器的阈值相同（设备像素换成世界长度）
+    GsLod lod;
+    if (m_style.lod)
+    {
+        lod.textHeight = kLodTextPixels * dpr * wpp;
+        lod.arcRadius = kLodArcPixels * dpr * wpp;
+    }
 
     // 1. 模型处理累积的变更
     if (m_model)
@@ -481,18 +599,21 @@ bool GsView::render(RhiSurface& surface, double dpr)
     {
         sceneStyle.highlight = m_sceneStyle.highlight;
     }
-    if (!m_sceneValid || modelVersion != m_sceneModelVersion || m_sceneCenter.x != eyeX || m_sceneCenter.y != eyeY
+    if (modelVersion != m_sceneModelVersion || m_sceneCenter.x != eyeX || m_sceneCenter.y != eyeY
         || m_sceneWorldPerPixel != wpp || m_sceneWidth != width || m_sceneHeight != height || !(m_sceneStyle == sceneStyle))
     {
-        m_sceneValid = false;
+        invalidateScene();
     }
     if (modelVersion != m_highlightModelVersion)
     {
         m_highlightDirty = true;
         m_viewBitsDirty = true;
     }
-    const bool redrawScene = !m_sceneValid;
-    m_lastFrameRedrewScene = redrawScene;
+    // 从头画场景，或者接着画上一帧没画完的（渐进绘制，第 4.3.10 节）
+    const bool redrawScene = !m_sceneValid && !m_sceneInProgress;
+    const bool drawScene = redrawScene || m_sceneInProgress;
+    m_lastFrameRedrewScene = drawScene;
+    readSceneTimings();
 
     // 每视图的缓冲
     if (m_viewBitsDirty || !m_viewBitsBuffer)
@@ -514,8 +635,10 @@ bool GsView::render(RhiSurface& surface, double dpr)
             const double margin = 16.0 * wpp;
             const double halfW = width * 0.5 * wpp + margin;
             const double halfH = height * 0.5 * wpp + margin;
-            m_model->collectVisible(DmVector(eyeX - halfW, eyeY - halfH), DmVector(eyeX + halfW, eyeY + halfH),
+            m_model->collectVisible(DmVector(eyeX - halfW, eyeY - halfH), DmVector(eyeX + halfW, eyeY + halfH), lod,
                                     m_sceneList);
+            // 放大后弦高超过半个像素的曲线重新离散（第 4.3.10 节）：这一帧先用旧结果画，好了模型的版本变，场景重画
+            m_model->refineVisible(DmVector(eyeX - halfW, eyeY - halfH), DmVector(eyeX + halfW, eyeY + halfH), wpp);
         }
         // 不显示线宽时线段按细线画（每段 2 个顶点，片段只判划线），选中的线另按四边形画在上面；
         // 显示线宽、高亮走状态位图或选中的太多时全部按四边形画
@@ -544,6 +667,7 @@ bool GsView::render(RhiSurface& surface, double dpr)
                 sceneIndirect.push_back(a);
             }
         }
+        sceneIndirect.insert(sceneIndirect.end(), m_sceneList.smallArcs.begin(), m_sceneList.smallArcs.end());
         const auto& emphasis = m_emphasisList.commands[static_cast<std::size_t>(GsClass::Segment)];
         m_emphasisBase = sceneIndirect.size();
         m_emphasisCount = emphasis.size();
@@ -556,6 +680,42 @@ bool GsView::render(RhiSurface& surface, double dpr)
                        std::span<const std::byte>(reinterpret_cast<const std::byte*>(sceneIndirect.data()),
                                                   sceneIndirect.size() * sizeof(RhiDrawIndirectArgs)));
         }
+
+        // 各段的顶点数（渐进绘制按它分批）：细线的线段每段 2 个顶点
+        m_chunkCost.assign(m_sceneList.chunks.size(), 0.0);
+        auto cost = [](const RhiDrawIndirectArgs& a) {
+            return static_cast<double>(a.vertexCount) * static_cast<double>(a.instanceCount);
+        };
+        for (std::size_t k = 0; k < m_sceneList.chunks.size(); ++k)
+        {
+            const DrawRange range = chunkRange(m_sceneList, k, k + 1);
+            double vertices = 0.0;
+            for (std::size_t i = 0; i < kGsClassCount; ++i)
+            {
+                const double factor = m_sceneHairlines && static_cast<GsClass>(i) == GsClass::Segment ? 1.0 / 3.0 : 1.0;
+                for (std::uint32_t j = range.begin[i]; j < range.end[i]; ++j)
+                {
+                    vertices += cost(m_sceneList.commands[i][j]) * factor;
+                }
+            }
+            for (std::uint32_t j = range.smallArcsBegin; j < range.smallArcsEnd; ++j)
+            {
+                vertices += cost(m_sceneList.smallArcs[j]);
+            }
+            for (std::uint32_t j = range.imagesBegin; j < range.imagesEnd; ++j)
+            {
+                vertices += cost(m_sceneList.images[j].args);
+            }
+            m_chunkCost[k] = vertices;
+        }
+        m_nextChunk = 0;
+        m_sceneInProgress = true;
+        m_sceneModelVersion = modelVersion;
+        m_sceneCenter = DmVector(eyeX, eyeY);
+        m_sceneWorldPerPixel = wpp;
+        m_sceneWidth = width;
+        m_sceneHeight = height;
+        m_sceneStyle = m_style;
     }
     if (m_highlightDirty)
     {
@@ -572,7 +732,7 @@ bool GsView::render(RhiSurface& surface, double dpr)
     m_transientList.clear();
     if (m_transient)
     {
-        m_transient->collectVisible(DmVector(-1.0e300, -1.0e300), DmVector(1.0e300, 1.0e300), m_transientList);
+        m_transient->collectVisible(DmVector(-1.0e300, -1.0e300), DmVector(1.0e300, 1.0e300), lod, m_transientList);
     }
 
     // 叠加通道的间接参数：高亮、临时模型依次排，每帧上传
@@ -584,6 +744,7 @@ bool GsView::render(RhiSurface& surface, double dpr)
         {
             indirect.insert(indirect.end(), c.begin(), c.end());
         }
+        indirect.insert(indirect.end(), list.smallArcs.begin(), list.smallArcs.end());
         return base;
     };
     const std::size_t highlightBase = append(m_highlightList);
@@ -632,6 +793,10 @@ bool GsView::render(RhiSurface& surface, double dpr)
         }
         f.gridColor = toFloat4(m_style.grid);
         f.metaGridColor = toFloat4(m_style.metaGrid);
+        if (m_style.lod)
+        {
+            f.lod = {kLodTextPixels * px, kLodHatchPixels * px, kLodObjectPixels * px, kLodArcPixels * px};
+        }
         std::memcpy(frameBytes.data() + stride * slot, &f, sizeof(f));
     };
     frame(kSlotScene, m_block ? kGsPassPlain : kGsPassScene, m_selection, true);
@@ -703,18 +868,60 @@ bool GsView::render(RhiSurface& surface, double dpr)
 
     // 3. 录制
     RhiCommandList& commands = rhi.beginFrame(surface);
-    if (redrawScene)
+    if (drawScene)
     {
         YICAD_SCOPED_TIMER(yicad::counters::scene());
+        // 这一帧画哪几段：从上次停下的地方起，至少一段，累计的顶点数不超过预算（整张表没分段时一次画完）
+        DrawRange range = wholeRange(m_sceneList);
+        double drawnVertices = 0.0;
+        std::size_t last = m_nextChunk;
+        const std::size_t chunkCount = m_sceneList.chunks.size();
+        if (chunkCount > 0)
+        {
+            const double budget = sceneBudget();
+            while (last < chunkCount && (last == m_nextChunk || drawnVertices + m_chunkCost[last] <= budget))
+            {
+                drawnVertices += m_chunkCost[last];
+                ++last;
+            }
+            range = chunkRange(m_sceneList, m_nextChunk, last);
+        }
+        else
+        {
+            drawnVertices = std::accumulate(m_chunkCost.begin(), m_chunkCost.end(), 0.0);
+        }
+
         RhiRenderPassDesc pass;
         pass.target = m_sceneTarget.get();
         RhiColorAttachmentOps ops;
+        // 接着画时保留已经画好的颜色与深度（深度表达绘图次序，后面几段照样按次序叠上去）
+        ops.load = redrawScene ? RhiLoadOp::Clear : RhiLoadOp::Load;
         ops.clearColor = {static_cast<float>(m_style.background.redF()), static_cast<float>(m_style.background.greenF()),
                           static_cast<float>(m_style.background.blueF()), 1.0f};
         ops.resolveTarget = m_targetSamples > 1 ? m_sceneResolve.get() : nullptr;
         pass.colorOps = {ops};
+        pass.depthLoad = redrawScene ? RhiLoadOp::Clear : RhiLoadOp::Load;
+        pass.depthStore = RhiStoreOp::Store;
+        // 场景通道的 GPU 耗时：前后各写一个时间戳，几帧后读出，估每毫秒能画的顶点数（第 4.3.10 节）
+        std::uint32_t timestampSlot = kTimestampSlots;
+        if (rhi.caps().timestampQueries && m_pendingTimings.size() < kTimestampSlots)
+        {
+            if (!m_timestamps)
+            {
+                RhiQuerySetDesc desc;
+                desc.count = kTimestampSlots * 2;
+                desc.debugName = "gs scene timestamps";
+                m_timestamps = rhi.createQuerySet(desc);
+            }
+            if (m_timestamps)
+            {
+                timestampSlot = m_nextTimestampSlot;
+                m_nextTimestampSlot = (m_nextTimestampSlot + 1) % kTimestampSlots;
+                commands.writeTimestamp(*m_timestamps, timestampSlot * 2);
+            }
+        }
         commands.beginRenderPass(pass);
-        if (m_style.gridOn && m_style.gridSpacing > 0.0)
+        if (redrawScene && m_style.gridOn && m_style.gridSpacing > 0.0)
         {
             const RhiPipelinePtr& grid = m_device->pipeline(GsProgram::Grid, GsPipelineVariant::Blend, samples);
             if (grid)
@@ -729,12 +936,12 @@ bool GsView::render(RhiSurface& surface, double dpr)
             const RhiBuffer* instances = m_block ? m_blockInstanceBuffer.get() : m_model->instanceBuffer();
             if (instances)
             {
-                drawList(commands, m_sceneList, *m_sceneIndirect, 0, *m_model, *sceneGroup, *instances, samples, true,
+                drawList(commands, m_sceneList, range, *m_sceneIndirect, 0, *m_model, *sceneGroup, *instances, samples, true,
                          m_sceneHairlines);
-                // 选中的线：按四边形加宽、换色，深度前移，画在细线之上
+                // 选中的线：按四边形加宽、换色，深度前移，画在细线之上（第一批就画，选中的不等）
                 const RhiPipelinePtr& quads = m_device->pipeline(GsProgram::Segment, GsPipelineVariant::Scene, samples);
                 const RhiBindGroup* segments = m_model->geometryGroup(GsClass::Segment);
-                if (m_emphasisCount > 0 && quads && segments)
+                if (redrawScene && m_emphasisCount > 0 && quads && segments)
                 {
                     const RhiVertexBufferBinding binding{instances, 0};
                     commands.setPipeline(*quads);
@@ -748,13 +955,17 @@ bool GsView::render(RhiSurface& surface, double dpr)
             }
         }
         commands.endRenderPass();
-        m_sceneValid = true;
-        m_sceneModelVersion = modelVersion;
-        m_sceneCenter = DmVector(eyeX, eyeY);
-        m_sceneWorldPerPixel = wpp;
-        m_sceneWidth = width;
-        m_sceneHeight = height;
-        m_sceneStyle = m_style;
+        if (timestampSlot < kTimestampSlots)
+        {
+            commands.writeTimestamp(*m_timestamps, timestampSlot * 2 + 1);
+            m_pendingTimings.push_back({timestampSlot, drawnVertices});
+        }
+        m_nextChunk = last;
+        if (chunkCount == 0 || last >= chunkCount)
+        {
+            m_sceneInProgress = false;
+            m_sceneValid = true;
+        }
     }
 
     RhiRenderPassDesc pass;
@@ -773,13 +984,13 @@ bool GsView::render(RhiSurface& surface, double dpr)
     }
     if (m_model && m_model->isReady() && !m_highlightList.empty() && m_model->instanceBuffer())
     {
-        drawList(commands, m_highlightList, *m_indirect, highlightBase, *m_model, *highlightGroup,
+        drawList(commands, m_highlightList, wholeRange(m_highlightList), *m_indirect, highlightBase, *m_model, *highlightGroup,
                  *m_model->instanceBuffer(), samples, false, false);
     }
     if (m_transient && m_transient->isReady() && transientGroup && m_transient->instanceBuffer())
     {
-        drawList(commands, m_transientList, *m_indirect, transientBase, *m_transient, *transientGroup,
-                 *m_transient->instanceBuffer(), samples, false, false);
+        drawList(commands, m_transientList, wholeRange(m_transientList), *m_indirect, transientBase, *m_transient,
+                 *transientGroup, *m_transient->instanceBuffer(), samples, false, false);
     }
     if (!overlay.empty() && m_overlayVertices)
     {

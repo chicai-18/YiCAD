@@ -63,6 +63,7 @@ enum class GiOp : std::uint8_t
     DrawShared,
     PushTransform,
     PopTransform,
+    SetFill,            ///< 后跟有无图案（uint8），有时是线族数与每族的基点、方向、位移、划线
 };
 
 constexpr std::uint32_t kNullReference = 0xFFFFFFFFu;
@@ -330,6 +331,23 @@ public:
         m_out.op(GiOp::SetLinePattern);
         m_out.doubles(pattern.dashes);
         m_out.put(pattern.phase);
+    }
+
+    void setFill(const GiHatchPattern* pattern) override
+    {
+        m_out.op(GiOp::SetFill);
+        m_out.put(static_cast<std::uint8_t>(pattern ? 1 : 0));
+        if (pattern)
+        {
+            m_out.put(static_cast<std::uint32_t>(pattern->lines.size()));
+            for (const GiHatchPatternLine& line : pattern->lines)
+            {
+                m_out.point(line.base);
+                m_out.point(line.direction);
+                m_out.point(line.offset);
+                m_out.doubles(line.dashes);
+            }
+        }
     }
 
     void setLineWeight(DM::LineWidth weight) override
@@ -614,6 +632,30 @@ private:
             traits.setLinePattern(pattern);
             return true;
         }
+        case GiOp::SetFill:
+        {
+            if (in.get<std::uint8_t>() == 0)
+            {
+                traits.setFill(nullptr);
+                return true;
+            }
+            GiHatchPattern pattern;
+            const auto count = in.get<std::uint32_t>();
+            for (std::uint32_t i = 0; i < count && !in.failed(); ++i)
+            {
+                GiHatchPatternLine line;
+                line.base = in.point();
+                line.direction = in.point();
+                line.offset = in.point();
+                line.dashes = in.doubles();
+                pattern.lines.emplace_back(std::move(line));
+            }
+            if (!in.failed())
+            {
+                traits.setFill(&pattern);
+            }
+            return true;
+        }
         case GiOp::SetLineWeight:
             traits.setLineWeight(static_cast<DM::LineWidth>(in.get<std::int32_t>()));
             return true;
@@ -674,6 +716,7 @@ public:
             void setLineType(const DmLineType*) override {}
             void setLineTypeScale(double) override {}
             void setLinePattern(const GiLinePattern&) override {}
+            void setFill(const GiHatchPattern*) override {}
             void setLineWeight(DM::LineWidth) override {}
             void setTransparency(std::uint8_t) override {}
             void setSelectionMarker(std::int32_t) override {}

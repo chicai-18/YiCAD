@@ -27,6 +27,7 @@
 
 #include "DmEntity.h"
 #include "DmTriangle.h"
+#include "GiTypes.h"
 #include "RegionData.h"
 #include "ConstrainedDelaunayTriangulation.h"
 
@@ -67,6 +68,14 @@ public:
     void getTriangles(std::vector<T>& triangles, bool considerHoles);
     /// @brief 获得一个边界的点
     static void getPointsOfOneBoundary(DmEntityContainerPtr boundary, std::vector<DmVector>& pts);
+
+    /// @brief 边界与孔洞的环（GI 的 fill 与填充图案线的切分用）：直线、圆弧、圆、多段线（含凸度）精确，椭圆、样条离散成点
+    /// @details 一个轮廓里的边按首尾相接的顺序连成环，接不上的边按自己的方向接在后面；圆、闭合的多段线、椭圆、样条各自成环。
+    ///          按奇偶规则使用，环的方向与先后无关
+    void getLoops(std::vector<GiLoop>& loops) const;
+
+    /// @brief 一个轮廓的环，追加到 loops
+    static void getLoopsOfOneBoundary(const DmEntityContainerPtr& contour, std::vector<GiLoop>& loops);
 
     void move(const DmVector& offset) override;
     void rotate(const DmVector& center, const DmVector& angleVector) override;

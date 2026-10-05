@@ -81,7 +81,7 @@ public:
 class GiStream
 {
 public:
-    static constexpr std::uint32_t kVersion = 1;    ///< 序列化格式的版本号
+    static constexpr std::uint32_t kVersion = 2;    ///< 序列化格式的版本号（2：加了填充图案 setFill）
 
     /// @brief 是否没有任何记录
     bool isEmpty() const { return m_bytes.empty(); }

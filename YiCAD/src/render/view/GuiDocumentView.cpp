@@ -66,6 +66,12 @@
 #include "IHighlightSource.h"
 #include "ISelectionSource.h"
 
+namespace
+{
+/// @brief 图形模型有还没换上的重新离散（后台在算）时，隔这么久再画一帧（毫秒）
+constexpr int kRefinementPollMs = 30;
+}  // namespace
+
 GuiDocumentView::GuiDocumentView(QWidget* parent, Qt::WindowFlags f, DmDocument* doc)
     : QOpenGLWidget(parent, f)
     , pDocument(nullptr)
@@ -897,6 +903,21 @@ void GuiDocumentView::setDraftMode(bool dm)
     draftMode = dm;
 }
 
+void GuiDocumentView::setLevelOfDetail(bool on)
+{
+    m_levelOfDetail = on;
+}
+
+void GuiDocumentView::setSceneBudget(std::size_t vertices)
+{
+    m_sceneBudget = vertices;
+}
+
+bool GuiDocumentView::isSceneComplete() const
+{
+    return !m_gsView || m_gsView->sceneComplete();
+}
+
 bool GuiDocumentView::isCleanUp(void) const
 {
     return m_bIsCleanUp;
@@ -930,10 +951,12 @@ void GuiDocumentView::paintGL()
     style.grid = gridColor;
     style.metaGrid = metaGridColor;
     style.lineWidths = draftMode;
+    style.lod = m_levelOfDetail;
     style.gridOn = isGridOn();
     style.gridSpacing = style.gridOn ? updateGrid() : 0.0;
     m_gsView->setStyle(style);
     m_gsView->setCamera(m_viewCenter, m_unitsPerPixel);
+    m_gsView->setSceneBudget(m_sceneBudget);
     if (m_gsGripsDirty)
     {
         m_gsView->setGrips(collectGrips());
@@ -943,6 +966,17 @@ void GuiDocumentView::paintGL()
     m_gsView->render(*m_gsSurface, devicePixelRatioF());
 
     RhiFrameStats::endFrame();
+
+    // 场景超出这一帧的预算、只画了一部分（渐进绘制，第 4.3.10 节）：接着画下一帧
+    if (!m_gsView->sceneComplete())
+    {
+        update();
+    }
+    // 曲线在后台重新离散（第 4.3.10 节）：过一会儿再画一帧，换上离散好的结果
+    else if (m_gsModel && m_gsModel->refinementPending())
+    {
+        QTimer::singleShot(kRefinementPollMs, this, [this]() { update(); });
+    }
 }
 
 void GuiDocumentView::resizeGL(int, int)

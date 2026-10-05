@@ -26,7 +26,8 @@ layout(set = 1, binding = 3) uniform usamplerBuffer prims;
 layout(location = 0) in vec4 iLinear;     // 线性部分 a b c d：x' = a·x + c·y
 layout(location = 1) in vec4 iTranslate;  // xy 平移（相对分块原点） z 长度比例（弧长参数换成世界长度） w 外层的线型比例
 layout(location = 2) in uvec4 iInfo0;     // x 槽位 y ByBlock 颜色 z ByBlock 种类 w 实例图层 | ByBlock 图层 << 16
-layout(location = 3) in uvec4 iInfo1;     // x ByBlock 线型 | ByBlock 线宽 << 16 y 分块序号 z 保留 w 保留
+layout(location = 3) in uvec4 iInfo1;     // x ByBlock 线型 | ByBlock 线宽 << 16 y 分块序号 z 字形的字高（float 位模式，世界长度；
+                                          // 不是字形为 0） w 模型整体变换的长度比例（float 位模式）
 
 /// @brief 图元记录（第三个纹素的 dash 参数按需另取，见 loadPrimDash）
 struct Prim
@@ -296,12 +297,42 @@ Stroke strokeOf(Prim p, float lengthScale, float instanceLineTypeScale)
     return st;
 }
 
+// ---------------------------------------------------------------------------
+// LOD（第 4.3.10 节）：按每帧常量里的阈值与"每像素世界长度"在着色器里判断，不需要 CPU 逐对象判断
+// ---------------------------------------------------------------------------
+
+/// @brief 实例变换的长度比例（面积比例的平方根）
+float instanceScale()
+{
+    return sqrt(abs(iLinear.x * iLinear.w - iLinear.z * iLinear.y));
+}
+
+/// @brief 字形实例的字高小于阈值：整个字形不画，由字形串的细条代替。只读实例属性，不取任何纹素
+bool smallGlyph()
+{
+    float height = uintBitsToFloat(iInfo1.z);
+    return height > 0.0 && height < frame.lod.x * frame.viewport.z;
+}
+
+/// @brief 填充图案线的线距（局部长度）在屏幕上小于阈值
+bool denseHatch(float spacing)
+{
+    return spacing * instanceScale() < frame.lod.y * frame.viewport.z;
+}
+
+/// @brief 小字的细条是否显示：字高（局部长度）在屏幕上小于阈值（与 smallGlyph 同一个阈值）
+bool textBarVisible(float height)
+{
+    return height * instanceScale() < frame.lod.x * frame.viewport.z;
+}
+
 /// @brief 这个图元怎么画
 struct Style
 {
     bool visible;
     bool emphasized;   // 选中或高亮：加宽、换色
     bool selected;
+    bool tiny;         // 对象的包围框在屏幕上小于阈值：画成一个点（第 4.3.10 节）
     vec4 color;
     float depth;       // 裁剪空间的 z
 };
@@ -313,6 +344,7 @@ Style resolveStyle(Prim p)
     s.visible = true;
     s.emphasized = false;
     s.selected = false;
+    s.tiny = false;
     s.depth = 0.0;
 
     uint slot = iInfo0.x != kNoSlot ? iInfo0.x : p.slot;
@@ -326,6 +358,7 @@ Style resolveStyle(Prim p)
             s.visible = false;
         }
         s.selected = frame.mode.z != 0u && (state.y & 1u) != 0u;
+        s.tiny = uintBitsToFloat(state.w) * uintBitsToFloat(iInfo1.w) < frame.lod.z * frame.viewport.z;
         if (frame.mode.y != 0u)
         {
             uint word = texelFetch(viewBits, int(slot >> 4)).x;

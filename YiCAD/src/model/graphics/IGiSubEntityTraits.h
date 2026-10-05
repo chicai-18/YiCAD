@@ -29,6 +29,7 @@ class DmColor;
 class DmLayer;
 class DmLineType;
 class DmVector;
+struct GiHatchPattern;
 struct GiLinePattern;
 
 /// @brief 图元属性。设置后对之后的图元生效
@@ -55,6 +56,11 @@ public:
     /// @brief 内联图案与相位，填充图案线用，不做端点对齐；长度在实体自身坐标系里，随块缩放。
     ///        设置后对之后的线（多段线、圆弧等，每条从它的起点按相位开始）生效，取代线型；图案为空时恢复按线型画
     virtual void setLinePattern(const GiLinePattern& pattern) = 0;
+
+    /// @brief 之后的 fill 怎么填：按图案（对应 ODA 的 OdGiSubEntityTraits::setFill(OdGiHatchPattern)），为空为实心（初值）
+    /// @details 图案线由接收方在边界里切出、按图案线的线型画（颜色、线宽、图层照常取当前属性）；
+    ///          图形系统在线距太密时改画实心（RENDER_PLAN.md 第 4.3.10 节）。不影响别的图元
+    virtual void setFill(const GiHatchPattern* pattern) = 0;
 
     /// @brief 线宽，含 ByLayer、ByBlock、默认
     virtual void setLineWeight(DM::LineWidth weight) = 0;

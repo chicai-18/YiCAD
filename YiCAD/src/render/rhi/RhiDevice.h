@@ -45,6 +45,8 @@ public:
     /// @brief 着色器用到的绑定与 desc.bindGroupLayouts 不一致时失败
     virtual RhiPipelinePtr createPipeline(const RhiPipelineDesc& desc) = 0;
     virtual RhiRenderTargetPtr createRenderTarget(const RhiRenderTargetDesc& desc) = 0;
+    /// @brief 时间戳查询（RhiCaps::timestampQueries 为假时返回空）
+    virtual RhiQuerySetPtr createQuerySet(const RhiQuerySetDesc& desc) = 0;
 
     /// @brief 经暂存环形缓冲把数据写入缓冲；在下一次 beginFrame 录制的命令之前生效
     /// @details 数据当场复制，调用返回后即可改写 data
@@ -63,6 +65,9 @@ public:
     virtual void waitIdle() = 0;
     /// @brief 读出 Readback 缓冲的内容；先等写它的帧完成
     virtual bool readBuffer(const RhiBuffer& buffer, std::size_t offset, std::span<std::byte> out) = 0;
+    /// @brief 读出 set 里从 first 起的 out.size() 个时间戳（纳秒）；GPU 还没走到、或还没写过时返回 false，不等待
+    /// @details GPU 的计时要晚几帧才有结果，调用方隔几帧再读。GL 下查询属于写它的上下文，要在同一个上下文当前时读
+    virtual bool readTimestamps(const RhiQuerySet& set, std::uint32_t first, std::span<std::uint64_t> out) = 0;
 
     /// @brief 把 GL 风格的投影（y 向上、深度 -1..1）变换到本后端裁剪空间（Vulkan 的 y 向下、深度 0..1）
     virtual const glm::mat4& clipSpaceCorrection() const = 0;

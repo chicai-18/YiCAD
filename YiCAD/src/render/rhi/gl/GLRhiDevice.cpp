@@ -571,6 +571,7 @@ void GLRhiDevice::queryCaps()
     m_caps.maxFragmentTextures = integer(GL_MAX_TEXTURE_IMAGE_UNITS);
     m_caps.persistentMapping = !m_options.disablePersistentMapping && (GLEW_VERSION_4_4 || GLEW_ARB_buffer_storage);
     m_caps.framebufferOriginBottomLeft = true;
+    m_caps.timestampQueries = true;  // GL 3.3 起的 ARB_timer_query（glQueryCounter）
 }
 
 GLRhiDevice::~GLRhiDevice()
@@ -694,6 +695,34 @@ void GLRhiDevice::flushPendingContainerDeletes(GLRhiContextState& state)
         glDeleteFramebuffers(static_cast<GLsizei>(state.pendingFramebufferDeletes.size()),
                              state.pendingFramebufferDeletes.data());
         state.pendingFramebufferDeletes.clear();
+    }
+    if (!state.pendingQueryDeletes.empty())
+    {
+        glDeleteQueries(static_cast<GLsizei>(state.pendingQueryDeletes.size()), state.pendingQueryDeletes.data());
+        state.pendingQueryDeletes.clear();
+    }
+}
+
+void GLRhiDevice::forgetQuerySet(std::uint64_t id)
+{
+    QOpenGLContext* current = QOpenGLContext::currentContext();
+    for (auto& [context, state] : m_contextStates)
+    {
+        auto it = state->querySets.find(id);
+        if (it == state->querySets.end())
+        {
+            continue;
+        }
+        std::vector<GLuint>& names = it->second.names;
+        if (context == current)
+        {
+            glDeleteQueries(static_cast<GLsizei>(names.size()), names.data());
+        }
+        else
+        {
+            state->pendingQueryDeletes.insert(state->pendingQueryDeletes.end(), names.begin(), names.end());
+        }
+        state->querySets.erase(it);
     }
 }
 
@@ -1190,6 +1219,58 @@ RhiRenderTargetPtr GLRhiDevice::createRenderTarget(const RhiRenderTargetDesc& de
         return nullptr;
     }
     return adopt(new GLRhiRenderTarget(*this, desc));
+}
+
+RhiQuerySetPtr GLRhiDevice::createQuerySet(const RhiQuerySetDesc& desc)
+{
+    if (desc.count == 0)
+    {
+        RHI_ERROR << "查询组 " << desc.debugName << " 是空的";
+        return nullptr;
+    }
+    // 查询对象属于上下文，在第一次写时于写它的上下文里建（GLRhiCommandList::writeTimestamp）
+    return adopt(new GLRhiQuerySet(*this, desc));
+}
+
+bool GLRhiDevice::readTimestamps(const RhiQuerySet& set, std::uint32_t first, std::span<std::uint64_t> out)
+{
+    if (first + out.size() > set.count())
+    {
+        return false;
+    }
+    QOpenGLContext* current = QOpenGLContext::currentContext();
+    auto stateIt = m_contextStates.find(current);
+    if (stateIt == m_contextStates.end())
+    {
+        return false;
+    }
+    const auto& sets = stateIt->second->querySets;
+    auto it = sets.find(static_cast<const GLRhiQuerySet&>(set).id());
+    if (it == sets.end())
+    {
+        return false;
+    }
+    const GLRhiContextState::Queries& queries = it->second;
+    for (std::size_t i = 0; i < out.size(); ++i)
+    {
+        if (!queries.written[first + i])
+        {
+            return false;
+        }
+        GLint available = GL_FALSE;
+        glGetQueryObjectiv(queries.names[first + i], GL_QUERY_RESULT_AVAILABLE, &available);
+        if (available != GL_TRUE)
+        {
+            return false;
+        }
+    }
+    for (std::size_t i = 0; i < out.size(); ++i)
+    {
+        GLuint64 value = 0;
+        glGetQueryObjectui64v(queries.names[first + i], GL_QUERY_RESULT, &value);
+        out[i] = value;
+    }
+    return true;
 }
 
 // ---------------------------------------------------------------------------

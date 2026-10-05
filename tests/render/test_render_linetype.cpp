@@ -339,7 +339,10 @@ class LinetypeContext final : public GsCompileContext
 public:
     std::uint16_t layerIndex(const DmLayer*) override { return kGsLayerNone; }
     std::uint16_t lineTypeIndex(const DmLineType*) override { return 1; }
-    const std::vector<DmVector>& sampleNurbs(const GiNurbs&) override { return m_samples; }
+    std::shared_ptr<const std::vector<DmVector>> sampleNurbs(const GiNurbs&, double) override
+    {
+        return std::make_shared<std::vector<DmVector>>();
+    }
     bool needsFlatten(const IGiDrawable&, const GiTransform&, const GsAttributes&, bool*) override { return false; }
     std::uint16_t patternIndex(const std::vector<double>&) override { return 2; }
     bool splitLongRuns() const override { return true; }
@@ -354,10 +357,9 @@ public:
         firstDashCenter = 0.25;
         return true;
     }
+    const IGiDrawable* glyph(const IGiFont&, char32_t) override { return nullptr; }
+    bool glyphExtent(const IGiDrawable&, double&, double&) override { return false; }
     double ltscale = 1.0;
-
-private:
-    std::vector<DmVector> m_samples;
 };
 }  // namespace
 

@@ -41,6 +41,7 @@ enum class GsProgram : std::uint8_t
     Hairline,      ///< 线段按线图元画（不显示线宽时的场景通道）
     InfiniteLine,
     Arc,
+    ArcSmall,      ///< 小圆弧：每条记录 6 个顶点（第 4.3.10 节）
     Fill,
     Point,
     Image,

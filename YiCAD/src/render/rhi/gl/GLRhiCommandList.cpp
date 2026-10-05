@@ -598,3 +598,21 @@ void GLRhiCommandList::copyTextureToBuffer(const RhiTexture& src, const RhiBuffe
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
     glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 }
+
+void GLRhiCommandList::writeTimestamp(const RhiQuerySet& set, std::uint32_t index)
+{
+    if (!m_state || index >= set.count())
+    {
+        return;
+    }
+    // 查询对象属于这一帧的上下文：第一次在它里面写时建
+    GLRhiContextState::Queries& queries = m_state->querySets[static_cast<const GLRhiQuerySet&>(set).id()];
+    if (queries.names.empty())
+    {
+        queries.names.resize(set.count());
+        glGenQueries(static_cast<GLsizei>(queries.names.size()), queries.names.data());
+        queries.written.assign(set.count(), false);
+    }
+    glQueryCounter(queries.names[index], GL_TIMESTAMP);
+    queries.written[index] = true;
+}

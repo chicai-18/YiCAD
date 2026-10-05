@@ -23,6 +23,7 @@
     "gs_hairline": { "vertex": "gs_hairline.vert", "fragment": "gs_hairline.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
     "gs_xline": { "vertex": "gs_xline.vert", "fragment": "gs_line.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
     "gs_arc": { "vertex": "gs_arc.vert", "fragment": "gs_arc.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
+    "gs_arc_small": { "vertex": "gs_arc_small.vert", "fragment": "gs_arc.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
     "gs_fill": { "vertex": "gs_fill.vert", "fragment": "gs_fill.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
     "gs_point": { "vertex": "gs_point.vert", "fragment": "gs_fill.frag", "bindGroups": ["Frame", "Model", "Geometry"] },
     "gs_image": { "vertex": "gs_image.vert", "fragment": "gs_image.frag", "bindGroups": ["Frame", "Model", "Geometry", "Image"] },

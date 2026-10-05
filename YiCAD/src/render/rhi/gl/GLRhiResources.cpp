@@ -425,3 +425,21 @@ GLuint GLRhiRenderTarget::createFramebuffer() const
     }
     return framebuffer;
 }
+
+// ---------------------------------------------------------------------------
+// GLRhiQuerySet
+// ---------------------------------------------------------------------------
+
+GLRhiQuerySet::GLRhiQuerySet(GLRhiDevice& device, RhiQuerySetDesc desc)
+    : RhiQuerySet(std::move(desc))
+    , GLRhiResourceBase(device)
+{
+}
+
+GLRhiQuerySet::~GLRhiQuerySet()
+{
+    if (m_device)
+    {
+        m_device->forgetQuerySet(id());
+    }
+}

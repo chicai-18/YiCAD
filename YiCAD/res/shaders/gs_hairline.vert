@@ -20,6 +20,11 @@ layout(location = 5) flat out vec3 vDashParams;
 
 void main()
 {
+    if (smallGlyph())
+    {
+        gl_Position = collapsed();
+        return;
+    }
     int k = gl_VertexIndex >> 1;
     bool atEnd = (gl_VertexIndex & 1) != 0;
     vec4 p0 = texelFetch(points, k);
@@ -30,6 +35,16 @@ void main()
         return;
     }
     Prim prim = loadPrim(code & 0x7FFFFFFFu);
+    // 填充图案线太密时不画；小字的细条只在字高小于阈值时画（细线一律 1 个像素）
+    if ((prim.flags & (kPrimFlagHatchLine | kPrimFlagTextBar)) != 0u)
+    {
+        float lodParam = loadPrimDash(prim.index).z;
+        if ((prim.flags & kPrimFlagHatchLine) != 0u ? denseHatch(lodParam) : !textBarVisible(lodParam))
+        {
+            gl_Position = collapsed();
+            return;
+        }
+    }
     Style style = resolveStyle(prim);
     if (!style.visible || style.emphasized)
     {
@@ -45,5 +60,18 @@ void main()
     vStroke = stroke.code;
     vDashScale = stroke.scale;
     vDashParams = stroke.params;
-    gl_Position = eyeToClip(toEye(p.xy), style.depth);
+    vec2 eye = toEye(p.xy);
+    if (style.tiny && atEnd)
+    {
+        // 亚像素的对象画成一个点：短于一个像素的线图元可能一个采样也盖不到，末端至少离起点一个像素
+        vec2 start = toEye(p0.xy);
+        vec2 d = eye - start;
+        float len = length(d);
+        float minLen = frame.strokeStyle.z * frame.viewport.z;
+        if (len < minLen)
+        {
+            eye = start + (len > 0.0 ? d / len : vec2(1.0, 0.0)) * minLen;
+        }
+    }
+    gl_Position = eyeToClip(eye, style.depth);
 }

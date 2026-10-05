@@ -29,6 +29,8 @@ layout(set = 0, binding = 0, std140) uniform Frame
     vec4 gridOffset;       // xy: 视点对网格间距取模 zw: 视点对粗网格间距取模
     vec4 gridColor;        // 细网格线的颜色
     vec4 metaGridColor;    // 粗网格线的颜色
+    vec4 lod;              // LOD 的阈值（设备像素，第 4.3.10 节；为 0 时不起作用）：x 字高、y 填充图案线距、z 对象尺寸、
+                           // w 圆弧只画一个四边形的半径
 } frame;
 
 const uint kNoSlot = 0xFFFFFFFFu;
@@ -55,6 +57,9 @@ const uint kStrokeCapEnd = 32u;   // 终点是线的端点
 
 const uint kPrimFlagFill = 1u;   // 选中、高亮时半透明叠色，不加宽
 const uint kPrimFlagPoint = 2u;
+const uint kPrimFlagHatchLine = 4u;    // 填充图案线：dash.z 是线距，太密时不画
+const uint kPrimFlagHatchCover = 8u;   // 填充图案过密时的替身：只在太密时画，按覆盖率抖动
+const uint kPrimFlagTextBar = 16u;     // 小字的细条：dash.z 是字高，只在字高小于阈值时画
 
 const uint kPassScene = 0u;
 const uint kPassHighlight = 1u;

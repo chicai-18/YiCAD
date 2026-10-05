@@ -144,6 +144,25 @@ public:
         }
         line(s + " phase=" + num(pattern.phase));
     }
+    void setFill(const GiHatchPattern* pattern) override
+    {
+        if (!pattern)
+        {
+            line("fillstyle solid");
+            return;
+        }
+        std::string s = "fillstyle pattern";
+        for (const GiHatchPatternLine& l : pattern->lines)
+        {
+            s += " {base=" + pt(l.base) + " dir=" + pt(l.direction) + " offset=" + pt(l.offset);
+            for (double d : l.dashes)
+            {
+                s += " " + num(d);
+            }
+            s += "}";
+        }
+        line(s);
+    }
     void setLineWeight(DM::LineWidth w) override { line("lineweight " + weight(w)); }
     void setTransparency(std::uint8_t alpha) override { line("transparency " + std::to_string(alpha)); }
     void setSelectionMarker(std::int32_t marker) override { line("marker " + std::to_string(marker)); }
@@ -226,6 +245,14 @@ public:
             for (std::size_t i = 0; i < loop.points.size(); ++i)
             {
                 s += (i ? " " : "") + pt(loop.points[i]);
+            }
+            if (!loop.bulges.empty())
+            {
+                s += " bulges";
+                for (double b : loop.bulges)
+                {
+                    s += " " + num(b);
+                }
             }
             s += "]";
         }

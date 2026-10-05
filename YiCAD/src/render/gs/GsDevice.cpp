@@ -63,6 +63,7 @@ const GsShaders::Program& programInfo(GsProgram program)
     case GsProgram::Hairline: return GsShaders::gs_hairline;
     case GsProgram::InfiniteLine: return GsShaders::gs_xline;
     case GsProgram::Arc: return GsShaders::gs_arc;
+    case GsProgram::ArcSmall: return GsShaders::gs_arc_small;
     case GsProgram::Fill: return GsShaders::gs_fill;
     case GsProgram::Point: return GsShaders::gs_point;
     case GsProgram::Image: return GsShaders::gs_image;

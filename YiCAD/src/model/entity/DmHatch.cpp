@@ -49,6 +49,7 @@
 #include "DmDocument.h"
 #include "GeometryMethods.h"
 #include "IGiGeometry.h"
+#include "HatchPatternClipper.h"
 #include "IGiSubEntityTraits.h"
 
 TYPESYSTEM_SOURCE(DmHatch, DmEntity, 0);
@@ -85,7 +86,7 @@ DmHatch::DmHatch(const DmHatch& hatch)
         m_filledEntities = std::make_shared<DmEntityContainer>(c);
     }
     m_patternRuns = hatch.m_patternRuns;
-    m_patternDashes = hatch.m_patternDashes;
+    m_patternLines = hatch.m_patternLines;
 }
 
 DmHatch::~DmHatch()
@@ -212,7 +213,7 @@ void DmHatch::update()
 {
     bumpRevision();
     m_patternRuns.clear();
-    m_patternDashes.clear();
+    m_patternLines.clear();
     DmRegionPtr boundary = data.getBoundary();
     // 没有轮廓不能创建填充
     if (!boundary || boundary->size() == 0)
@@ -237,10 +238,8 @@ void DmHatch::update()
         return;
     }
 
-    // 线段填充
+    // 图案填充
     calculateBorders();
-    DmPen hatch_pen(DmColor(DM::FlagByBlock), DM::Width00,
-        DmLineTypeTable::Continuous);
     DmPattern pattern = data.getPattern();
     auto* pat = &pattern;
     if (pat->getPatternData().size() == 0)
@@ -254,18 +253,45 @@ void DmHatch::update()
     }
 
     m_filledEntities.reset(new DmEntityContainer(this));
-    m_filledEntities->setPen(hatch_pen);
+    m_filledEntities->setPen(DmPen(DmColor(DM::FlagByBlock), DM::Width00, DmLineTypeTable::Continuous));
     m_filledEntities->setLayer(nullptr);
     m_filledEntities->setFlag(DM::FlagTemp);
     pat->scale(data.getPatternScale());
     pat->angle(Math2d::rad2deg(data.getPatternAngle()));
-    std::vector<std::vector<double>> pat_data = pat->getPatternData();
-    for (int i = 0; i < pat_data.size(); i++)
+    // 每行 [角度, 基点 x, y, 行距位移在线自身坐标系里的 x, y, 划线...]：换成当前坐标里的方向与位移（GiHatchPatternLine）
+    for (const std::vector<double>& row : pat->getPatternData())
     {
-        // 单独每一项
-        std::vector<double> pat_per_data = pat_data[i];
-        fillPattern(m_filledEntities, pat_per_data,
-            minV.x, maxV.x, minV.y, maxV.y);
+        if (row.size() < 5)
+        {
+            continue;
+        }
+        GiHatchPatternLine line;
+        const double angle = row[0];
+        line.direction = DmVector(std::cos(angle), std::sin(angle));
+        line.base = DmVector(row[1], row[2]);
+        line.offset = DmVector(row[3], row[4]).rotate(angle);
+        line.dashes.assign(row.begin() + 5, row.end());
+        m_patternLines.push_back(std::move(line));
+    }
+
+    // 图案线在边界里切出的整段（与图形系统切的同一份算法），再逐段切成划线实体供选择、捕捉、炸开
+    std::vector<GiLoop> loops;
+    boundary->getLoops(loops);
+    std::vector<HatchPatternRun> runs;
+    for (std::size_t i = 0; i < m_patternLines.size(); ++i)
+    {
+        runs.clear();
+        HatchPatternClipper::clip(loops, m_patternLines[i], runs);
+        for (const HatchPatternRun& r : runs)
+        {
+            DmHatchPatternRun run;
+            run.start = r.start;
+            run.end = r.end;
+            run.pattern = static_cast<std::uint32_t>(i);
+            run.phase = r.phase;
+            m_patternRuns.push_back(run);
+            addDashEntities(run);
+        }
     }
 }
 
@@ -288,412 +314,47 @@ void DmHatch::fillSolid()
     }
 }
 
-void DmHatch::fillPattern(DmEntityContainerPtr parent,
-    const std::vector<double>& pat,
-    double minX, double maxX, double minY, double maxY)
+void DmHatch::addDashEntities(const DmHatchPatternRun& run)
 {
-    /** 总体实现方法：
-    * 1、用包围框（minX，maxX，minY，maxY），pattern起始点及方向，
-    *    求出pattern线迭代范围（minPos，maxPos）；
-    * 2、逐条pat线填充——每条pattern线与轮廓求出交点并排序，
-    *    每2个相邻交点判断是否在轮廓内，在范围内则按pattern的数据填充。
-    **/
-
-    minX -= 1.0;
-    maxX += 1.0;
-    minY -= 1.0;
-    maxY += 1.0;
-
-    double angle_rad = pat[0];
-    double angle_deg = Math2d::rad2deg(angle_rad);
-    double startX = pat[1];
-    double startY = pat[2];
-    double deltaX = pat[3];
-    double deltaY = pat[4];
-    bool isSolidPat = (pat.size() == 5);
-
-    // 计算范围角点
-    DmVector boundaryPt1(0.0, 0.0);
-    DmVector boundaryPt2(0.0, 0.0);
-    double tempAngle_deg = angle_deg;
-    if (tempAngle_deg > 180.0)
+    DmPen pen(DmColor(DM::FlagByBlock), DM::Width00, DmLineTypeTable::Continuous);
+    auto addLine = [this, &pen](const DmVector& a, const DmVector& b) {
+        DmLine* line = new DmLine(m_filledEntities.get(), LineData(a, b));
+        line->setPen(pen);
+        m_filledEntities->addEntity(line);
+    };
+    const std::vector<double>& dashes =
+        run.pattern < m_patternLines.size() ? m_patternLines[run.pattern].dashes : std::vector<double>();
+    const double period = HatchPatternClipper::period(dashes);
+    const double length = run.start.distanceTo(run.end);
+    if (dashes.empty() || !(period > 0.0) || !(length > 0.0))
     {
-        tempAngle_deg = (int)tempAngle_deg % 180;
-    }
-    if (tempAngle_deg < 90.0)
-    {
-        // 左上，右下
-        boundaryPt1.x = minX;
-        boundaryPt1.y = maxY;
-        boundaryPt2.x = maxX;
-        boundaryPt2.y = minY;
-    }
-    else
-    {
-        // 左下，右上
-        boundaryPt1.x = minX;
-        boundaryPt1.y = minY;
-        boundaryPt2.x = maxX;
-        boundaryPt2.y = maxY;
-    }
-
-    // 计算角点对应pat的位置
-    DmVector patStart(startX, startY);
-    DmVector patDir(Math2d::correctAngle2(angle_rad));
-    DmVector offsetVec_local(deltaX, deltaY);
-    double offsetVec_local_csc_abs =
-        std::abs(offsetVec_local.magnitude() / deltaY);
-    DmVector offsetVec = DmVector(offsetVec_local).rotate(angle_rad);
-    DmVector offsetVec_yPart = DmVector(0.0, deltaY).rotate(angle_rad);
-    DmVector offsetDir = DmVector(offsetVec).normalize();
-    double offsetDist = offsetVec.magnitude();
-    DmConstructionLine patLine(nullptr,
-        DmConstructionLineData(patStart, patStart + patDir));
-    double dist1 = patLine.getDistanceToPoint(boundaryPt1);
-    DmVector tempVec1 = boundaryPt1 - patStart;
-    double dotP1 = offsetVec_yPart.dotP(tempVec1);
-    // 角点1（boundaryPt1）相对与起始pat的（法向）偏移值
-    double pos1 = dist1;
-    if (dotP1 < 0)
-    {
-        pos1 = -dist1;
-    }
-    double dist2 = patLine.getDistanceToPoint(boundaryPt2);
-    DmVector tempVec2 = boundaryPt2 - patStart;
-    double dotP2 = offsetVec_yPart.dotP(tempVec2);
-    // 角点2（boundaryPt2）相对与起始pat的（法向）偏移值
-    double pos2 = dist2;
-    if (dotP2 < 0)
-    {
-        pos2 = -dist2;
-    }
-
-    // 如果需要填充虚线，先获得其数据
-    std::vector<double> dashLineLengths;
-    dashLineLengths.reserve(pat.size() - 5);
-    double curDashLen = 0.0;
-    double totalDashLen = 0.0;
-    for (auto i = 5; i < pat.size(); i++)
-    {
-        curDashLen = pat.at(i);
-        dashLineLengths.emplace_back(curDashLen);
-        totalDashLen += std::abs(curDashLen);
-    }
-    // 虚线非空段（起点终点）到初始位置距离的组合
-    std::vector<std::pair<double, double>> dashPosPairs;
-    getDashPositionPairs(dashLineLengths, dashPosPairs);
-    // 这条图案线定义的划线（画图用，实线为空）
-    const std::uint32_t patternIndex = static_cast<std::uint32_t>(m_patternDashes.size());
-    m_patternDashes.push_back(isSolidPat ? std::vector<double>() : dashLineLengths);
-
-    // 逐条pat线填充
-    double minPos = std::min(pos1, pos2);
-    double maxPos = std::max(pos1, pos2);
-    double absOffsetY_local = std::abs(offsetVec_local.y);
-    // 当前pattern线相对于起始pattern线的位置
-    double curPos = std::floor(minPos / absOffsetY_local) * absOffsetY_local;
-    std::vector<DmVector> border_nodes;
-    DmVector currentPatPt(0.0, 0.0); // 当前pat点
-    DmVector patNode1(0.0, 0.0);
-    DmVector patNode2(0.0, 0.0);
-    bool duplicatePt = false;
-    double k = 0.0;
-    DmVector intersectPt1(0.0, 0.0);
-    DmVector intersectPt2(0.0, 0.0);
-    bool bUseYBoundary = false; // y作为边界
-    if (tempAngle_deg > 45 && tempAngle_deg < 135)
-    {
-        // y作为边界
-        bUseYBoundary = true;
-        k = 1.0 / std::tan(angle_rad);
-    }
-    else
-    {
-        // x作为边界
-        bUseYBoundary = false;
-        k = std::tan(angle_rad);
-    }
-    DmColor c(DM::FlagByBlock);
-    DmPen pen(c, DM::Width00, DmLineTypeTable::Continuous);
-    while (curPos < maxPos)
-    {
-        border_nodes.clear();
-        // pat起始点移动到当前pat线的位置
-        currentPatPt = patStart + offsetDir * curPos * offsetVec_local_csc_abs;
-        // 计算pat的两个端点，用来与轮廓求交
-        if (bUseYBoundary)
-        {
-            // y作为边界
-            patNode1.y = minY;
-            patNode1.x = k * (minY - currentPatPt.y) + currentPatPt.x;
-            patNode2.y = maxY;
-            patNode2.x = k * (maxY - currentPatPt.y) + currentPatPt.x;
-        }
-        else
-        {
-            // x作为边界
-            patNode1.x = minX;
-            patNode1.y = k * (minX - currentPatPt.x) + currentPatPt.y;
-            patNode2.x = maxX;
-            patNode2.y = k * (maxX - currentPatPt.x) + currentPatPt.y;
-        }
-
-        // 计算pat线与轮廓的交点，并且排序
-        intersectBoundariesWithLine(patNode1, patNode2,
-            bUseYBoundary, border_nodes);
-
-        // 按pat填充
-        if (border_nodes.size() >= 2)
-        {
-            for (auto i = 0; i < border_nodes.size() - 1; i++)
-            {
-                intersectPt1 = border_nodes.at(i);
-                intersectPt2 = border_nodes.at(i + 1);
-
-                // 判断该线段是否在轮廓内（抄的原始的）
-                std::unique_ptr<DmLine> line =
-                    std::make_unique<DmLine>(nullptr,
-                        intersectPt1, intersectPt2);
-                line->setPen(pen);
-                DmVector middlePoint = line->getMiddlePoint();
-                DmVector lineDir(line->getStartAngle());
-                DmVector middlePoint2 =
-                    line->getStartpoint() + lineDir * line->getLength() / 2.1;
-                bool isInside = false;
-                if (middlePoint.valid)
-                {
-                    bool onContour = false;
-                    if (data.getBoundary()->isPointInside(middlePoint,
-                            &onContour)
-                        || data.getBoundary()->isPointInside(middlePoint2))
-                    {
-                        isInside = true;
-                    }
-                }
-                if (!isInside)
-                {
-                    continue;
-                }
-                addPatternRun(intersectPt1, intersectPt2, currentPatPt, patDir, patternIndex,
-                    isSolidPat ? 0.0 : totalDashLen);
-                if (isSolidPat)
-                {
-                    // 实线填充
-                    line->setParent(parent.get());
-                    parent->addEntity(line.get());
-                    line.release();
-                }
-                else
-                {
-                    // 虚线填充
-                    fillDashBetweenTwoPoints(parent,
-                        intersectPt1, intersectPt2,
-                        currentPatPt, patDir,
-                        totalDashLen, dashPosPairs);
-                }
-            }
-        }
-
-        // 迭代下一条pat线
-        curPos += absOffsetY_local;
-    }
-}
-
-void DmHatch::addPatternRun(const DmVector& a, const DmVector& b, const DmVector& origin, const DmVector& dir,
-    std::uint32_t pattern, double period)
-{
-    // 沿图案线方向从小到大：图案的位置与 fillDashBetweenTwoPoints 切划线时相同（从图案线的起始点量起）
-    const double posA = (a - origin).dotP(dir);
-    const double posB = (b - origin).dotP(dir);
-    DmHatchPatternRun run;
-    run.pattern = pattern;
-    run.start = posA <= posB ? a : b;
-    run.end = posA <= posB ? b : a;
-    const double startPos = std::min(posA, posB);
-    run.phase = period > 0.0 ? startPos - std::floor(startPos / period) * period : 0.0;
-    m_patternRuns.push_back(run);
-}
-
-void DmHatch::getDashPositionPairs(
-    const std::vector<double>& dashLineLengths,
-    std::vector<std::pair<double, double>>& dashPosPairs)
-{
-    double curPos = 0.0;
-    for (auto dashLen : dashLineLengths)
-    {
-        if (dashLen == 0.0)
-        {
-            dashPosPairs.emplace_back(std::make_pair(curPos, curPos));
-        }
-        else if (dashLen > 0.0)
-        {
-            dashPosPairs.emplace_back(
-                std::make_pair(curPos, curPos + dashLen));
-            curPos += dashLen;
-        }
-        else
-        {
-            curPos += std::abs(dashLen);
-        }
-    }
-}
-
-void DmHatch::intersectBoundariesWithLine(const DmVector& linePt1,
-    const DmVector& linePt2, const bool orderByY,
-    std::vector<DmVector>& intersectPts)
-{
-    bool duplicatePt = false;
-    constexpr double TOL = 1e-5;
-
-    // 收集所有边界及孔洞
-    RegionData d = data.getBoundary()->getData();
-    DmEntityContainer ec(nullptr, false);
-    for (auto e : *d.getBoundary())
-    {
-        ec.addEntity(e);
-    }
-    for (auto h : d.getHoles())
-    {
-        for (auto e : *h)
-        {
-            ec.addEntity(e);
-        }
-    }
-    if (ec.size() == 0)
-    {
+        addLine(run.start, run.end);
         return;
     }
-
-    // 边界交点集
-    for (auto p : ec)
+    const DmVector dir = (run.end - run.start) / length;
+    // 图案的一个周期从 s = c 开始（c = -相位 + m·周期）；划线与线段相交的部分画成直线，落在线段内的点画成点
+    for (double c = -run.phase; c < length; c += period)
     {
-        DmLine tempLine(linePt1, linePt2);
-        DmVectorSolutions sol =
-            Information::getIntersection(&tempLine, p, true);
-        for (const DmVector& vp : sol)
+        double pos = c;
+        for (double d : dashes)
         {
-            if (vp.valid)
+            if (d > 0.0)
             {
-                // 如果不是重复点，保存之
-                duplicatePt = false;
-                for (auto borderPt : intersectPts)
+                const double s0 = std::max(pos, 0.0);
+                const double s1 = std::min(pos + d, length);
+                if (s1 > s0)
                 {
-                    if (std::abs(borderPt.x - vp.x) < TOL
-                        && std::abs(borderPt.y - vp.y) < TOL)
-                    {
-                        duplicatePt = true;
-                        break;
-                    }
-                }
-                if (!duplicatePt)
-                {
-                    intersectPts.emplace_back(vp);
+                    addLine(run.start + dir * s0, run.start + dir * s1);
                 }
             }
+            else if (d == 0.0 && pos >= 0.0 && pos <= length)
+            {
+                DmPoint* point = new DmPoint(m_filledEntities.get(), PointData(run.start + dir * pos));
+                point->setPen(pen);
+                m_filledEntities->addEntity(point);
+            }
+            pos += std::fabs(d);
         }
-    }
-    // 按坐标轴排序
-    if (orderByY)
-    {
-        std::sort(intersectPts.begin(), intersectPts.end(),
-            [](const DmVector& p1, const DmVector& p2)
-            {
-                return p1.y < p2.y;
-            });
-    }
-    else
-    {
-        std::sort(intersectPts.begin(), intersectPts.end(),
-            [](const DmVector& p1, const DmVector& p2)
-            {
-                return p1.x < p2.x;
-            });
-    }
-}
-
-void DmHatch::fillDashBetweenTwoPoints(DmEntityContainerPtr parent,
-    const DmVector& intersectPt1, const DmVector& intersectPt2,
-    const DmVector& currentPatPt, const DmVector& patDir,
-    const double totalDashLen,
-    const std::vector<std::pair<double, double>>& dashPosPairs)
-{
-    DmColor c(DM::FlagByBlock);
-    DmPen pen(c, DM::Width00, DmLineTypeTable::Continuous);
-    // 虚线填充
-    DmVector intersectVec1 = intersectPt1 - currentPatPt;
-    double intersectLen1 = intersectVec1.magnitude();
-    double intersectDotP1 = intersectVec1.dotP(patDir);
-    double intersectPos1 =
-        intersectDotP1 > 0.0 ? intersectLen1 : -intersectLen1;
-    DmVector intersectVec2 = intersectPt2 - currentPatPt;
-    double intersectLen2 = intersectVec2.magnitude();
-    double intersectDotP2 = intersectVec2.dotP(patDir);
-    double intersectPos2 =
-        intersectDotP2 > 0.0 ? intersectLen2 : -intersectLen2;
-    double minPos = std::min(intersectPos1, intersectPos2);
-    double maxPos = std::max(intersectPos1, intersectPos2);
-    // 计算起始位置
-    double curPos = std::floor(minPos / totalDashLen) * totalDashLen;
-    double rangeStart = 0.0;
-    double rangeEnd = 0.0;
-    DmVector rangeStartPt(0.0, 0.0);
-    DmVector rangeEndPt(0.0, 0.0);
-    // 0表示不在范围内，1表示起点在范围内（终点不在范围），
-    // 2表示终点在范围内（起点不在范围），3表示完全在范围内
-    int inRangeType = 0;
-    while (curPos < maxPos)
-    {
-        for (auto posPair : dashPosPairs)
-        {
-            inRangeType = 0;
-            rangeStart = curPos + posPair.first;
-            rangeStartPt = currentPatPt + patDir * rangeStart;
-            rangeEnd = curPos + posPair.second;
-            rangeEndPt = currentPatPt + patDir * rangeEnd;
-            if (rangeStart >= minPos && rangeEnd <= maxPos)
-            {
-                inRangeType = 3;
-            }
-            else if (rangeStart >= minPos && rangeStart <= maxPos)
-            {
-                rangeEnd = maxPos;
-                rangeEndPt = currentPatPt + patDir * rangeEnd;
-                inRangeType = 1;
-            }
-            else if (rangeEnd >= minPos && rangeEnd <= maxPos)
-            {
-                rangeStart = minPos;
-                rangeStartPt = currentPatPt + patDir * rangeStart;
-                inRangeType = 2;
-            }
-            else
-            {
-                // 不在范围内
-            }
-            if (inRangeType != 0)
-            {
-                if (posPair.first == posPair.second)
-                {
-                    // 长度为0，填点
-                    if (inRangeType == 3)
-                    {
-                        DmPoint* pPoint = new DmPoint(parent.get(),
-                            PointData(rangeStartPt));
-                        pPoint->setPen(pen);
-                        parent->addEntity(pPoint);
-                    }
-                }
-                else
-                {
-                    // 长度不为0，填线段
-                    DmLine* pLine = new DmLine(parent.get(),
-                        LineData(rangeStartPt, rangeEndPt));
-                    pLine->setPen(pen);
-                    parent->addEntity(pLine);
-                }
-            }
-        }
-        curPos += totalDashLen;
     }
 }
 
@@ -705,6 +366,10 @@ void DmHatch::move(const DmVector& offset)
     {
         run.start += offset;
         run.end += offset;
+    }
+    for (GiHatchPatternLine& line : m_patternLines)
+    {
+        line.base += offset;
     }
     DmEntity::moveBorders(offset);
 }
@@ -718,6 +383,12 @@ void DmHatch::rotate(const DmVector& center, const DmVector& angleVector)
         run.start.rotate(center, angleVector);
         run.end.rotate(center, angleVector);
     }
+    for (GiHatchPatternLine& line : m_patternLines)
+    {
+        line.base.rotate(center, angleVector);
+        line.direction.rotate(angleVector);
+        line.offset.rotate(angleVector);
+    }
     data.setPatternAngle(
         Math2d::correctAngle(data.getPatternAngle() + angleVector.angle()));
     calculateBorders();
@@ -727,18 +398,32 @@ void DmHatch::scale(const DmVector& center, const DmVector& factor)
 {
     data.getBoundary()->scale(center, factor);
     m_filledEntities->scale(center, factor);
-    // 图案按 X 向比例缩放（与图案比例的更新相同）
+    // 图案线的定义按仿射变换：基点、位移照常缩放，方向缩放后取单位向量，划线与相位乘方向上的伸缩
+    std::vector<double> stretch(m_patternLines.size(), 1.0);
+    for (std::size_t i = 0; i < m_patternLines.size(); ++i)
+    {
+        GiHatchPatternLine& line = m_patternLines[i];
+        line.base.scale(center, factor);
+        line.offset = DmVector(line.offset.x * factor.x, line.offset.y * factor.y);
+        const DmVector dir(line.direction.x * factor.x, line.direction.y * factor.y);
+        const double len = std::hypot(dir.x, dir.y);
+        if (len > 0.0)
+        {
+            line.direction = dir / len;
+            stretch[i] = len;
+            for (double& d : line.dashes)
+            {
+                d *= len;
+            }
+        }
+    }
     for (DmHatchPatternRun& run : m_patternRuns)
     {
         run.start.scale(center, factor);
         run.end.scale(center, factor);
-        run.phase *= std::abs(factor.x);
-    }
-    for (std::vector<double>& dashes : m_patternDashes)
-    {
-        for (double& d : dashes)
+        if (run.pattern < stretch.size())
         {
-            d *= std::abs(factor.x);
+            run.phase *= stretch[run.pattern];
         }
     }
     calculateBorders();
@@ -753,6 +438,14 @@ void DmHatch::mirror(const DmVector& axisPoint1, const DmVector& axisPoint2)
     {
         run.start.mirror(axisPoint1, axisPoint2);
         run.end.mirror(axisPoint1, axisPoint2);
+    }
+    // 镜像是保距变换：沿方向的位置不变，图案与相位照旧，方向与位移按向量镜像
+    const DmVector origin = DmVector(0.0, 0.0).mirror(axisPoint1, axisPoint2);
+    for (GiHatchPatternLine& line : m_patternLines)
+    {
+        line.base.mirror(axisPoint1, axisPoint2);
+        line.direction = DmVector(line.direction).mirror(axisPoint1, axisPoint2) - origin;
+        line.offset = DmVector(line.offset).mirror(axisPoint1, axisPoint2) - origin;
     }
     calculateBorders();
     double ang = axisPoint1.angleTo(axisPoint2);
@@ -953,46 +646,27 @@ void DmHatch::worldDraw(IGiWorldDraw& wd) const
     {
         return;
     }
-    if (isSolid())
+    // 边界与孔洞的环（圆弧精确），按奇偶规则填充
+    std::vector<GiLoop> loops;
+    boundary->getLoops(loops);
+    if (loops.empty())
     {
-        // 实心：边界与孔洞离散成环交给接收方剖分，取点与 DmRegion::getTriangles 相同
-        const RegionData region = boundary->getData();
-        std::vector<GiLoop> loops;
-        auto addLoop = [&loops](const DmEntityContainerPtr& contour) {
-            if (!contour)
-            {
-                return;
-            }
-            GiLoop loop;
-            DmRegion::getPointsOfOneBoundary(contour, loop.points);
-            if (!loop.points.empty())
-            {
-                loops.emplace_back(std::move(loop));
-            }
-        };
-        addLoop(region.getBoundary());
-        for (const DmEntityContainerPtr& hole : region.getHoles())
-        {
-            addLoop(hole);
-        }
-        if (!loops.empty())
-        {
-            wd.geometry().fill(loops, GiFillRule::EvenOdd);
-        }
         return;
     }
-    // 图案：每条图案线（边界内的一整段）画一次，划线由图形系统按图案与起点的相位画（不做端点对齐，第 4.5.1 节）；
-    // 颜色、线宽随填充自己的，实线的图案线按连续线画，不随填充的线型
-    IGiSubEntityTraits& traits = wd.traits();
-    DmDocument* doc = getDocument();
-    traits.setLineType(doc ? doc->getLineTypeTable()->getLineTypeContinuous() : DmLineTypeTable::Continuous);
-    GiLinePattern pattern;
-    for (const DmHatchPatternRun& run : m_patternRuns)
+    if (isSolid())
     {
-        pattern.dashes = run.pattern < m_patternDashes.size() ? m_patternDashes[run.pattern] : std::vector<double>();
-        pattern.phase = run.phase;
-        traits.setLinePattern(pattern);
-        const DmVector points[2] = {run.start, run.end};
-        wd.geometry().polyline(points, {}, {}, GiPolylineFlags::None);
+        wd.geometry().fill(loops, GiFillRule::EvenOdd);
+        return;
     }
+    if (m_patternLines.empty())
+    {
+        return;
+    }
+    // 图案：交出图案线的定义与边界，图案线由接收方切出（与 update() 切的同一份算法），按图案线自己的划线画，
+    // 颜色、线宽随填充自己的；图形系统在线太密时改画实心（RENDER_PLAN.md 第 4.3.10 节）。对应 ODA 的 setFill(OdGiHatchPattern)
+    GiHatchPattern pattern;
+    pattern.lines = m_patternLines;
+    wd.traits().setFill(&pattern);
+    wd.geometry().fill(loops, GiFillRule::EvenOdd);
+    wd.traits().setFill(nullptr);
 }

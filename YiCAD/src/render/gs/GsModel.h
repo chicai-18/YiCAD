@@ -28,7 +28,8 @@
 ///   块编辑时根换成被编辑的块；
 /// - 容器模型：画一个实体容器（视图的预览、多行文字编辑器），不跟踪变更，内容改了整体重建（invalidate）。
 ///
-/// 只在渲染线程（UI 线程）上使用。
+/// 接口只在渲染线程（UI 线程）上调用。整图重建时 GI 流的记录与分块的编译在内部分给多个线程（GsParallel，第 4.3.11 节）；
+/// 放大后样条的重新离散在一个后台线程上做（第 4.3.10 节）。
 
 #ifndef GSMODEL_H
 #define GSMODEL_H
@@ -37,6 +38,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -64,6 +66,18 @@ class ISelectionSource;
 struct GsDrawList
 {
     std::array<std::vector<RhiDrawIndirectArgs>, kGsClassCount> commands;
+    /// @brief 圆弧都小的区段：按每条 6 个顶点的小圆弧程序画（第 4.3.10 节），参数里的顶点按 6 个一条算
+    std::vector<RhiDrawIndirectArgs> smallArcs;
+
+    /// @brief 按分块分成的段（collectVisible 填）：第 i 段在各命令表里止于 end，起于上一段的止处。
+    ///        先粗后细排（浅层分块装的是大对象），渐进绘制按段分批画（第 4.3.10 节）；为空时整张表是一段
+    struct Chunk
+    {
+        std::array<std::uint32_t, kGsClassCount> end{};
+        std::uint32_t smallArcsEnd = 0;
+        std::uint32_t imagesEnd = 0;
+    };
+    std::vector<Chunk> chunks;
 
     /// @brief 一张图片（或块里的一张图片的全部实例）
     struct ImageDraw
@@ -75,6 +89,15 @@ struct GsDrawList
 
     void clear();
     bool empty() const;
+};
+
+/// @brief 收集命令时的 LOD 阈值（世界长度，按当前的每像素世界长度换算好；为 0 时不起作用，第 4.3.10 节）
+/// @details 与着色器里的判断相同，只是按一组命令的上界整组判断：一组字形实例的字高都小于 textHeight 时整组不发出
+///          （着色器里也会全部折叠）；一段圆弧的屏幕半径都不超过 arcRadius 时改用小圆弧程序（着色器里也都只画一个四边形）
+struct GsLod
+{
+    double textHeight = 0.0;
+    double arcRadius = 0.0;
 };
 
 /// @brief 图形系统的模型，见文件说明
@@ -123,7 +146,17 @@ public:
 
     /// @brief 可见分块的绘制命令
     /// @param minCorner、maxCorner 视口（世界坐标，外扩过）
-    void collectVisible(const DmVector& minCorner, const DmVector& maxCorner, GsDrawList& out) const;
+    /// @param lod 按屏幕尺寸跳过或简化的阈值，见 GsLod
+    void collectVisible(const DmVector& minCorner, const DmVector& maxCorner, const GsLod& lod, GsDrawList& out) const;
+
+    /// @brief 视图画场景时调：可见的顶层实体里离散的曲线（样条、椭圆）在屏幕上的弦高超过半个像素时，按更细的容差重新离散
+    ///        （第 4.3.10 节）。样条的离散在后台线程上做，先用旧结果画，离散好了下一次 update() 换上；椭圆直接在下一次 update() 重编。
+    ///        已经加密过、默认容差又够用了的（缩小回去）恢复默认
+    /// @param minCorner、maxCorner 视口（世界坐标）；worldPerPixel 每设备像素的世界长度
+    void refineVisible(const DmVector& minCorner, const DmVector& maxCorner, double worldPerPixel);
+
+    /// @brief 有还没换上的重新离散（后台在算，或算好了等下一次 update()）：视图过一会儿再画一帧
+    bool refinementPending() const;
 
     /// @brief 一组顶层实体的绘制命令（高亮叠加）；不在模型里的跳过
     /// @param skipSelected 跳过选中的（选中优先：已选中的按选中色画在场景里，不再高亮）
@@ -176,7 +209,12 @@ private:
     void forEachRootEntity(F&& f) const;
 
     // ---- 节点 ----
-    Node* createNode(DmEntity* entity);
+    /// @param record 为假时只建节点、分配槽位与绘图次序，之后由 recordNode、applyNodeState 补上（整图重建时并行记录）
+    Node* createNode(DmEntity* entity, bool record = true);
+    /// @brief 重新记录节点的 GI 流、修订号与包围框；只读实体、只写节点，可以在多个线程上同时调用
+    static void recordNode(Node& node);
+    /// @brief 按实体写节点的对象状态（图层、尺寸、隐藏）
+    void applyNodeState(Node& node);
     void refreshNode(Node& node);
     void removeNode(Node* node);
     void placeNode(Node& node);
@@ -191,7 +229,15 @@ private:
     void growRoot(const DmVector& minCorner, const DmVector& maxCorner);
     void splitIfNeeded(Cell& cell);
     void markCellDirty(Cell& cell);
-    void compileCell(Cell& cell);
+    struct CellBuild;
+    class WorkerContext;
+    friend class WorkerContext;
+    /// @brief 编译一个分块的全部节点（不碰数据区与依赖索引，可以在多个线程上同时构建不同的分块）
+    void buildCell(const Cell& cell, CellBuild& build, GsCompiler& compiler, WorkerContext& context);
+    /// @brief 把构建结果放进数据区、更新依赖索引与绘制命令（当前线程）
+    void commitCell(Cell& cell, CellBuild& build);
+    /// @brief 编译全部脏分块：并行构建，依次提交
+    void compileDirtyCells();
     void releaseCell(Cell& cell);
 
     // ---- 共享几何 ----
@@ -214,10 +260,14 @@ private:
                 std::vector<Leaf>& leaves, int depth);
     static GsAttributes resolveAgainst(const GsAttributes& inner, const GsAttributes& outer);
     GsInstanceRecord instanceRecord(const Leaf& leaf, const DmVector& origin, std::uint32_t slot, std::uint32_t cell) const;
+    /// @brief 整体变换的长度比例（非相似时取面积比例的平方根）
+    double rootScale() const;
     /// @brief 一个节点的绘制命令（顶层几何、共享几何的实例、图片）
     void appendNode(const Node& node, GsDrawList& out) const;
     /// @brief 分块的全部实例记录（按 instanceSources 的顺序），整体变换改了时只重写它们
     std::vector<GsInstanceRecord> instanceRecords(const Cell& cell) const;
+    /// @brief 按分块的区段与实例记录备好绘制命令与它们的 LOD 上界（编译时、整体变换改了时）
+    void buildCommands(Cell& cell, const std::vector<GsInstanceRecord>& instances) const;
 
     // ---- 表 ----
     /// @brief 重读图层表
@@ -254,6 +304,9 @@ private:
 
     class CompileContext;
     friend class CompileContext;
+    class Refiner;
+    /// @brief 后台离散好的样条：把节点的容差换成加密的，重编所在分块
+    void applyFinishedRefinements();
 
     DmDocument* m_document = nullptr;
     const DmEntityContainer* m_container = nullptr;
@@ -261,7 +314,12 @@ private:
     const DmBlock* m_rootOwner = nullptr;   ///< 根实体表所属的块；为空为模型空间
 
     std::unique_ptr<CompileContext> m_compileContext;
-    std::unique_ptr<GsCompiler> m_compiler;
+    /// @brief 并行编译时保护表（图层、线型、内联图案）、共享几何与数据区的分配：工作线程第一次用到它们时加锁
+    std::recursive_mutex m_mutex;
+    /// @brief 后台离散样条的线程（第一次要重新离散时才建）
+    std::unique_ptr<Refiner> m_refiner;
+    std::uint64_t m_refineGeneration = 0;           ///< 整图重建时递增：之前提交的后台任务作废
+    std::unordered_set<Node*> m_refinedNodes;       ///< 加密过容差的节点（缩小回去时恢复默认）
 
     std::unordered_map<const void*, std::unique_ptr<Node>> m_nodes;   ///< 实体地址 -> 节点
     std::unordered_map<const void*, std::uint32_t> m_orders;          ///< 实体地址 -> 绘图次序（删除后撤销时恢复原位）

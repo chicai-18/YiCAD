@@ -63,6 +63,8 @@ public:
     /// @brief 把单采样颜色纹理第 0 级整个复制进缓冲（渲染通道外），按行紧密排列；测试出图用
     /// @details 行序按后端：RhiCaps::framebufferOriginBottomLeft 为真时第 0 行是画面底部
     virtual void copyTextureToBuffer(const RhiTexture& src, const RhiBuffer& dst, std::size_t dstOffset = 0) = 0;
+    /// @brief GPU 执行到这里时把时间戳写进 set 的第 index 项（RhiCaps::timestampQueries），用 RhiDevice::readTimestamps 读出
+    virtual void writeTimestamp(const RhiQuerySet& set, std::uint32_t index) = 0;
 };
 
 #endif // RHICOMMANDLIST_H

@@ -172,4 +172,12 @@ public:
     GLuint createFramebuffer() const;
 };
 
+/// @brief 一组时间戳查询：查询对象按上下文放在 GLRhiContextState::querySets 里，这里只有序号
+class GLRhiQuerySet final : public RhiQuerySet, public GLRhiResourceBase
+{
+public:
+    GLRhiQuerySet(GLRhiDevice& device, RhiQuerySetDesc desc);
+    ~GLRhiQuerySet() override;
+};
+
 #endif // GLRHIRESOURCES_H

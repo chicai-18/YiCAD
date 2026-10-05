@@ -28,17 +28,18 @@
 #include <cstdint>
 #include <vector>
 
+#include "GiTypes.h"
 #include "HatchData.h"
 
 class DmEntityContainer;
 
 /// @brief 一条图案线：填充边界内的一整段，与它的图案、起点在图案里的位置（RENDER_PLAN.md 第 4.5.1 节）
-/// @details 图形系统按图案与相位画划线（GI 的 setLinePattern），相位锚定在图案原点，不做端点对齐
+/// @details 由 HatchPatternClipper 切出，与图形系统按同一份图案线定义（GI 的 setFill）切出的一致；相位锚定在图案原点，不做端点对齐
 struct DmHatchPatternRun
 {
     DmVector start;
     DmVector end;
-    std::uint32_t pattern = 0;   ///< 图案线定义的序号（DmHatch::getPatternDashes() 的下标）
+    std::uint32_t pattern = 0;   ///< 图案线定义的序号（DmHatch::getPatternLines() 的下标）
     double phase = 0.0;          ///< 起点在图案里的位置
 };
 
@@ -112,11 +113,12 @@ public:
     /// @brief 获取填充生成的实体容器（图案的划线逐段切开的线段与点，供选择、捕捉、炸开）
     DmEntityContainerPtr getFilledEntities() const;
 
-    /// @brief 图案线（画图用：每条一整段，划线由图形系统按图案画）
+    /// @brief 图案线：边界内的一整段（逐段切开的划线由它生成）
     const std::vector<DmHatchPatternRun>& getPatternRuns() const { return m_patternRuns; }
 
-    /// @brief 各条图案线定义的划线（已按图案比例缩放；空为实线）
-    const std::vector<std::vector<double>>& getPatternDashes() const { return m_patternDashes; }
+    /// @brief 图案线的定义：每族平行线的基点、方向、行距位移、划线，在当前坐标里（已按图案比例、角度，以及之后的移动、旋转、
+    ///        缩放、镜像变换过，同 AutoCAD HATCH 存的图案线）；worldDraw 经 GI 的 setFill 交给图形系统
+    const std::vector<GiHatchPatternLine>& getPatternLines() const { return m_patternLines; }
 
     void calculateBorders() override;
 
@@ -125,50 +127,8 @@ public:
     /// @brief 将轮廓离散化，传入CDT做三角划分，用原始方法判断三角形中心是否在轮廓内
     void fillSolid();
 
-    /// @brief 用一根无限长的pattern线填充轮廓
-    /// @param [in] parent 父实体容器
-    /// @param [in] pat 图案数据向量
-    /// @param [in] minX 轮廓最小X
-    /// @param [in] maxX 轮廓最大X
-    /// @param [in] minY 轮廓最小Y
-    /// @param [in] maxY 轮廓最大Y
-    void fillPattern(DmEntityContainerPtr parent, const std::vector<double>& pat,
-        double minX, double maxX, double minY, double maxY);
-
-    /// @brief 记下一条图案线：边界内 a、b 之间的一整段，相位按它在图案线上相对 origin 的位置（沿 dir）算
-    /// @param pattern 图案线定义的序号
-    /// @param period 图案的周期；实线为 0
-    void addPatternRun(const DmVector& a, const DmVector& b, const DmVector& origin, const DmVector& dir,
-                       std::uint32_t pattern, double period);
-
-    /// @brief 对于pattern存在虚线的情况，计算实线及点的相对pattern线起始点的"坐标对"
-    /// @param [in] dashLineLengths 虚线各段长度
-    /// @param [out] dashPosPairs 输出的位置对列表
-    void getDashPositionPairs(const std::vector<double>& dashLineLengths,
-        std::vector<std::pair<double, double>>& dashPosPairs);
-
-    /// @brief 用一条线段与轮廓求交。不含重复点，且按指定轴排序
-    /// @param [in] linePt1 线段端点1
-    /// @param [in] linePt2 线段端点2
-    /// @param [in] orderByY 是否按Y轴排序
-    /// @param [out] intersectPts 交点集合
-    void intersectBoundariesWithLine(const DmVector& linePt1,
-        const DmVector& linePt2, const bool orderByY,
-        std::vector<DmVector>& intersectPts);
-
-    /// @brief 在两个点之间按照指定的pattern线填充
-    /// @param [in] parent 父实体容器
-    /// @param [in] intersectPt1 交点1
-    /// @param [in] intersectPt2 交点2
-    /// @param [in] currentPatPt 当前图案线起始点
-    /// @param [in] patDir 图案线方向
-    /// @param [in] totalDashLen 虚线总长度
-    /// @param [in] dashPosPairs 虚线位置对列表
-    void fillDashBetweenTwoPoints(DmEntityContainerPtr parent,
-        const DmVector& intersectPt1, const DmVector& intersectPt2,
-        const DmVector& currentPatPt, const DmVector& patDir,
-        const double totalDashLen,
-        const std::vector<std::pair<double, double>>& dashPosPairs);
+    /// @brief 把一条图案线按它的划线逐段切开，加进填充生成的实体容器（实线整段一条直线，点画成点实体）
+    void addDashEntities(const DmHatchPatternRun& run);
 
     void move(const DmVector& offset) override;
     void rotate(const DmVector& center, const DmVector& angleVector) override;
@@ -203,7 +163,7 @@ protected:
     HatchData data;                          ///< 填充数据
     DmEntityContainerPtr m_filledEntities;   ///< 填充生成的实体容器
     std::vector<DmHatchPatternRun> m_patternRuns;          ///< 图案线
-    std::vector<std::vector<double>> m_patternDashes;      ///< 各条图案线定义的划线
+    std::vector<GiHatchPatternLine> m_patternLines;        ///< 图案线的定义（当前坐标）
 };
 
 #endif // DMHATCH_H

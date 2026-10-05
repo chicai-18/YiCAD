@@ -77,6 +77,7 @@ struct GsViewStyle
     bool lineWidths = false;      ///< 显示线宽：按 5 像素/毫米（乘设备像素比）；不显示时都画 1 个像素（第 4.6 节）
     bool gridOn = false;
     double gridSpacing = 0.0;     ///< 细网格的间距（世界长度），粗网格为它的 5 倍
+    bool lod = true;              ///< 按屏幕尺寸简化（第 4.3.10 节）：小字画细条、密填充画实心、亚像素对象画点、小圆弧少画分段
 
     bool operator==(const GsViewStyle&) const = default;
 };
@@ -111,8 +112,18 @@ public:
     /// @brief 叠加层：画布每帧按逻辑像素重新填
     GsOverlay& overlay() { return m_overlay; }
 
-    /// @brief 场景底图作废，下一帧重画
-    void invalidateScene() { m_sceneValid = false; }
+    /// @brief 场景底图作废，下一帧重画（画了一半的也从头画）
+    void invalidateScene()
+    {
+        m_sceneValid = false;
+        m_sceneInProgress = false;
+    }
+
+    /// @brief 场景底图画完了；没画完（渐进绘制，第 4.3.10 节）时画布接着请求下一帧
+    bool sceneComplete() const { return !m_sceneInProgress; }
+
+    /// @brief 每帧场景最多画多少个顶点（测试用，按顶点数定预算，结果与机器快慢无关）；0 为按实测的 GPU 耗时定
+    void setSceneBudget(std::size_t vertices) { m_fixedBudget = vertices; }
 
     /// @brief 画一帧到表面（在 QOpenGLWidget::paintGL 里调用）
     /// @param dpr 设备像素比：叠加层的逻辑像素乘它
@@ -127,6 +138,24 @@ public:
 
 private:
     struct Pass;
+    /// @brief 一张命令表里要画的一段（渐进绘制按分块分的段，第 4.3.10 节）
+    struct DrawRange
+    {
+        std::array<std::uint32_t, kGsClassCount> begin{};
+        std::array<std::uint32_t, kGsClassCount> end{};
+        std::uint32_t smallArcsBegin = 0;
+        std::uint32_t smallArcsEnd = 0;
+        std::uint32_t imagesBegin = 0;
+        std::uint32_t imagesEnd = 0;
+    };
+    /// @brief 整张表
+    static DrawRange wholeRange(const GsDrawList& list);
+    /// @brief 第 first 到 last（不含）段
+    static DrawRange chunkRange(const GsDrawList& list, std::size_t first, std::size_t last);
+    /// @brief 读出几帧前场景通道的 GPU 耗时，更新每毫秒能画的顶点数
+    void readSceneTimings();
+    /// @brief 这一帧场景最多画的顶点数
+    double sceneBudget() const;
     bool ensureDevice();
     bool ensureTargets(std::uint32_t width, std::uint32_t height, std::uint32_t samples);
     void prepareViewBits();
@@ -134,9 +163,14 @@ private:
     RhiBindGroupPtr frameGroup(std::uint32_t slot, const RhiBufferPtr& cells);
     void uploadCellOffsets(const std::vector<DmVector>& origins, RhiBufferPtr& buffer, std::vector<float>& uploaded,
                            double eyeX, double eyeY);
-    void drawList(RhiCommandList& commands, const GsDrawList& list, const RhiBuffer& indirect, std::size_t indirectBase,
-                  const GsModel& model, const RhiBindGroup& frame, const RhiBuffer& instances, std::uint32_t samples,
-                  bool scene, bool hairlines);
+    /// @brief 小圆弧（GsDrawList::smallArcs）按 6 个顶点一条的程序画
+    void drawSmallArcs(RhiCommandList& commands, const DrawRange& range, const RhiBuffer& indirect, std::size_t start,
+                       const GsModel& model, const RhiBindGroup& frame, const RhiVertexBufferBinding& binding,
+                       std::uint32_t samples, bool scene);
+    /// @brief 画 list 的 range 一段（间接参数在 indirect 里从 indirectBase 起按管线类依次排、最后是小圆弧）
+    void drawList(RhiCommandList& commands, const GsDrawList& list, const DrawRange& range, const RhiBuffer& indirect,
+                  std::size_t indirectBase, const GsModel& model, const RhiBindGroup& frame, const RhiBuffer& instances,
+                  std::uint32_t samples, bool scene, bool hairlines);
 
     std::shared_ptr<GsDevice> m_device;
     std::shared_ptr<GsModel> m_model;
@@ -166,6 +200,21 @@ private:
     std::uint32_t m_sceneHeight = 0;
     GsViewStyle m_sceneStyle;
     bool m_lastFrameRedrewScene = false;
+
+    // 渐进绘制（第 4.3.10 节）：场景超出每帧的预算时按段分几帧画，先粗后细；相机等不变时接着画，变了从头画
+    bool m_sceneInProgress = false;      ///< 场景底图画了一部分
+    std::size_t m_nextChunk = 0;         ///< 下一帧从这一段画起
+    std::vector<double> m_chunkCost;     ///< 场景各段的顶点数
+    std::size_t m_fixedBudget = 0;       ///< 测试用的固定预算（顶点数）；0 为按实测
+    double m_vertexRate = 0.0;           ///< 实测：每毫秒画的顶点数（0 为还没测出，用默认值）
+    RhiQuerySetPtr m_timestamps;         ///< 场景通道前后的时间戳，环形使用
+    struct PendingTiming
+    {
+        std::uint32_t slot = 0;
+        double vertices = 0.0;
+    };
+    std::vector<PendingTiming> m_pendingTimings;   ///< 写了还没读出的（按写的先后）
+    std::uint32_t m_nextTimestampSlot = 0;
 
     GsDrawList m_sceneList;
     GsDrawList m_emphasisList;           ///< 场景按细线画时，选中的实体另按四边形画的命令

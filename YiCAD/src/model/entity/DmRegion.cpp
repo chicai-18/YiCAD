@@ -32,7 +32,9 @@
 #include "Information.h"
 #include "DmLine.h"
 #include "DmArc.h"
+#include "DmCircle.h"
 #include "DmEllipse.h"
+#include "DmPolyline.h"
 #include "DmSpline.h"
 #include "Math2d.h"
 #include "FindClosedRegion.h"
@@ -399,6 +401,237 @@ void DmRegion::getPointsOfOneBoundary(DmEntityContainerPtr boundary, std::vector
     DmVectorSolutions sol(pts);
     sol.distinct(DM_TOLERANCE);
     points = sol.getVector();
+}
+
+namespace
+{
+
+/// @brief 两点是否重合（边首尾相接的判断）
+bool samePoint(const DmVector& a, const DmVector& b)
+{
+    const double scale = 1.0 + std::max({std::fabs(a.x), std::fabs(a.y), std::fabs(b.x), std::fabs(b.y)});
+    return std::fabs(a.x - b.x) <= 1.0e-9 * scale && std::fabs(a.y - b.y) <= 1.0e-9 * scale;
+}
+
+/// @brief 把一个轮廓的边连成环：bulges[i] 是 points[i] 到 points[i + 1] 那一段的凸度，结束时补上闭合段
+class LoopBuilder
+{
+public:
+    explicit LoopBuilder(std::vector<GiLoop>& loops)
+        : m_loops(loops)
+    {
+    }
+
+    /// @brief 自身闭合的边（圆、闭合多段线、整椭圆、闭合样条）单独成环
+    void addClosed(std::vector<DmVector> points, std::vector<double> bulges)
+    {
+        GiLoop loop;
+        loop.points = std::move(points);
+        loop.bulges = std::move(bulges);
+        push(std::move(loop));
+    }
+
+    /// @brief 一条开放的边：points 至少两点，bulges 与各段对应（可为空，全是直线段）
+    void addOpen(std::vector<DmVector> points, std::vector<double> bulges)
+    {
+        if (points.size() < 2)
+        {
+            return;
+        }
+        bulges.resize(points.size() - 1, 0.0);
+        if (m_points.empty())
+        {
+            m_points = std::move(points);
+            m_bulges = std::move(bulges);
+            m_edges = 1;
+            return;
+        }
+        // 第二条边接在第一条边的起点上：第一条边掉头
+        if (m_edges == 1 && !samePoint(points.front(), m_points.back()) && !samePoint(points.back(), m_points.back())
+            && (samePoint(points.front(), m_points.front()) || samePoint(points.back(), m_points.front())))
+        {
+            reverse(m_points, m_bulges);
+        }
+        if (!samePoint(points.front(), m_points.back()) && samePoint(points.back(), m_points.back()))
+        {
+            reverse(points, bulges);
+        }
+        if (samePoint(points.front(), m_points.back()))
+        {
+            m_points.insert(m_points.end(), points.begin() + 1, points.end());
+        }
+        else
+        {
+            // 接不上：中间按直线段连过去
+            m_bulges.push_back(0.0);
+            m_points.insert(m_points.end(), points.begin(), points.end());
+        }
+        m_bulges.insert(m_bulges.end(), bulges.begin(), bulges.end());
+        ++m_edges;
+    }
+
+    /// @brief 结束这个轮廓：首尾重合时去掉重复的末点，否则补一段直线闭合
+    void finish()
+    {
+        if (m_points.size() >= 2)
+        {
+            if (samePoint(m_points.front(), m_points.back()))
+            {
+                m_points.pop_back();
+            }
+            else
+            {
+                m_bulges.push_back(0.0);
+            }
+            m_bulges.resize(m_points.size(), 0.0);
+            GiLoop loop;
+            loop.points = std::move(m_points);
+            loop.bulges = std::move(m_bulges);
+            push(std::move(loop));
+        }
+        m_points.clear();
+        m_bulges.clear();
+        m_edges = 0;
+    }
+
+private:
+    static void reverse(std::vector<DmVector>& points, std::vector<double>& bulges)
+    {
+        std::reverse(points.begin(), points.end());
+        std::reverse(bulges.begin(), bulges.end());
+        for (double& b : bulges)
+        {
+            b = -b;
+        }
+    }
+
+    void push(GiLoop loop)
+    {
+        if (loop.points.size() < 2)
+        {
+            return;
+        }
+        // 全是直线段时不带凸度（GiLoop 的约定）
+        if (std::all_of(loop.bulges.begin(), loop.bulges.end(), [](double b) { return b == 0.0; }))
+        {
+            loop.bulges.clear();
+        }
+        m_loops.push_back(std::move(loop));
+    }
+
+    std::vector<GiLoop>& m_loops;
+    std::vector<DmVector> m_points;
+    std::vector<double> m_bulges;
+    int m_edges = 0;
+};
+
+}  // namespace
+
+void DmRegion::getLoopsOfOneBoundary(const DmEntityContainerPtr& contour, std::vector<GiLoop>& loops)
+{
+    if (!contour)
+    {
+        return;
+    }
+    LoopBuilder builder(loops);
+    for (DmEntity* edge : *contour)
+    {
+        if (!edge)
+        {
+            continue;
+        }
+        switch (edge->getEntityType())
+        {
+        case DM::EntityLine:
+        {
+            const auto* line = static_cast<const DmLine*>(edge);
+            builder.addOpen({line->getStartpoint(), line->getEndpoint()}, {});
+            break;
+        }
+        case DM::EntityArc:
+        {
+            // 与 DmArc::worldDraw 相同：按"翻正"后的角度从起点逆时针到终点
+            const auto* arc = static_cast<const DmArc*>(edge);
+            const double start = arc->getStartAngleNormal();
+            double sweep = arc->getEndAngleNormal() - start;
+            if (sweep <= 0.0)
+            {
+                sweep += 2.0 * M_PI;
+            }
+            const DmVector c = arc->getCenter();
+            const double r = arc->getRadius();
+            builder.addOpen({c + DmVector(start) * r, c + DmVector(start + sweep) * r}, {std::tan(sweep / 4.0)});
+            break;
+        }
+        case DM::EntityCircle:
+        {
+            const auto* circle = static_cast<const DmCircle*>(edge);
+            const DmVector c = circle->getCenter();
+            const double r = circle->getRadius();
+            builder.addClosed({c + DmVector(r, 0.0), c - DmVector(r, 0.0)}, {1.0, 1.0});
+            break;
+        }
+        case DM::EntityPolyline:
+        {
+            const auto* polyline = static_cast<const DmPolyline*>(edge);
+            const PolylineData& data = polyline->getDataConstRef();
+            std::vector<DmVector> points = data.getVertexs();
+            std::vector<double> bulges = data.getBulges();
+            if (polyline->isClosed())
+            {
+                bulges.resize(points.size(), 0.0);
+                builder.addClosed(std::move(points), std::move(bulges));
+            }
+            else
+            {
+                builder.addOpen(std::move(points), std::move(bulges));
+            }
+            break;
+        }
+        case DM::EntityEllipse:
+        {
+            auto* ellipse = static_cast<DmEllipse*>(edge);
+            std::vector<DmVector> points;
+            ellipse->getPoints(points);
+            if (ellipse->isClosed())
+            {
+                builder.addClosed(std::move(points), {});
+            }
+            else
+            {
+                builder.addOpen(std::move(points), {});
+            }
+            break;
+        }
+        case DM::EntitySpline:
+        {
+            auto* spline = static_cast<DmSpline*>(edge);
+            std::vector<DmVector> points;
+            spline->getPoints(points);
+            if (spline->isClosed())
+            {
+                builder.addClosed(std::move(points), {});
+            }
+            else
+            {
+                builder.addOpen(std::move(points), {});
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    builder.finish();
+}
+
+void DmRegion::getLoops(std::vector<GiLoop>& loops) const
+{
+    getLoopsOfOneBoundary(data.getBoundary(), loops);
+    for (const DmEntityContainerPtr& hole : data.getHoles())
+    {
+        getLoopsOfOneBoundary(hole, loops);
+    }
 }
 
 void DmRegion::move(const DmVector& offset)

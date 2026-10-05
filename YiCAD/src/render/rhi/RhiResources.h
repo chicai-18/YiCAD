@@ -149,6 +149,20 @@ private:
     RhiRenderTargetDesc m_desc;
 };
 
+/// @brief 一组时间戳查询，见 RhiQuerySetDesc
+class RhiQuerySet : public RhiResource
+{
+public:
+    const RhiQuerySetDesc& desc() const { return m_desc; }
+    std::uint32_t count() const { return m_desc.count; }
+
+protected:
+    explicit RhiQuerySet(RhiQuerySetDesc desc) : m_desc(std::move(desc)) {}
+
+private:
+    RhiQuerySetDesc m_desc;
+};
+
 /// @brief 呈现表面（交换链）：GL 下是一个 QOpenGLWidget 的帧缓冲，Vulkan 下是窗口的交换链（第 4.7.6 节）
 /// @details 不归设备所有，由视图持有；尺寸是设备像素
 class RhiSurface

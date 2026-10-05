@@ -11,9 +11,18 @@
 layout(set = 2, binding = 0) uniform samplerBuffer pointRecords;
 
 layout(location = 0) flat out vec4 vColor;
+layout(location = 1) flat out float vCoverage;  // 片段着色器（gs_fill.frag）用，点总是 1
+layout(location = 2) flat out float vDither;
 
 void main()
 {
+    vCoverage = 1.0;
+    vDither = 0.0;
+    if (smallGlyph())
+    {
+        gl_Position = collapsed();
+        return;
+    }
     int k = gl_VertexIndex / 6;
     int corner = gl_VertexIndex % 6;
     vec4 v = texelFetch(pointRecords, k);

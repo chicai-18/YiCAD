@@ -19,6 +19,7 @@ yicad_add_test(render
         test_render_environment.cpp
         test_render_incremental.cpp
         test_render_linetype.cpp
+        test_render_lod.cpp
         test_render_reference.cpp
         test_render_rhi.cpp
     LINK YiCadShell

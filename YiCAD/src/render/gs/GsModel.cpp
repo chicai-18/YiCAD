@@ -26,7 +26,11 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <condition_variable>
+#include <deque>
 #include <map>
+#include <mutex>
+#include <thread>
 
 #include "DmBlock.h"
 #include "DmChangeSet.h"
@@ -39,6 +43,8 @@
 #include "DmLineTypeTable.h"
 #include "EntityTable.h"
 #include "GsDevice.h"
+#include "GsParallel.h"
+#include "IGiFont.h"
 #include "ISelectionSource.h"
 #include "ScopedTimer.h"
 #include "YiCadLog.h"
@@ -54,6 +60,8 @@ constexpr int kMaxExpandDepth = 32;                ///< 嵌套块展开的最大
 constexpr double kHugeExtent = 1.0e15;             ///< 包围框比它还大（射线、构造线）的实体放进总是可见的分块
 constexpr std::uint32_t kVerifyBatch = 64;
 constexpr std::size_t kSparseStateUploads = 256;     ///< 对象状态的改动不超过这么多个时逐段上传，否则按范围
+constexpr std::size_t kMinParallelNodes = 256;       ///< 要记录的节点不少于这么多个时多线程记录（第 4.3.11 节）
+constexpr std::size_t kMinParallelCells = 4;         ///< 要编译的分块不少于这么多个时多线程编译
 
 std::uint32_t floatBits(float f)
 {
@@ -145,27 +153,36 @@ GsLineTypeRecord lineTypeRecord(const std::vector<double>& data)
 /// @brief 样条离散结果的缓存（与原先旧渲染器的 GLCacheWorldDraw::NurbsSamples 相同：按曲线内容查找，
 ///        整图重建时标记—清除：这一轮用到的留下，没用到的丢掉）
 /// @details 离散一条样条要递归求 B 样条基函数，比其余实体的编译贵得多（中图纸 2 千条样条约 0.6 秒，阶段 2 的记录），
-///          整图重建（REGEN、进出块编辑）不应每次重来
+///          整图重建（REGEN、进出块编辑）不应每次重来。可以在多个线程上同时用：查找、插入加锁，离散在锁外做
+///          （两个线程同时离散同一条曲线时都算一遍，只留先插进去的）；结果按共享指针交出，之后的插入不会让它失效
 class NurbsCache
 {
 public:
-    const std::vector<DmVector>& sample(const GiNurbs& curve)
+    std::shared_ptr<const std::vector<DmVector>> sample(const GiNurbs& curve, double tolerance)
     {
-        std::vector<Entry>& bucket = m_entries[hashOf(curve)];
-        for (Entry& entry : bucket)
+        std::size_t hash = hashOf(curve);
+        hashBytes(hash, &tolerance, sizeof(tolerance));
         {
-            if (same(entry.curve, curve))
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            if (auto found = find(hash, curve, tolerance))
             {
-                entry.generation = m_generation;
-                return entry.points;
+                return found;
             }
+        }
+        auto points = std::make_shared<std::vector<DmVector>>();
+        curve.sample(*points, tolerance);
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        if (auto found = find(hash, curve, tolerance))
+        {
+            return found;
         }
         Entry entry;
         entry.curve = curve;
+        entry.tolerance = tolerance;
         entry.generation = m_generation;
-        curve.sample(entry.points);
-        bucket.push_back(std::move(entry));
-        return bucket.back().points;
+        entry.points = std::move(points);
+        m_entries[hash].push_back(entry);
+        return entry.points;
     }
 
     /// @brief 开始一轮整图重建：之后用到的条目记上这一轮
@@ -188,9 +205,29 @@ private:
     struct Entry
     {
         GiNurbs curve;
-        std::vector<DmVector> points;
+        double tolerance = 0.0;
+        std::shared_ptr<const std::vector<DmVector>> points;
         std::uint64_t generation = 0;  ///< 最近一次用到它的整图重建
     };
+
+    /// @brief 找到时记上这一轮并返回（调用方持锁）
+    std::shared_ptr<const std::vector<DmVector>> find(std::size_t hash, const GiNurbs& curve, double tolerance)
+    {
+        auto it = m_entries.find(hash);
+        if (it == m_entries.end())
+        {
+            return nullptr;
+        }
+        for (Entry& entry : it->second)
+        {
+            if (entry.tolerance == tolerance && same(entry.curve, curve))
+            {
+                entry.generation = m_generation;
+                return entry.points;
+            }
+        }
+        return nullptr;
+    }
 
     static void hashBytes(std::size_t& h, const void* data, std::size_t size)
     {
@@ -240,9 +277,13 @@ private:
         return true;
     }
 
+    std::mutex m_mutex;
     std::unordered_map<std::size_t, std::vector<Entry>> m_entries;
     std::uint64_t m_generation = 0;
 };
+
+/// @brief 字体的字形查询加的锁：IGiFont::glyph 首次查某个字形时要生成它，要求调用方串行化（字体全进程共用）
+std::mutex g_fontMutex;
 
 }  // namespace
 
@@ -275,6 +316,12 @@ struct GsModel::Node
     std::vector<std::uint32_t> images;             ///< 分块图片列表里属于本节点的下标
     std::vector<Shared*> uses;                     ///< 直接用到的共享几何（依赖索引）
     bool nonUniform = false;
+    // 曲线的离散（第 4.3.10 节）
+    double curveTolerance = 0.0;                   ///< 上次编译时离散曲线用的最大弦高容差；没有曲线为 0
+    double defaultCurveTolerance = 0.0;            ///< 不加密时的最大弦高容差
+    bool hasNurbs = false;
+    double tolerance = 0.0;                        ///< 加密后的弦高容差（世界长度）；0 为默认
+    bool refining = false;                         ///< 样条正在后台离散
 };
 
 struct GsModel::QuadNode
@@ -317,7 +364,18 @@ struct GsModel::Cell
         GsImageSource source;
     };
     std::vector<Image> images;
-    std::array<std::vector<RhiDrawIndirectArgs>, kGsClassCount> commands;  ///< 编译时备好的绘制命令（不含图片）
+    std::array<std::vector<RhiDrawIndirectArgs>, kGsClassCount> commands;  ///< 编译时备好的绘制命令（不含图片），总是发出
+    /// @brief 按屏幕尺寸决定怎么发出的命令（第 4.3.10 节）：字形实例组（字高的上界）与圆弧区段（屏幕半径的上界，世界长度）
+    struct LodCommand
+    {
+        GsClass cls = GsClass::Segment;
+        RhiDrawIndirectArgs args;
+        float textHeight = 0.0f;   ///< 大于 0：一组字形实例，字高都不超过它
+        float arcRadius = 0.0f;    ///< 圆弧：半径乘实例变换的最大伸缩都不超过它
+    };
+    std::vector<LodCommand> lodCommands;
+    float maxArcRadius = 0.0f;             ///< 顶层几何里圆弧的最大半径（分块坐标，未乘整体变换）
+    double maxCurveTolerance = 0.0;        ///< 节点里离散曲线的最大弦高容差（重新离散时据此跳过整个分块）
     std::vector<GsInfiniteLine> infinite;  ///< 世界坐标，图元记录为绝对序号
     /// @brief 实例记录的来源，整体变换改了据此重写实例记录
     struct InstanceSource
@@ -339,6 +397,7 @@ struct GsModel::Shared
     GsRange prims;
     std::vector<GsPrimRecord> primRecords;     ///< CPU 副本（展开无限线时复制）
     std::vector<GsSharedUse> children;
+    std::vector<Shared*> childShared;          ///< children 各自的共享几何（编译时解析好，展开时只读）
     std::vector<GsInfiniteLine> infinite;      ///< 定义坐标
     std::vector<GsImageSource> images;
     bool explicitDashed = false;               ///< 有指定了非连续线型的图元
@@ -346,6 +405,11 @@ struct GsModel::Shared
     std::vector<std::uint16_t> byLayerLineTypeLayers;  ///< 线型随层的图元用到的图层（可含实例图层）
     bool compiled = false;
     bool dirty = true;
+    bool glyph = false;                        ///< 字形（字形串用到它）：实例记录带字高（第 4.3.10 节）
+    float maxArcRadius = 0.0f;                 ///< 圆弧记录的最大半径（定义坐标）
+    bool hasExtent = false;                    ///< 有几何；minX、maxX 是定义坐标里的横向范围（小字的细条用）
+    double minX = 0.0;
+    double maxX = 0.0;
     std::unordered_set<Node*> users;
     std::unordered_set<Shared*> parents;
 };
@@ -358,7 +422,10 @@ public:
 
     std::uint16_t layerIndex(const DmLayer* layer) override { return m_model.layerIndexOf(layer); }
     std::uint16_t lineTypeIndex(const DmLineType* lineType) override { return m_model.lineTypeIndexOf(lineType); }
-    const std::vector<DmVector>& sampleNurbs(const GiNurbs& curve) override { return m_nurbs.sample(curve); }
+    std::shared_ptr<const std::vector<DmVector>> sampleNurbs(const GiNurbs& curve, double tolerance) override
+    {
+        return m_nurbs.sample(curve, tolerance);
+    }
     bool needsFlatten(const IGiDrawable& drawable, const GiTransform& transform, const GsAttributes& byBlock,
                       bool* nonUniform) override
     {
@@ -372,13 +439,306 @@ public:
     {
         return m_model.lineTypeMetrics(lineType, period, firstDashCenter);
     }
+    const IGiDrawable* glyph(const IGiFont& font, char32_t code) override
+    {
+        const std::lock_guard<std::mutex> lock(g_fontMutex);
+        return font.glyph(code);
+    }
+    bool glyphExtent(const IGiDrawable& glyph, double& minX, double& maxX) override
+    {
+        const Shared& shared = m_model.sharedFor(glyph);
+        minX = shared.minX;
+        maxX = shared.maxX;
+        return shared.hasExtent;
+    }
 
     void beginSweep() { m_nurbs.beginSweep(); }
     void endSweep() { m_nurbs.endSweep(); }
+    NurbsCache& nurbs() { return m_nurbs; }
 
 private:
     GsModel& m_model;
     NurbsCache m_nurbs;
+};
+
+/// @brief 一个分块编译线程用的上下文：查过的图层、线型、共享几何记在本线程，第一次查时才加模型的锁
+/// @details 并行编译期间表只增不改、共享几何不删（脏的先编译好），所以本线程记下的序号与指针一直有效
+class GsModel::WorkerContext final : public GsCompileContext
+{
+public:
+    explicit WorkerContext(GsModel& model) : m_model(model) {}
+
+    std::uint16_t layerIndex(const DmLayer* layer) override
+    {
+        auto it = m_layers.find(layer);
+        if (it != m_layers.end())
+        {
+            return it->second;
+        }
+        const std::lock_guard<std::recursive_mutex> lock(m_model.m_mutex);
+        return m_layers[layer] = m_model.layerIndexOf(layer);
+    }
+    std::uint16_t lineTypeIndex(const DmLineType* lineType) override
+    {
+        auto it = m_lineTypes.find(lineType);
+        if (it != m_lineTypes.end())
+        {
+            return it->second;
+        }
+        const std::lock_guard<std::recursive_mutex> lock(m_model.m_mutex);
+        return m_lineTypes[lineType] = m_model.lineTypeIndexOf(lineType);
+    }
+    std::shared_ptr<const std::vector<DmVector>> sampleNurbs(const GiNurbs& curve, double tolerance) override
+    {
+        return m_model.m_compileContext->nurbs().sample(curve, tolerance);
+    }
+    bool needsFlatten(const IGiDrawable& drawable, const GiTransform& transform, const GsAttributes& byBlock,
+                      bool* nonUniform) override
+    {
+        const std::lock_guard<std::recursive_mutex> lock(m_model.m_mutex);
+        return m_model.m_compileContext->needsFlatten(drawable, transform, byBlock, nonUniform);
+    }
+    std::uint16_t patternIndex(const std::vector<double>& dashes) override
+    {
+        const std::lock_guard<std::recursive_mutex> lock(m_model.m_mutex);
+        return m_model.patternIndexOf(dashes);
+    }
+    bool splitLongRuns() const override { return m_model.m_document != nullptr; }
+    double globalLineTypeScale() const override { return m_model.m_lineTypeScale; }
+    bool lineTypeMetrics(const GsLineTypeRef& lineType, double& period, double& firstDashCenter) override
+    {
+        const std::lock_guard<std::recursive_mutex> lock(m_model.m_mutex);
+        return m_model.lineTypeMetrics(lineType, period, firstDashCenter);
+    }
+    const IGiDrawable* glyph(const IGiFont& font, char32_t code) override
+    {
+        const std::lock_guard<std::mutex> lock(g_fontMutex);
+        return font.glyph(code);
+    }
+    bool glyphExtent(const IGiDrawable& glyph, double& minX, double& maxX) override
+    {
+        const Shared& shared = sharedOf(glyph, true);
+        minX = shared.minX;
+        maxX = shared.maxX;
+        return shared.hasExtent;
+    }
+
+    /// @brief 共享几何（已编译）；glyph 为真时标记为字形（实例记录带字高）
+    Shared& sharedOf(const IGiDrawable& drawable, bool glyph)
+    {
+        auto it = m_shared.find(&drawable);
+        if (it != m_shared.end() && (!glyph || it->second->glyph))
+        {
+            return *it->second;
+        }
+        const std::lock_guard<std::recursive_mutex> lock(m_model.m_mutex);
+        Shared& shared = m_model.sharedFor(drawable);
+        shared.glyph = shared.glyph || glyph;
+        m_shared[&drawable] = &shared;
+        return shared;
+    }
+
+private:
+    GsModel& m_model;
+    std::unordered_map<const DmLayer*, std::uint16_t> m_layers;
+    std::unordered_map<const DmLineType*, std::uint16_t> m_lineTypes;
+    std::unordered_map<const IGiDrawable*, Shared*> m_shared;
+};
+
+/// @brief 一个分块的编译结果（buildCell 写、commitCell 读）
+struct GsModel::CellBuild
+{
+    std::array<std::vector<GsTexel>, kGsClassCount> records;
+    std::vector<GsPrimRecord> prims;
+    std::vector<Cell::InstanceSource> sources;   ///< 第一条是顶层几何的恒等实例
+    std::vector<GsInstanceGroup> groups;         ///< 实例序号相对本分块的实例区段
+    std::vector<Cell::Image> images;
+    std::vector<GsInfiniteLine> infinite;        ///< 图元记录为本分块的序号
+    std::vector<GsRunSummary> runs;
+    bool hasPieces = false;
+    bool hasBounds = false;
+    DmVector minCorner;
+    DmVector maxCorner;
+    float maxArcRadius = 0.0f;                   ///< 顶层几何里圆弧的最大半径
+    std::vector<std::pair<Node*, std::vector<Shared*>>> oldUses;  ///< 各节点原先用到的共享几何（更新依赖索引）
+    double maxCurveTolerance = 0.0;              ///< 节点里离散曲线的最大弦高容差
+};
+
+namespace
+{
+
+/// @brief 重放一个节点的 GI 流，找出它里面的样条：变换与容差与 GsCompiler 编译时相同，后台离散的结果才能在编译时命中缓存
+/// @details 嵌套绘制、pushTransform 照编译器的规则合成变换；drawShared 不跟进（共享几何不重新离散）
+class NurbsCollector final : public IGiWorldDraw, public IGiGeometry, public IGiSubEntityTraits
+{
+public:
+    explicit NurbsCollector(double tolerance) : m_tolerance(tolerance) { m_transforms.emplace_back(); }
+
+    std::vector<std::pair<GiNurbs, double>> curves;   ///< 变换后的样条与离散用的容差
+
+    IGiGeometry& geometry() override { return *this; }
+    IGiSubEntityTraits& traits() override { return *this; }
+    GiRegenType regenType() const override { return GiRegenType::Display; }
+    double deviation() const override { return 1.0e-3; }
+    bool isDragging() const override { return false; }
+
+    void setColor(const DmColor&) override {}
+    void setLayer(const DmLayer*) override {}
+    void setLineType(const DmLineType*) override {}
+    void setLineTypeScale(double) override {}
+    void setLinePattern(const GiLinePattern&) override {}
+    void setFill(const GiHatchPattern*) override {}
+    void setLineWeight(DM::LineWidth) override {}
+    void setTransparency(std::uint8_t) override {}
+    void setSelectionMarker(std::int32_t) override {}
+    void setScreenSpace(const DmVector*) override {}
+
+    void polyline(std::span<const DmVector>, std::span<const double>, std::span<const GiSegmentWidth>,
+                  GiPolylineFlags) override {}
+    void circle(const DmVector&, double) override {}
+    void arc(const DmVector&, double, double, double) override {}
+    void ellipseArc(const DmVector&, const DmVector&, double, double, double) override {}
+    void nurbs(const GiNurbs& curve) override
+    {
+        // 与 GsCompiler::nurbs 相同：变换控制点，默认容差按控制点包围框
+        GiNurbs transformed = curve;
+        double minX = 0.0, minY = 0.0, maxX = 0.0, maxY = 0.0;
+        bool first = true;
+        for (DmVector& p : transformed.controlPoints)
+        {
+            p = m_transforms.back().apply(p);
+            minX = first ? p.x : std::min(minX, p.x);
+            minY = first ? p.y : std::min(minY, p.y);
+            maxX = first ? p.x : std::max(maxX, p.x);
+            maxY = first ? p.y : std::max(maxY, p.y);
+            first = false;
+        }
+        const double size = std::max(maxX - minX, maxY - minY);
+        curves.emplace_back(std::move(transformed),
+                            gsCurveTolerance(std::max(size * kGsCurveRelativeTolerance, 1.0e-12), m_tolerance));
+    }
+    void fill(std::span<const GiLoop>, GiFillRule) override {}
+    void triangles(std::span<const DmVector>, std::span<const std::uint32_t>) override {}
+    void glyphRun(const GiGlyphRun&) override {}
+    void image(const GiImage&) override {}
+    void point(const DmVector&) override {}
+    void ray(const DmVector&, const DmVector&) override {}
+    void xline(const DmVector&, const DmVector&) override {}
+    void draw(const IGiDrawable& drawable) override
+    {
+        m_transforms.push_back(m_transforms.back());
+        drawable.setAttributes(*this);
+        drawable.worldDraw(*this);
+        m_transforms.pop_back();
+    }
+    void drawShared(const IGiDrawable&, const GiTransform&, const GiByBlockTraits&) override {}
+    void pushTransform(const GiTransform& transform) override
+    {
+        m_saved.push_back(m_transforms.back());
+        m_transforms.back() = m_transforms.back() * transform;
+    }
+    void popTransform() override
+    {
+        if (!m_saved.empty())
+        {
+            m_transforms.back() = m_saved.back();
+            m_saved.pop_back();
+        }
+    }
+
+private:
+    double m_tolerance;
+    std::vector<GiTransform> m_transforms;
+    std::vector<GiTransform> m_saved;
+};
+
+}  // namespace
+
+/// @brief 后台离散样条的线程（RENDER_PLAN.md 第 4.3.10 节：放大后为可见的节点重新离散，先用旧结果画，好了再换）
+/// @details 只做纯计算：离散好的点放进样条缓存（线程安全），任务做完记下节点（按实体地址与整图重建的代次），
+///          由 GsModel::update() 在渲染线程上把节点的容差换成加密的、重编所在分块（编译时命中缓存）
+class GsModel::Refiner
+{
+public:
+    struct Job
+    {
+        const void* entity = nullptr;
+        std::uint64_t generation = 0;
+        double tolerance = 0.0;
+        std::vector<std::pair<GiNurbs, double>> curves;
+    };
+
+    explicit Refiner(NurbsCache& cache)
+        : m_cache(cache)
+        , m_thread([this]() { run(); })
+    {
+    }
+
+    ~Refiner()
+    {
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            m_stop = true;
+        }
+        m_wake.notify_all();
+        m_thread.join();
+    }
+
+    void post(Job job)
+    {
+        {
+            const std::lock_guard<std::mutex> lock(m_mutex);
+            m_queue.push_back(std::move(job));
+        }
+        m_wake.notify_one();
+    }
+
+    std::vector<Job> takeFinished()
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        return std::exchange(m_finished, {});
+    }
+
+    bool busy() const
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        return !m_queue.empty() || m_running || !m_finished.empty();
+    }
+
+private:
+    void run()
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        for (;;)
+        {
+            m_wake.wait(lock, [this]() { return m_stop || !m_queue.empty(); });
+            if (m_stop)
+            {
+                return;
+            }
+            Job job = std::move(m_queue.front());
+            m_queue.pop_front();
+            m_running = true;
+            lock.unlock();
+            for (const auto& [curve, tolerance] : job.curves)
+            {
+                m_cache.sample(curve, tolerance);
+            }
+            job.curves.clear();
+            lock.lock();
+            m_running = false;
+            m_finished.push_back(std::move(job));
+        }
+    }
+
+    NurbsCache& m_cache;
+    mutable std::mutex m_mutex;
+    std::condition_variable m_wake;
+    std::deque<Job> m_queue;
+    std::vector<Job> m_finished;
+    bool m_running = false;
+    bool m_stop = false;
+    std::thread m_thread;   ///< 最后构造：线程启动时其余成员都已就绪
 };
 
 void GsDrawList::clear()
@@ -387,7 +747,9 @@ void GsDrawList::clear()
     {
         c.clear();
     }
+    smallArcs.clear();
     images.clear();
+    chunks.clear();
 }
 
 bool GsDrawList::empty() const
@@ -399,7 +761,7 @@ bool GsDrawList::empty() const
             return false;
         }
     }
-    return images.empty();
+    return images.empty() && smallArcs.empty();
 }
 
 // ---------------------------------------------------------------------------
@@ -425,6 +787,7 @@ GsModel::GsModel(const DmEntityContainer* container)
 
 GsModel::~GsModel()
 {
+    m_refiner.reset();  // 后台线程用着样条缓存，先停
     if (m_document)
     {
         m_document->removeListener(this);
@@ -458,7 +821,6 @@ GsModel::~GsModel()
 void GsModel::initialize()
 {
     m_compileContext = std::make_unique<CompileContext>(*this);
-    m_compiler = std::make_unique<GsCompiler>(*m_compileContext);
     for (std::size_t i = 0; i < kGsClassCount; ++i)
     {
         const GsClass c = static_cast<GsClass>(i);
@@ -652,6 +1014,8 @@ void GsModel::releaseAll()
 
 void GsModel::rebuildAll()
 {
+    ++m_refineGeneration;
+    m_refinedNodes.clear();
     releaseAll();
     m_pending = {};
     m_fullRebuild = false;
@@ -690,18 +1054,23 @@ void GsModel::rebuildAll()
     forEachRootEntity([&](DmEntity* e) {
         if (m_document || e->isVisible())
         {
-            Node* node = createNode(e);
-            nodes.push_back(node);
-            if (!node->global)
-            {
-                minCorner.x = std::min(minCorner.x, node->minCorner.x);
-                minCorner.y = std::min(minCorner.y, node->minCorner.y);
-                maxCorner.x = std::max(maxCorner.x, node->maxCorner.x);
-                maxCorner.y = std::max(maxCorner.y, node->maxCorner.y);
-                any = true;
-            }
+            nodes.push_back(createNode(e, false));
         }
     });
+    // worldDraw 记成 GI 流在多个线程上并行（打开大图纸时最明显，第 4.3.11 节），对象状态再在当前线程上写
+    gsParallelFor(nodes.size(), kMinParallelNodes, [&nodes](std::size_t i, unsigned) { recordNode(*nodes[i]); });
+    for (Node* node : nodes)
+    {
+        applyNodeState(*node);
+        if (!node->global)
+        {
+            minCorner.x = std::min(minCorner.x, node->minCorner.x);
+            minCorner.y = std::min(minCorner.y, node->minCorner.y);
+            maxCorner.x = std::max(maxCorner.x, node->maxCorner.x);
+            maxCorner.y = std::max(maxCorner.y, node->maxCorner.y);
+            any = true;
+        }
+    }
     m_root = std::make_unique<QuadNode>();
     if (any)
     {
@@ -775,7 +1144,7 @@ std::uint32_t GsModel::orderOf(const DmEntity* entity)
     return order;
 }
 
-GsModel::Node* GsModel::createNode(DmEntity* entity)
+GsModel::Node* GsModel::createNode(DmEntity* entity, bool record)
 {
     auto node = std::make_unique<Node>();
     node->entity = entity;
@@ -783,24 +1152,43 @@ GsModel::Node* GsModel::createNode(DmEntity* entity)
     m_slotNodes[node->slot] = node.get();
     Node* raw = node.get();
     m_nodes[entity] = std::move(node);
-    refreshNode(*raw);
     GsObjectState& state = m_states[raw->slot];
     state.order = orderOf(entity);
     markStateDirty(raw->slot);
+    if (record)
+    {
+        refreshNode(*raw);
+    }
     return raw;
 }
 
-void GsModel::refreshNode(Node& node)
+void GsModel::recordNode(Node& node)
 {
-    DmEntity* e = node.entity;
+    // 只读实体、只写节点：可以在多个线程上同时记录（内置实体的 worldDraw 是 const 且线程安全的，第 4.3.11 节）
+    const DmEntity* e = node.entity;
     node.stream = GiStreamRecorder::record(*e, GiRegenType::Display);
     node.revision = e->revision();
     node.weight = node.stream.byteSize();
     node.minCorner = e->getMin();
     node.maxCorner = e->getMax();
     node.global = !validBounds(node.minCorner, node.maxCorner);
+}
+
+void GsModel::refreshNode(Node& node)
+{
+    recordNode(node);
+    applyNodeState(node);
+}
+
+void GsModel::applyNodeState(Node& node)
+{
+    DmEntity* e = node.entity;
     GsObjectState& state = m_states[node.slot];
     state.layer = layerIndexOf(e->getLayer());
+    // 包围框较长的一边：屏幕上小于阈值时画成一个点；射线、构造线等无限大的不算
+    state.size = node.global ? std::numeric_limits<float>::max()
+                             : static_cast<float>(std::max(node.maxCorner.x - node.minCorner.x,
+                                                           node.maxCorner.y - node.minCorner.y));
     const bool hidden = !e->getFlag(DM::FlagVisible);
     state.flags = hidden ? (state.flags | kGsStateHidden) : (state.flags & ~kGsStateHidden);
     markStateDirty(node.slot);
@@ -808,6 +1196,7 @@ void GsModel::refreshNode(Node& node)
 
 void GsModel::removeNode(Node* node)
 {
+    m_refinedNodes.erase(node);
     unplaceNode(*node);
     for (Shared* s : node->uses)
     {
@@ -1018,6 +1407,7 @@ void GsModel::releaseCell(Cell& cell)
     {
         commands.clear();
     }
+    cell.lodCommands.clear();
     // 图片纹理留到这一轮更新结束：分块重新编译后多半还用同一张图，设备的纹理缓存里它还活着就不用重新解码、上传
     for (Cell::Image& image : cell.images)
     {
@@ -1080,6 +1470,27 @@ void GsModel::compileShared(Shared& shared)
 
     shared.primRecords = out.prims;
     shared.children = out.shared;
+    // 横向范围（定义坐标）：记录里的点加回原点；圆弧取圆心左右各一个半径
+    shared.hasExtent = false;
+    auto extend = [&shared](double low, double high) {
+        shared.minX = shared.hasExtent ? std::min(shared.minX, low) : low;
+        shared.maxX = shared.hasExtent ? std::max(shared.maxX, high) : high;
+        shared.hasExtent = true;
+    };
+    for (GsClass c : {GsClass::Segment, GsClass::Fill, GsClass::Point})
+    {
+        for (const GsTexel& t : out.records[static_cast<std::size_t>(c)])
+        {
+            extend(t.x + shared.origin.x, t.x + shared.origin.x);
+        }
+    }
+    const auto& arcs = out.records[static_cast<std::size_t>(GsClass::Arc)];
+    shared.maxArcRadius = 0.0f;
+    for (std::size_t i = 0; i + 1 < arcs.size(); i += 2)
+    {
+        extend(arcs[i].x - arcs[i].z + shared.origin.x, arcs[i].x + arcs[i].z + shared.origin.x);
+        shared.maxArcRadius = std::max(shared.maxArcRadius, arcs[i].z);
+    }
     shared.infinite = out.infinite;
     shared.images = out.images;
     for (const GsPrimRecord& p : out.prims)
@@ -1104,10 +1515,13 @@ void GsModel::compileShared(Shared& shared)
         }
     }
     // 依赖：子共享几何改了，本共享几何的用户要重新展开
+    shared.childShared.clear();
     for (const GsSharedUse& use : shared.children)
     {
         Shared& child = sharedFor(*use.drawable);
         child.parents.insert(&shared);
+        child.glyph = child.glyph || use.glyph;
+        shared.childShared.push_back(&child);
     }
 
     // 记录与图元记录放进数据区
@@ -1145,6 +1559,7 @@ void GsModel::releaseShared(Shared& shared)
     }
     shared.primRecords.clear();
     shared.children.clear();
+    shared.childShared.clear();
     shared.infinite.clear();
     shared.images.clear();
     shared.explicitDashed = false;
@@ -1317,16 +1732,14 @@ void GsModel::expand(Shared& shared, const GiTransform& transform, const GsAttri
     {
         return;
     }
-    if (shared.dirty || !shared.compiled)
-    {
-        compileShared(shared);
-    }
+    // 只读：共享几何在分块编译之前都已编译好（更新时先编译脏的；新的在第一次 sharedFor 时编译，子对象随之编译），
+    // 所以可以在多个线程上同时展开
     leaves.push_back({&shared, transform, byBlock, lineTypeScale});
-    for (const GsSharedUse& use : shared.children)
+    for (std::size_t i = 0; i < shared.children.size() && i < shared.childShared.size(); ++i)
     {
-        Shared& child = sharedFor(*use.drawable);
-        expand(child, transform * use.transform, resolveAgainst(use.byBlock, byBlock), lineTypeScale * use.lineTypeScale,
-               leaves, depth + 1);
+        const GsSharedUse& use = shared.children[i];
+        expand(*shared.childShared[i], transform * use.transform, resolveAgainst(use.byBlock, byBlock),
+               lineTypeScale * use.lineTypeScale, leaves, depth + 1);
     }
 }
 
@@ -1371,36 +1784,57 @@ GsInstanceRecord GsModel::instanceRecord(const Leaf& leaf, const DmVector& origi
     r.byBlockLineTypeAndWeight = gsPackLineTypeAndWeight(b.lineType.kind == GsKind::Value ? b.lineType.index : 0,
                                                          b.lineWeight.kind == GsKind::Value ? b.lineWeight.code : 0);
     r.cell = cell;
+    if (leaf.shared->glyph)
+    {
+        // 字高：字形坐标里竖直的一个单位在世界里垂直于基线的长度
+        const DmVector baseline = t.applyVector(DmVector(1.0, 0.0));
+        const double length = std::hypot(baseline.x, baseline.y);
+        r.textHeight = length > 0.0 ? static_cast<float>(std::fabs(t.determinant()) / length) : 0.0f;
+    }
+    r.rootScale = static_cast<float>(rootScale());
     return r;
+}
+
+double GsModel::rootScale() const
+{
+    double scale = 1.0;
+    if (!m_rootTransform.isSimilarity(&scale))
+    {
+        scale = std::sqrt(std::fabs(m_rootTransform.determinant()));
+    }
+    return scale;
 }
 
 // ---------------------------------------------------------------------------
 // 分块的编译
 // ---------------------------------------------------------------------------
 
-void GsModel::compileCell(Cell& cell)
+void GsModel::buildCell(const Cell& cell, CellBuild& b, GsCompiler& compiler, WorkerContext& context)
 {
-    releaseCell(cell);
-    cell.dirty = false;
-    cell.hasBounds = false;
-    cell.runs.clear();
-    cell.hasPieces = false;
-
-    std::array<std::vector<GsTexel>, kGsClassCount> records;
-    std::vector<GsPrimRecord> prims;
-    std::vector<Cell::InstanceSource> sources;
-    sources.push_back({});  // 顶层几何的恒等实例
+    // 只写本分块的节点与 b：分块之间可以在不同线程上同时构建（RENDER_PLAN.md 第 4.3.11 节）；
+    // 数据区的分配、上传与依赖索引（共享几何的引用者）留给 commitCell 在当前线程上做
+    b.sources.push_back({});  // 顶层几何的恒等实例
     // 每个共享几何的实例：按节点顺序排，同一节点的实例连续
     std::map<Shared*, std::vector<std::pair<Node*, Cell::InstanceSource>>> leavesByShared;
 
     GsCompiled out;
+    std::vector<Leaf> leaves;
     for (Node* node : cell.nodes)
     {
         out.clear();
         GiStreamDrawable drawable(node->stream);
-        m_compiler->compileNode(drawable, node->slot, cell.origin, out);
+        compiler.compileNode(drawable, node->slot, cell.origin, out, node->tolerance);
+        node->curveTolerance = out.curveTolerance;
+        node->defaultCurveTolerance = out.defaultCurveTolerance;
+        node->hasNurbs = out.hasNurbs;
+        b.maxCurveTolerance = std::max(b.maxCurveTolerance, out.curveTolerance);
 
-        const std::uint32_t primBase = static_cast<std::uint32_t>(prims.size());
+        const std::uint32_t primBase = static_cast<std::uint32_t>(b.prims.size());
+        const auto& arcs = out.records[static_cast<std::size_t>(GsClass::Arc)];
+        for (std::size_t i = 0; i + 1 < arcs.size(); i += 2)
+        {
+            b.maxArcRadius = std::max(b.maxArcRadius, arcs[i].z);
+        }
         for (std::size_t i = 0; i < kGsClassCount; ++i)
         {
             const GsClass c = static_cast<GsClass>(i);
@@ -1410,23 +1844,23 @@ void GsModel::compileCell(Cell& cell)
                 node->ranges[i] = {};
                 continue;
             }
-            const std::size_t first = records[i].size();
-            records[i].insert(records[i].end(), src.begin(), src.end());
-            rebasePrims(c, records[i], first, primBase);
+            const std::size_t first = b.records[i].size();
+            b.records[i].insert(b.records[i].end(), src.begin(), src.end());
+            rebasePrims(c, b.records[i], first, primBase);
             node->ranges[i] = {static_cast<std::uint32_t>(first / gsTexelsPerRecord(c)),
                                static_cast<std::uint32_t>(src.size() / gsTexelsPerRecord(c))};
         }
-        prims.insert(prims.end(), out.prims.begin(), out.prims.end());
+        b.prims.insert(b.prims.end(), out.prims.begin(), out.prims.end());
 
         // 按线型画的线的长度摘要：每种线型留最长的
-        cell.hasPieces = cell.hasPieces || out.hasPieces;
+        b.hasPieces = b.hasPieces || out.hasPieces;
         for (const GsRunSummary& run : out.runs)
         {
-            auto it = std::find_if(cell.runs.begin(), cell.runs.end(),
+            auto it = std::find_if(b.runs.begin(), b.runs.end(),
                                    [&run](const GsRunSummary& r) { return r.lineType == run.lineType; });
-            if (it == cell.runs.end())
+            if (it == b.runs.end())
             {
-                cell.runs.push_back(run);
+                b.runs.push_back(run);
             }
             else
             {
@@ -1442,34 +1876,28 @@ void GsModel::compileCell(Cell& cell)
             image.record = node->ranges[static_cast<std::size_t>(GsClass::Image)].offset + static_cast<std::uint32_t>(k);
             image.local = true;
             image.source = out.images[k];
-            node->images.push_back(static_cast<std::uint32_t>(cell.images.size()));
-            cell.images.push_back(std::move(image));
+            node->images.push_back(static_cast<std::uint32_t>(b.images.size()));
+            b.images.push_back(std::move(image));
         }
 
         // 无限线（整体变换在 rebuildInfiniteLines 里代入）
         for (GsInfiniteLine line : out.infinite)
         {
             line.prim += primBase;
-            cell.infinite.push_back(line);
+            b.infinite.push_back(line);
         }
 
-        // 块参照、字形：展开到叶子。依赖索引（共享几何的引用者）只增删变化的部分：
-        // 常用字形的引用者有几万个，每次重编都先删后插会在大集合上做几千次哈希操作
-        std::vector<Shared*> oldUses = std::move(node->uses);
+        // 块参照、字形：展开到叶子。依赖索引（共享几何的引用者）在 commitCell 里只增删变化的部分
+        b.oldUses.emplace_back(node, std::move(node->uses));
         node->uses.clear();
         node->groups.clear();
         node->nonUniform = out.hasNonUniformUse;
-        std::vector<Leaf> leaves;
         for (const GsSharedUse& use : out.shared)
         {
-            Shared& shared = sharedFor(*use.drawable);
+            Shared& shared = context.sharedOf(*use.drawable, use.glyph);
             if (std::find(node->uses.begin(), node->uses.end(), &shared) == node->uses.end())
             {
                 node->uses.push_back(&shared);
-                if (std::find(oldUses.begin(), oldUses.end(), &shared) == oldUses.end())
-                {
-                    shared.users.insert(node);
-                }
             }
             leaves.clear();
             expand(shared, use.transform, use.byBlock, use.lineTypeScale, leaves, 0);
@@ -1488,22 +1916,99 @@ void GsModel::compileCell(Cell& cell)
                     line.direction = leaf.transform.applyVector(local.direction);
                     line.ray = local.ray;
                     // 随块与实例图层在这里代入（无限线不经实例记录）
-                    const GsAttributes& b = leaf.byBlock;
+                    const GsAttributes& bb = leaf.byBlock;
                     const GsKind colorKind = static_cast<GsKind>(p.kinds & 3u);
                     if (colorKind == GsKind::ByBlock)
                     {
-                        p.color = b.color.rgba;
-                        p.kinds = (p.kinds & ~3u) | static_cast<std::uint32_t>(b.color.kind);
-                        p.layers0 = (p.layers0 & 0xFFFFu) | (static_cast<std::uint32_t>(b.color.layer) << 16);
+                        p.color = bb.color.rgba;
+                        p.kinds = (p.kinds & ~3u) | static_cast<std::uint32_t>(bb.color.kind);
+                        p.layers0 = (p.layers0 & 0xFFFFu) | (static_cast<std::uint32_t>(bb.color.layer) << 16);
                     }
                     if ((p.layers0 & 0xFFFFu) == kGsLayerInstance)
                     {
-                        p.layers0 = (p.layers0 & 0xFFFF0000u) | b.layer;
+                        p.layers0 = (p.layers0 & 0xFFFF0000u) | bb.layer;
                     }
-                    line.prim = static_cast<std::uint32_t>(prims.size());
-                    prims.push_back(p);
-                    cell.infinite.push_back(line);
+                    line.prim = static_cast<std::uint32_t>(b.prims.size());
+                    b.prims.push_back(p);
+                    b.infinite.push_back(line);
                 }
+            }
+        }
+
+        // 包围框
+        if (!node->global)
+        {
+            if (!b.hasBounds)
+            {
+                b.minCorner = node->minCorner;
+                b.maxCorner = node->maxCorner;
+                b.hasBounds = true;
+            }
+            else
+            {
+                b.minCorner.x = std::min(b.minCorner.x, node->minCorner.x);
+                b.minCorner.y = std::min(b.minCorner.y, node->minCorner.y);
+                b.maxCorner.x = std::max(b.maxCorner.x, node->maxCorner.x);
+                b.maxCorner.y = std::max(b.maxCorner.y, node->maxCorner.y);
+            }
+        }
+    }
+
+    // 实例：恒等实例之后按共享几何分组（序号相对本分块的实例区段，commitCell 里加上区段起点）
+    for (auto& [shared, list] : leavesByShared)
+    {
+        GsInstanceGroup group;
+        group.shared = shared;
+        group.firstInstance = static_cast<std::uint32_t>(b.sources.size());
+        Node* current = nullptr;
+        for (auto& [node, source] : list)
+        {
+            if (node != current)
+            {
+                node->groups.push_back({shared, static_cast<std::uint32_t>(b.sources.size()), 0});
+                current = node;
+            }
+            ++node->groups.back().count;
+            b.sources.push_back(source);
+        }
+        group.count = static_cast<std::uint32_t>(b.sources.size()) - group.firstInstance;
+        b.groups.push_back(group);
+        // 块里的图片：每张按这组实例画
+        for (std::size_t k = 0; k < shared->images.size(); ++k)
+        {
+            Cell::Image image;
+            image.record = shared->ranges[static_cast<std::size_t>(GsClass::Image)].offset + static_cast<std::uint32_t>(k);
+            image.firstInstance = group.firstInstance;
+            image.instanceCount = group.count;
+            image.source = shared->images[k];
+            b.images.push_back(std::move(image));
+        }
+    }
+}
+
+void GsModel::commitCell(Cell& cell, CellBuild& b)
+{
+    releaseCell(cell);
+    cell.dirty = false;
+    cell.hasBounds = b.hasBounds;
+    cell.minCorner = b.minCorner;
+    cell.maxCorner = b.maxCorner;
+    cell.runs = std::move(b.runs);
+    cell.hasPieces = b.hasPieces;
+    cell.groups = std::move(b.groups);
+    cell.images = std::move(b.images);
+    cell.infinite = std::move(b.infinite);
+    cell.maxArcRadius = b.maxArcRadius;
+    cell.maxCurveTolerance = b.maxCurveTolerance;
+
+    // 依赖索引只增删变化的部分：常用字形的引用者有几万个，每次重编都先删后插会在大集合上做几千次哈希操作
+    for (auto& [node, oldUses] : b.oldUses)
+    {
+        for (Shared* s : node->uses)
+        {
+            if (std::find(oldUses.begin(), oldUses.end(), s) == oldUses.end())
+            {
+                s->users.insert(node);
             }
         }
         for (Shared* old : oldUses)
@@ -1513,71 +2018,22 @@ void GsModel::compileCell(Cell& cell)
                 old->users.erase(node);
             }
         }
-
-        // 包围框
-        if (!node->global)
-        {
-            if (!cell.hasBounds)
-            {
-                cell.minCorner = node->minCorner;
-                cell.maxCorner = node->maxCorner;
-                cell.hasBounds = true;
-            }
-            else
-            {
-                cell.minCorner.x = std::min(cell.minCorner.x, node->minCorner.x);
-                cell.minCorner.y = std::min(cell.minCorner.y, node->minCorner.y);
-                cell.maxCorner.x = std::max(cell.maxCorner.x, node->maxCorner.x);
-                cell.maxCorner.y = std::max(cell.maxCorner.y, node->maxCorner.y);
-            }
-        }
-    }
-
-    // 实例：恒等实例之后按共享几何分组
-    for (auto& [shared, list] : leavesByShared)
-    {
-        GsInstanceGroup group;
-        group.shared = shared;
-        group.firstInstance = static_cast<std::uint32_t>(sources.size());
-        Node* current = nullptr;
-        for (auto& [node, source] : list)
-        {
-            if (node != current)
-            {
-                node->groups.push_back({shared, static_cast<std::uint32_t>(sources.size()), 0});
-                current = node;
-            }
-            ++node->groups.back().count;
-            sources.push_back(source);
-        }
-        group.count = static_cast<std::uint32_t>(sources.size()) - group.firstInstance;
-        cell.groups.push_back(group);
-        // 块里的图片：每张按这组实例画
-        for (std::size_t k = 0; k < shared->images.size(); ++k)
-        {
-            Cell::Image image;
-            image.record = shared->ranges[static_cast<std::size_t>(GsClass::Image)].offset + static_cast<std::uint32_t>(k);
-            image.firstInstance = group.firstInstance;
-            image.instanceCount = group.count;
-            image.source = shared->images[k];
-            cell.images.push_back(std::move(image));
-        }
     }
 
     // 分配并写入
-    cell.prims = m_primArena.allocate(static_cast<std::uint32_t>(prims.size()));
+    cell.prims = m_primArena.allocate(static_cast<std::uint32_t>(b.prims.size()));
     for (std::size_t i = 0; i < kGsClassCount; ++i)
     {
         const GsClass c = static_cast<GsClass>(i);
-        if (records[i].empty() || !m_classArenas[i])
+        if (b.records[i].empty() || !m_classArenas[i])
         {
             continue;
         }
-        rebasePrims(c, records[i], 0, cell.prims.offset);
-        cell.ranges[i] = m_classArenas[i]->allocate(static_cast<std::uint32_t>(records[i].size() / gsTexelsPerRecord(c)));
-        stage(*m_classArenas[i], cell.ranges[i], asBytes(records[i]));
+        rebasePrims(c, b.records[i], 0, cell.prims.offset);
+        cell.ranges[i] = m_classArenas[i]->allocate(static_cast<std::uint32_t>(b.records[i].size() / gsTexelsPerRecord(c)));
+        stage(*m_classArenas[i], cell.ranges[i], asBytes(b.records[i]));
     }
-    stage(m_primArena, cell.prims, asBytes(prims));
+    stage(m_primArena, cell.prims, asBytes(b.prims));
     for (GsInfiniteLine& line : cell.infinite)
     {
         line.prim += cell.prims.offset;
@@ -1587,8 +2043,8 @@ void GsModel::compileCell(Cell& cell)
         m_infiniteDirty = true;
     }
 
-    cell.instances = m_instanceArena.allocate(static_cast<std::uint32_t>(sources.size()));
-    cell.instanceSources = std::move(sources);
+    cell.instances = m_instanceArena.allocate(static_cast<std::uint32_t>(b.sources.size()));
+    cell.instanceSources = std::move(b.sources);
     // 绝对位置：组与节点的实例序号加上区段起点；节点的几何范围加上数据区里的起点
     for (GsInstanceGroup& g : cell.groups)
     {
@@ -1616,30 +2072,112 @@ void GsModel::compileCell(Cell& cell)
             g.firstInstance += cell.instances.offset;
         }
     }
-    stage(m_instanceArena, cell.instances, asBytes(instanceRecords(cell)));
+    const std::vector<GsInstanceRecord> instances = instanceRecords(cell);
+    buildCommands(cell, instances);
+    stage(m_instanceArena, cell.instances, asBytes(instances));
+    ++m_version;
+}
 
-    // 分块的绘制命令备好：每帧收集可见分块时整段复制，不再逐个去取共享几何的区段（大图纸上那要几毫秒）
-    auto addRange = [&cell](GsClass c, const GsRange& range, std::uint32_t instanceCount, std::uint32_t firstInstance) {
+void GsModel::buildCommands(Cell& cell, const std::vector<GsInstanceRecord>& instances) const
+{
+    // 分块的绘制命令备好：每帧收集可见分块时整段复制，不再逐个去取共享几何的区段（大图纸上那要几毫秒）。
+    // 字形实例组与圆弧区段另放，带上 LOD 的上界，收集时按当前比例整组跳过或改用小圆弧程序（第 4.3.10 节）
+    for (auto& commands : cell.commands)
+    {
+        commands.clear();
+    }
+    cell.lodCommands.clear();
+    // 实例变换的最大伸缩（线性部分的最大奇异值）
+    auto sigmaMax = [](const GsInstanceRecord& r) {
+        const double a = r.linear[0], b = r.linear[1], c = r.linear[2], d = r.linear[3];
+        const double p = (a * a + b * b + c * c + d * d) * 0.5;
+        const double q = std::fabs(a * d - b * c);
+        return std::sqrt(p + std::sqrt(std::max(p * p - q * q, 0.0)));
+    };
+    auto add = [&cell](GsClass c, const GsRange& range, std::uint32_t instanceCount, std::uint32_t firstInstance,
+                       float textHeight, float arcRadius) {
         if (range.empty() || c == GsClass::Image)
         {
             return;
         }
         const std::uint32_t v = gsVerticesPerRecord(c);
-        cell.commands[static_cast<std::size_t>(c)].push_back({v * range.count, instanceCount, v * range.offset, firstInstance});
+        const RhiDrawIndirectArgs args{v * range.count, instanceCount, v * range.offset, firstInstance};
+        if (textHeight > 0.0f || c == GsClass::Arc)
+        {
+            cell.lodCommands.push_back({c, args, textHeight, arcRadius});
+        }
+        else
+        {
+            cell.commands[static_cast<std::size_t>(c)].push_back(args);
+        }
     };
+    const float topArcRadius = instances.empty() ? cell.maxArcRadius
+                                                 : static_cast<float>(cell.maxArcRadius * sigmaMax(instances.front()));
     for (std::size_t i = 0; i < kGsClassCount; ++i)
     {
-        addRange(static_cast<GsClass>(i), cell.ranges[i], 1, cell.instances.offset);
+        add(static_cast<GsClass>(i), cell.ranges[i], 1, cell.instances.offset, 0.0f, topArcRadius);
     }
     for (const GsInstanceGroup& g : cell.groups)
     {
         const Shared* shared = static_cast<const Shared*>(g.shared);
+        float textHeight = 0.0f;
+        double sigma = 0.0;
+        for (std::uint32_t k = 0; k < g.count; ++k)
+        {
+            const std::size_t index = g.firstInstance - cell.instances.offset + k;
+            if (index < instances.size())
+            {
+                textHeight = std::max(textHeight, instances[index].textHeight);
+                sigma = std::max(sigma, sigmaMax(instances[index]));
+            }
+        }
+        // 不是字形时不按字高跳过（textHeight 为 0）
+        const float groupText = shared->glyph ? std::max(textHeight, std::numeric_limits<float>::min()) : 0.0f;
         for (std::size_t i = 0; i < kGsClassCount; ++i)
         {
-            addRange(static_cast<GsClass>(i), shared->ranges[i], g.count, g.firstInstance);
+            add(static_cast<GsClass>(i), shared->ranges[i], g.count, g.firstInstance, groupText,
+                static_cast<float>(shared->maxArcRadius * sigma));
         }
     }
-    ++m_version;
+}
+
+void GsModel::compileDirtyCells()
+{
+    if (m_dirtyCells.empty())
+    {
+        return;
+    }
+    YICAD_SCOPED_TIMER(yicad::counters::gsCompile());
+    std::vector<Cell*> dirty;
+    dirty.reserve(m_dirtyCells.size());
+    for (Cell* cell : m_dirtyCells)
+    {
+        if (cell->dirty)
+        {
+            dirty.push_back(cell);
+        }
+    }
+    m_dirtyCells.clear();
+    // 重的放前面：分块大小不一，先领大的，最后剩下的都是小的，各线程差不多同时干完
+    std::sort(dirty.begin(), dirty.end(), [](const Cell* a, const Cell* b) { return a->weight > b->weight; });
+
+    // 每个线程一个编译器与一份带缓存的上下文；分块之间并行构建，再在当前线程上依次提交
+    const unsigned workers = gsWorkerCount();
+    std::vector<std::unique_ptr<WorkerContext>> contexts;
+    std::vector<std::unique_ptr<GsCompiler>> compilers;
+    for (unsigned w = 0; w < workers; ++w)
+    {
+        contexts.push_back(std::make_unique<WorkerContext>(*this));
+        compilers.push_back(std::make_unique<GsCompiler>(*contexts.back()));
+    }
+    std::vector<CellBuild> builds(dirty.size());
+    gsParallelFor(dirty.size(), kMinParallelCells, [&](std::size_t i, unsigned worker) {
+        buildCell(*dirty[i], builds[i], *compilers[worker], *contexts[worker]);
+    });
+    for (std::size_t i = 0; i < dirty.size(); ++i)
+    {
+        commitCell(*dirty[i], builds[i]);
+    }
 }
 
 std::vector<GsInstanceRecord> GsModel::instanceRecords(const Cell& cell) const
@@ -1663,6 +2201,7 @@ std::vector<GsInstanceRecord> GsModel::instanceRecords(const Cell& cell) const
             identity.translate = {static_cast<float>(moved.x - cell.origin.x), static_cast<float>(moved.y - cell.origin.y),
                                   static_cast<float>(scale), 1.0f};
             identity.cell = cell.index;
+            identity.rootScale = static_cast<float>(rootScale());
             instances.push_back(identity);
         }
         else
@@ -1997,6 +2536,8 @@ void GsModel::update(GsDevice& device)
         m_device = device.shared_from_this();
     }
 
+    applyFinishedRefinements();
+
     // 文档模型的整图重建计整个过程：建节点、编译分块与共享几何、上传（与原先旧渲染器的 render.regen 同一口径）；
     // 容器模型（预览等）内容一变就整体重建，不计入
     std::optional<yicad::ScopedTimer> regenTimer;
@@ -2115,19 +2656,7 @@ void GsModel::update(GsDevice& device)
             }
         }
     }
-    if (!m_dirtyCells.empty())
-    {
-        YICAD_SCOPED_TIMER(yicad::counters::gsCompile());
-        std::vector<Cell*> dirty(m_dirtyCells.begin(), m_dirtyCells.end());
-        m_dirtyCells.clear();
-        for (Cell* cell : dirty)
-        {
-            if (cell->dirty)
-            {
-                compileCell(*cell);
-            }
-        }
-    }
+    compileDirtyCells();
     if (m_rootTransformDirty)
     {
         // 整体变换（预览的拖动）：几何不动，只重写实例记录与无限线（RENDER_PLAN.md 第 4.3.9 节）
@@ -2136,7 +2665,9 @@ void GsModel::update(GsDevice& device)
         {
             if (cell && !cell->instances.empty())
             {
-                stage(m_instanceArena, cell->instances, asBytes(instanceRecords(*cell)));
+                const std::vector<GsInstanceRecord> instances = instanceRecords(*cell);
+                buildCommands(*cell, instances);
+                stage(m_instanceArena, cell->instances, asBytes(instances));
             }
         }
         m_infiniteDirty = true;
@@ -2479,11 +3010,148 @@ void GsModel::verifyRevisions()
 }
 
 // ---------------------------------------------------------------------------
+// 曲线按缩放重新离散（第 4.3.10 节）
+// ---------------------------------------------------------------------------
+
+namespace
+{
+constexpr double kRefineErrorPixels = 0.5;    ///< 弦高在屏幕上超过它时重新离散
+constexpr double kRefineTargetPixels = 0.125; ///< 重新离散的弦高（像素）：比阈值细，再放大一些不用马上又重算
+}  // namespace
+
+void GsModel::refineVisible(const DmVector& minCorner, const DmVector& maxCorner, double worldPerPixel)
+{
+    if (!m_document || !(worldPerPixel > 0.0))
+    {
+        return;
+    }
+    const double needed = kRefineErrorPixels * worldPerPixel;
+    // 缩小回去：默认的容差已经够用的恢复默认（加密的几何不再需要，免得越积越多）
+    for (auto it = m_refinedNodes.begin(); it != m_refinedNodes.end();)
+    {
+        Node* node = *it;
+        if (node->defaultCurveTolerance <= needed && node->cell)
+        {
+            node->tolerance = 0.0;
+            markCellDirty(*node->cell);
+            it = m_refinedNodes.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+    for (const auto& cell : m_cells)
+    {
+        if (!cell || !cell->quad || cell->maxCurveTolerance <= needed || !cell->hasBounds
+            || cell->maxCorner.x < minCorner.x || cell->minCorner.x > maxCorner.x || cell->maxCorner.y < minCorner.y
+            || cell->minCorner.y > maxCorner.y)
+        {
+            continue;
+        }
+        for (Node* node : cell->nodes)
+        {
+            if (node->curveTolerance <= needed || node->refining || node->global)
+            {
+                continue;
+            }
+            // 记录里的坐标是相对分块原点的 float：比它的精度还细没有意义
+            const double magnitude =
+                std::max({std::fabs(node->minCorner.x - cell->origin.x), std::fabs(node->maxCorner.x - cell->origin.x),
+                          std::fabs(node->minCorner.y - cell->origin.y), std::fabs(node->maxCorner.y - cell->origin.y)});
+            const double tolerance = std::max(kRefineTargetPixels * worldPerPixel, magnitude * 1.0e-6);
+            if (!(tolerance < node->curveTolerance))
+            {
+                continue;
+            }
+            if (!node->hasNurbs)
+            {
+                // 只有椭圆：离散很便宜，直接在下一次更新时重编
+                node->tolerance = tolerance;
+                m_refinedNodes.insert(node);
+                markCellDirty(*cell);
+                continue;
+            }
+            // 样条：后台离散，好了再换（第 4.3.10 节）
+            NurbsCollector collector(tolerance);
+            const GiStreamDrawable drawable(node->stream);
+            drawable.setAttributes(collector);
+            drawable.worldDraw(collector);
+            if (!m_refiner)
+            {
+                m_refiner = std::make_unique<Refiner>(m_compileContext->nurbs());
+            }
+            Refiner::Job job;
+            job.entity = node->entity;
+            job.generation = m_refineGeneration;
+            job.tolerance = tolerance;
+            job.curves = std::move(collector.curves);
+            m_refiner->post(std::move(job));
+            node->refining = true;
+        }
+    }
+}
+
+bool GsModel::refinementPending() const
+{
+    return (m_refiner && m_refiner->busy()) || !m_dirtyCells.empty();
+}
+
+void GsModel::applyFinishedRefinements()
+{
+    if (!m_refiner)
+    {
+        return;
+    }
+    for (const Refiner::Job& job : m_refiner->takeFinished())
+    {
+        if (job.generation != m_refineGeneration)
+        {
+            continue;  // 之后整图重建过，节点已经换了
+        }
+        auto it = m_nodes.find(job.entity);
+        if (it == m_nodes.end() || !it->second->refining)
+        {
+            continue;  // 实体删了（同一地址上的新实体不在等这个结果）
+        }
+        Node& node = *it->second;
+        node.refining = false;
+        node.tolerance = job.tolerance;
+        m_refinedNodes.insert(&node);
+        if (node.cell)
+        {
+            markCellDirty(*node.cell);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // 收集绘制命令
 // ---------------------------------------------------------------------------
 
-void GsModel::collectVisible(const DmVector& minCorner, const DmVector& maxCorner, GsDrawList& out) const
+void GsModel::collectVisible(const DmVector& minCorner, const DmVector& maxCorner, const GsLod& lod, GsDrawList& out) const
 {
+    auto mark = [&out]() {
+        GsDrawList::Chunk chunk;
+        for (std::size_t i = 0; i < kGsClassCount; ++i)
+        {
+            chunk.end[i] = static_cast<std::uint32_t>(out.commands[i].size());
+        }
+        chunk.smallArcsEnd = static_cast<std::uint32_t>(out.smallArcs.size());
+        chunk.imagesEnd = static_cast<std::uint32_t>(out.images.size());
+        out.chunks.push_back(chunk);
+    };
+    // 无限线总是可见，最先画
+    if (m_infiniteCount > 0 && !m_cells.empty() && m_cells[0] && !m_cells[0]->instances.empty())
+    {
+        out.commands[static_cast<std::size_t>(GsClass::InfiniteLine)].push_back(
+            {6 * m_infiniteCount, 1, 0, m_cells[0]->instances.offset});
+        mark();
+    }
+
+    // 可见分块先粗后细：松散四叉树里浅层的分块装的是大对象（渐进绘制先画它们，第 4.3.10 节），总是可见的分块最先
+    std::vector<const Cell*> visible;
+    visible.reserve(m_cells.size());
     for (const auto& cell : m_cells)
     {
         if (!cell || cell->instances.empty())
@@ -2496,10 +3164,33 @@ void GsModel::collectVisible(const DmVector& minCorner, const DmVector& maxCorne
         {
             continue;
         }
+        visible.push_back(cell.get());
+    }
+    std::stable_sort(visible.begin(), visible.end(), [](const Cell* a, const Cell* b) {
+        return (a->quad ? a->quad->depth : -1) < (b->quad ? b->quad->depth : -1);
+    });
+
+    for (const Cell* cell : visible)
+    {
         for (std::size_t i = 0; i < kGsClassCount; ++i)
         {
             const auto& commands = cell->commands[i];
             out.commands[i].insert(out.commands[i].end(), commands.begin(), commands.end());
+        }
+        for (const Cell::LodCommand& c : cell->lodCommands)
+        {
+            if (c.textHeight > 0.0f && c.textHeight < lod.textHeight)
+            {
+                continue;  // 整组字形都小于阈值：着色器里也会全部折叠，由字形串的细条代替
+            }
+            if (c.cls == GsClass::Arc && c.arcRadius <= lod.arcRadius)
+            {
+                const std::uint32_t v = gsVerticesPerRecord(GsClass::Arc);
+                out.smallArcs.push_back({6 * (c.args.vertexCount / v), c.args.instanceCount, 6 * (c.args.firstVertex / v),
+                                         c.args.firstInstance});
+                continue;
+            }
+            out.commands[static_cast<std::size_t>(c.cls)].push_back(c.args);
         }
         for (const Cell::Image& image : cell->images)
         {
@@ -2508,11 +3199,7 @@ void GsModel::collectVisible(const DmVector& minCorner, const DmVector& maxCorne
                 out.images.push_back({{6, image.instanceCount, 6 * image.record, image.firstInstance}, image.group.get()});
             }
         }
-    }
-    if (m_infiniteCount > 0 && !m_cells.empty() && m_cells[0] && !m_cells[0]->instances.empty())
-    {
-        out.commands[static_cast<std::size_t>(GsClass::InfiniteLine)].push_back(
-            {6 * m_infiniteCount, 1, 0, m_cells[0]->instances.offset});
+        mark();
     }
 }
 

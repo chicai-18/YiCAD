@@ -302,6 +302,77 @@ void GiNurbs::sample(std::vector<DmVector>& pts) const
     }
 }
 
+void GiNurbs::sample(std::vector<DmVector>& pts, double tolerance) const
+{
+    const int k = degree;
+    const int count = segmentCount();
+    for (int i = 0; i < count; i++)
+    {
+        const double t1 = knots.at(k + i);
+        const double t2 = knots.at(k + i + 1);
+        if (std::abs(t2 - t1) < TOL)  // 重复的节点
+        {
+            continue;
+        }
+        if (k == 1)
+        {
+            pts.emplace_back(controlPoints.at(i));
+        }
+        else
+        {
+            const int parts = k * 5;
+            const double step = (t2 - t1) / static_cast<double>(parts);
+            for (int j = 0; j < parts; j++)
+            {
+                const double a = t1 + step * j;
+                const double b = t1 + step * (j + 1);
+                sampleTolerance(a, evaluate(a), b, evaluate(b), tolerance, 0, pts);
+            }
+        }
+        // 最后一段连接上，同 sample()
+        if (i == count - 1)
+        {
+            if (closed)
+            {
+                pts.emplace_back(evaluate(t2));
+            }
+            else
+            {
+                pts.emplace_back(controlPoints.at(controlPoints.size() - 1));
+            }
+        }
+    }
+}
+
+void GiNurbs::sampleTolerance(double t1, const DmVector& p1, double t2, const DmVector& p2, double tolerance, int depth,
+                              std::vector<DmVector>& pts) const
+{
+    constexpr int kMaxDepth = 24;
+    constexpr double kMaxTurn = M_PI / 6.0;  // 30°
+    const double mid = (t1 + t2) * 0.5;
+    const DmVector pm = evaluate(mid);
+    // 中点到弦的距离
+    const double cx = p2.x - p1.x;
+    const double cy = p2.y - p1.y;
+    const double chord = std::hypot(cx, cy);
+    const double deviation = chord > 0.0 ? std::abs((pm.x - p1.x) * cy - (pm.y - p1.y) * cx) / chord
+                                         : std::hypot(pm.x - p1.x, pm.y - p1.y);
+    bool split = deviation > tolerance;
+    if (!split)
+    {
+        const DmVector v1 = derivative(t1);
+        const DmVector v2 = derivative(t2);
+        split = v1.valid && v2.valid && std::abs(Math2d::correctAngle2(v1.angleToDir(v2))) > kMaxTurn;
+    }
+    if (split && depth < kMaxDepth)
+    {
+        sampleTolerance(t1, p1, mid, pm, tolerance, depth + 1, pts);
+        sampleTolerance(mid, pm, t2, p2, tolerance, depth + 1, pts);
+        return;
+    }
+    pts.emplace_back(p1);
+}
+
 void GiNurbs::sampleRecursive(double t1, double t2, double count, std::vector<DmVector>& pts, double maxStep) const
 {
     if (std::abs(t2 - t1) < maxStep)

@@ -36,6 +36,7 @@
 #include "DmLineType.h"
 #include "DmLineTypeTable.h"
 #include "GeometryMethods.h"
+#include "HatchPatternClipper.h"
 #include "IGiFont.h"
 #include "Math2d.h"
 
@@ -45,8 +46,8 @@ namespace
 constexpr double kBulgeTolerance = 1.0e-5;          ///< 与 DmPolyline 相同：凸度小于它的段是直线
 constexpr double kDeviation = 1.0e-3;               ///< 实体自行离散时的弦高容差
 constexpr double kFullSweep = 2.0 * M_PI - 1.0e-9;  ///< 扫角达到它即为整圆、整椭圆
-constexpr int kEllipseSegments = ELLIPSE_SEGMENT_COUNT;
 constexpr int kMinOpenEllipseSegments = 10;
+constexpr int kMaxCurveSegments = 1000000;          ///< 一条曲线最多离散成这么多段（极端放大时的保护）
 
 double dot(const DmVector& a, const DmVector& b)
 {
@@ -168,6 +169,9 @@ void GsCompiled::clear()
     hasNonUniformUse = false;
     runs.clear();
     hasPieces = false;
+    curveTolerance = 0.0;
+    defaultCurveTolerance = 0.0;
+    hasNurbs = false;
 }
 
 bool GsCompiled::empty() const
@@ -196,9 +200,11 @@ void GsCompiler::begin(std::uint32_t slot, const DmVector& origin, GsCompiled& o
     m_fillPrims.clear();
 }
 
-void GsCompiler::compileNode(const IGiDrawable& drawable, std::uint32_t slot, const DmVector& origin, GsCompiled& out)
+void GsCompiler::compileNode(const IGiDrawable& drawable, std::uint32_t slot, const DmVector& origin, GsCompiled& out,
+                             double tolerance)
 {
     begin(slot, origin, out);
+    m_tolerance = tolerance;
     pushFrame(GiTransform(), nullptr, false, 1.0);
     drawInFrame(drawable);
     m_frames.clear();
@@ -208,6 +214,7 @@ void GsCompiler::compileNode(const IGiDrawable& drawable, std::uint32_t slot, co
 void GsCompiler::compileShared(const IGiDrawable& drawable, const DmVector& origin, GsCompiled& out)
 {
     begin(kGsNoSlot, origin, out);
+    m_tolerance = 0.0;
     pushFrame(GiTransform(), nullptr, true, 1.0);
     drawInFrame(drawable);
     m_frames.clear();
@@ -256,6 +263,12 @@ void GsCompiler::setLinePattern(const GiLinePattern& pattern)
 {
     frame().hasPattern = !pattern.dashes.empty();
     frame().pattern = pattern;
+}
+
+void GsCompiler::setFill(const GiHatchPattern* pattern)
+{
+    frame().hasFill = pattern != nullptr;
+    frame().fill = pattern ? *pattern : GiHatchPattern();
 }
 
 // 透明度、子实体标记与屏幕空间图元还不起作用
@@ -688,15 +701,76 @@ void GsCompiler::glyphRun(const GiGlyphRun& run)
     }
     // 每个字形如同一次 drawShared：字形里的 ByBlock 取字形串当时的属性，字形几何全文档共用一份
     const GsAttributes parent = attributes();
-    for (const GiGlyph& g : run.glyphs)
+    std::vector<const IGiDrawable*> glyphs(run.glyphs.size(), nullptr);
+    for (std::size_t i = 0; i < run.glyphs.size(); ++i)
     {
-        const IGiDrawable* glyph = run.font->glyph(g.code);
-        if (!glyph)
+        const GiGlyph& g = run.glyphs[i];
+        glyphs[i] = m_context.glyph(*run.font, g.code);
+        if (!glyphs[i])
         {
             continue;
         }
-        m_out->shared.push_back({glyph, frame().transform * g.transform, parent, lineTypeScale()});
+        m_out->shared.push_back({glyphs[i], frame().transform * g.transform, parent, lineTypeScale(), true});
     }
+    addTextBar(run, glyphs);
+}
+
+void GsCompiler::addTextBar(const GiGlyphRun& run, const std::vector<const IGiDrawable*>& glyphs)
+{
+    if (run.glyphs.empty())
+    {
+        return;
+    }
+    // 以第一个字形的坐标系为准（x 沿基线、y 向上，字高为 1）：各字形的横向范围换到这个坐标系里取并集，
+    // 细条是 y = 0.5 处从最左到最右的一条线，线宽取字高（RENDER_PLAN.md 第 4.3.10 节：小字画沿基线的细长矩形）
+    const GiTransform first = frame().transform * run.glyphs.front().transform;
+    if (first.determinant() == 0.0)
+    {
+        return;
+    }
+    const GiTransform inverse = first.inverse();
+    double low = 0.0;
+    double high = 0.0;
+    bool any = false;
+    for (std::size_t i = 0; i < run.glyphs.size(); ++i)
+    {
+        const GiGlyph& g = run.glyphs[i];
+        const IGiDrawable* glyph = glyphs[i];
+        double minX = 0.0;
+        double maxX = 0.0;
+        if (!glyph || !m_context.glyphExtent(*glyph, minX, maxX))
+        {
+            continue;
+        }
+        const GiTransform toFirst = inverse * (frame().transform * g.transform);
+        for (const DmVector& corner : {DmVector(minX, 0.0), DmVector(maxX, 0.0), DmVector(minX, 1.0), DmVector(maxX, 1.0)})
+        {
+            const double x = toFirst.apply(corner).x;
+            low = any ? std::min(low, x) : x;
+            high = any ? std::max(high, x) : x;
+            any = true;
+        }
+    }
+    if (!any || !(high > low))
+    {
+        return;
+    }
+    // 字高：字形坐标里竖直的一个单位在本单元里垂直于基线的长度（|det| / 基线方向的伸缩，倾斜不影响）
+    const DmVector baseline = first.applyVector(DmVector(1.0, 0.0));
+    const double baselineLength = std::hypot(baseline.x, baseline.y);
+    if (!(baselineLength > 0.0))
+    {
+        return;
+    }
+    const double height = std::fabs(first.determinant()) / baselineLength;
+    const DmVector a = first.apply(DmVector(low, 0.5));
+    const DmVector b = first.apply(DmVector(high, 0.5));
+    const double length = a.distanceTo(b);
+    const std::uint32_t prim = addPrim(GsDashMode::None, length, kGsPrimFlagTextBar);
+    m_out->prims[prim].dash = {0.0f, 1.0f, static_cast<float>(height), 0.0f};
+    auto& points = m_out->records[static_cast<std::size_t>(GsClass::Segment)];
+    points.push_back(localPoint(a, 0.0f, prim));
+    points.push_back(localPoint(b, static_cast<float>(length), prim | kGsPointBreak));
 }
 
 // ---------------------------------------------------------------------------
@@ -802,17 +876,161 @@ void GsCompiler::ellipseArc(const DmVector& center, const DmVector& majorAxis, d
 
 void GsCompiler::nurbs(const GiNurbs& curve)
 {
-    // B 样条对仿射变换不变：变换控制点后离散
+    // B 样条对仿射变换不变：变换控制点后离散。默认的弦高容差按控制点包围框（曲线在它里面）的尺寸
     GiNurbs transformed = curve;
     const GiTransform& m = frame().transform;
+    double minX = 0.0, minY = 0.0, maxX = 0.0, maxY = 0.0;
+    bool first = true;
     for (DmVector& p : transformed.controlPoints)
     {
         p = m.apply(p);
+        minX = first ? p.x : std::min(minX, p.x);
+        minY = first ? p.y : std::min(minY, p.y);
+        maxX = first ? p.x : std::max(maxX, p.x);
+        maxY = first ? p.y : std::max(maxY, p.y);
+        first = false;
     }
-    addStrip(m_context.sampleNurbs(transformed), transformed.closed);
+    const double size = std::max(maxX - minX, maxY - minY);
+    const double defaultTolerance = std::max(size * kGsCurveRelativeTolerance, 1.0e-12);
+    const double tolerance = gsCurveTolerance(defaultTolerance, m_tolerance);
+    m_out->curveTolerance = std::max(m_out->curveTolerance, tolerance);
+    m_out->defaultCurveTolerance = std::max(m_out->defaultCurveTolerance, defaultTolerance);
+    m_out->hasNurbs = true;
+    const std::shared_ptr<const std::vector<DmVector>> points = m_context.sampleNurbs(transformed, tolerance);
+    if (points)
+    {
+        addStrip(*points, transformed.closed);
+    }
 }
 
 void GsCompiler::fill(std::span<const GiLoop> loops, GiFillRule)
+{
+    if (frame().hasFill && !frame().fill.lines.empty())
+    {
+        addHatchPattern(loops);
+        return;
+    }
+    std::vector<std::array<DmVector, 3>> tris;
+    triangulate(loops, tris);
+    if (tris.empty())
+    {
+        return;
+    }
+    const std::uint32_t prim = fillPrim(kGsPrimFlagFill);
+    for (const auto& tri : tris)
+    {
+        addTriangle(tri[0], tri[1], tri[2], prim);
+    }
+}
+
+void GsCompiler::addHatchPattern(std::span<const GiLoop> loops)
+{
+    // 图案线在本层坐标里切（与 DmHatch 切划线实体的同一份算法），端点再变换到本单元：直线在仿射下仍是直线，
+    // 图案沿线的伸缩是方向在变换下的长度，线距是 |det| / 方向的伸缩
+    const GiTransform m = frame().transform;
+    const GiHatchPattern pattern = frame().fill;
+    std::vector<std::array<DmVector, 3>> tris;
+    triangulate(loops, tris);
+    std::vector<HatchPatternRun> runs;
+    for (std::size_t family = 0; family < pattern.lines.size(); ++family)
+    {
+        const GiHatchPatternLine& line = pattern.lines[family];
+        runs.clear();
+        if (!HatchPatternClipper::clip(loops, line, runs))
+        {
+            continue;
+        }
+        const double len = std::hypot(line.direction.x, line.direction.y);
+        const DmVector dir = m.applyVector(line.direction / len);
+        const double stretch = std::hypot(dir.x, dir.y);
+        if (!(stretch > 0.0))
+        {
+            continue;
+        }
+        const double spacing = HatchPatternClipper::spacing(line) * std::fabs(m.determinant()) / stretch;
+        for (const HatchPatternRun& run : runs)
+        {
+            addHatchLine(m.apply(run.start), m.apply(run.end), line.dashes, run.phase, stretch, spacing);
+        }
+
+        // 过密时的替身：同一份三角形，按这一族的覆盖率画。划线占周期的比例，加上每条划线、每个点两端的圆头（各半个线宽，
+        // 着色器里按线宽换算）：画图案线时划线两端按线宽延伸成圆头，点画成直径等于线宽的圆
+        if (tris.empty())
+        {
+            continue;
+        }
+        const double period = HatchPatternClipper::period(line.dashes);
+        double ink = 1.0;
+        double marks = 0.0;
+        if (period > 0.0)
+        {
+            ink = 0.0;
+            for (double d : line.dashes)
+            {
+                if (d >= 0.0)
+                {
+                    ink += d;
+                    marks += 1.0;
+                }
+            }
+            ink /= period;
+            marks /= period * stretch;
+        }
+        const std::uint32_t prim = addPrim(GsDashMode::None, 0.0, kGsPrimFlagFill | kGsPrimFlagHatchCover);
+        m_out->prims[prim].dash = {static_cast<float>(spacing), static_cast<float>(ink), static_cast<float>(marks),
+                                   static_cast<float>(period * stretch)};
+        for (const auto& tri : tris)
+        {
+            addTriangle(tri[0], tri[1], tri[2], prim);
+        }
+    }
+}
+
+void GsCompiler::addHatchLine(const DmVector& a, const DmVector& b, const std::vector<double>& dashes, double phase,
+                              double patternScale, double spacing)
+{
+    const double length = a.distanceTo(b);
+    if (!(length > 0.0))
+    {
+        return;
+    }
+    auto& points = m_out->records[static_cast<std::size_t>(GsClass::Segment)];
+    if (dashes.empty() || !(HatchPatternClipper::period(dashes) > 0.0))
+    {
+        // 实线族：整段一条连续线，不按填充的线型
+        const std::uint32_t prim = addPrim(GsDashMode::None, length, kGsPrimFlagHatchLine);
+        m_out->prims[prim].dash = {0.0f, 1.0f, static_cast<float>(spacing), 0.0f};
+        points.push_back(localPoint(a, 0.0f, prim));
+        points.push_back(localPoint(b, static_cast<float>(length), prim | kGsPointBreak));
+        return;
+    }
+    // 按图案与相位画：借本层的内联图案走 planRun（图案线的画法与分段，第 4.5.1、4.5.5 节）
+    Frame& f = frame();
+    const bool hadPattern = f.hasPattern;
+    const GiLinePattern saved = f.pattern;
+    f.hasPattern = true;
+    f.pattern = GiLinePattern{dashes, phase};
+    const RunPlan plan = planRun(GsDashMode::Open, length, patternScale);
+    f.hasPattern = hadPattern;
+    f.pattern = saved;
+    double start = 0.0;
+    for (std::size_t k = 0; k <= plan.cuts.size(); ++k)
+    {
+        const bool last = k == plan.cuts.size();
+        const double end = last ? length : plan.cuts[k];
+        const DmVector pa = k == 0 ? a : a + (b - a) * (start / length);
+        const DmVector pb = last ? b : a + (b - a) * (end / length);
+        const std::uint32_t prim = addRunPrim(plan, k, end - start);
+        GsPrimRecord& p = m_out->prims[prim];
+        p.kinds |= static_cast<std::uint32_t>(kGsPrimFlagHatchLine) << kGsKindsFlagsShift;
+        p.dash[2] = static_cast<float>(spacing);
+        points.push_back(localPoint(pa, 0.0f, prim));
+        points.push_back(localPoint(pb, static_cast<float>(end - start), prim | kGsPointBreak));
+        start = end;
+    }
+}
+
+void GsCompiler::triangulate(std::span<const GiLoop> loops, std::vector<std::array<DmVector, 3>>& tris)
 {
     // 约束 Delaunay 三角剖分按嵌套深度判断内外，即奇偶规则
     const GiTransform& m = frame().transform;
@@ -853,17 +1071,7 @@ void GsCompiler::fill(std::span<const GiLoop> loops, GiFillRule)
             holes.emplace_back(std::move(pts));
         }
     }
-    std::vector<std::array<DmVector, 3>> tris;
     ConstrainedDelaunayTriangulation::triangulatePoints(outer, holes, tris);
-    if (tris.empty())
-    {
-        return;
-    }
-    const std::uint32_t prim = fillPrim(kGsPrimFlagFill);
-    for (const auto& tri : tris)
-    {
-        addTriangle(tri[0], tri[1], tri[2], prim);
-    }
 }
 
 void GsCompiler::triangles(std::span<const DmVector> vertices, std::span<const std::uint32_t> indices)
@@ -1124,12 +1332,20 @@ void GsCompiler::addArcRecord(const DmVector& center, double radius, double star
 void GsCompiler::addEllipse(const DmVector& center, const DmVector& majorAxis, double ratio, double startParam,
                             double endParam, bool closed)
 {
-    // 原 DmEllipse::updateVertices 的分段：开放椭圆弧按扫角比例取 120 段（至少 10 段），整椭圆 120 段从参数 0 起
+    // 默认同原 DmEllipse::updateVertices 的分段：开放椭圆弧按扫角比例取 120 段（至少 10 段），整椭圆 120 段从参数 0 起。
+    // 参数等分时最大弦高约为 长半轴 × Δt² / 8（在长轴两端），所以 120 段对应的弦高与长半轴成正比；
+    // 节点的容差更细时按它加密（第 4.3.10 节：放大后重新离散）
     const double radius = std::sqrt(dot(majorAxis, majorAxis));
     if (radius <= 0.0)
     {
         return;
     }
+    const double defaultStep = 2.0 * M_PI / kGsEllipseSegments;
+    const double defaultTolerance = radius * defaultStep * defaultStep / 8.0;
+    const double tolerance = gsCurveTolerance(defaultTolerance, m_tolerance);
+    m_out->curveTolerance = std::max(m_out->curveTolerance, tolerance);
+    m_out->defaultCurveTolerance = std::max(m_out->defaultCurveTolerance, defaultTolerance);
+    const double step = std::sqrt(8.0 * tolerance / radius);
     const double cosa = majorAxis.x / radius;
     const double sina = majorAxis.y / radius;
     auto at = [&](double t) {
@@ -1147,7 +1363,9 @@ void GsCompiler::addEllipse(const DmVector& center, const DmVector& majorAxis, d
         {
             delta += 2.0 * M_PI;
         }
-        int count = static_cast<int>(std::ceil(delta / (2.0 * M_PI) * kEllipseSegments));
+        // 与原先相同的写法（扫角比例 × 120），节点的容差更细时按步长加密
+        int count = step < defaultStep ? static_cast<int>(std::min<double>(std::ceil(delta / step), kMaxCurveSegments))
+                                       : static_cast<int>(std::ceil(delta / (2.0 * M_PI) * kGsEllipseSegments));
         count = std::max(kMinOpenEllipseSegments, count);
         pts.reserve(count + 1);
         for (int i = 0; i <= count; ++i)
@@ -1158,10 +1376,13 @@ void GsCompiler::addEllipse(const DmVector& center, const DmVector& majorAxis, d
     }
     else
     {
-        pts.reserve(kEllipseSegments);
-        for (int i = 0; i < kEllipseSegments; ++i)
+        const int count = step < defaultStep
+                              ? static_cast<int>(std::min<double>(std::ceil(2.0 * M_PI / step), kMaxCurveSegments))
+                              : kGsEllipseSegments;
+        pts.reserve(count);
+        for (int i = 0; i < count; ++i)
         {
-            pts.push_back(at(2.0 * M_PI * i / kEllipseSegments));
+            pts.push_back(at(2.0 * M_PI * i / count));
         }
         addStrip(pts, true);
     }

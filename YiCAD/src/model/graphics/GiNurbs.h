@@ -53,12 +53,19 @@ struct GiNurbs
     ///          一次曲线直接取控制点。原为 DmSpline::getPoints()，样条与旧渲染器的适配器共用这一份
     void sample(std::vector<DmVector>& pts) const;
 
+    /// @brief 按弦高容差离散成折线，追加到 pts（图形系统用，RENDER_PLAN.md 第 4.3.10 节）
+    /// @details 每段节点区间先等分 degree × 5 份（防止 S 形变直线），再二分到每段中点离弦不超过 tolerance、
+    ///          相邻切线夹角不超过 30°；一次曲线直接取控制点
+    void sample(std::vector<DmVector>& pts, double tolerance) const;
+
 private:
     int segmentCount() const;
     int findSpan(double t) const;
     double basis(double t, int i, int k) const;
     double basisDerivative(double t, int i, int k, int q) const;
     void sampleRecursive(double t1, double t2, double count, std::vector<DmVector>& pts, double maxStep) const;
+    void sampleTolerance(double t1, const DmVector& p1, double t2, const DmVector& p2, double tolerance, int depth,
+                         std::vector<DmVector>& pts) const;
 };
 
 #endif // GINURBS_H

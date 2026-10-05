@@ -35,6 +35,7 @@
 #include "DmXline.h"
 #include "GiStream.h"
 #include "GiTextDump.h"
+#include "HatchPatternClipper.h"
 #include "support/OcdSampleDocument.h"
 
 namespace
@@ -283,26 +284,71 @@ TEST(GiEntityTest, 实心填充交出边界与孔洞的环)
     EXPECT_EQ(giDumpGeometry(hatch), "fill evenodd " + loopText(outer) + " " + loopText(hole) + "\n");
 }
 
-// 以多段线为边界的实心填充没有输出：Edge::getPoints（YiCAD/src/model/algorithm/FindClosedRegion.cpp:104）
-// 没有多段线分支，DmRegion::getPointsOfOneBoundary 取不到点。DXF 导入的填充边界大多是多段线
-// （HostApi.cpp 把 AutoCAD 的边界建成一条 DmPolyline），所以常见的实心填充都画不出来，
-// 旧渲染器在阶段 0 就是如此（RENDER_PLAN.md 第 10 节阶段 0 的已知问题）。修好后启用本用例。
-TEST(GiEntityTest, DISABLED_多段线边界的实心填充交出环)
+TEST(GiEntityTest, 多段线边界的实心填充交出环)
 {
+    // 原先以多段线为边界的实心填充没有输出（Edge::getPoints 没有多段线分支，阶段 0 记下的已知问题）；
+    // 边界改由 DmRegion::getLoops 取环后，多段线的顶点与凸度原样交出
     auto boundary = std::make_shared<DmEntityContainer>(nullptr);
     std::vector<double> widths(8, 0.0);
     boundary->addEntity(new DmPolyline(boundary.get(),
                                        PolylineData({ DmVector(0.0, 0.0), DmVector(4.0, 0.0), DmVector(4.0, 4.0),
                                                       DmVector(0.0, 4.0) },
-                                                    { 0.0, 0.0, 0.0, 0.0 }, widths, true)));
+                                                    { 0.0, 0.5, 0.0, 0.0 }, widths, true)));
     HatchData data(true, 1.0, 0.0, std::wstring(L"SOLID"));
     data.setBoundary(std::make_shared<DmRegion>(nullptr, RegionData(boundary, {})));
     DmHatch hatch(nullptr, data);
     hatch.update();
-    EXPECT_NE(giDumpGeometry(hatch).find("fill evenodd [(0,0)"), std::string::npos);
+    EXPECT_EQ(giDumpGeometry(hatch), "fill evenodd [(0,0) (4,0) (4,4) (0,4) bulges 0 0.5 0 0]\n");
 }
 
-TEST(GiEntityTest, 图案填充的实线图案线按连续线逐条画)
+TEST(GiEntityTest, 实心填充的圆与圆弧边界按凸度交出)
+{
+    // 圆：两段凸度为 1 的半圆；直线与圆弧首尾相接的轮廓连成一个环，圆弧按凸度（逆时针 90° 为 tan(22.5°)）
+    auto circle = std::make_shared<DmEntityContainer>(nullptr);
+    circle->addEntity(new DmCircle(circle.get(), CircleData(DmVector(0.0, 0.0), 2.0)));
+    auto mixed = std::make_shared<DmEntityContainer>(nullptr);
+    mixed->addEntity(new DmLine(DmVector(10.0, 0.0), DmVector(12.0, 0.0)));
+    mixed->addEntity(new DmArc(mixed.get(), ArcData(DmVector(10.0, 0.0), DmVector(0.0, 0.0, 1.0), 2.0, 0.0, M_PI_2)));
+    // 第三条边方向反着：(10,0) -> (10,2)，接的时候掉头
+    mixed->addEntity(new DmLine(DmVector(10.0, 0.0), DmVector(10.0, 2.0)));
+    std::vector<GiLoop> loops;
+    DmRegion::getLoopsOfOneBoundary(circle, loops);
+    DmRegion::getLoopsOfOneBoundary(mixed, loops);
+    ASSERT_EQ(loops.size(), 2u);
+    EXPECT_EQ(loops[0].points.size(), 2u);
+    ASSERT_EQ(loops[0].bulges.size(), 2u);
+    EXPECT_DOUBLE_EQ(loops[0].bulges[0], 1.0);
+    EXPECT_DOUBLE_EQ(loops[0].bulges[1], 1.0);
+    ASSERT_EQ(loops[1].points.size(), 3u);
+    ASSERT_EQ(loops[1].bulges.size(), 3u);
+    EXPECT_NEAR(loops[1].points[1].x, 12.0, 1e-12);
+    EXPECT_NEAR(loops[1].points[2].y, 2.0, 1e-12);
+    EXPECT_NEAR(loops[1].bulges[1], std::tan(M_PI / 8.0), 1e-12);
+    EXPECT_EQ(loops[1].bulges[2], 0.0);
+}
+
+namespace
+{
+/// @brief 6 位有效数字（同 GiTextDump）
+std::string giNum(double v)
+{
+    return QString::number(std::fabs(v) < 1e-12 ? 0.0 : v, 'g', 6).toStdString();
+}
+
+/// @brief 填充的图案线（Model 切出的整段）写成文本，每行一段："x,y x,y phase=p"
+std::string runsText(const DmHatch& hatch)
+{
+    std::string s;
+    for (const DmHatchPatternRun& run : hatch.getPatternRuns())
+    {
+        s += giNum(run.start.x) + "," + giNum(run.start.y) + " " + giNum(run.end.x) + "," + giNum(run.end.y) +
+             " phase=" + giNum(run.phase) + "\n";
+    }
+    return s;
+}
+}  // namespace
+
+TEST(GiEntityTest, 图案填充交出图案线的定义与边界)
 {
     DmDocument doc;
     DmPattern pattern;
@@ -313,11 +359,13 @@ TEST(GiEntityTest, 图案填充的实线图案线按连续线逐条画)
     DmHatch hatch(nullptr, data);
     hatch.setDocument(&doc);
     hatch.update();
-    const std::string text = giDumpGeometry(hatch);
-    // 颜色、线宽随填充自己的；图案线按连续线，每条一整段，图案为空
-    EXPECT_EQ(text.rfind("linetype Continuous\n", 0), 0u) << text;
-    EXPECT_GE(count(text, "polyline"), 3) << text;
-    EXPECT_EQ(count(text, "linepattern phase=0\n"), count(text, "polyline")) << text;
+    // 图案线由接收方切（同 ODA 的 setFill(OdGiHatchPattern)），颜色、线宽随填充自己的
+    EXPECT_EQ(giDumpGeometry(hatch), "fillstyle pattern {base=(0,0) dir=(1,0) offset=(0,1)}\n"
+                                     "fill evenodd [(0,0) (4,0) (4,4) (0,4)]\n"
+                                     "fillstyle solid\n");
+    // Model 切出的图案线（与图形系统同一份算法）：y = 0、4 两条正好在边上，按半开规则（在线上算在法向的正侧）
+    // 只有上边那条算在里面，相邻两块填充的公共边上只画一次
+    EXPECT_EQ(runsText(hatch), "0,1 4,1 phase=0\n0,2 4,2 phase=0\n0,3 4,3 phase=0\n0,4 4,4 phase=0\n");
 }
 
 TEST(GiEntityTest, 图案填充的虚线图案线带图案与起点的相位)
@@ -333,16 +381,30 @@ TEST(GiEntityTest, 图案填充的虚线图案线带图案与起点的相位)
     hatch.setDocument(&doc);
     hatch.update();
     std::string text = giDumpGeometry(hatch);
-    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.45\npolyline (0,2) (4,2)\n"), std::string::npos) << text;
-    EXPECT_EQ(count(text, "linepattern 0.5 -0.25 phase=0.45\n"), count(text, "polyline")) << text;
+    EXPECT_EQ(text.rfind("fillstyle pattern {base=(0.3,0) dir=(1,0) offset=(0,1) 0.5 -0.25}\n", 0), 0u) << text;
+    EXPECT_NE(runsText(hatch).find("0,2 4,2 phase=0.45\n"), std::string::npos) << runsText(hatch);
 
-    // 移动、缩放时图案线跟着变：移动不改相位；按 2 倍缩放（基点 (0,0)）时划线与相位一起放大
+    // 移动、缩放时图案线的定义与切好的段一起变：移动不改相位；按 2 倍缩放（基点 (0,0)）时划线与相位一起放大
     hatch.move(DmVector(10.0, 0.0));
     text = giDumpGeometry(hatch);
-    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.45\npolyline (10,2) (14,2)\n"), std::string::npos) << text;
+    EXPECT_EQ(text.rfind("fillstyle pattern {base=(10.3,0) dir=(1,0) offset=(0,1) 0.5 -0.25}\n", 0), 0u) << text;
+    EXPECT_NE(runsText(hatch).find("10,2 14,2 phase=0.45\n"), std::string::npos) << runsText(hatch);
     hatch.scale(DmVector(0.0, 0.0), DmVector(2.0, 2.0));
     text = giDumpGeometry(hatch);
-    EXPECT_NE(text.find("linepattern 1 -0.5 phase=0.9\npolyline (20,4) (28,4)\n"), std::string::npos) << text;
+    EXPECT_EQ(text.rfind("fillstyle pattern {base=(20.6,0) dir=(1,0) offset=(0,2) 1 -0.5}\n", 0), 0u) << text;
+    EXPECT_NE(runsText(hatch).find("20,4 28,4 phase=0.9\n"), std::string::npos) << runsText(hatch);
+    // 变换后的定义重新切出的段，与跟着变换的段一致
+    std::vector<GiLoop> loops;
+    hatch.getBoundary()->getLoops(loops);
+    std::vector<HatchPatternRun> runs;
+    ASSERT_TRUE(HatchPatternClipper::clip(loops, hatch.getPatternLines().front(), runs));
+    ASSERT_EQ(runs.size(), hatch.getPatternRuns().size());
+    for (std::size_t i = 0; i < runs.size(); ++i)
+    {
+        EXPECT_NEAR(runs[i].start.distanceTo(hatch.getPatternRuns()[i].start), 0.0, 1e-9) << i;
+        EXPECT_NEAR(runs[i].end.distanceTo(hatch.getPatternRuns()[i].end), 0.0, 1e-9) << i;
+        EXPECT_NEAR(runs[i].phase, hatch.getPatternRuns()[i].phase, 1e-9) << i;
+    }
 }
 
 TEST(GiEntityTest, 圆环图案填充穿过孔洞的图案线分成两段各按图案原点取相位)
@@ -362,18 +424,20 @@ TEST(GiEntityTest, 圆环图案填充穿过孔洞的图案线分成两段各按�
     DmHatch hatch(nullptr, data);
     hatch.setDocument(&doc);
     hatch.update();
-    const std::string text = giDumpGeometry(hatch);
     // 圆环内的点在区域里，孔洞里的不在（原先区域的射线法不计整圆边界的交点，圆环里一条图案线也生成不了）
     EXPECT_TRUE(hatch.getBoundary()->isPointInside(DmVector(3.0, 0.0)));
     EXPECT_TRUE(hatch.getBoundary()->isPointInside(DmVector(0.0, 3.0)));
     EXPECT_FALSE(hatch.getBoundary()->isPointInside(DmVector(0.0, 0.0)));
-    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.5\npolyline (-4,0) (-2,0)\n"), std::string::npos) << text;
-    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.5\npolyline (2,0) (4,0)\n"), std::string::npos) << text;
-    EXPECT_NE(text.find("linepattern 0.5 -0.25 phase=0.354249\npolyline (-2.64575,3) (2.64575,3)\n"), std::string::npos)
-        << text;
-    // 穿过孔洞的 y = -1、0、1 各两段，其余的各一段；每段都带图案
-    EXPECT_EQ(count(text, "linepattern 0.5 -0.25"), count(text, "polyline")) << text;
-    EXPECT_EQ(count(text, ",0) ("), 2) << text;
+    const std::string runs = runsText(hatch);
+    EXPECT_NE(runs.find("-4,0 -2,0 phase=0.5\n"), std::string::npos) << runs;
+    EXPECT_NE(runs.find("2,0 4,0 phase=0.5\n"), std::string::npos) << runs;
+    EXPECT_NE(runs.find("-2.64575,3 2.64575,3 phase=0.354249\n"), std::string::npos) << runs;
+    // 穿过孔洞的 y = -1、0、1 各两段，y = ±2、±3 各一段；y = ±4 与外圆相切，不算
+    EXPECT_EQ(count(runs, "\n"), 10) << runs;
+    // 边界按凸度交出：外圆、孔洞各是两段半圆
+    EXPECT_NE(giDumpGeometry(hatch).find("fill evenodd [(4,0) (-4,0) bulges 1 1] [(2,0) (-2,0) bulges 1 1]\n"),
+              std::string::npos)
+        << giDumpGeometry(hatch);
 }
 
 TEST(GiEntityTest, 区域画边界与孔洞的轮廓)
@@ -511,12 +575,6 @@ TEST(GiEntityTest, 样本文档的实体都有输出)
     for (const DmEntity* e : *doc.getEntityTable())
     {
         const std::string text = giDumpGeometry(*e);
-        if (e->getEntityType() == DM::EntityHatch)
-        {
-            // 样本的填充以多段线为边界，见 DISABLED_多段线边界的实心填充交出环
-            EXPECT_EQ(text, "") << "填充";
-            continue;
-        }
         EXPECT_FALSE(text.empty()) << "实体类型 " << e->getEntityType();
     }
 }

@@ -646,6 +646,38 @@ TEST_P(RhiTest, 延迟释放)
     EXPECT_EQ(device->liveResourceCount(), withGroup - 2);
 }
 
+TEST_P(RhiTest, 时间戳查询写在帧里过后不等待地读出)
+{
+    // 图形系统按实测的 GPU 耗时定渐进绘制每帧画多少（RENDER_PLAN.md 第 4.3.10 节，阶段 6）
+    ASSERT_TRUE(device->caps().timestampQueries);
+    RhiQuerySetDesc desc;
+    desc.count = 2;
+    desc.debugName = "test timestamps";
+    RhiQuerySetPtr set = device->createQuerySet(desc);
+    ASSERT_TRUE(set);
+    std::array<std::uint64_t, 2> times{};
+    {
+        GLRhiDevice::ContextGuard guard(*device);
+        EXPECT_FALSE(device->readTimestamps(*set, 0, times)) << "还没写过时读不出";
+    }
+
+    const std::vector<std::uint8_t> data(64 * 1024, 0x3C);
+    const RhiBufferPtr source = buffer(data.size(), RhiBufferUsage::CopySrc);
+    const RhiBufferPtr target = buffer(data.size(), RhiBufferUsage::CopyDst);
+    device->upload(*source, 0, bytes(data));
+    RhiCommandList& commands = device->beginOffscreenFrame();
+    commands.writeTimestamp(*set, 0);
+    commands.copyBuffer(*source, 0, *target, 0, data.size());
+    commands.writeTimestamp(*set, 1);
+    device->endFrame();
+    device->waitIdle();
+
+    GLRhiDevice::ContextGuard guard(*device);
+    ASSERT_TRUE(device->readTimestamps(*set, 0, times)) << "帧在 GPU 上完成后结果可读";
+    EXPECT_LE(times[0], times[1]);
+    EXPECT_FALSE(device->readTimestamps(*set, 1, times)) << "越界";
+}
+
 TEST_P(RhiTest, 画到QOpenGLWidget)
 {
     // 资源在设备自己的上下文里建，在窗口部件的上下文里用（共享组）；VAO 在部件的上下文里惰性创建

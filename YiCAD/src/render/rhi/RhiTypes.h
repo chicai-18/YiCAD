@@ -41,6 +41,7 @@ class RhiPipeline;
 class RhiBindGroupLayout;
 class RhiBindGroup;
 class RhiRenderTarget;
+class RhiQuerySet;
 
 /// @brief 资源句柄：引用计数，最后一个引用释放时进入设备的延迟释放队列
 using RhiBufferPtr = std::shared_ptr<RhiBuffer>;
@@ -51,6 +52,7 @@ using RhiPipelinePtr = std::shared_ptr<RhiPipeline>;
 using RhiBindGroupLayoutPtr = std::shared_ptr<RhiBindGroupLayout>;
 using RhiBindGroupPtr = std::shared_ptr<RhiBindGroup>;
 using RhiRenderTargetPtr = std::shared_ptr<RhiRenderTarget>;
+using RhiQuerySetPtr = std::shared_ptr<RhiQuerySet>;
 
 /// @brief 为位标志枚举定义 |、&、|= 与 rhiAny()（是否有任一位）
 #define YICAD_RHI_FLAGS(E)                                                                          \
@@ -505,6 +507,13 @@ struct RhiDrawIndexedIndirectArgs
     std::uint32_t firstInstance = 0;
 };
 
+/// @brief 一组 GPU 时间戳查询（Vulkan 的 timestamp 查询池）：命令列表往里写，设备不等待地读出（RhiCaps::timestampQueries）
+struct RhiQuerySetDesc
+{
+    std::uint32_t count = 0;
+    std::string debugName;
+};
+
 /// @brief 设备能力。GS 按能力选路径，不靠猜（第 4.7.1 节）
 struct RhiCaps
 {
@@ -535,6 +544,7 @@ struct RhiCaps
     std::uint32_t maxFragmentTextures = 0;
 
     bool persistentMapping = false;  ///< 上传环形缓冲用持久映射（GL 的 ARB_buffer_storage）
+    bool timestampQueries = false;   ///< 命令列表能写 GPU 时间戳（RhiCommandList::writeTimestamp）
     /// @brief 渲染结果的第 0 行是画面底部（GL）；读回渲染结果、采样渲染过的纹理时据此翻转（第 4.7.3 节）
     bool framebufferOriginBottomLeft = false;
 };

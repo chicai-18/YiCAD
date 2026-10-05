@@ -69,6 +69,7 @@ public:
     void copyBuffer(const RhiBuffer& src, std::size_t srcOffset, const RhiBuffer& dst,
                     std::size_t dstOffset, std::size_t size) override;
     void copyTextureToBuffer(const RhiTexture& src, const RhiBuffer& dst, std::size_t dstOffset) override;
+    void writeTimestamp(const RhiQuerySet& set, std::uint32_t index) override;
 
 private:
     static constexpr std::size_t kMaxBindGroups = 4;

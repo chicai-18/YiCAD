@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <memory>
 
 #include <QColor>
@@ -261,6 +262,8 @@ RenderScene::RenderScene(const RenderRequest& request)
         std::max((max.x - min.x) / request.width, (max.y - min.y) / request.height) * request.margin;
     view.setView((min + max) / 2.0, unitsPerPixel);
     view.setDraftMode(request.lineWidth);
+    // 每帧把场景画完（渐进绘制的预算按实测的 GPU 耗时定，软件渲染慢，会分几帧画；取图只画一帧）
+    view.setSceneBudget(std::numeric_limits<std::size_t>::max());
     (void)view.grabFramebuffer();
 }
 
