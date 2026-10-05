@@ -289,6 +289,11 @@ std::string DmEntityHelper::getEntityNameByType(DM::EntityType entityType)
         {
             return "Xline";
         }
+        case DM::EntityCustom:
+        {
+            // 块定义里的自定义实体按此名写出，类名在记录里（DmCustomEntity::writeRecord）
+            return "Custom";
+        }
         default:
         {
             return std::string();

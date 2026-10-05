@@ -26,6 +26,7 @@
 #include "DmVector.h"
 #include "DmArc.h"
 #include "DmCircle.h"
+#include "DmCustomEntity.h"
 #include "DmEllipse.h"
 #include "DmLine.h"
 #include "DmPolyline.h"
@@ -209,6 +210,16 @@ DmVectorSolutions Information::getIntersection(DmEntity const* e1, DmEntity cons
 		{
 			return ret;
 		}
+	}
+
+	// 自定义实体自己求交（默认按它的基本图元，DmCustomEntity::intersectWith），结果已限定在实体上
+	if (e1->getEntityType() == DM::EntityCustom)
+	{
+		return static_cast<const DmCustomEntity*>(e1)->intersectWith(e2, onEntities);
+	}
+	if (e2->getEntityType() == DM::EntityCustom)
+	{
+		return static_cast<const DmCustomEntity*>(e2)->intersectWith(e1, onEntities);
 	}
 
 	if (e1->getEntityType() == DM::EntitySpline || e2->getEntityType() == DM::EntitySpline)

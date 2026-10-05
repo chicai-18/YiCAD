@@ -32,6 +32,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -97,6 +98,11 @@ public:
 
     /// @brief 读回；版本号不认识时返回 false，流保持为空
     bool read(InputStream& in, const IGiReferenceCodec& codec);
+
+    /// @brief 逐个替换引用表里的对象，记录不变
+    /// @details 代理实体改归另一份文档时，把图层、线型、块换成目标文档的（DmProxyEntity::transferReferences）
+    /// @param map 收到引用的种类与原对象，返回新对象（可为空）
+    void remapReferences(const std::function<const void*(GiReferenceKind, const void*)>& map);
 
     /// @brief 记录与引用都相同
     bool operator==(const GiStream& other) const = default;

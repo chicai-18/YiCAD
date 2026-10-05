@@ -29,6 +29,7 @@
 #include "DmBlockReference.h"
 #include "DmChar.h"
 #include "DmCharTemplate.h"
+#include "DmCustomEntity.h"
 #include "DmDocument.h"
 #include "DmEntityContainer.h"
 #include "DmFont.h"
@@ -38,10 +39,12 @@
 #include "DmMTextLine.h"
 #include "DmMTextParagraph.h"
 #include "DmPolyline.h"
+#include "DmProxyEntity.h"
 #include "DmText.h"
 #include "EntityTable.h"
 #include "GeometryMethods.h"
 #include "GuiDialogFactory.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 #include "Transaction.h"
 
@@ -87,6 +90,7 @@ bool ModifyExplodeCommand::explode(const bool remove)
 
     std::vector<DmEntity*> entsToRemove;
     std::vector<DmEntity*> subEntities;
+    int keptProxies = 0;    ///< 炸开了、但不允许删除而留着的代理
 
     for (auto e : toExplode)
     {
@@ -94,8 +98,25 @@ bool ModifyExplodeCommand::explode(const bool remove)
         DmPen pen = e->getPen(false);
         auto eType = e->getEntityType();
 
+        // 自定义实体按它自己的炸开（默认按 worldDraw 的图元做成基本实体，属性随图元）。
+        // 代理总能按代理图形炸开，不允许删除时原对象留着（与 AutoCAD 相同）
+        if (eType == DM::EntityCustom)
+        {
+            for (DmEntity* sub : static_cast<const DmCustomEntity*>(e)->explode())
+            {
+                subEntities.emplace_back(sub);
+            }
+            if (DmProxyEntity::allows(e, DmProxyFlags::Erase))
+            {
+                entsToRemove.emplace_back(e);
+            }
+            else
+            {
+                ++keptProxies;
+            }
+        }
         // 分解块参照为子实体
-        if (eType == DM::EntityBlockReference)
+        else if (eType == DM::EntityBlockReference)
         {
             DmBlockReference* blockRef = static_cast<DmBlockReference*>(e);
             std::list<DmEntity*> subs = blockRef->getSubEntities();
@@ -161,7 +182,8 @@ bool ModifyExplodeCommand::explode(const bool remove)
         // 标注和其他类型暂不支持分解
     }
 
-    if (entsToRemove.empty())
+    const std::size_t explodedCount = entsToRemove.size() + static_cast<std::size_t>(keptProxies);
+    if (explodedCount == 0)
     {
         t.rollback();
         GUIDIALOGFACTORY->updateMouseWidget(tr("No entity explode."), tr("Back"));
@@ -183,7 +205,8 @@ bool ModifyExplodeCommand::explode(const bool remove)
     t.commit();
 
     GUIDIALOGFACTORY->updateMouseWidget(
-        tr("Explode success, %1 entities exploded.").arg(entsToRemove.size()), tr("Back"));
+        tr("Explode success, %1 entities exploded.").arg(explodedCount), tr("Back"));
+    reportSkippedProxies(keptProxies);
     return true;
 }
 

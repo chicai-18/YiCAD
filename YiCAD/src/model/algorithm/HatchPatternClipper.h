@@ -53,6 +53,14 @@ public:
     /// @brief 图案的周期（各元素绝对值之和）；实线为 0
     static double period(const std::vector<double>& dashes);
 
+    /// @brief 把一整段按图案切成划线与点
+    /// @details 图案的一个周期从 s = -相位 + m·周期 开始；划线与这一段相交的部分成一条线段，落在段内的点成一个点。
+    ///          实线或图案无效时整段是一条线段。填充（DmHatch）切出供选择、捕捉的划线实体，自定义实体的默认炸开（DmGiExplode）都用它
+    /// @param segments 追加划线的两端
+    /// @param dots 追加点
+    static void splitRun(const HatchPatternRun& run, const std::vector<double>& dashes,
+                         std::vector<std::pair<DmVector, DmVector>>& segments, std::vector<DmVector>& dots);
+
     /// @brief 相邻两条线的距离（offset 在线的法向上的分量的绝对值）；方向为零时为 0
     static double spacing(const GiHatchPatternLine& line);
 };

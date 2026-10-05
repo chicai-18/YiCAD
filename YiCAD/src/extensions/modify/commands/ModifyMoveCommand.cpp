@@ -34,6 +34,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 
 namespace
@@ -181,7 +182,7 @@ void ModifyMoveCommand::clearPreview()
 
 void ModifyMoveCommand::commitMove(const DmVector& reference, const DmVector& target)
 {
-    const std::vector<DmEntity*> ents = selection()->entities();
+    const std::vector<DmEntity*> ents = allowedForProxies(selection()->entities(), DmProxyFlags::Transform);
     Modification m(document());
     m.move(ents, target - reference);
     // 移动之后取消选中

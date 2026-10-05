@@ -8,6 +8,7 @@
 #include "DmBlockTable.h"
 #include "DmCircle.h"
 #include "DmColor.h"
+#include "DmCustomEntity.h"
 #include "DmDimensionStyle.h"
 #include "DmDimAligned.h"
 #include "DmDimAngular.h"
@@ -406,6 +407,7 @@ struct HostApi::EntityIteratorRecord
 
     std::vector<EntitySnapshot> entities;
     std::vector<DmEntity*> readEntities;
+    std::vector<std::unique_ptr<DmEntity>> ownedEntities;   ///< 自定义实体炸开得到的实体，readEntities 里指向它们
     std::vector<std::string> strings;
     std::vector<YiCadPoint2d> points;
     std::vector<YiCadPoint2d> secondaryPoints;
@@ -1581,10 +1583,8 @@ YiCadEntityIteratorHandle YICAD_PLUGIN_CALL HostApi::readEntities(
             return nullptr;
         }
         auto record = std::make_unique<EntityIteratorRecord>();
-        auto append = [&](auto& table) {
-            for (auto* entity : table)
-            {
-                if (dynamic_cast<DmPoint*>(entity) ||
+        auto exportable = [&](DmEntity* entity) {
+            return dynamic_cast<DmPoint*>(entity) ||
                     dynamic_cast<DmLine*>(entity) ||
                     dynamic_cast<DmRay*>(entity) ||
                     dynamic_cast<DmXline*>(entity) ||
@@ -1606,7 +1606,25 @@ YiCadEntityIteratorHandle YICAD_PLUGIN_CALL HostApi::readEntities(
                     dynamic_cast<DmBlockReference*>(entity) ||
                     dynamic_cast<DmAttributeDefinition*>(entity) ||
                     dynamic_cast<DmAttribute*>(entity) ||
-                    (blockHandle == nullptr && dynamic_cast<DmImage*>(entity)))
+                    (blockHandle == nullptr && dynamic_cast<DmImage*>(entity));
+        };
+        auto append = [&](auto& table) {
+            for (auto* entity : table)
+            {
+                if (entity->getEntityType() == DM::EntityCustom)
+                {
+                    // 插件接口没有自定义实体：交出炸开得到的基本实体（RENDER_PLAN.md 第 4.8.3 节，D6），
+                    // 代理按代理图形炸开。照 AutoCAD 写出类名与数据留给插件接口 v4
+                    for (DmEntity* part : static_cast<DmCustomEntity*>(entity)->explode())
+                    {
+                        record->ownedEntities.emplace_back(part);
+                        if (exportable(part))
+                        {
+                            record->readEntities.push_back(part);
+                        }
+                    }
+                }
+                else if (exportable(entity))
                 {
                     record->readEntities.push_back(entity);
                 }

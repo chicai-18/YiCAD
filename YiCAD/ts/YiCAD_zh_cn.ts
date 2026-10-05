@@ -4,39 +4,49 @@
 <context>
     <name>GuiDocumentView</name>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="967"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1001"/>
         <source>Endpoint</source>
         <translation>端点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="968"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1002"/>
         <source>Center</source>
         <translation>中心</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="969"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1003"/>
         <source>Middle</source>
         <translation>中点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="970"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1004"/>
         <source>Intersection</source>
         <translation>交点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="971"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1005"/>
         <source>On Entity</source>
         <translation>最近点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="972"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1006"/>
         <source>Subsection</source>
         <translation>节点</translation>
     </message>
     <message>
-        <location filename="../src/render/view/GuiDocumentView.cpp" line="973"/>
+        <location filename="../src/render/view/GuiDocumentView.cpp" line="1007"/>
         <source>Grid</source>
         <translation>网格</translation>
+    </message>
+</context>
+<context>
+    <name>ProxyPermissions</name>
+    <message numerus="yes">
+        <location filename="../src/application/ProxyPermissions.cpp" line="42"/>
+        <source>%n proxy object(s) do not allow this operation and were skipped.</source>
+        <translation>
+            <numerusform>%n 个代理对象不允许此操作，已跳过。</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -1274,28 +1284,28 @@ Please update the graphics driver.</source>
 <context>
     <name>UICurrentActivePen</name>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="44"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="46"/>
         <source>Color:</source>
         <translation>颜色：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="49"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="51"/>
         <source>LineWindth:</source>
         <translation>线宽：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="54"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="56"/>
         <source>LineType:</source>
         <translation>线型：</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="123"/>
         <location filename="../src/ui/UICurrentActivePen.cpp" line="125"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="127"/>
         <source>Modify current pen</source>
         <translation>修改当前画笔</translation>
     </message>
     <message>
-        <location filename="../src/ui/UICurrentActivePen.cpp" line="144"/>
+        <location filename="../src/ui/UICurrentActivePen.cpp" line="161"/>
         <source>Modify current selected entities</source>
         <translation>修改选中实体</translation>
     </message>

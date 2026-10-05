@@ -48,6 +48,21 @@ void _class_::initialize(void){\
 int _class_::revId = _rev_;\
 void _class_::getRevId(std::vector<PAIR>& vecRev) { _parentclass_::getRevId(vecRev); vecRev.push_back(std::make_pair( getClassTypeId().getName(), _class_::revId ));}\
 
+/// @brief 同 TYPESYSTEM_SOURCE，但类型名由 _name_ 指定，不取 C++ 类名
+/// @details 扩展的自定义实体用它：类型名即存盘的类名，须以扩展 ID 加点开头（如 "ext.sample.Pipe"），
+///          _rev_ 是这个类的数据版本（DmCustomEntity::restoreData 收到的版本号）。父类按它注册的类型名查找，
+///          所以可以派生自另一个用本宏注册的类
+#define TYPESYSTEM_SOURCE_NAMED(_class_, _parentclass_, _name_, _rev_) \
+Type _class_::getClassTypeId(void) { return _class_::classTypeId; } \
+Type _class_::getTypeId(void) const { return _class_::classTypeId; } \
+Type _class_::classTypeId = Type::badType();  \
+void * _class_::create(void){\
+   return new _class_ ();}\
+void _class_::initialize(void){\
+  initSubclass(_class_::classTypeId, _name_, _parentclass_::getClassTypeId().getName(), &(_class_::create) ); }\
+int _class_::revId = _rev_;\
+void _class_::getRevId(std::vector<PAIR>& vecRev) { _parentclass_::getRevId(vecRev); vecRev.push_back(std::make_pair( getClassTypeId().getName(), _class_::revId ));}\
+
 /// define to implement a subclass of Type,who is a abstract class, means
 /// not able to create object from this definition
 #define TYPESYSTEM_SOURCE_ABSTRACT(_class_, _parentclass_, _rev_) \

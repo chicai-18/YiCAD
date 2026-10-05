@@ -29,6 +29,7 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "Modification.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 
 ModifyDeleteCommand::ModifyDeleteCommand()
@@ -42,7 +43,8 @@ void ModifyDeleteCommand::deleteSelection(DmDocument* doc, SelectionSet* selecti
     {
         return;
     }
-    const std::vector<DmEntity*> ents = selection->entities();
+    // 不允许删除的代理留在图里
+    const std::vector<DmEntity*> ents = allowedForProxies(selection->entities(), DmProxyFlags::Erase);
     Modification m(doc);
     m.remove(ents);
     GUIDIALOGFACTORY->updateSelectionWidget(selection->count());

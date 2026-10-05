@@ -171,6 +171,16 @@ public:
     /// @brief 这类实体的属性编辑命令；没有时返回空
     QString propertyEditor(DM::EntityType type) const;
 
+    /// @brief 按类名登记某个自定义实体类（DM::EntityCustom，见 DmCustomEntity::className）的双击编辑命令，其余同按类型的重载
+    bool registerEntityEditor(const QString& className, const QString& commandId);
+    /// @brief 按类名登记某个自定义实体类的属性编辑命令，其余同按类型的重载
+    bool registerPropertyEditor(const QString& className, const QString& commandId);
+
+    /// @brief 实体的双击编辑命令：自定义实体按类名找，其余按类型；没有时返回空
+    QString entityEditor(const DmEntity& entity) const;
+    /// @brief 实体的属性编辑命令：自定义实体按类名找，其余按类型；没有时返回空
+    QString propertyEditor(const DmEntity& entity) const;
+
     /// @brief id 是否已注册。
     bool hasCommand(const QString& id) const;
 
@@ -224,6 +234,10 @@ private:
     std::map<DM::EntityType, QString> m_entityEditors;
     /// @brief 实体类型 -> 属性编辑命令 ID
     std::map<DM::EntityType, QString> m_propertyEditors;
+    /// @brief 自定义实体的类名 -> 双击编辑命令 ID
+    std::map<QString, QString> m_customEntityEditors;
+    /// @brief 自定义实体的类名 -> 属性编辑命令 ID
+    std::map<QString, QString> m_customPropertyEditors;
 };
 
 #endif  // COMMANDREGISTRY_H

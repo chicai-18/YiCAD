@@ -1033,6 +1033,14 @@ bool GiStream::read(InputStream& in, const IGiReferenceCodec& codec)
     return true;
 }
 
+void GiStream::remapReferences(const std::function<const void*(GiReferenceKind, const void*)>& map)
+{
+    for (Reference& ref : m_references)
+    {
+        ref.object = map(ref.kind, ref.object);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // GiStreamRecorder、GiStreamDrawable
 // ---------------------------------------------------------------------------

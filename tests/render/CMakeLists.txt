@@ -22,6 +22,8 @@ yicad_add_test(render
         test_render_lod.cpp
         test_render_reference.cpp
         test_render_rhi.cpp
+        test_render_custom.cpp
+        ../support/SamplePipeEntity.cpp
     LINK YiCadShell
     LABELS "render;unit")
 

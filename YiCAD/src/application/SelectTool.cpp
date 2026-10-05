@@ -470,10 +470,10 @@ ViewToolResult SelectTool::mouseDoubleClickEvent(QMouseEvent* e)
     if (selectCount == 0 || (selectCount == 1 && en == ents.front()))
     {
         const CommandRegistry& registry = CommandRegistry::instance();
-        QString editor = registry.entityEditor(en->getEntityType());
+        QString editor = registry.entityEditor(*en);
         if (editor.isEmpty())
         {
-            editor = registry.propertyEditor(en->getEntityType());
+            editor = registry.propertyEditor(*en);
         }
         if (registry.kind(editor) == CommandKind::Instant)
         {

@@ -98,7 +98,8 @@ TEST_F(DocumentSavePolicy, 另存为经临时文件写出并记录文件名)
     // 先写 <文件名>.tmp 再改名；第一次保存没有旧文件，不产生 .bak
     EXPECT_EQ(QDir(dir.path()).entryList(QDir::Files), QStringList{QStringLiteral("saved.ycd")});
     EXPECT_EQ(host.messages, QStringList{QStringLiteral("File saved: %1").arg(file)});
-    EXPECT_EQ(readArchive(file).size(), 27u);
+    // 文档与 27 个容器文件（含自定义实体的 CustomEntities.bin）
+    EXPECT_EQ(readArchive(file).size(), 28u);
 }
 
 TEST_F(DocumentSavePolicy, 再次保存时旧文件备份为bak)
@@ -271,7 +272,7 @@ TEST_F(DocumentFileServiceTest, 未命名文档自动保存到临时目录的副
     EXPECT_EQ(host.messages, (QStringList{QStringLiteral("Auto saving file: %1").arg(copy),
                                           QStringLiteral("File saved: %1").arg(copy)}));
     EXPECT_TRUE(doc.getFilename().isEmpty());
-    EXPECT_EQ(readArchive(copy).size(), 27u);
+    EXPECT_EQ(readArchive(copy).size(), 28u);
     QFile::remove(copy);
 }
 

@@ -666,14 +666,14 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 
 `<二进制> --gtest_list_tests` 的条目数，含 `DISABLED_`。
 
-| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 | 阶段 2 | 阶段 3 | 阶段 4 | 阶段 5 | 阶段 6 |
-|------------|------:|------:|------:|------:|------:|------:|------:|------:|
-| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） |
-| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
-| `test_graphics` | — | — | — | 38（1 DISABLED） | 38（1 DISABLED） | 38（1 DISABLED） | 42（1 DISABLED） | 43 |
-| `test_persistence` | 68 | 68 | 68 | 68 | 68 | 68 | 73 | 73 |
-| `test_interaction` | 335 | 336 | 336 | 336 | 336 | 349 | 354 | 354 |
-| `test_render` | — | 15 | 23 | 23 | 43 | 48 | 57 | 67 |
+| 测试二进制 | 阶段 0 之前（`99c076a`） | 阶段 0 | 阶段 1 | 阶段 2 | 阶段 3 | 阶段 4 | 阶段 5 | 阶段 6 | 阶段 7 |
+|------------|------:|------:|------:|------:|------:|------:|------:|------:|------:|
+| `test_math` | 83（1 DISABLED） | 87（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 88（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） | 89（1 DISABLED） |
+| `test_geometry` | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） | 51（1 DISABLED） |
+| `test_graphics` | — | — | — | 38（1 DISABLED） | 38（1 DISABLED） | 38（1 DISABLED） | 42（1 DISABLED） | 43 | 57（1 DISABLED） |
+| `test_persistence` | 68 | 68 | 68 | 68 | 68 | 68 | 73 | 73 | 80 |
+| `test_interaction` | 335 | 336 | 336 | 336 | 336 | 349 | 354 | 354 | 367 |
+| `test_render` | — | 15 | 23 | 23 | 43 | 48 | 57 | 67 | 69 |
 
 阶段 0 新增：`test_math` 的数量计数器与新计数器 4 个；`test_interaction` 的基线采集 1 个（不设 `YICAD_BENCHMARK_DIR` 时跳过）；
 `test_render`（新）的环境检查 2 个与参考图纸出图比对 13 个（缺 SHX 字体时 `text_shx` 跳过，CI 上就是这样）。
@@ -698,3 +698,8 @@ S6（同文档 10.5 节）只拆库、改构建脚本，用例不变；`test_int
 与参考图纸 `linetype_scale` 1 个，`linetypes`、`autocad_linetype` 两张基准图像更新；用 AutoCAD 核对后改正闭合曲线与块参照线型比例，`linetype_scale` 的基准图像重新生成（`RENDER_PLAN.md` 第 10 节阶段 5）。
 
 阶段 6 新增：`test_graphics` 的实心填充的圆与圆弧边界按凸度交出 1 个；阶段 2 的以多段线为边界的实心填充（`DISABLED_`）启用；填充改交图案定义与边界后，原"图案填充的实线图案线按连续线逐条画"改写为"图案填充交出图案线的定义与边界"，虚线、圆环两个改为检查 Model 用共用的切线算法切出的划线，净增 1 个；`test_render` 的 LOD 8 个（`test_render_lod.cpp`：小字画细条、亚像素对象画点、小圆弧只画一个四边形、密填充按覆盖率画实心、椭圆重新离散、样条在后台重新离散、多线程与单线程编译一致、渐进绘制分几帧画完与一次画完一致）与 RHI 时间戳查询 2 个（1 个用例在两条上传路径上跑）；`entities`、`entities_grid`、`entities_selected_highlighted` 三张基准图像更新，只多了以多段线为边界的实心填充（`RENDER_PLAN.md` 第 10 节阶段 6）。
+
+阶段 7 新增：`test_graphics` 的 GI 图元做成基本实体 7 个（`test_graphics_custom.cpp`：管道的图元、非等比缩放与含镜像的相似变换、嵌套绘制的随块解析、块做成块参照或展开、实心填充、图案填充）与自定义实体的默认实现 7 个（包围框、捕捉与拾取、求交、炸开、按仿射变换改动、代理按代理图形画，另有 SOLID 的射线擦过顶点 1 个是 `DISABLED_`，等 `GeometryMethods::isPtInside` 修好后启用）；
+`test_persistence` 的自定义实体往返 7 个（`test_persistence_custom.cpp`：读回原实体、类缺失时读成代理再存回、代理的变换补到原实体上、不允许变换的代理、数据版本比程序新、块定义里的自定义实体、块里有不写出的类型时不错位）；
+`test_interaction` 的示例扩展 13 个（`test_custom_entity.cpp`：登记与注销、命名空间、命令创建与撤销、捕捉、点选与交叉选、夹点、属性编辑分派、修改的撤销、炸开、代理按代理权限放行命令 3 个、另存为 DXF 写出炸开结果），原有两个用例的压缩包条目数随 `CustomEntities.bin` 加 1；
+`test_render` 的自定义实体出图 2 个（`test_render_custom.cpp`：代理与原实体逐像素相同、允许变换的代理移动后与同样移动的原实体相同）（`RENDER_PLAN.md` 第 10 节阶段 7）。

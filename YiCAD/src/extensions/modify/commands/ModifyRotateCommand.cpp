@@ -28,6 +28,7 @@
 #include "BasePlaceTool.h"
 #include "CommandPreview.h"
 #include "ModifyCommands.h"
+#include "ProxyPermissions.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
 #include "EntityTable.h"
@@ -192,7 +193,7 @@ void ModifyRotateCommand::commitRotate(const DmVector& center, double angle)
     Transaction t(tr("Rotate").toStdString(), document());
     t.start();
     auto entTable = document()->getEntityTable();
-    for (auto e : selection()->entities())
+    for (auto e : allowedForProxies(selection()->entities(), DmProxyFlags::Transform))
     {
         selection()->remove(e);
         entTable->startModify(e);

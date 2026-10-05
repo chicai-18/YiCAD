@@ -10,5 +10,7 @@ yicad_add_test(graphics
         test_graphics_stream.cpp
         test_graphics_entities.cpp
         test_graphics_text.cpp
+        test_graphics_custom.cpp
+        ../support/SamplePipeEntity.cpp
     LINK YiCadModel
     LABELS "graphics;unit")

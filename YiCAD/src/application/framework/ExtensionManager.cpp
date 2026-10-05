@@ -89,6 +89,31 @@ public:
                CommandRegistry::instance().registerPropertyEditor(type, commandId);
     }
 
+    bool registerEntityClass(const DmCustomEntityClass& entityClass) override
+    {
+        if (!owns("entity class", entityClass.name))
+        {
+            return false;
+        }
+        if (!DmCustomEntityRegistry::instance().registerClass(entityClass))
+        {
+            qWarning("ExtensionManager: %s: entity class '%s' rejected by DmCustomEntityRegistry",
+                     m_extensionId.c_str(), qUtf8Printable(entityClass.name));
+            return false;
+        }
+        m_entityClasses.push_back(entityClass.name);
+        return true;
+    }
+    bool registerEntityEditor(const QString& className, const QString& commandId) override
+    {
+        return owns("entity class", className) && owns("entity editor", commandId) &&
+               CommandRegistry::instance().registerEntityEditor(className, commandId);
+    }
+    bool registerPropertyEditor(const QString& className, const QString& commandId) override
+    {
+        return owns("entity class", className) && owns("property editor", commandId) &&
+               CommandRegistry::instance().registerPropertyEditor(className, commandId);
+    }
     bool activateCommand(const QString& commandId) override { return m_host.activateCommand(commandId); }
 
     /// @brief 注销本扩展注册过的全部命令，在其 OnShutdown 之后调用。
@@ -99,6 +124,17 @@ public:
             CommandRegistry::instance().unregisterCommand(id);
         }
         m_commands.clear();
+    }
+
+    /// @brief 注销本扩展登记过的自定义实体类，在其 OnShutdown 之后调用。
+    /// @details 内存里已有的实体照常可用；之后读进来的这类实体是代理
+    void releaseEntityClasses()
+    {
+        for (const QString& name : m_entityClasses)
+        {
+            DmCustomEntityRegistry::instance().unregisterClass(name);
+        }
+        m_entityClasses.clear();
     }
 
 private:
@@ -134,6 +170,7 @@ private:
     IExtensionHost& m_host;
     std::string m_extensionId;
     std::vector<QString> m_commands;
+    std::vector<QString> m_entityClasses;
 };
 
 ExtensionManager& ExtensionManager::instance()
@@ -211,6 +248,7 @@ void ExtensionManager::Shutdown()
             if (it->context)
             {
                 it->context->releaseCommands();
+                it->context->releaseEntityClasses();
             }
         }
     }

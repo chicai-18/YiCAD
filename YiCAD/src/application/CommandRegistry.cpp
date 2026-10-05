@@ -22,6 +22,7 @@
 #include <iterator>
 #include <utility>
 
+#include "DmCustomEntity.h"
 #include "IExclusiveCommand.h"
 
 // 注册冲突（重复 ID / 重复别名）用返回值报告，不用 assert() 硬中断——
@@ -124,6 +125,13 @@ bool CommandRegistry::unregisterCommand(const QString& id)
             editor = editor->second == id ? editors->erase(editor) : std::next(editor);
         }
     }
+    for (auto* editors : {&m_customEntityEditors, &m_customPropertyEditors})
+    {
+        for (auto editor = editors->begin(); editor != editors->end();)
+        {
+            editor = editor->second == id ? editors->erase(editor) : std::next(editor);
+        }
+    }
     return true;
 }
 
@@ -159,6 +167,49 @@ QString CommandRegistry::propertyEditor(DM::EntityType type) const
 {
     auto it = m_propertyEditors.find(type);
     return it == m_propertyEditors.end() ? QString() : it->second;
+}
+
+bool CommandRegistry::registerEntityEditor(const QString& className, const QString& commandId)
+{
+    if (className.isEmpty() || kind(commandId) != CommandKind::Exclusive ||
+        m_customEntityEditors.count(className) != 0)
+    {
+        return false;
+    }
+    m_customEntityEditors[className] = commandId;
+    return true;
+}
+
+bool CommandRegistry::registerPropertyEditor(const QString& className, const QString& commandId)
+{
+    const CommandKind commandKind = kind(commandId);
+    if (className.isEmpty() || (commandKind != CommandKind::Instant && commandKind != CommandKind::Exclusive) ||
+        m_customPropertyEditors.count(className) != 0)
+    {
+        return false;
+    }
+    m_customPropertyEditors[className] = commandId;
+    return true;
+}
+
+QString CommandRegistry::entityEditor(const DmEntity& entity) const
+{
+    if (entity.getEntityType() == DM::EntityCustom)
+    {
+        auto it = m_customEntityEditors.find(static_cast<const DmCustomEntity&>(entity).className());
+        return it == m_customEntityEditors.end() ? QString() : it->second;
+    }
+    return entityEditor(entity.getEntityType());
+}
+
+QString CommandRegistry::propertyEditor(const DmEntity& entity) const
+{
+    if (entity.getEntityType() == DM::EntityCustom)
+    {
+        auto it = m_customPropertyEditors.find(static_cast<const DmCustomEntity&>(entity).className());
+        return it == m_customPropertyEditors.end() ? QString() : it->second;
+    }
+    return propertyEditor(entity.getEntityType());
 }
 
 bool CommandRegistry::hasCommand(const QString& id) const

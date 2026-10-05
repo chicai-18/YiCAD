@@ -116,6 +116,7 @@ namespace DM
         EntityXline,
         EntityOverlayCircle,
         EntityOverlayPoint,
+        EntityCustom,               ///< 自定义实体（DmCustomEntity，含代理实体 DmProxyEntity），具体类按 MetaType 区分
     };
 
 

@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include "DmBlock.h"
+#include "DmCustomEntity.h"
 
 #include "DmDocument.h"
 #include "DmDocumentTransfer.h"
@@ -336,14 +337,31 @@ void DmBlock::saveStream(OutputStream& wrt) const
     auto frozen = isFrozen();
     wrt << name << (double)basePoint.x << (double)basePoint.y;
 
-    wrt << (uint32_t)m_entityTable.count();
+    // 个数只计写出的实体：原先写的是全部实体的个数，块里有不写出的类型（图片、三角形）时读盘会错位
+    uint32_t savedCount = 0;
+    for (auto ent : m_entityTable)
+    {
+        if (isSaveEntType(ent->getEntityType()))
+        {
+            ++savedCount;
+        }
+    }
+    wrt << savedCount;
     for (auto ent : m_entityTable)
     {
         if (isSaveEntType(ent->getEntityType()))
         {
             auto strType = DmEntityHelper::getEntityNameByType(ent->getEntityType());
             wrt << strType;
-            ent->saveStream(wrt);
+            if (ent->getEntityType() == DM::EntityCustom)
+            {
+                // 自定义实体（含代理）：类名、代理权限、数据与代理图形，同实体表里的写法
+                DmCustomEntity::writeRecord(wrt, *static_cast<const DmCustomEntity*>(ent));
+            }
+            else
+            {
+                ent->saveStream(wrt);
+            }
         }
     }
 }
@@ -393,6 +411,16 @@ void DmBlock::getEntity(InputStream& rdr, const std::vector<PAIR>& revs)
 {
     std::string strType;
     rdr >> strType;
+    if (strType == DmEntityHelper::getEntityNameByType(DM::EntityCustom))
+    {
+        // 类没有注册时读成代理实体
+        if (DmCustomEntity* custom = DmCustomEntity::readRecord(rdr, getDocument(), revs))
+        {
+            custom->setParent(nullptr);
+            m_entityTable.add_direct(custom);
+        }
+        return;
+    }
     DmEntity* pEntity = DmEntityHelper::createEntityByName(strType);
 
     if (pEntity)
@@ -430,6 +458,7 @@ bool DmBlock::isSaveEntType(const DM::EntityType type) const
     case DM::EntityDimLeader:
     case DM::EntityMText:
     case DM::EntityHatch:
+    case DM::EntityCustom:
     //case DM::EntityImage:
         return true;
     default:

@@ -248,6 +248,7 @@ TEST_F(OcdDocumentWrite, 压缩包依次是文档与各类实体文件)
         "AttributeDefinitions.bin", "Attributes.bin", "DimLinears.bin",
         "DimAligneds.bin",     "DimAngulars.bin",    "DimRadials.bin",
         "DimDiametrics.bin",   "DimLeaders.bin",     "Hatchs.bin",
+        "CustomEntities.bin",
     };
     EXPECT_EQ(names, expected);
 
@@ -259,6 +260,7 @@ TEST_F(OcdDocumentWrite, 压缩包依次是文档与各类实体文件)
         EXPECT_GT(sizes[name], 0u) << name;
     }
     EXPECT_EQ(sizes["Triangles.bin"], 0u);
+    EXPECT_EQ(sizes["CustomEntities.bin"], 0u) << "样本文档里没有自定义实体";
     EXPECT_EQ(sizes["AttributeDefinitions.bin"], 0u);
     EXPECT_EQ(sizes["Attributes.bin"], 0u);
 }

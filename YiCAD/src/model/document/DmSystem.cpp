@@ -67,6 +67,8 @@
 #include "DmHatch.h"
 #include "DmPolyline.h"
 #include "DmBlock.h"
+#include "DmCustomEntity.h"
+#include "DmProxyEntity.h"
 
 #if defined(WIN32)
 #include "dwrite.h"
@@ -443,6 +445,9 @@ void DmSystem::entityInitialize()
 	DmDimDiametric::initialize();
 	DmDimAngular::initialize();
 	DmLeader::initialize();
+	// 自定义实体的基类与代理实体；扩展的自定义实体类在注册时初始化（DmCustomEntityRegistry::describe）
+	DmCustomEntity::initialize();
+	DmProxyEntity::initialize();
 
 	// 图片 等
 }

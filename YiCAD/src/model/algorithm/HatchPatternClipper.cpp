@@ -189,6 +189,40 @@ double HatchPatternClipper::period(const std::vector<double>& dashes)
     return p;
 }
 
+void HatchPatternClipper::splitRun(const HatchPatternRun& run, const std::vector<double>& dashes,
+                                   std::vector<std::pair<DmVector, DmVector>>& segments, std::vector<DmVector>& dots)
+{
+    const double p = period(dashes);
+    const double length = run.start.distanceTo(run.end);
+    if (dashes.empty() || !(p > 0.0) || !(length > 0.0))
+    {
+        segments.emplace_back(run.start, run.end);
+        return;
+    }
+    const DmVector dir = (run.end - run.start) / length;
+    for (double c = -run.phase; c < length; c += p)
+    {
+        double pos = c;
+        for (double d : dashes)
+        {
+            if (d > 0.0)
+            {
+                const double s0 = std::max(pos, 0.0);
+                const double s1 = std::min(pos + d, length);
+                if (s1 > s0)
+                {
+                    segments.emplace_back(run.start + dir * s0, run.start + dir * s1);
+                }
+            }
+            else if (d == 0.0 && pos >= 0.0 && pos <= length)
+            {
+                dots.push_back(run.start + dir * pos);
+            }
+            pos += std::fabs(d);
+        }
+    }
+}
+
 double HatchPatternClipper::spacing(const GiHatchPatternLine& line)
 {
     const double len = std::hypot(line.direction.x, line.direction.y);

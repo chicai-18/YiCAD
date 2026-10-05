@@ -58,6 +58,7 @@ class MetaDimRadialsContainer;
 class MetaDimDiametricsContainer;
 class MetaDimLeadersContainer;
 class MetaHatchsContainer;
+class MetaCustomEntitiesContainer;
 class MetaArrayRectContainer;
 class MetaArrayPolarContainer;
 
@@ -142,6 +143,7 @@ private:
     std::shared_ptr<MetaDimDiametricsContainer>         m_spPersistDimDiametrics;
     std::shared_ptr<MetaDimLeadersContainer>            m_spPersistDimLeaders;
     std::shared_ptr<MetaHatchsContainer>                m_spPersistHatchs;
+    std::shared_ptr<MetaCustomEntitiesContainer>        m_spPersistCustomEntities;  ///< 自定义实体与代理实体
 };
 
 #endif // FILTER_OCD_IO_H

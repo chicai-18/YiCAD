@@ -32,15 +32,24 @@
 #include "ModifyCommands.h"
 #include "DmDocument.h"
 #include "DmLayer.h"
+#include "DmProxyEntity.h"
 #include "EntityTable.h"
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 #include "Transaction.h"
 
 namespace
 {
+/// @brief 复制到图层要做的操作：复制、平移、改图层与画笔（颜色、线型、线宽）
+DmProxyFlags copyToLayerOperation()
+{
+    return DmProxyFlags::Cloning | DmProxyFlags::Transform | DmProxyFlags::LayerChange | DmProxyFlags::ColorChange |
+           DmProxyFlags::LineTypeChange | DmProxyFlags::LineWeightChange;
+}
+
 /// @brief 复制到图层工具：拾取目标图层上的实体，指定基点，再指定终点
 /// @details 提示写在命令行里（原 ActionCopyToLayer 如此），不改按键提示；也没有
 ///          自己的光标。
@@ -174,7 +183,7 @@ void CopyToLayerCommand::previewAt(const DmVector& basePoint, const DmVector& mo
         // 第一次：把选择集的克隆按原位放进预览，记下它对应的基点
         m_preview->clear();
         m_previewPos = basePoint;
-        for (auto e : selection()->entities())
+        for (auto e : DmProxyEntity::filterAllowed(selection()->entities(), copyToLayerOperation()))
         {
             DmEntity* clone = e->clone();
             clone->setLayer(m_targetLayer->getName());
@@ -203,7 +212,7 @@ void CopyToLayerCommand::commitCopy(const DmVector& basePoint, const DmVector& e
 {
     // 复制选择的实体
     std::vector<DmEntity*> vec;
-    for (auto e : selection()->entities())
+    for (auto e : allowedForProxies(selection()->entities(), copyToLayerOperation()))
     {
         selection()->remove(e);
         DmEntity* ent = e->clone();

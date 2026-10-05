@@ -66,6 +66,7 @@
 #include "MetaDimDiametrics.h"
 #include "MetaDimLeaders.h"
 #include "MetaHatchs.h"
+#include "MetaCustomEntities.h"
 
 #include "DmBlock.h"
 #include "DmBlockTable.h"
@@ -138,6 +139,7 @@ FilterOcdIO::FilterOcdIO()
     , m_spPersistDimDiametrics(nullptr)
     , m_spPersistDimLeaders(nullptr)
     , m_spPersistHatchs(nullptr)
+    , m_spPersistCustomEntities(nullptr)
 {
 }
 
@@ -480,7 +482,8 @@ void FilterOcdIO::saveBlockTableRecords(Writer& writer)
 void FilterOcdIO::saveEntities(Writer& writer)
 {
     std::list<DmEntity*> lines, arcs, points, circles, ellipses, solids, triangles, rays, xlines, polylines, splines, inserts, hatchs
-        , texts, mtexts, attributeDefinitions, attributes, dimLinears, dimAligneds, dimAngulars, dimRadials, dimDiametrics, dimLeaders;
+        , texts, mtexts, attributeDefinitions, attributes, dimLinears, dimAligneds, dimAngulars, dimRadials, dimDiametrics, dimLeaders
+        , customs;
     // 给实体分组保存
     auto entTable = m_pDocument->getEntityTable();
     for (auto& e : *entTable)
@@ -561,6 +564,9 @@ void FilterOcdIO::saveEntities(Writer& writer)
         case DM::EntityXline:
             xlines.emplace_back(e);
             break;
+        case DM::EntityCustom:
+            customs.emplace_back(e);
+            break;
         default:
             break;
         }
@@ -639,6 +645,9 @@ void FilterOcdIO::saveEntities(Writer& writer)
         //hatch
         m_spPersistHatchs->setEntities(hatchs);
         m_spPersistHatchs->saveXML(writer);
+        //custom entities
+        m_spPersistCustomEntities->setEntities(customs);
+        m_spPersistCustomEntities->saveXML(writer);
         //image
 
         writer.Stream() << writer.ind() << "</Entities>" << std::endl;
@@ -765,6 +774,8 @@ void FilterOcdIO::restoreEntities(XMLReader& reader)
     m_spPersistDimLeaders->restoreXML(reader);
     // read hatchs
     m_spPersistHatchs->restoreXML(reader);
+    // read custom entities
+    m_spPersistCustomEntities->restoreXML(reader);
 
     reader.readEndElement("Entities");
 }
@@ -804,4 +815,5 @@ void FilterOcdIO::initPersist(const DmDocument& document)
     m_spPersistDimDiametrics.reset(new MetaDimDiametricsContainer(m_pDocument));
     m_spPersistDimLeaders.reset(new MetaDimLeadersContainer(m_pDocument));
     m_spPersistHatchs.reset(new MetaHatchsContainer(m_pDocument));
+    m_spPersistCustomEntities.reset(new MetaCustomEntitiesContainer(m_pDocument));
 }

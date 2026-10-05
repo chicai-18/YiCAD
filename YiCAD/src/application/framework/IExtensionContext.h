@@ -33,6 +33,7 @@
 #include <QString>
 
 #include "CommandRegistry.h"
+#include "DmCustomEntityRegistry.h"
 
 class DmDocument;
 class GuiDocumentView;
@@ -94,6 +95,30 @@ public:
     /// @param commandId 必须在本扩展的命名空间内，且已注册为即时命令或交互命令；命令注销时登记随之删除
     /// @return 命名空间不符、命令未注册或这类实体已有属性编辑命令时返回 false。
     virtual bool registerPropertyEditor(DM::EntityType type, const QString& commandId) = 0;
+
+    /// @brief 登记一个自定义实体类（RENDER_PLAN.md 第 4.8.2 节），扩展关闭时注销。
+    /// @details T 派生自 DmCustomEntity，用 TYPESYSTEM_SOURCE_NAMED 注册类型，类名必须在本扩展的命名空间内
+    ///          （如 "ext.pipe.PipeSegment"）。读盘按类名找这个类；没有登记的类读成代理实体
+    /// @param proxyFlags 本扩展不在、实体读成代理时允许的操作，随图纸存
+    /// @return 类名不在本扩展命名空间内或注册表拒绝（同名已登记、不能建实例）时返回 false。
+    template <typename T>
+    bool registerEntityClass(DmProxyFlags proxyFlags)
+    {
+        const std::string_view id = extensionId();
+        return registerEntityClass(DmCustomEntityRegistry::describe<T>(
+            proxyFlags, QString::fromUtf8(id.data(), static_cast<qsizetype>(id.size()))));
+    }
+
+    /// @brief 登记一个自定义实体类，见模板重载；entityClass 一般由 DmCustomEntityRegistry::describe 得出
+    virtual bool registerEntityClass(const DmCustomEntityClass& entityClass) = 0;
+
+    /// @brief 按类名登记本扩展某个自定义实体类的双击编辑命令（见 CommandRegistry::registerEntityEditor）。
+    /// @return 类名或命令不在本扩展命名空间内、命令未注册为交互命令或这个类已有编辑命令时返回 false。
+    virtual bool registerEntityEditor(const QString& className, const QString& commandId) = 0;
+
+    /// @brief 按类名登记本扩展某个自定义实体类的属性编辑命令（见 CommandRegistry::registerPropertyEditor）。
+    /// @return 类名或命令不在本扩展命名空间内、命令未注册或这个类已有属性编辑命令时返回 false。
+    virtual bool registerPropertyEditor(const QString& className, const QString& commandId) = 0;
 
     /// @brief 按命令 ID 启动命令（任意已注册命令，不限本扩展）。
     /// @return 命令未注册时返回 false。

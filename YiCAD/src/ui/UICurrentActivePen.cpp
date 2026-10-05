@@ -32,6 +32,8 @@
 #include "IDocumentManager.h"
 #include "SelectionSet.h"
 #include "DocumentCmd.h"
+#include "DmCustomEntity.h"
+#include "ProxyPermissions.h"
 #include "Transaction.h"
 
 UICurrentActivePen::UICurrentActivePen(QWidget* parent, const IDocumentManager& documents)
@@ -141,13 +143,49 @@ void UICurrentActivePen::slotSelectChanged()
 		return;
 	}
 
+    // 改的是哪一项：代理按这一项的代理权限放行，并且只改这一项
+    DmProxyFlags operation = DmProxyFlags::ColorChange | DmProxyFlags::LineWeightChange | DmProxyFlags::LineTypeChange;
+    if (sender() == m_pCurrentColor)
+    {
+        operation = DmProxyFlags::ColorChange;
+    }
+    else if (sender() == m_pCurrentWidth)
+    {
+        operation = DmProxyFlags::LineWeightChange;
+    }
+    else if (sender() == m_pCurrentLineType)
+    {
+        operation = DmProxyFlags::LineTypeChange;
+    }
+
     Transaction t2(tr("Modify current selected entities").toStdString(), doc);
     t2.start();
     EntityTable* entityTable = doc->getEntityTable();
-	for (auto e : selection->entities())
+	for (auto e : allowedForProxies(selection->entities(), operation))
 	{
         entityTable->startModify(e);
-		e->setPen(pen);
+        const bool proxy = e->getEntityType() == DM::EntityCustom && static_cast<DmCustomEntity*>(e)->isProxy();
+        if (proxy)
+        {
+            DmPen own = e->getPen(false);
+            if (hasFlag(operation, DmProxyFlags::ColorChange))
+            {
+                own.setColor(pen.getColor());
+            }
+            if (hasFlag(operation, DmProxyFlags::LineWeightChange))
+            {
+                own.setWidth(pen.getWidth());
+            }
+            if (hasFlag(operation, DmProxyFlags::LineTypeChange))
+            {
+                own.setLineType(pen.getLineType());
+            }
+            e->setPen(own);
+        }
+        else
+        {
+            e->setPen(pen);
+        }
 		//对于简单实体（比如直线）不用update()。
 		//但是对于文字（DmText）这种包含DmBlockReference的实体，里面的DmBlockReference的子实体颜色要从DmText及DmBlock获得，因此要update()
 		e->update();

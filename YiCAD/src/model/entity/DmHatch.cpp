@@ -324,37 +324,23 @@ void DmHatch::addDashEntities(const DmHatchPatternRun& run)
     };
     const std::vector<double>& dashes =
         run.pattern < m_patternLines.size() ? m_patternLines[run.pattern].dashes : std::vector<double>();
-    const double period = HatchPatternClipper::period(dashes);
-    const double length = run.start.distanceTo(run.end);
-    if (dashes.empty() || !(period > 0.0) || !(length > 0.0))
+    // 划线画成直线，点画成点
+    HatchPatternRun r;
+    r.start = run.start;
+    r.end = run.end;
+    r.phase = run.phase;
+    std::vector<std::pair<DmVector, DmVector>> segments;
+    std::vector<DmVector> dots;
+    HatchPatternClipper::splitRun(r, dashes, segments, dots);
+    for (const auto& [a, b] : segments)
     {
-        addLine(run.start, run.end);
-        return;
+        addLine(a, b);
     }
-    const DmVector dir = (run.end - run.start) / length;
-    // 图案的一个周期从 s = c 开始（c = -相位 + m·周期）；划线与线段相交的部分画成直线，落在线段内的点画成点
-    for (double c = -run.phase; c < length; c += period)
+    for (const DmVector& p : dots)
     {
-        double pos = c;
-        for (double d : dashes)
-        {
-            if (d > 0.0)
-            {
-                const double s0 = std::max(pos, 0.0);
-                const double s1 = std::min(pos + d, length);
-                if (s1 > s0)
-                {
-                    addLine(run.start + dir * s0, run.start + dir * s1);
-                }
-            }
-            else if (d == 0.0 && pos >= 0.0 && pos <= length)
-            {
-                DmPoint* point = new DmPoint(m_filledEntities.get(), PointData(run.start + dir * pos));
-                point->setPen(pen);
-                m_filledEntities->addEntity(point);
-            }
-            pos += std::fabs(d);
-        }
+        DmPoint* point = new DmPoint(m_filledEntities.get(), PointData(p));
+        point->setPen(pen);
+        m_filledEntities->addEntity(point);
     }
 }
 

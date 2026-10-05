@@ -28,6 +28,7 @@
 #include "BasePlaceTool.h"
 #include "CommandPreview.h"
 #include "ModifyCommands.h"
+#include "ProxyPermissions.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
 #include "DmLine.h"
@@ -230,7 +231,9 @@ void ModifyMirrorCommand::commitMirror(const DmVector& axisPoint1, const DmVecto
     auto entTable = document()->getEntityTable();
 
     std::vector<DmEntity*> addEnts;
-    for (auto e : selection()->entities())
+    // 保留原对象时是复制再镜像，代理要允许复制与变换
+    const DmProxyFlags operation = m_copy ? DmProxyFlags::Cloning | DmProxyFlags::Transform : DmProxyFlags::Transform;
+    for (auto e : allowedForProxies(selection()->entities(), operation))
     {
         selection()->remove(e);
         DmEntity* theEnt = nullptr;

@@ -30,6 +30,7 @@
 #include "ModifyCommands.h"
 #include "DmBlockReference.h"
 #include "DmDocument.h"
+#include "DmProxyEntity.h"
 #include "DmSettings.h"
 #include "EntityTable.h"
 #include "GuiCommandEvent.h"
@@ -37,6 +38,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Math2d.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 #include "Transaction.h"
 
@@ -210,7 +212,9 @@ bool ModifyCopyCommand::setCopyCount(const QString& input)
 
 std::vector<DmEntity*> ModifyCopyCommand::cloneSelection(const DmVector& offset) const
 {
-    const std::vector<DmEntity*> selected = selection()->entities();
+    // 复制再移动：代理要允许复制与变换（预览里也不出现不允许的代理）
+    const std::vector<DmEntity*> selected =
+        DmProxyEntity::filterAllowed(selection()->entities(), DmProxyFlags::Cloning | DmProxyFlags::Transform);
     std::vector<DmEntity*> addedEnts;
     for (int num = 1; num <= m_copyCount; num++)
     {
@@ -258,6 +262,9 @@ void ModifyCopyCommand::clearPreview()
 
 void ModifyCopyCommand::commitCopy(const DmVector& reference, const DmVector& target)
 {
+    int skipped = 0;
+    DmProxyEntity::filterAllowed(selection()->entities(), DmProxyFlags::Cloning | DmProxyFlags::Transform, &skipped);
+    reportSkippedProxies(skipped);
     Transaction t(tr("Copy").toStdString(), document());
     t.start();
     auto entTable = document()->getEntityTable();

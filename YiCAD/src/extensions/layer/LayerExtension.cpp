@@ -49,6 +49,7 @@
 #include "DmSystem.h"
 #include "EntityTable.h"
 #include "IExtensionContext.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIDialogRunner.h"
@@ -74,7 +75,7 @@ public:
         Transaction t(tr("Activate Layer").toStdString(), doc);
         t.start();
         doc->getLayerTable()->activate(layer);
-        for (DmEntity* entity : ctx.selection->entities())
+        for (DmEntity* entity : allowedForProxies(ctx.selection->entities(), DmProxyFlags::LayerChange))
         {
             // 只改顶层实体的图层：子实体绘制时取到的画笔随之改变（非随层的不变）
             if (entity->getLayer() != layer)

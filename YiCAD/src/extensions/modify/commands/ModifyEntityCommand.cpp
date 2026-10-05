@@ -51,7 +51,7 @@ public:
     void modify(DmEntity* entity)
     {
         const CommandRegistry& registry = CommandRegistry::instance();
-        const QString editor = registry.propertyEditor(entity->getEntityType());
+        const QString editor = registry.propertyEditor(*entity);
         switch (registry.kind(editor))
         {
         case CommandKind::Instant:

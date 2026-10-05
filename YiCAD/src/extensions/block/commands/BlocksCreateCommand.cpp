@@ -33,6 +33,7 @@
 #include "GuiDialogFactory.h"
 #include "IDocumentView.h"
 #include "ISnapService.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 #include "Transaction.h"
 #include "UIBlockDialog.h"
@@ -141,8 +142,9 @@ bool BlocksCreateCommand::createBlock(const DmVector& referencePoint)
     // 创建块定义
     DmBlock* block = new DmBlock(document(), blockData);
 
-    // 选中的实体取消选中后克隆到块容器，移除原始实体
-    for (auto entity : selection()->entities())
+    // 选中的实体取消选中后克隆到块容器，移除原始实体；代理要允许复制、变换（按基点平移）与删除
+    for (auto entity : allowedForProxies(selection()->entities(),
+                                         DmProxyFlags::Cloning | DmProxyFlags::Transform | DmProxyFlags::Erase))
     {
         selection()->remove(entity);
         DmEntity* clonedEntity = entity->clone();

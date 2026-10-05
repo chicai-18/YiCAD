@@ -28,6 +28,7 @@
 #include "BasePlaceTool.h"
 #include "CommandPreview.h"
 #include "ModifyCommands.h"
+#include "ProxyPermissions.h"
 #include "DmDocument.h"
 #include "DmEntityContainer.h"
 #include "EntityTable.h"
@@ -211,7 +212,7 @@ void ModifyScaleCommand::commitScale(const DmVector& reference, double factor)
 
     auto table = document()->getEntityTable();
     DmVector scaleVec(factor, factor);
-    for (auto e : selection()->entities())
+    for (auto e : allowedForProxies(selection()->entities(), DmProxyFlags::Transform))
     {
         table->startModify(e);
         e->scale(reference, scaleVec);

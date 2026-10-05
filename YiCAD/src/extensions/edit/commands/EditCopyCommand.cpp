@@ -33,6 +33,7 @@
 #include "IDocumentView.h"
 #include "ISnapService.h"
 #include "Modification.h"
+#include "ProxyPermissions.h"
 #include "SelectionSet.h"
 
 namespace
@@ -110,7 +111,10 @@ bool EditCopyCommand::onSelectionReady()
 
 void EditCopyCommand::commitCopy(const DmVector& referencePoint)
 {
-    const std::vector<DmEntity*> ents = selection()->entities();
+    // 剪贴板里的副本按参考点平移，代理要允许复制与变换；剪切还要允许删除
+    const DmProxyFlags operation = m_copy ? DmProxyFlags::Cloning | DmProxyFlags::Transform
+                                          : DmProxyFlags::Cloning | DmProxyFlags::Transform | DmProxyFlags::Erase;
+    const std::vector<DmEntity*> ents = allowedForProxies(selection()->entities(), operation);
     Modification m(document());
     m.copy(ents, referencePoint, !m_copy);
     // 复制、剪切之后取消选中
